@@ -624,8 +624,12 @@ namespace Pulsar4X.Orbits
                 OwningEntity.RemoveDataBlob<WarpMovingDB>();
             }
 
-            if (OwningEntity.GetDataBlob<PositionDB>().Parent != Parent)
-                OwningEntity.GetDataBlob<PositionDB>().SetParent(Parent);
+            if (OwningEntity.TryGetDataBlob<PositionDB>(out var positionDB) && positionDB != null)
+            {
+                if (positionDB.Parent != Parent)
+                    positionDB.SetParent(Parent);
+                positionDB.MoveType = PositionDB.MoveTypes.Orbit;
+            }
 
             if (Eccentricity >= 1)
             {

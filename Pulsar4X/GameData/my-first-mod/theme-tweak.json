@@ -1,0 +1,14 @@
+[
+  {
+    "Type": "Theme",
+    "CollectionOperation": "Add",
+    "Payload": {
+      "UniqueID": "default-theme",
+      "FirstNames": [
+        "Nova",
+        "Orion",
+        "Lyra"
+      ]
+    }
+  }
+]

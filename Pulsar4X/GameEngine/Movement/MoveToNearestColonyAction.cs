@@ -1,5 +1,6 @@
 using Pulsar4X.Colonies;
 using Pulsar4X.Engine;
+using Pulsar4X.Engine.Orders;
 
 namespace Pulsar4X.Movement
 {
@@ -22,6 +23,31 @@ namespace Pulsar4X.Movement
             var command = MoveToNearestAction.CreateCommand<MoveToNearestColonyAction>(factionId, commandingEntity);
             command.Filter = ColonyFilter;
             command.TargetSelector = ColonySelector;
+            return command;
+        }
+
+        protected override void EnsureFiltersConfigured()
+        {
+            Filter ??= ColonyFilter;
+            TargetSelector ??= ColonySelector;
+        }
+
+        public override EntityCommand Clone()
+        {
+            // Must not call CreateCommand with a null entity (common after save/load).
+            var command = new MoveToNearestColonyAction()
+            {
+                _entityCommanding = _entityCommanding,
+                UseActionLanes = UseActionLanes,
+                RequestingFactionGuid = RequestingFactionGuid,
+                EntityCommandingGuid = EntityCommandingGuid,
+                CreatedDate = CreatedDate,
+                ActionOnDate = ActionOnDate,
+                ActionedOnDate = ActionedOnDate,
+                Filter = ColonyFilter,
+                TargetSelector = ColonySelector,
+                EntityFactionFilter = EntityFactionFilter,
+            };
             return command;
         }
     }

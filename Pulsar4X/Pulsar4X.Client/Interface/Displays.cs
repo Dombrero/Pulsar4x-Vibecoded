@@ -11,7 +11,7 @@ public class Displays
     public static void GravitationalAnomlay(Pulsar4X.Api.GravSurveyView gravSurvey)
     {
         ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
-        ImGui.TextWrapped("Order a fleet equipped with a gravitational surveyor here. A successful survey may reveal a Jump Point to another system.");
+        ImGui.TextWrapped("Order a fleet with a gravitational surveyor here. A successful survey may reveal a Jump Point at this exact location.");
         ImGui.PopStyleColor();
 
         ImGui.Columns(2, "##anomaly-tooltip", false);

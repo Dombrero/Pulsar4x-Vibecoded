@@ -34,19 +34,18 @@ namespace Pulsar4X.Client
         int _freqSpanType = 1;
 
         Vector2 _iconSize = new Vector2(16, 16);
-        Vector2 _windowSize = new Vector2(200, 100);
+        Vector2 _windowSize = new Vector2(320, 100);
         Vector2 _windowPosition = new Vector2(0, 0);
+        private bool _syncedFromEngine;
 
         private TimeControl()
         {
             IsActive = true;
-            ReadTimeSpan();
-            ReadFreqency();
         }
 
         internal static TimeControl GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<TimeControl>(out var window))
+            if (_uiState.TryGetUniqueWindow<TimeControl>(out var window))
             {
                 return window;
             }
@@ -56,8 +55,29 @@ namespace Pulsar4X.Client
 
         private void Submit(TimeControlRequest request) => _uiState.GameClient?.SetTimeControlAsync(request);
 
+        private void EnsureSyncedFromEngine()
+        {
+            if (_syncedFromEngine || Time is not { } time)
+                return;
+
+            _syncedFromEngine = true;
+            ReadTimeSpan();
+            ReadFreqency();
+
+            // Old engine default was 100ms between pulses. With TickLength=1h that is ~10 game-hours
+            // per real second — the calendar date races while only the date (no clock) was shown.
+            if (time.TickFrequency < TimeSpan.FromMilliseconds(250))
+            {
+                _freqSpanType = 1;
+                _freqTimeSpanValue = 1f;
+                AdjustFreqency();
+            }
+        }
+
         internal override void Display()
         {
+            EnsureSyncedFromEngine();
+
             var time = Time;
             bool isPaused = !(time?.IsRunning ?? false);
             bool isStopping = time?.IsStopping ?? false;
@@ -71,39 +91,39 @@ namespace Pulsar4X.Client
 
             DateTime currenttime = time?.GameDateTime ?? default;
 
-            // Small arrow button for expanding time frequency menu
             if (ImGui.ArrowButton("##expand", _expanded ? ImGuiDir.Down : ImGuiDir.Right))
                 _expanded = !_expanded;
 
-            // Date display
+            // Date + time of day so hour/minute steps are visible (not only calendar day flips).
             ImGui.SameLine();
-            ImGui.Text(currenttime.ToShortDateString());
+            ImGui.Text(currenttime.ToString(_uiState.GameSettings.GetDateTimeFormat()));
 
-            // Time span slider
             ImGui.SameLine();
             ImGui.BeginDisabled(!isPaused);
             if (ImGui.SliderInt("##spnSldr", ref _timeSpanValue, 1, 60, _timeSpanValue.ToString()))
                 AdjustTimeSpan();
 
-            // Time duration combo
             ImGui.SameLine();
             if (ImGui.Combo("##spnCmbo", ref _timeSpanType, _timespanTypeSelection, _timespanTypeSelection.Length))
                 AdjustTimeSpan();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Game time advanced per step / per play pulse.");
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.TimeControlInterval);
 
             ImGui.EndDisabled();
 
             ImGui.SameLine();
 
             if (isStopping) ImGui.BeginDisabled();
-            
+
             if (ImGui.ImageButton("playpause", buttonTexture.ToTextureRef(), _iconSize))
             {
                 PausePlayPressed();
             }
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.TimeControlPlayPause);
 
             if (isStopping) ImGui.EndDisabled();
 
-            // Step button only shown when paused
             if (isPaused)
             {
                 ImGui.SameLine();
@@ -118,15 +138,13 @@ namespace Pulsar4X.Client
                 ImGui.InvisibleButton("##onestep_invisbtn", _iconSize);
             }
 
-            //When the submenu is expanded allow the user to adjust time frequency
             if (_expanded)
             {
                 ImGui.PushItemWidth(100);
                 ImGui.Indent();
-                ImGui.Text(currenttime.ToString(_uiState.GameSettings.GetTimeFormat()));
+                ImGui.TextDisabled("Real-time delay between pulses (play speed)");
 
                 ImGui.BeginDisabled(!isPaused);
-                ImGui.SameLine();
                 float freqSliderMin = _freqSpanType == 0 ? 1 : 0.001f;
                 float freqSliderMax = _freqSpanType == 0 ? 1000 : 60;
                 if (_freqTimeSpanValue > freqSliderMax)
@@ -146,12 +164,15 @@ namespace Pulsar4X.Client
                 ImGui.SameLine();
                 if (ImGui.Combo("##freqCmbo", ref _freqSpanType, _timespanTypeSelection, _timespanTypeSelection.Length))
                     ReadFreqency();
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Wall-clock wait between pulses while playing. Smaller = faster.");
                 ImGui.EndDisabled();
             }
+
+            TutorialHighlight.ReportCurrentWindow(TutorialHighlightRegion.TimeControl);
             Window.End();
         }
 
-        // Converts a (value, unit-index) pair from the combo boxes into a TimeSpan.
         private static TimeSpan ToTimeSpan(double value, int unitType) => unitType switch
         {
             0 => TimeSpan.FromMilliseconds(value),

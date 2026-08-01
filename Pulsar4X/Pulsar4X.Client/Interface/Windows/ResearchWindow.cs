@@ -115,6 +115,7 @@ namespace Pulsar4X.Client
                         DisplayLabList(labs);
                     }
                     ImGui.EndChild();
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ResearchLabList);
 
                     ImGui.SameLine();
                     if(ImGui.BeginChild("LabDetail", detailSize, ImGuiChildFlags.Borders))
@@ -127,6 +128,8 @@ namespace Pulsar4X.Client
                     ImGui.EndChild();
                 }
             }
+
+            TutorialHighlight.ReportCurrentWindow(TutorialHighlightRegion.WindowResearch);
             Window.End();
         }
 
@@ -324,6 +327,7 @@ namespace Pulsar4X.Client
                 DisplayQueue(lab.Id, researcher);
             }
             ImGui.EndChild();
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ResearchTechQueue);
 
             ImGui.SameLine();
             if(ImGui.BeginChild("AvailableTechs", techsSize, ImGuiChildFlags.Borders))
@@ -339,6 +343,7 @@ namespace Pulsar4X.Client
                 DisplayTechs(lab.Id);
             }
             ImGui.EndChild();
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ResearchAvailableTechs);
         }
 
         private void DisplayQueue(int labId, ResearcherView researcher)

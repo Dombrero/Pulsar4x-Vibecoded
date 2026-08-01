@@ -432,6 +432,12 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         if (activation == null) return;
 
         _uiState.ActivateGameUI(activation);
+        if (TutorialGuideWindow.IsTutorialColonyId(_selectedColonyId))
+        {
+            var guide = TutorialGuideWindow.GetInstance();
+            guide.ResetToFirstStep();
+            guide.SetActive(true);
+        }
         IsActive = false;
         _currentPage = Page.SelectMods;
     }

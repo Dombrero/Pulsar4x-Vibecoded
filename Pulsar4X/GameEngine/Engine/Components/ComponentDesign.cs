@@ -88,6 +88,7 @@ namespace Pulsar4X.Components
                 if (batchJob.Auto)
                 {
                     batchJob.NumberCompleted = 0;
+                    batchJob.Status = IndustryJobStatus.Queued;
                     industryDB.ProductionLines[productionLine].Jobs.Add(batchJob);
                 }
             }

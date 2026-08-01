@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Pulsar4X.Blueprints;
+using Pulsar4X.DataStructures;
 using Pulsar4X.Engine;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Storage;
@@ -47,6 +48,7 @@ namespace Pulsar4X.Industry
                 if (batchJob.Auto)
                 {
                     batchJob.NumberCompleted = 0;
+                    batchJob.Status = IndustryJobStatus.Queued;
                     industryDB.ProductionLines[productionLine].Jobs.Add(batchJob);
                 }
             }

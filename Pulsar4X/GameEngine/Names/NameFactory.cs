@@ -1,3 +1,4 @@
+using System;
 using Pulsar4X.Blueprints;
 using Pulsar4X.Engine;
 
@@ -11,16 +12,20 @@ namespace Pulsar4X.Names
             return theme.SystemNames[game.RNG.Next(0, theme.SystemNames.Count)];
         }
 
-        public static string GetShipName(Game game)
-        {
-            var theme = GetTheme(game);
-            return theme.ShipNames[game.RNG.Next(0, theme.ShipNames.Count)];
-        }
-
         public static string GetFleetName(Game game)
         {
             var theme = GetTheme(game);
+            if (theme.FleetNames == null || theme.FleetNames.Count == 0)
+                return "Fleet";
             return theme.FleetNames[game.RNG.Next(0, theme.FleetNames.Count)];
+        }
+
+        public static string GetShipName(Game game)
+        {
+            var theme = GetTheme(game);
+            if (theme.ShipNames == null || theme.ShipNames.Count == 0)
+                return "Ship";
+            return theme.ShipNames[game.RNG.Next(0, theme.ShipNames.Count)];
         }
 
         public static string GetCommanderName(Game game)
@@ -33,7 +38,12 @@ namespace Pulsar4X.Names
 
         private static ThemeBlueprint GetTheme(Game game)
         {
-            return game.Themes[game.Settings.CurrentTheme];
+            if (game.Themes.TryGetValue(game.Settings.CurrentTheme, out var theme))
+                return theme;
+            // Fall back to any loaded theme rather than KeyNotFoundException on CreateFleet/ship spawn.
+            foreach (var t in game.Themes.Values)
+                return t;
+            throw new InvalidOperationException("No themes are loaded; cannot generate names.");
         }
     }
 }

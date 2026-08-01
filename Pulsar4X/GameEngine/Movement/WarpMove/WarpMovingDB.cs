@@ -177,6 +177,8 @@ namespace Pulsar4X.Movement
                 OwningEntity.RemoveDataBlob<NewtonSimpleMoveDB>();
             }
 
+            if (OwningEntity.TryGetDataBlob<PositionDB>(out var positionDB) && positionDB != null)
+                positionDB.MoveType = PositionDB.MoveTypes.Warp;
         }
     }
 }

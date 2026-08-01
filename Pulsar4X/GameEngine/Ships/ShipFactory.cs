@@ -91,50 +91,71 @@ namespace Pulsar4X.Ships
             if (shipDesign.DesignVersion == 0) //we're using version 0 to indicate the design hasn't been built yet.
                 shipDesign.DesignVersion = 1;
 
+            if (parent?.Manager == null)
+                throw new InvalidOperationException(
+                    $"Cannot create ship '{shipName ?? shipDesign.Name}': orbit parent has no EntityManager (stale PlanetEntity after load?).");
+
+            if (shipDesign.DamageProfileDB == null)
+                throw new InvalidOperationException(
+                    $"Cannot create ship '{shipName ?? shipDesign.Name}': design has no DamageProfileDB.");
+
             var starsys = parent.Manager;
             var position = OrbitMath.GetPosition(orbit, parent.StarSysDateTime);
-            List<BaseDataBlob> dataBlobs = new List<BaseDataBlob>();
 
-            var shipinfo = new ShipInfoDB(shipDesign);
-            dataBlobs.Add(shipinfo);
-            var mvdb = MassVolumeDB.NewFromMassAndVolume(shipDesign.MassPerUnit, shipDesign.VolumePerUnit);
-            dataBlobs.Add(mvdb);
-            PositionDB posdb = new PositionDB(position, parent);
-            dataBlobs.Add(posdb);
-            EntityDamageProfileDB damagedb = (EntityDamageProfileDB)shipDesign.DamageProfileDB.Clone();
-            dataBlobs.Add(damagedb);
-            ComponentInstancesDB compInstances = new ComponentInstancesDB();
-            dataBlobs.Add(compInstances);
-            OrderableDB ordable = new OrderableDB();
-            dataBlobs.Add(ordable);
+            if (string.IsNullOrEmpty(shipName))
+                shipName = NameFactory.GetShipName(ownerFaction.Manager?.Game ?? starsys.Game);
+
             var ship = Entity.Create();
             ship.FactionOwnerID = ownerFaction.Id;
-            starsys.AddEntity(ship, dataBlobs);
 
-
-            //some DB's need tobe created after the entity.
             var namedb = new NameDB(ship.Id.ToString());
-            if (string.IsNullOrEmpty(shipName))
-            {
-                shipName = NameFactory.GetShipName(ownerFaction.Manager.Game);
-            }
-
             namedb.SetName(ownerFaction.Id, shipName);
 
-            ship.SetDataBlob(namedb);
-            ship.SetDataBlob(orbit);
-
-            foreach (var item in shipDesign.Components)
+            // Name + orbit must be in the initial blob list so EntityAdded projection does not see
+            // a half-built ship (AddEntity publishes before the old post-add SetDataBlob calls ran).
+            var dataBlobs = new List<BaseDataBlob>
             {
-                ship.AddComponent(item.design, item.count);
-            }
+                new ShipInfoDB(shipDesign),
+                MassVolumeDB.NewFromMassAndVolume(shipDesign.MassPerUnit, shipDesign.VolumePerUnit),
+                new PositionDB(position, parent),
+                (EntityDamageProfileDB)shipDesign.DamageProfileDB.Clone(),
+                new ComponentInstancesDB(),
+                new OrderableDB(),
+                namedb,
+                orbit,
+            };
 
-            if (ship.HasDataBlob<NewtonThrustAbilityDB>())
+            try
             {
-                NewtonionMovementProcessor.UpdateNewtonThrustAbilityDB(ship);
-            }
+                starsys.AddEntity(ship, dataBlobs);
 
-            return ship;
+                if (ship.Manager is null)
+                    throw new InvalidOperationException(
+                        $"AddEntity left ship#{ship.Id} without Manager — cannot install components.");
+                if (!ship.TryGetDataBlob<ComponentInstancesDB>(out _))
+                    throw new InvalidOperationException(
+                        $"AddEntity left ship#{ship.Id} without ComponentInstancesDB.");
+
+                foreach (var item in shipDesign.Components)
+                {
+                    if (item.design == null)
+                        throw new InvalidOperationException(
+                            $"Ship design '{shipDesign.Name}' has a null component entry.");
+                    ship.AddComponent(item.design, item.count);
+                }
+
+                if (ship.HasDataBlob<NewtonThrustAbilityDB>())
+                    NewtonionMovementProcessor.UpdateNewtonThrustAbilityDB(ship);
+
+                return ship;
+            }
+            catch
+            {
+                // Don't leave a half-registered entity for the next hotloop to trip over.
+                if (ship.Manager != null)
+                    ship.Destroy();
+                throw;
+            }
         }
 
         public static void DestroyShip(Entity shipToDestroy)

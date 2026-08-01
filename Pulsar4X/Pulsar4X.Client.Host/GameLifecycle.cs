@@ -184,30 +184,127 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
 
     public GameActivation? LoadGame(string filePath)
     {
-        string contents = File.ReadAllText(filePath);
-        var loadedGame = Game.Load(contents);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                Console.WriteLine($"LoadGame Error: file not found: {filePath}");
+                return null;
+            }
 
-        // TODO: need to figure out a way to properly handle faction selection on load
-        (int id, Entity faction) = loadedGame.Factions.Last();
+            string contents = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(contents))
+            {
+                Console.WriteLine($"LoadGame Error: save file is empty: {filePath}");
+                return null;
+            }
 
-        _state.ClearGameState();
-        SetGame(loadedGame);
-        BindFaction(faction, setAsPlayer: true);
+            var loadedGame = Game.Load(contents);
+            if (loadedGame == null)
+            {
+                Console.WriteLine("LoadGame Error: deserialization returned null");
+                return null;
+            }
 
-        return faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB)
-            ? new GameActivation(factionInfoDB.KnownSystems[0])
-            : null;
+            // Prefer a non-GameMaster faction that already knows systems; fall back sensibly.
+            Entity? faction = loadedGame.Factions.Values
+                .Where(f => f.Id != loadedGame.GameMasterFaction.Id)
+                .FirstOrDefault(f => f.TryGetDataBlob<FactionInfoDB>(out var info) && info.KnownSystems.Count > 0);
+
+            faction ??= loadedGame.Factions.Values
+                .FirstOrDefault(f => f.Id != loadedGame.GameMasterFaction.Id);
+
+            faction ??= loadedGame.GameMasterFaction;
+
+            if (faction == null)
+            {
+                Console.WriteLine("LoadGame Error: no factions in save");
+                return null;
+            }
+
+            string? systemId = null;
+            Vec3? cameraPos = null;
+            if (faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB)
+                && factionInfoDB.KnownSystems.Count > 0)
+            {
+                systemId = factionInfoDB.KnownSystems[0];
+            }
+            else if (loadedGame.Systems.Count > 0)
+            {
+                systemId = loadedGame.Systems[0].ID;
+            }
+
+            if (string.IsNullOrEmpty(systemId))
+            {
+                Console.WriteLine("LoadGame Error: no star system to activate");
+                return null;
+            }
+
+            // Pause any previous clock before tearing down UI state.
+            _game?.TimePulse.PauseTime();
+
+            _state.ClearGameState();
+            SetGame(loadedGame);
+            BindFaction(faction, setAsPlayer: true);
+
+            var system = loadedGame.Systems.FirstOrDefault(s => s.ID.Equals(systemId));
+            if (system != null)
+            {
+                var colony = factionInfoDB?.Colonies?.FirstOrDefault();
+                if (colony != null && colony.TryGetDataBlob<PositionDB>(out var pos))
+                {
+                    var absolute = pos.AbsolutePosition;
+                    cameraPos = new Vec3(absolute.X, absolute.Y, absolute.Z);
+                }
+            }
+
+            return new GameActivation(systemId)
+            {
+                CameraPositionM = cameraPos,
+                CameraZoom = 2_245_000f,
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadGame Error: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            return null;
+        }
     }
 
     public void SaveGame(string filePath)
     {
         if (_game == null) return;
 
-        // Update the save git hash
-        _game.LastSaveGitHash = AssemblyInfo.GetGitHash();
+        try
+        {
+            // Avoid serializing while the sim thread is mutating state.
+            _game.TimePulse.PauseTime();
 
-        string gameJson = Game.Save(_game);
-        File.WriteAllText(filePath, gameJson);
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
+
+            _game.LastSaveGitHash = AssemblyInfo.GetGitHash();
+
+            string gameJson = Game.Save(_game);
+            if (string.IsNullOrWhiteSpace(gameJson))
+                throw new InvalidOperationException("Game.Save returned empty JSON.");
+
+            // Atomic replace without leaving a half-written .sav if something fails mid-write.
+            string tempPath = filePath + ".tmp";
+            File.WriteAllText(tempPath, gameJson);
+            if (File.Exists(filePath))
+                File.Replace(tempPath, filePath, null);
+            else
+                File.Move(tempPath, filePath);
+
+            Console.WriteLine($"SaveGame OK: {filePath} ({gameJson.Length} chars)");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SaveGame Error: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            // Do not rethrow — the UI catches and logs; crashing the process is worse.
+        }
     }
 
     public void SetGameMasterMode(bool enabled)

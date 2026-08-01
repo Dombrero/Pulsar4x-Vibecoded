@@ -520,6 +520,22 @@ namespace Pulsar4X.Engine.Api
 
             private Task Forward(GameEventType type, Message m)
             {
+                try
+                {
+                    return ForwardCore(type, m);
+                }
+                catch (Exception ex)
+                {
+                    // MessagePublisher awaits handlers; an uncaught NullRef here becomes an
+                    // unobserved/async-void crash right after ship spawn.
+                    DebugTraceLog.Error("API",
+                        $"Event forward {type} failed: {ex.GetType().Name}: {ex.Message}");
+                    return Task.CompletedTask;
+                }
+            }
+
+            private Task ForwardCore(GameEventType type, Message m)
+            {
                 var projector = _server._projector;
 
                 // A fleet reorganisation just re-pushes the faction's whole fleet tree.

@@ -422,8 +422,9 @@ namespace Pulsar4X.Client
 
         private void DisplayOrders()
         {
-            var orders = _entity?.GetView<OrdersView>()?.Orders;
-            if (orders == null || orders.Count == 0) return;
+            var orders = OrderDisplayHelpers.ResolveOrdersList(
+                _uiState.GameClient, EntityId, _entity?.GetView<OrdersView>());
+            if (orders.Count == 0) return;
 
             if (ImGui.CollapsingHeader("Orders", ImGuiTreeNodeFlags.DefaultOpen))
             {
@@ -555,8 +556,11 @@ namespace Pulsar4X.Client
 
             // Single-line overview: capacity used vs provided, and the resulting output.
             // TextUnformatted: the literal '%' would be read as a printf specifier by ImGui.Text.
+            // One decimal so near-full over-capacity (e.g. 99.7%) is not rounded to "100%".
             string summary = $"{infrastructure.CapacityRequired:N0} / {infrastructure.CapacityProvided:N0} capacity"
-                + $" · {infrastructure.Efficiency * 100:0}% output";
+                + $" · {(infrastructure.Efficiency * 100):0.0}% output";
+            if (overCapacity)
+                summary += $" · short {(-infrastructure.CapacityAvailable):N0}";
 
             const float cardPadding = 8f;
             float cardHeight = cardPadding * 2f + ImGui.GetTextLineHeightWithSpacing() * 2f;
@@ -803,11 +807,12 @@ namespace Pulsar4X.Client
             string orderName = "Idle";
             string orderDetails = "";
 
-            var orders = _entity.GetView<OrdersView>()?.Orders;
-            if (orders is { Count: > 0 })
+            var current = OrderDisplayHelpers.ResolveCurrentOrder(
+                _uiState.GameClient, EntityId, _entity.GetView<OrdersView>());
+            if (current != null)
             {
-                orderName = orders[0].Name;
-                orderDetails = orders[0].Details;
+                orderName = current.Name;
+                orderDetails = current.Details;
             }
 
             float rightEdge = cursorPos.X + availWidth;
@@ -942,8 +947,9 @@ namespace Pulsar4X.Client
                 ImGui.Unindent();
             }
 
-            // Orders (inline, no collapsing header)
-            var orders = _entity.GetView<OrdersView>()?.Orders;
+            // Orders (inline, no collapsing header) — fleet mission when the ship queue is empty
+            var orders = OrderDisplayHelpers.ResolveOrdersList(
+                _uiState.GameClient, EntityId, _entity.GetView<OrdersView>());
             if (orders is { Count: > 0 })
             {
                 SectionLabel("ORDERS (" + orders.Count + ")");

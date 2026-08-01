@@ -1,12 +1,15 @@
 using System;
+using Pulsar4X.Api;
 using Pulsar4X.Orbital;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Extensions;
 using Pulsar4X.Energy;
+using Pulsar4X.Factions;
 using Pulsar4X.Orbits;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Engine;
+using Pulsar4X.Storage;
 
 namespace Pulsar4X.Movement
 {
@@ -59,8 +62,6 @@ namespace Pulsar4X.Movement
     /// </summary>
     public class WarpMoveProcessor : IHotloopProcessor
     {
-        private static GameSettings _gameSettings;
-
         public TimeSpan RunFrequency => TimeSpan.FromMinutes(5);
 
         public TimeSpan FirstRunOffset => TimeSpan.FromMinutes(0);
@@ -69,7 +70,6 @@ namespace Pulsar4X.Movement
 
         public void Init(Game game)
         {
-            _gameSettings = game.Settings;
         }
 
 
@@ -134,7 +134,11 @@ namespace Pulsar4X.Movement
                     moveDB.IsAtTarget = true;
                     //if our destination is a non moving object eg a grav anomaly or jump point.
                     if(destinationMoveType == PositionDB.MoveTypes.None)
+                    {
                         moveDB.CurrentNonNewtonionVectorMS = Vector3.Zero;
+                        // Stay in zero-speed warp (design), but sync PositionDB + bill tank fuel.
+                        FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
+                    }
                     else
                         EndWarpMove(entity, warpDB, moveDB, toDateTime);
                 }
@@ -165,6 +169,8 @@ namespace Pulsar4X.Movement
 
 
             var moveDB = entity.GetDataBlob<WarpMovingDB>();
+            // Keep MoveState parent in sync — otherwise ProcessForType nulls Parent via unset _parentEnitity.
+            moveDB._parentEnitity = positionDB.Root ?? moveDB._parentEnitity;
             var tgt = moveDB.TargetEntity.GetDataBlob<PositionDB>();
             var tgtpos = tgt.AbsolutePosition;
             moveDB._position = (Vector2)positionDB.AbsolutePosition;
@@ -177,7 +183,7 @@ namespace Pulsar4X.Movement
             var tcost = t * warpDB.BubbleSustainCost;
             double estored = powerDB.EnergyStored[warpDB.EnergyType];
             bool canStart = false;
-            if (creationCost <= estored)
+            if (creationCost <= estored && HasWarpTankFuel(entity))
             {
 
                 var currentVelocityMS = Vector3.Normalise(targetPosMt - currentPositionMt) * maxSpeedMS;
@@ -198,6 +204,36 @@ namespace Pulsar4X.Movement
         }
 
 
+        /// <summary>
+        /// Arrive at a MoveTypes.None target (grav anomaly / jump point): keep zero-speed warp
+        /// (ships "hover" on warp resources) but sync PositionDB and consume tank fuel.
+        /// </summary>
+        static void FinishWarpAtStaticTarget(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB, DateTime toDateTime)
+        {
+            if (moveDB.TargetEntity == null)
+                return;
+
+            ConsumeWarpTankFuel(entity, moveDB, toDateTime);
+
+            if (entity.TryGetDataBlob<PositionDB>(out var pos))
+            {
+                pos.AbsolutePosition = moveDB.ExitPointAbsolute;
+                pos.SetParent(moveDB.TargetEntity);
+                pos.MoveType = PositionDB.MoveTypes.Warp;
+            }
+
+            moveDB._parentEnitity = moveDB.TargetEntity;
+            moveDB._position = (Vector2)moveDB.ExitPointrelative;
+            moveDB.LastProcessDateTime = toDateTime;
+
+            var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();
+            powerDB.AddDemand(warpDB.BubbleCollapseCost, entity.StarSysDateTime);
+            powerDB.AddDemand(-warpDB.BubbleSustainCost, entity.StarSysDateTime);
+            powerDB.AddDemand(-warpDB.BubbleCollapseCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
+            // Sustain zero-speed hover at the anomaly.
+            powerDB.AddDemand(warpDB.BubbleSustainCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
+        }
+
         static void EndWarpMove(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB,  DateTime toDateTime)
         {
             var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();
@@ -214,18 +250,15 @@ namespace Pulsar4X.Movement
             {
                 case PositionDB.MoveTypes.None:
                 {
-                    //if our destination is a non moving object eg a grav anomaly or jump point.
-                    //this case should be handled prior to this.
-                    throw new Exception("shouldn't get here");
+                    FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
                     break;
                 }
                 case PositionDB.MoveTypes.Orbit:
                 {
+                    // Predictable tank drain for the hop (not uncapped newton circularisation).
+                    ConsumeWarpTankFuel(entity, moveDB, toDateTime);
                     entity.RemoveDataBlob<WarpMovingDB>();
-                    if (_gameSettings.StrictNewtonion)
-                        SetOrbitHereSimpleNewt(entity, moveDB, toDateTime);
-                    else
-                        SetOrbitHereNoNewt(entity, moveDB, toDateTime);
+                    SetOrbitHereNoNewt(entity, moveDB, toDateTime);
                     break;
                 }
                 case PositionDB.MoveTypes.NewtonSimple:
@@ -253,6 +286,87 @@ namespace Pulsar4X.Movement
 
 
         /// <summary>
+        /// True when the ship has no cargo fuel type, or at least a little fuel left to warp.
+        /// </summary>
+        internal static bool HasWarpTankFuel(Entity entity)
+        {
+            try
+            {
+                if (!entity.TryGetDataBlob<CargoStorageDB>(out var storage))
+                    return true;
+
+                var cargoLib = entity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+                var (fuel, _) = entity.GetFuelInfo(cargoLib);
+                if (fuel == null)
+                    return true;
+
+                return storage.GetUnitsStored(fuel, includeEscro: false) > 0;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Drain cargo-tank fuel for a completed warp hop.
+        /// Energy capacitors still pay bubble create/sustain/collapse; this is the visible
+        /// tank cost so ships cannot roam the system forever on a full tank.
+        /// Cost scales with distance and is hard-capped so one hop cannot empty the tank
+        /// (the old StrictNewtonion circularisation burned ~90% per arrival).
+        /// </summary>
+        internal static void ConsumeWarpTankFuel(Entity entity, WarpMovingDB moveDB, DateTime atDateTime)
+        {
+            try
+            {
+                if (!entity.TryGetDataBlob<CargoStorageDB>(out var storage))
+                    return;
+
+                var cargoLib = entity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+                var (fuel, _) = entity.GetFuelInfo(cargoLib);
+                if (fuel == null)
+                    return;
+
+                long stored = storage.GetUnitsStored(fuel, includeEscro: false);
+                long free = storage.GetFreeUnitSpace(fuel, includeEscro: false);
+                long capacity = stored + free;
+                if (capacity <= 0 || stored <= 0)
+                    return;
+
+                double distance_m = (moveDB.ExitPointAbsolute - moveDB.EntryPointAbsolute).Length();
+                const double MetersPerAu = 149597870700.0;
+                double au = Math.Max(0, distance_m / MetersPerAu);
+
+                // Sub-trivial hops (re-dispatch noise / already-on-station) must not bill the
+                // 1.5% bubble minimum — that turned arrival jitter into a fuel death spiral.
+                const double MinBillableAu = 0.01;
+                if (au < 1e-6)
+                    return;
+                double fraction = au < MinBillableAu
+                    ? Math.Clamp(0.015 * (au / MinBillableAu), 0, 0.015)
+                    : Math.Clamp(0.015 + 0.05 * au, 0.015, 0.18);
+                long want = Math.Max(1, (long)Math.Ceiling(capacity * fraction));
+                long take = Math.Min(want, stored);
+                if (take <= 0)
+                    return;
+
+                double mass = take * fuel.MassPerUnit;
+                CargoTransferProcessor.AddRemoveCargoMass(entity, fuel, -mass);
+
+                DebugTraceLog.Info("Fuel",
+                    $"ship#{entity.Id}: warp hop burned {take} units / {mass:0.#} kg " +
+                    $"({100.0 * take / capacity:0.#}% of tank, {au:0.####} AU)",
+                    atDateTime);
+            }
+            catch (Exception ex)
+            {
+                DebugTraceLog.Warn("Fuel",
+                    $"ship#{entity.Id}: warp fuel consume failed: {ex.Message}",
+                    atDateTime);
+            }
+        }
+
+        /// <summary>
         /// Sets a circular orbit without newtonion movement or fuel use.
         /// </summary>
         /// <param name="entity"></param>
@@ -265,18 +379,28 @@ namespace Pulsar4X.Movement
             if(moveDB.TargetEntity == null) throw new NullReferenceException("moveDB.TargetEntity cannot be null");
 
             PositionDB moveStatedb = entity.GetDataBlob<PositionDB>();
+            Entity intendedTarget = moveDB.TargetEntity;
 
-            double targetSOI = moveDB.TargetEntity.GetSOI_m();
+            // During warp PositionDB stays parented to the system root and is not stepped with
+            // WarpMovingDB._position. Using that stale PositionDB for the SOI check treated every
+            // arrival as "outside SOI" and parented the ship to the star — IsShipAtBody never
+            // succeeded, so GeoSurvey kept re-warping in 1.5%-min micro-hops until Refuel preempted.
+            moveStatedb.AbsolutePosition = moveDB.ExitPointAbsolute;
+
+            double targetSOI = intendedTarget.GetSOI_m();
+            double distToTarget = intendedTarget.GetDataBlob<PositionDB>().GetDistanceTo_m(moveStatedb);
 
             Entity? targetEntity;
-
-            if (moveDB.TargetEntity.GetDataBlob<PositionDB>().GetDistanceTo_m(moveStatedb) > targetSOI)
+            if (distToTarget > targetSOI
+                && intendedTarget.TryGetDataBlob<OrbitDB>(out var targetOrbit)
+                && targetOrbit.Parent != null)
             {
-                targetEntity = moveDB.TargetEntity.GetDataBlob<OrbitDB>().Parent; //TODO: it's concevable we could be in another SOI not the parent (ie we could be in a target's moon's SOI)
+                // Truly outside SOI (rare for CreateCommandEZ low-orbit exits): fall back to parent.
+                targetEntity = targetOrbit.Parent;
             }
             else
             {
-                targetEntity = moveDB.TargetEntity;
+                targetEntity = intendedTarget;
             }
 
             if(targetEntity == null) throw new NullReferenceException("targetEntity cannot be null");

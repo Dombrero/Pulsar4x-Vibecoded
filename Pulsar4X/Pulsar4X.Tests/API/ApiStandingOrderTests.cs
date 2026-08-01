@@ -28,7 +28,26 @@ namespace Pulsar4X.Tests
             {
                 new StandingOrderCondition(StandingOrderTypes.FuelCondition, StandingOrderComparison.LessThan, 30f),
             },
-            new[] { StandingOrderTypes.MoveToNearestColony, StandingOrderTypes.Refuel });
+            new[] { StandingOrderTypes.Refuel });
+
+        private static StandingOrder[] AllConditionTypesSample() => new[]
+        {
+            new StandingOrder("fuel",
+                new[] { new StandingOrderCondition(StandingOrderTypes.FuelCondition, StandingOrderComparison.LessThan, 30f) },
+                new[] { StandingOrderTypes.Refuel }),
+            new StandingOrder("health",
+                new[] { new StandingOrderCondition(StandingOrderTypes.HealthCondition, StandingOrderComparison.LessThan, 50f) },
+                new[] { StandingOrderTypes.MoveToNearestColony }),
+            new StandingOrder("cargo",
+                new[] { new StandingOrderCondition(StandingOrderTypes.CargoFillCondition, StandingOrderComparison.GreaterThanOrEqual, 90f) },
+                new[] { StandingOrderTypes.MoveToNearestColony }),
+            new StandingOrder("geo",
+                new[] { new StandingOrderCondition(StandingOrderTypes.UnsurveyedGeoCondition, StandingOrderComparison.GreaterThan, 0f) },
+                new[] { StandingOrderTypes.MoveToNearestGeoSurvey }),
+            new StandingOrder("anomaly",
+                new[] { new StandingOrderCondition(StandingOrderTypes.UnsurveyedAnomalyCondition, StandingOrderComparison.GreaterThan, 0f) },
+                new[] { StandingOrderTypes.MoveToNearestGravSurvey }),
+        };
 
         [Test]
         public void SetStandingOrders_round_trips_through_the_fleet_snapshot()
@@ -47,6 +66,28 @@ namespace Pulsar4X.Tests
             Assert.That(projected[0].Name, Is.EqualTo(order.Name));
             Assert.That(projected[0].Conditions, Is.EqualTo(order.Conditions).AsCollection);
             Assert.That(projected[0].Actions, Is.EqualTo(order.Actions).AsCollection);
+        }
+
+        [Test]
+        public void SetStandingOrders_round_trips_all_condition_types()
+        {
+            var session = Connect();
+            int fleetId = MakeFleet(session);
+            var orders = AllConditionTypesSample();
+
+            var result = _server.SubmitCommand(session, new SetStandingOrdersCommand(fleetId, orders));
+            Assert.That(result.Accepted, Is.True, result.RejectionReason);
+
+            var (fleets, _) = _projector.ProjectFleetHierarchy(session.FactionId);
+            var projected = fleets.First(f => f.Id == fleetId).StandingOrders;
+
+            Assert.That(projected, Has.Count.EqualTo(orders.Length));
+            for (int i = 0; i < orders.Length; i++)
+            {
+                Assert.That(projected[i].Name, Is.EqualTo(orders[i].Name));
+                Assert.That(projected[i].Conditions, Is.EqualTo(orders[i].Conditions).AsCollection);
+                Assert.That(projected[i].Actions, Is.EqualTo(orders[i].Actions).AsCollection);
+            }
         }
 
         [Test]

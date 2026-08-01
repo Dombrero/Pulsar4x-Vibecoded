@@ -65,6 +65,7 @@ namespace Pulsar4X.Engine.Api
                 [typeof(TransferCargoCommand)] = TranslateTransferCargo,
                 [typeof(SetOrderPauseCommand)] = TranslateSetOrderPause,
                 [typeof(Pulsar4X.Api.CancelOrderCommand)] = TranslateCancelOrder,
+                [typeof(ClearFleetOrdersCommand)] = TranslateClearFleetOrders,
                 [typeof(Pulsar4X.Api.NewtonThrustCommand)] = TranslateNewtonThrust,
                 [typeof(Pulsar4X.Api.WarpMoveCommand)] = TranslateWarpMove,
                 [typeof(SetFireControlWeaponsCommand)] = TranslateSetFireControlWeapons,
@@ -115,7 +116,8 @@ namespace Pulsar4X.Engine.Api
             => _game.GlobalManager.TryGetGlobalEntityById(entityId, out entity);
 
         /// <summary>Finds the fleet in the faction's command tree whose direct children include
-        /// <paramref name="ship"/>, or null when the ship sits at the faction root (or isn't in the tree).</summary>
+        /// <paramref name="ship"/>. Returns the faction entity itself when the ship sits at the
+        /// faction root, or null when the ship isn't in the tree.</summary>
         private static Entity? FindHoldingFleet(Entity fleet, Entity ship)
         {
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB)) return null;
@@ -187,16 +189,33 @@ namespace Pulsar4X.Engine.Api
         private CommandResult TranslateReassignShip(Entity faction, Entity commanded, GameCommand command)
         {
             var reassign = (ReassignShipCommand)command;
+
+            // Reassigning to the faction root means "unattach" — only UnassignShip. AssignShip to the
+            // faction would incorrectly promote the ship to faction FlagShip and transfer the faction.
+            if (reassign.ToFleetId == faction.Id)
+            {
+                var currentHolder = FindHoldingFleet(faction, commanded);
+                if (currentHolder == null || currentHolder == faction)
+                    return CommandResult.Ok(Guid.NewGuid().ToString("N")); // already unattached
+
+                return Dispatch(FleetOrder.UnassignShip(faction.Id, currentHolder, commanded));
+            }
+
             if (!TryResolve(reassign.ToFleetId, out var toFleet))
                 return CommandResult.Reject($"Entity {reassign.ToFleetId} not found.");
             if (!toFleet.HasDataBlob<FleetDB>())
                 return CommandResult.Reject("Reassignment target is not a fleet.");
 
-            // Detach the ship from wherever it currently sits: a fleet in the tree, or the faction root.
-            var holder = FindHoldingFleet(faction, commanded) ?? faction;
-            var unassign = FleetOrder.UnassignShip(faction.Id, holder, commanded);
-            if (!_game.OrderHandler.HandleOrder(unassign))
-                return CommandResult.Reject("Command rejected by engine validation.");
+            // Detach from a real fleet first. Ships already on the faction root are "unattached" —
+            // UnassignShip(faction, …) fails IsValidCommand (faction.FactionOwnerID != faction.Id),
+            // and AssignShip already removes the ship from the faction Children list.
+            var holder = FindHoldingFleet(faction, commanded);
+            if (holder != null && holder != faction && holder != toFleet)
+            {
+                var unassign = FleetOrder.UnassignShip(faction.Id, holder, commanded);
+                if (!_game.OrderHandler.HandleOrder(unassign))
+                    return CommandResult.Reject("Command rejected by engine validation.");
+            }
 
             return Dispatch(FleetOrder.AssignShip(faction.Id, toFleet, commanded));
         }
@@ -234,6 +253,14 @@ namespace Pulsar4X.Engine.Api
                     {
                         StandingOrderTypes.FuelCondition => new FuelCondition(
                             Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
+                        StandingOrderTypes.HealthCondition => new HealthCondition(
+                            Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
+                        StandingOrderTypes.CargoFillCondition => new CargoFillCondition(
+                            Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
+                        StandingOrderTypes.UnsurveyedGeoCondition => new UnsurveyedGeoCondition(
+                            Math.Clamp(condition.Threshold, 0, 50), ToComparisonType(condition.Comparison)),
+                        StandingOrderTypes.UnsurveyedAnomalyCondition => new UnsurveyedAnomalyCondition(
+                            Math.Clamp(condition.Threshold, 0, 50), ToComparisonType(condition.Comparison)),
                         _ => null,
                     };
                     if (engineCondition == null)
@@ -251,19 +278,35 @@ namespace Pulsar4X.Engine.Api
                 var actions = new DataStructures.SafeList<EntityCommand>();
                 foreach (var actionType in order.Actions ?? Array.Empty<string>())
                 {
+                    // Resupply is a no-op stub — drop it so saved Move→Refuel→Resupply chains stop looping.
+                    if (actionType == StandingOrderTypes.Resupply)
+                        continue;
+
                     EntityCommand? action = actionType switch
                     {
                         StandingOrderTypes.MoveToNearestColony => MoveToNearestColonyAction.CreateCommand(faction.Id, commanded),
                         StandingOrderTypes.MoveToNearestGeoSurvey => MoveToNearestGeoSurveyAction.CreateCommand(faction.Id, commanded),
+                        StandingOrderTypes.MoveToNearestGravSurvey => MoveToNearestGravSurveyAction.CreateCommand(faction.Id, commanded),
                         StandingOrderTypes.MoveToNearestAnomaly => MoveToNearestAnomalyAction.CreateCommand(faction.Id, commanded),
-                        StandingOrderTypes.Refuel => new RefuelAction(),
-                        StandingOrderTypes.Resupply => new ResupplyAction(),
+                        StandingOrderTypes.Refuel => RefuelAction.CreateCommand(faction.Id, commanded),
                         _ => null,
                     };
                     if (action == null)
                         return CommandResult.Reject($"Unknown standing-order action: {actionType}");
                     actions.Add(action);
                 }
+
+                // Refuel already warps to the nearest colony — drop redundant Move-to-Colony.
+                if (actions.Any(a => a is RefuelAction))
+                {
+                    for (int i = actions.Count - 1; i >= 0; i--)
+                    {
+                        if (actions[i] is MoveToNearestColonyAction)
+                            actions.RemoveAt(i);
+                    }
+                }
+
+                EnsureDefaultStandingConditions(compound, actions);
 
                 rebuilt.Add(new ConditionalOrder(compound, actions) { Name = order.Name ?? "" });
             }
@@ -273,9 +316,59 @@ namespace Pulsar4X.Engine.Api
             fleetDB.StandingOrders.Clear();
             foreach (var order in rebuilt)
                 fleetDB.StandingOrders.Add(order);
+            fleetDB.ActiveStandingOrderIndex = -1;
+            fleetDB.StandingSuppressUntil = null;
 
             PublishOrdersChanged(commanded);
+
+            // Kick standing eval immediately so Save after Issue Idle does not wait a full hour.
+            try
+            {
+                if (commanded.TryGetDataBlob<OrderableDB>(out var q)
+                    && q != null
+                    && !q.ActionList.Any(a => a.Source == OrderSource.Issued)
+                    && commanded.Manager?.Game?.ProcessorManager != null)
+                {
+                    commanded.Manager.Game.ProcessorManager
+                        .RunProcessOnEntity<FleetDB>(commanded, 0);
+                }
+            }
+            catch
+            {
+                // Next FleetOrderProcessor hotloop will pick it up.
+            }
+
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+        }
+
+        private static void EnsureDefaultStandingConditions(
+            CompoundCondition compound,
+            DataStructures.SafeList<EntityCommand> actions)
+        {
+            if (compound.ConditionItems.Count > 0 || actions.Count == 0)
+                return;
+
+            // Players often save Grav/Geo survey with only an action — previously that never
+            // ENTERed because empty conditions were skipped. Attach the natural trigger.
+            if (actions.Any(a => a is MoveToNearestGravSurveyAction || a is MoveToNearestAnomalyAction))
+            {
+                compound.ConditionItems.Add(new ConditionItem(
+                    new UnsurveyedAnomalyCondition(0f, DataStructures.ComparisonType.GreaterThan)));
+                return;
+            }
+
+            if (actions.Any(a => a is MoveToNearestGeoSurveyAction))
+            {
+                compound.ConditionItems.Add(new ConditionItem(
+                    new UnsurveyedGeoCondition(0f, DataStructures.ComparisonType.GreaterThan)));
+                return;
+            }
+
+            if (actions.Any(a => a is RefuelAction))
+            {
+                compound.ConditionItems.Add(new ConditionItem(
+                    new FuelCondition(30f, DataStructures.ComparisonType.LessThan)));
+            }
         }
 
         private static DataStructures.ComparisonType ToComparisonType(StandingOrderComparison comparison)
@@ -294,6 +387,9 @@ namespace Pulsar4X.Engine.Api
             if (!TryResolve(move.BodyId, out var body))
                 return CommandResult.Reject($"Entity {move.BodyId} not found.");
 
+            // Stuck out-of-range cargo transfers occupy the ship Movement lane and block warp.
+            FleetOrderCleanup.AbortCargoTransfersOnFleetShips(commanded);
+
             return Dispatch(MoveToSystemBodyOrder.CreateCommand(faction.Id, commanded, body));
         }
 
@@ -303,9 +399,8 @@ namespace Pulsar4X.Engine.Api
             if (!TryResolve(survey.BodyId, out var body))
                 return CommandResult.Reject($"Entity {survey.BodyId} not found.");
 
-            if (!_game.OrderHandler.HandleOrder(WarpFleetTowardsTargetOrder.CreateCommand(commanded, body)))
-                return CommandResult.Reject("Command rejected by engine validation.");
-
+            // One order: travel (if needed) then survey. Separate Warp+Survey pairs raced Movement
+            // lanes and allowed surveying while still at Earth.
             return Dispatch(GeoSurveyOrder.CreateCommand(faction.Id, commanded, body));
         }
 
@@ -345,12 +440,18 @@ namespace Pulsar4X.Engine.Api
             if (!colony.HasDataBlob<CargoStorageDB>())
                 return CommandResult.Reject("Refuel target has no cargo storage.");
 
-            if (!_game.OrderHandler.HandleOrder(WarpFleetTowardsTargetOrder.CreateCommand(commanded, colony)))
-                return CommandResult.Reject("Command rejected by engine validation.");
+            // Drop stuck transfers before queuing warp + deferred refuel.
+            FleetOrderCleanup.AbortCargoTransfersOnFleetShips(commanded);
 
-            return CargoTransferOrder.CreateRefuelFleetCommand(colony, commanded)
-                ? CommandResult.Ok(Guid.NewGuid().ToString("N"))
-                : CommandResult.Reject("No ship in the fleet could take on fuel.");
+            if (!FleetOrderCleanup.IsFleetAtColony(commanded, colony))
+            {
+                if (!_game.OrderHandler.HandleOrder(WarpFleetTowardsTargetOrder.CreateCommand(commanded, colony)))
+                    return CommandResult.Reject("Command rejected by engine validation.");
+            }
+
+            // Transfers only after arrival — issuing WaitTillFull while out of range never finishes
+            // and locks Movement on every ship.
+            return Dispatch(RefuelWhenAtColonyOrder.CreateCommand(faction.Id, commanded, colony));
         }
 
         // ----- cargo transfer (commanded entity: the source) -----
@@ -429,11 +530,27 @@ namespace Pulsar4X.Engine.Api
             var order = orderable.ActionList.FirstOrDefault(o => o.CmdID == cancel.OrderId);
             if (order == null)
                 return CommandResult.Reject($"Order {cancel.OrderId} is not in the queue.");
-            if (order.IsRunning)
-                return CommandResult.Reject("A running order cannot be cancelled.");
 
+            // Cargo transfers hold escrow on both partners — Abort restores goods and removes both orders.
+            if (order is CargoTransferOrder cargoTransfer)
+            {
+                cargoTransfer.Abort();
+                PublishOrdersChanged(commanded);
+                return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+            }
+
+            // Allow cancelling running orders too — otherwise stub/stuck actions can lock a fleet forever.
             orderable.ActionList.Remove(order);
             PublishOrdersChanged(commanded);
+            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+        }
+
+        private CommandResult TranslateClearFleetOrders(Entity faction, Entity commanded, GameCommand command)
+        {
+            if (!commanded.HasDataBlob<FleetDB>())
+                return CommandResult.Reject("ClearFleetOrders requires a fleet.");
+
+            FleetOrderCleanup.ClearFleetAndShipOrders(commanded);
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
@@ -806,14 +923,22 @@ namespace Pulsar4X.Engine.Api
             if (ValidateIndustryLine(commanded, queue.ProductionLineId) is { } lineError)
                 return lineError;
 
+            var industryDB = commanded.GetDataBlob<IndustryAbilityDB>();
+            var line = industryDB.ProductionLines[queue.ProductionLineId];
+            if (!line.IndustryTypeRates.ContainsKey(design.IndustryTypeID))
+                return CommandResult.Reject("This production line cannot produce that design.");
+
+            // Ship yards assemble hulls only; components are built at Factories.
+            if (line.IndustryTypeRates.ContainsKey("ship-assembly") && design is not Pulsar4X.Ships.ShipDesign)
+                return CommandResult.Reject("Ship yards can only assemble ship designs. Build components at a Factory.");
+
             var job = new IndustryJob(factionInfo, queue.DesignId);
 
-            // Auto-install only applies to installations built by the colony for itself; ship
-            // components etc. need a target-selection flow that doesn't exist yet (engine TODO).
+            // Auto-install only for real colony buildings (Facility / Infrastructure / …), not
+            // dual-mount ship gear that also lists PlanetInstallation (e.g. passive sensor).
             if (queue.AutoInstall
-                && design.GuiHints == DataStructures.ConstructableGuiHints.CanBeInstalled
                 && design is Pulsar4X.Components.ComponentDesign componentDesign
-                && componentDesign.ComponentMountType.HasFlag(DataStructures.ComponentMountType.PlanetInstallation))
+                && IndustryTools.IsColonyInstallationDesign(componentDesign))
             {
                 job.InstallOn = commanded;
             }

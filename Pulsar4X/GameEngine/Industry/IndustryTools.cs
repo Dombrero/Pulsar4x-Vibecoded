@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pulsar4X.Api;
+using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Extensions;
@@ -13,6 +15,26 @@ namespace Pulsar4X.Industry
 {
     public static class IndustryTools
     {
+        /// <summary>
+        /// Colony buildings (Factory, Refinery, …). Dual-mount ship gear that also lists
+        /// <see cref="ComponentMountType.PlanetInstallation"/> (e.g. passive sensor) is not a colony building.
+        /// </summary>
+        public static bool IsColonyInstallationDesign(IConstructableDesign design)
+        {
+            if (design is not ComponentDesign component)
+                return false;
+            if (!component.ComponentMountType.HasFlag(ComponentMountType.PlanetInstallation))
+                return false;
+
+            // Pure colony buildings only. Dual-mount ship gear (sensors, fuel tanks, …) that
+            // also lists PlanetInstallation must stay under Components — otherwise Fuel Tank
+            // designs appear as "Colony Installations" and offer a misleading Auto-install.
+            if (!component.ComponentMountType.HasFlag(ComponentMountType.ShipComponent))
+                return true;
+
+            return component.ComponentType is "Facility" or "Infrastructure";
+        }
+
         public static void AddJob(Entity industryEntity, string plineID, IndustryJob job)
         {
             var industryDB = industryEntity.GetDataBlob<IndustryAbilityDB>();
@@ -123,14 +145,12 @@ namespace Pulsar4X.Industry
                 foreach(var batchJob in prodLine.Jobs.ToArray())
                 {
                     IConstructableDesign designInfo = factionInfo.IndustryDesigns[batchJob.ItemGuid];
-                    float industryPointsToUse = industryPointsRemaining[designInfo.IndustryTypeID];// * productionPercentage;
-
-                    if(batchJob.Status != IndustryJobStatus.Completed)
+                    if (!industryPointsRemaining.TryGetValue(designInfo.IndustryTypeID, out var pointsForType)
+                        || pointsForType < 1)
                     {
                         batchJob.Status = IndustryJobStatus.Queued;
+                        continue;
                     }
-
-                    if(industryPointsToUse < 1) continue;
 
                     //total number of resources requred for a single job in this batch
                     var resourceSum = batchJob.ResourcesCosts.Sum(item => item.Value);
@@ -139,12 +159,14 @@ namespace Pulsar4X.Industry
                         throw new Exception("resources can't cost 0");
 
                     float pointPerResource = (float)designInfo.IndustryPointCosts / (float)resourceSum;
-                    float startingPointsLeft = batchJob.ProductionPointsLeft;
-                    float startingPointsToUse = industryPointsToUse;
+                    bool madeProgressThisPass = false;
+                    int completionsThisPass = 0;
 
+                    // Use the remaining points dictionary in the while guard — a local copy goes
+                    // stale after spending, and Math.Max(..., 1) below used to invent free IP.
                     while (
                         batchJob.NumberCompleted < batchJob.NumberOrdered &&
-                        industryPointsToUse >= 1)
+                        industryPointsRemaining[designInfo.IndustryTypeID] >= 1)
                     {
                         //gather availible resorces for this job.
                         //right now we take all the resources we can, for an individual item in the batch.
@@ -165,11 +187,14 @@ namespace Pulsar4X.Industry
                         // the industry Points equivelent of total used resources.
                         var totalIPEquvelent = totalResourcesUsed * pointPerResource;
 
-                        int pointsToUse = 0;
-                        industryPointsToUse = Math.Min(industryPointsRemaining[designInfo.IndustryTypeID], batchJob.ProductionPointsLeft);
+                        float industryPointsToUse = Math.Min(
+                            industryPointsRemaining[designInfo.IndustryTypeID],
+                            batchJob.ProductionPointsLeft);
+                        int pointsToUse;
                         if (totalResourceStillReq == 0)
                         {
-                            pointsToUse = Math.Max((int)industryPointsToUse, 1);
+                            // All inputs gathered — spend real remaining IP only (never invent +1).
+                            pointsToUse = (int)Math.Floor(industryPointsToUse);
                         }
                         else
                         {
@@ -177,26 +202,67 @@ namespace Pulsar4X.Industry
                             pointsToUse = (int)Math.Floor(industryPointsToUse);
                         }
 
+                        if (pointsToUse < 1)
+                        {
+                            // Partial cargo toward the job (IP equivalent floored to 0) or truly stuck.
+                            if (totalResourcesUsed > 0 || madeProgressThisPass)
+                                batchJob.Status = IndustryJobStatus.Processing;
+                            else if (totalResourceStillReq > 0)
+                                batchJob.Status = IndustryJobStatus.MissingResources;
+                            else
+                                batchJob.Status = IndustryJobStatus.Queued;
+                            break;
+                        }
+
                         //construct only enough for the amount of resources we have.
                         batchJob.ProductionPointsLeft -= pointsToUse;
                         industryPointsRemaining[designInfo.IndustryTypeID] -= pointsToUse;
-
-                        if(startingPointsLeft == batchJob.ProductionPointsLeft
-                            && batchJob.ProductionPointsCost > startingPointsToUse)
-                        {
-                            // Didn't make any progress mark as missing resources
-                            batchJob.Status = IndustryJobStatus.MissingResources;
-                        }
-                        else if(pointsToUse >= 1 || totalResourcesUsed > 0)
-                        {
-                            batchJob.Status = IndustryJobStatus.Processing;
-                        }
+                        madeProgressThisPass = true;
+                        batchJob.Status = IndustryJobStatus.Processing;
 
                         if (batchJob.ProductionPointsLeft == 0 && totalResourceStillReq == 0)
                         {
                             batchJob.Status = IndustryJobStatus.Completed;
-                            designInfo.OnConstructionComplete(industryEntity, stockpile, prodLineID, batchJob, designInfo);
+                            completionsThisPass++;
+                            try
+                            {
+                                // Cheap Auto recipes can finish dozens of times per day — log a
+                                // summary once after the pass instead of flooding the debug window.
+                                if (completionsThisPass == 1)
+                                {
+                                    DebugTraceLog.Info("Production",
+                                        $"Job complete: '{designInfo.Name}' ({designInfo.UniqueID}) on entity#{industryEntity.Id} line={prodLineID}",
+                                        industryEntity.StarSysDateTime);
+                                }
+                                designInfo.OnConstructionComplete(industryEntity, stockpile, prodLineID, batchJob, designInfo);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Keep other production lines running — a single bad completion
+                                // must not abort the whole ConstructStuff pass.
+                                DebugTraceLog.Error("Production",
+                                    $"OnConstructionComplete failed for '{designInfo.Name}': {ex.GetType().Name}: {ex.Message}",
+                                    industryEntity.StarSysDateTime);
+                                break;
+                            }
+                            // Auto re-queues in OnConstructionComplete (NumberCompleted → 0). Keep
+                            // looping so the day's remaining industry points are used.
                         }
+                    }
+
+                    if (completionsThisPass > 1)
+                    {
+                        DebugTraceLog.Info("Production",
+                            $"Job '{designInfo.Name}' completed x{completionsThisPass} this tick on entity#{industryEntity.Id} line={prodLineID}",
+                            industryEntity.StarSysDateTime);
+                    }
+
+                    if (batchJob.Auto
+                        && madeProgressThisPass
+                        && batchJob.NumberCompleted == 0
+                        && prodLine.Jobs.Contains(batchJob))
+                    {
+                        batchJob.Status = IndustryJobStatus.Processing;
                     }
                 }
             }

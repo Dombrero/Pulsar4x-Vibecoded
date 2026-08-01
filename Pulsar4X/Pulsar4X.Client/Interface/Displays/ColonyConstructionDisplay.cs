@@ -40,6 +40,7 @@ namespace Pulsar4X.Client
                 DisplayQueue(entityId, construction, uiState);
             }
             ImGui.EndChild();
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ConstructionQueue);
 
             ImGui.SameLine();
 
@@ -48,6 +49,7 @@ namespace Pulsar4X.Client
                 DisplayAvailableDesigns(entityId, construction, uiState);
             }
             ImGui.EndChild();
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ConstructionDesigns);
         }
 
         private void DisplayConstructionHeader(ConstructionView construction)

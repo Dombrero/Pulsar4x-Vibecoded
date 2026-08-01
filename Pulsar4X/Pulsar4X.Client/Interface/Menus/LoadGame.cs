@@ -6,8 +6,8 @@ namespace Pulsar4X.Client.Interface.Menus;
 
 public class LoadGame : UniquePulsarGuiWindow<LoadGame>
 {
-    private string _filePath = Path.Combine(PulsarMainWindow.GetAppDataPath(), PulsarMainWindow.SavesPath);
-    private string _fileName = "savegame";
+    private string _filePath = Path.Combine(PulsarMainWindow.GetAppDataPath() ?? "", PulsarMainWindow.SavesPath);
+    private string _fileName = "savegame.sav";
 
     private LoadGame() {}
 
@@ -22,29 +22,57 @@ public class LoadGame : UniquePulsarGuiWindow<LoadGame>
 
     internal void LoadLatest()
     {
-        var files = Directory.EnumerateFiles(_filePath);
-        DateTime date = DateTime.UnixEpoch;
-        string? fileToLoad = null;
-        foreach (var file in files)
+        try
         {
-            FileInfo fi = new FileInfo(file);
-            if (fi.LastWriteTime > date)
+            if (!Directory.Exists(_filePath))
             {
-                fileToLoad = file;
-                date = fi.LastWriteTime;
+                Console.WriteLine($"LoadLatest: saves folder missing: {_filePath}");
+                return;
             }
-        }
-        if(!string.IsNullOrEmpty(fileToLoad))
-            LoadFile(Path.Combine(fileToLoad, fileToLoad));
 
+            string? fileToLoad = null;
+            DateTime best = DateTime.MinValue;
+            foreach (var file in Directory.EnumerateFiles(_filePath, "*.sav"))
+            {
+                var write = File.GetLastWriteTime(file);
+                if (write > best)
+                {
+                    best = write;
+                    fileToLoad = file;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(fileToLoad))
+                LoadFile(fileToLoad);
+            else
+                Console.WriteLine("LoadLatest: no .sav files found");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadLatest Error: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
     }
 
     internal void LoadFile(string filenamepath)
     {
-        var activation = _uiState.Lifecycle?.LoadGame(filenamepath);
-        if (activation == null) return;
+        try
+        {
+            var activation = _uiState.Lifecycle?.LoadGame(filenamepath);
+            if (activation == null)
+            {
+                // Lifecycle.LoadGame already logged the root cause (LoadGame Error: …).
+                Console.WriteLine($"LoadFile failed: {filenamepath} (see preceding LoadGame Error for details)");
+                return;
+            }
 
-        _uiState.ActivateGameUI(activation);
+            _uiState.ActivateGameUI(activation);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadFile Error: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
     }
 
     internal override void Display()

@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Linq;
 using Pulsar4X.Api;
 using Pulsar4X.Orbital;
 using SDL3;
@@ -15,6 +16,11 @@ namespace Pulsar4X.Client
         float _iconMinSize = 8;
         int _entityId;
         string _sysId;
+        bool _surveyComplete;
+        bool _infrastructureComplete;
+
+        static readonly SDL.Color SurveyRingColor = new() { R = 64, G = 220, B = 80, A = 230 };
+        static readonly SDL.Color InfrastructureRingColor = new() { R = 180, G = 90, B = 230, A = 230 };
 
         public byte Priority { get { return 100; } }
 
@@ -26,6 +32,7 @@ namespace Pulsar4X.Client
             _entityId = entity.Id;
             _sysId = systemId;
             _rng = new Random(_entityId); //use entity id as a seed for psudoRandomness.
+            RefreshStatusFlags(entity);
 
             BuildShape();
         }
@@ -130,6 +137,10 @@ namespace Pulsar4X.Client
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
+            var entity = _state?.GameClient?.Galaxy.GetSystem(_sysId)?.GetEntity(_entityId);
+            if (entity != null)
+                RefreshStatusFlags(entity);
+
             _viewRadius = camera.ViewDistance(_bodyRadiusAU);
             if (_viewRadius < _iconMinSize)
                 Scale = _iconMinSize * 0.01f;
@@ -168,11 +179,59 @@ namespace Pulsar4X.Client
                         }
                     }
                 }
-                return; // skip outline for filled bodies
+            }
+            else
+            {
+                // Draw outline for asteroids
+                base.Draw(rendererPtr, camera);
             }
 
-            // Draw outline for asteroids
-            base.Draw(rendererPtr, camera);
+            DrawStatusRings(rendererPtr);
+        }
+
+        void RefreshStatusFlags(EntitySnapshot entity)
+        {
+            _surveyComplete = entity.GetView<GeoSurveyView>()?.IsSurveyComplete == true;
+            _infrastructureComplete = false;
+
+            var system = _state?.GameClient?.Galaxy.GetSystem(_sysId);
+            if (system == null)
+                return;
+
+            var colony = system.Entities.FirstOrDefault(e =>
+                e.Kind == BodyKind.Colony
+                && e.Relation == OwnerRelation.Owned
+                && e.GetView<ColonyView>()?.PlanetEntityId == entity.Id);
+
+            _infrastructureComplete = colony?.GetView<InfrastructureView>()?.HasInstalledInfrastructure == true;
+        }
+
+        void DrawStatusRings(IntPtr rendererPtr)
+        {
+            if (!_surveyComplete && !_infrastructureComplete)
+                return;
+
+            int cx = ViewScreenPos.X;
+            int cy = ViewScreenPos.Y;
+            int bodyRadius = Math.Max(2, (int)(Scale * 100));
+
+            // Survey ring sits just outside the body; infrastructure ring is further out
+            // so both remain visible when a surveyed body also has infrastructure.
+            if (_surveyComplete)
+                DrawThickRing(rendererPtr, cx, cy, bodyRadius + 3, SurveyRingColor);
+
+            if (_infrastructureComplete)
+                DrawThickRing(rendererPtr, cx, cy, bodyRadius + 7, InfrastructureRingColor);
+        }
+
+        static void DrawThickRing(IntPtr rendererPtr, int cx, int cy, int radius, SDL.Color color)
+        {
+            SDL.SetRenderDrawColor(rendererPtr, color.R, color.G, color.B, color.A);
+            for (int offset = 0; offset < 2; offset++)
+            {
+                int r = radius + offset;
+                DrawPrimitive.DrawEllipse(rendererPtr, cx, cy, r, r);
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Engine;
@@ -21,5 +22,27 @@ namespace Pulsar4X.Engine.Orders
         }
 
         public abstract bool Evaluate(Entity fleet);
+
+        /// <summary>
+        /// Applies <see cref="ComparisionType"/> against <see cref="Threshold"/>.
+        /// </summary>
+        protected bool Compare(double value)
+        {
+            switch (ComparisionType)
+            {
+                case ComparisonType.LessThan:
+                    return value < Threshold;
+                case ComparisonType.LessThanOrEqual:
+                    return value <= Threshold;
+                case ComparisonType.EqualTo:
+                    return value == Threshold;
+                case ComparisonType.GreaterThan:
+                    return value > Threshold;
+                case ComparisonType.GreaterThanOrEqual:
+                    return value >= Threshold;
+                default:
+                    throw new InvalidOperationException("Unknown comparison type.");
+            }
+        }
     }
 }

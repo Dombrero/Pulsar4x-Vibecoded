@@ -5,20 +5,26 @@ using SDL3;
 namespace Pulsar4X.Client;
 public class PointOfInterestIcon : Icon
 {
-    public PointOfInterestIcon(IPosition positionDB) : base(positionDB)
+    private readonly SDL.Color _colour;
+
+    public PointOfInterestIcon(IPosition positionDB) : this(positionDB, new SDL.Color { R = 115, G = 115, B = 115, A = 165 })
     {
+    }
+
+    /// <summary>Jump points use a brighter colour so they stand out from grey survey anomalies.</summary>
+    public static PointOfInterestIcon ForJumpPoint(IPosition positionDB)
+        => new(positionDB, new SDL.Color { R = 80, G = 200, B = 255, A = 220 });
+
+    public PointOfInterestIcon(IPosition positionDB, SDL.Color colour) : base(positionDB)
+    {
+        _colour = colour;
         BasicShape();
         OnPhysicsUpdate();
     }
 
     void BasicShape()
     {
-        //For now we're just going to use a simple cheveron to represent ships, make something fancier in the future
-        //by somone who has some design mojo.
-        byte r = 115;
-        byte g = 115;
-        byte b = 115;
-        byte a = 165;
+        // Diamond marker for grav anomalies / jump points.
         Vector2[] points = {
             new Vector2() { X = 0, Y = 5 },
             new Vector2() { X = 5, Y = 0 },
@@ -27,8 +33,7 @@ public class PointOfInterestIcon : Icon
             new Vector2() { X = 0, Y = 5 }
         };
 
-        SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-        Shapes.Add(new Shape() { Points = points, Color = colour });
+        Shapes.Add(new Shape() { Points = points, Color = _colour });
     }
 
     public override void OnFrameUpdate(Matrix matrix, Camera camera)

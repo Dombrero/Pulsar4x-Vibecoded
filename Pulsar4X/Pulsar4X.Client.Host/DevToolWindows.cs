@@ -109,7 +109,34 @@ public static class DevToolWindows
             "sm-window", "View SM debug info about a body",
             () => SMWindow.GetInstance().ToggleActive(),
             () => SMWindow.GetInstance().GetActive(),
-            DevToolPlacement.SMToolbar));
+            DevToolPlacement.SMToolbar)
+        {
+            ToolbarIcon = () => state.Img_Power(),
+        });
+
+        // Always visible on the left toolbar — Aurora-style Spacemaster / god mode toggle.
+        state.RegisterDevTool(new DevToolRegistration(
+            "sm-mode-toolbar", "Spacemaster Mode (God Mode)",
+            () =>
+            {
+                state.ToggleGameMaster();
+                var panel = SMWindow.GetInstance();
+                if (state.SMenabled)
+                {
+                    state.ActiveWindow = panel;
+                    panel.SetActive(true);
+                }
+                else
+                {
+                    panel.SetActive(false);
+                }
+            },
+            () => state.SMenabled,
+            DevToolPlacement.Toolbar)
+        {
+            ToolbarIcon = () => state.Img_Power(),
+            Order = 50,
+        });
 
         state.RegisterDevTool(new DevToolRegistration(
             "sm-mode", "SM Mode",
@@ -125,5 +152,11 @@ public static class DevToolWindows
 
         // The debug window tracks engine game events; rehook whenever a game is created or loaded.
         state.OnGameLoaded += () => DebugWindow.GetInstance().SetGameEvents();
+
+        state.RegisterDevTool(new DevToolRegistration(
+            "tutorial-guide", "Tutorial-Anleitung anzeigen",
+            () => TutorialGuideWindow.GetInstance().ToggleActive(),
+            () => TutorialGuideWindow.GetInstance().GetActive(),
+            DevToolPlacement.SettingsList));
     }
 }

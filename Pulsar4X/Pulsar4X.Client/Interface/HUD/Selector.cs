@@ -81,6 +81,8 @@ namespace Pulsar4X.Client
                 {
                     DisplaySections();
                 }
+
+                TutorialHighlight.ReportCurrentWindow(TutorialHighlightRegion.RightSelector);
             }
             Window.End();
         }
@@ -116,6 +118,12 @@ namespace Pulsar4X.Client
         {
             if(drawGear) ImGui.SetNextItemAllowOverlap();
             bool open = ImGui.CollapsingHeader($"{headerLabel}###section-{sectionId}", ImGuiTreeNodeFlags.DefaultOpen);
+            if (sectionId == "Colonies")
+                TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorColonies);
+            else if (sectionId == "Fleets")
+                TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorFleets);
+            else if (sectionId == "Corporation")
+                TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorFunds);
             if(drawGear) DrawGearButton(sameLine: true);
             if(open) content();
         }
@@ -198,6 +206,7 @@ namespace Pulsar4X.Client
 
             // Create the selectable with the label, padding, and value
             ImGui.Selectable($"{label}{padding}{value}");
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorFunds);
         }
 
         private void DisplaySystems()

@@ -6,6 +6,7 @@ using Pulsar4X.Factions;
 using Pulsar4X.Fleets;
 using Pulsar4X.Industry;
 using Pulsar4X.Interfaces;
+using Pulsar4X.Messaging;
 
 namespace Pulsar4X.GeoSurveys;
 
@@ -24,8 +25,10 @@ public class GeoSurveyProcessor : IInstanceProcessor
 
     internal override void ProcessEntity(Entity entity, DateTime atDateTime)
     {
-        // TODO: need to only get the survey points from ships that are at the survey location
-        uint totalSurveyPoints = GetSurveyPoints(Fleet);
+        uint totalSurveyPoints = GetSurveyPointsAtTarget(Fleet, Target);
+
+        if (totalSurveyPoints == 0)
+            return; // Nobody on station yet — do not progress remotely.
 
         if(Target.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
         {
@@ -52,31 +55,59 @@ public class GeoSurveyProcessor : IInstanceProcessor
                         Fleet.FactionOwnerID,
                         Target.Manager.ManagerID,
                         Target.Id));
+
+                PublishTargetChanged();
             }
             else
             {
                 geoSurveyableDB.GeoSurveyStatus[Fleet.FactionOwnerID] -= totalSurveyPoints;
+                PublishTargetChanged();
             }
         }
     }
 
-    private uint GetSurveyPoints(Entity entity)
+    private void PublishTargetChanged()
+    {
+        MessagePublisher.Instance.Publish(Message.Create(
+            MessageTypes.EntityChanged,
+            entityId: Target.Id,
+            systemId: Target.Manager.ManagerID,
+            factionId: Fleet.FactionOwnerID));
+    }
+
+    private uint GetSurveyPointsAtTarget(Entity fleet, Entity target)
     {
         uint totalSurveyPoints = 0;
 
-        if(entity.TryGetDataBlob<GeoSurveyAbilityDB>(out var geoSurveyAbilityDB))
+        if (fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
         {
-            totalSurveyPoints += geoSurveyAbilityDB.Speed;
-        }
-
-        if(entity.TryGetDataBlob<FleetDB>(out var fleetDB))
-        {
-            foreach(var child in fleetDB.Children)
+            foreach (var child in fleetDB.Children)
             {
-                totalSurveyPoints += GetSurveyPoints(child);
+                if (child.HasDataBlob<FleetDB>())
+                {
+                    totalSurveyPoints += GetSurveyPointsAtTarget(child, target);
+                    continue;
+                }
+
+                if (!FleetOrderCleanup.IsShipAtBody(child, target))
+                    continue;
+
+                totalSurveyPoints += GetLocalSurveyPoints(child);
             }
+        }
+        else
+        {
+            if (FleetOrderCleanup.IsShipAtBody(fleet, target))
+                totalSurveyPoints += GetLocalSurveyPoints(fleet);
         }
 
         return totalSurveyPoints;
+    }
+
+    private static uint GetLocalSurveyPoints(Entity entity)
+    {
+        if (entity.TryGetDataBlob<GeoSurveyAbilityDB>(out var geoSurveyAbilityDB))
+            return geoSurveyAbilityDB.Speed;
+        return 0;
     }
 }

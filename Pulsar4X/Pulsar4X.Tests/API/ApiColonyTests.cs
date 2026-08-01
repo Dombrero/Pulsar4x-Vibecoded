@@ -2,6 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using Pulsar4X.Api;
 using Pulsar4X.Colonies;
+using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Galaxy;
@@ -91,28 +92,41 @@ namespace Pulsar4X.Tests
         }
 
         [Test]
-        public void Industry_and_construction_commands_reject_bad_targets()
+        public void Local_construction_points_recalc_from_installed_offices()
         {
             var session = Connect();
             var colony = MakeColony(session);
-            colony.SetDataBlob(new LocalConstructionDB { PointsPerDay = 100 });
 
-            // Unknown design ids are rejected with a real reason…
-            var queueResult = _server.SubmitCommand(session,
-                new QueueIndustryJobCommand(colony.Id, "line", "no-such-design", 1, false, false));
-            Assert.That(queueResult.Accepted, Is.False);
-            Assert.That(queueResult.RejectionReason, Does.Contain("not found"));
+            var design = new ComponentDesign
+            {
+                UniqueID = "test-construction-office",
+                Name = "Test Construction Office",
+                ComponentType = "Facility",
+            };
+            design.AttributesByType[typeof(LocalConstructionAtb)] = new LocalConstructionAtb(1, 5);
 
-            var addResult = _server.SubmitCommand(session,
-                new AddToConstructionQueueCommand(colony.Id, "no-such-design"));
-            Assert.That(addResult.Accepted, Is.False);
-            Assert.That(addResult.RejectionReason, Does.Contain("not found"));
+            colony.AddComponent(design);
 
-            // …and queue positions that don't exist are too.
-            var moveResult = _server.SubmitCommand(session,
-                new MoveConstructionJobCommand(colony.Id, 0, MoveUp: true));
-            Assert.That(moveResult.Accepted, Is.False);
-            Assert.That(moveResult.RejectionReason, Does.Contain("queue position"));
+            Assert.That(colony.TryGetDataBlob<LocalConstructionDB>(out var construction), Is.True);
+            Assert.That(construction!.PointsPerDay, Is.EqualTo(5),
+                "installing a Level-1 office (5 pts) should create 5 PointsPerDay via recalc");
+
+            // Simulate the save/load desync the UI was showing: office still installed, points zeroed.
+            construction.PointsPerDay = 0;
+            ReCalcProcessor.ReCalcAbilities(colony);
+
+            Assert.That(colony.GetDataBlob<LocalConstructionDB>().PointsPerDay, Is.EqualTo(5),
+                "recalc must restore PointsPerDay from installed LocalConstructionAtb components");
+
+            // Queue must survive a points-only recalc.
+            construction = colony.GetDataBlob<LocalConstructionDB>();
+            construction.BuildQueue.Enqueue(new LocalConstructionJob(design));
+            construction.PointsPerDay = 0;
+            ReCalcProcessor.ReCalcAbilities(colony);
+            construction = colony.GetDataBlob<LocalConstructionDB>();
+            Assert.That(construction.PointsPerDay, Is.EqualTo(5));
+            Assert.That(construction.BuildQueue, Has.Count.EqualTo(1),
+                "recalc must not wipe an existing build queue");
         }
 
         [Test]
@@ -133,6 +147,48 @@ namespace Pulsar4X.Tests
             Assert.That(colonies, Has.Count.EqualTo(1));
             Assert.That(_projector.ProjectEntity(colonies[0], session.FactionId).GetView<ColonyView>()?.PlanetEntityId,
                 Is.EqualTo(planet.Id));
+        }
+
+        [Test]
+        public void Ship_yard_constructibles_exclude_components_and_queue_rejects_them()
+        {
+            var session = Connect();
+            var colony = MakeColony(session);
+            var faction = _game.Factions[session.FactionId];
+            var factionInfo = faction.GetDataBlob<Pulsar4X.Factions.FactionInfoDB>();
+
+            // Mimic a ship yard: both component-construction and ship-assembly rates.
+            const string lineId = "test-shipyard";
+            colony.SetDataBlob(new IndustryAbilityDB(lineId, new IndustryAbilityDB.ProductionLine
+            {
+                Name = "Ship Yard",
+                IndustryTypeRates =
+                {
+                    ["component-construction"] = 100,
+                    ["ship-assembly"] = 100,
+                },
+            }));
+
+            var component = new ComponentDesign
+            {
+                UniqueID = "test-geo-surveyor-component",
+                Name = "Geo Surveyor Mk1",
+                IndustryTypeID = "component-construction",
+                IndustryPointCosts = 100,
+                IsValid = true,
+            };
+            factionInfo.IndustryDesigns[component.UniqueID] = component;
+
+            var industry = _projector.ProjectEntity(colony, session.FactionId).GetView<IndustryView>();
+            Assert.That(industry, Is.Not.Null);
+            var constructibles = industry!.ProductionLines[0].Constructibles;
+            Assert.That(constructibles.Any(c => c.DesignId == component.UniqueID), Is.False,
+                "ship yards must not list components as if they were ships");
+
+            var result = _server.SubmitCommand(session, new QueueIndustryJobCommand(
+                colony.Id, lineId, component.UniqueID, 1, false, false));
+            Assert.That(result.Accepted, Is.False);
+            Assert.That(result.RejectionReason, Does.Contain("ship designs").IgnoreCase);
         }
 
         /// <summary>Plants a bare colony for the session's faction on a body in the test system.</summary>

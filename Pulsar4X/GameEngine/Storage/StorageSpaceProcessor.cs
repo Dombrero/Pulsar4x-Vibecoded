@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
@@ -57,6 +58,14 @@ namespace Pulsar4X.Storage
             return calculatedMaxStorage;
         }
 
+        /// <summary>
+        /// Baseline when an entity has cargo storage but no working CargoTransferAtb
+        /// (e.g. Spaceport template historically pointed at a missing attribute type).
+        /// Without this, TransferRate becomes 0 and refuel / cargo orders never move mass.
+        /// </summary>
+        internal const int FallbackTransferRate_kgs = 100;
+        internal const double FallbackTransferRange_mps = 3000;
+
         internal static (int rate, double range) CalcRateAndRange(ComponentInstancesDB instancesDB)
         {
             double rate = 0;
@@ -80,7 +89,11 @@ namespace Pulsar4X.Storage
                     }
                 }
             }
-            int finalRate = (int)rate;
+
+            if (i == 0)
+                return (FallbackTransferRate_kgs, FallbackTransferRange_mps);
+
+            int finalRate = Math.Max(1, (int)rate);
             double finalRange = range / i;
             return (finalRate, finalRange);
         }
@@ -117,7 +130,11 @@ namespace Pulsar4X.Storage
                     i++;
                 }
             }
-            int finalRate = (int)rate;
+
+            if (i == 0)
+                return (FallbackTransferRate_kgs, FallbackTransferRange_mps);
+
+            int finalRate = Math.Max(1, (int)rate);
             double finalRange = range / i;
             return (finalRate, finalRange);
         }

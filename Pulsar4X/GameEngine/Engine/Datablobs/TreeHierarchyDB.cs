@@ -162,10 +162,11 @@ namespace Pulsar4X.Datablobs
 
         private TreeHierarchyDB? GetSameTypeDB(Entity entity)
         {
-            // FIXME: this has/get combo can crash on race conditions
-            return !entity.IsValid && entity.HasDataBlob(this.GetType()) ?
-                null :
-                (TreeHierarchyDB)entity.GetDataBlob(this.GetType());
+            // Only return a blob when the entity is valid AND has this tree type. The previous
+            // `!IsValid && HasBlob ? null : GetBlob` inverted the guard and could KeyNotFound/NullRef.
+            if (entity is null || !entity.IsValid || !entity.HasDataBlob(GetType()))
+                return null;
+            return (TreeHierarchyDB)entity.GetDataBlob(GetType());
         }
 
         public TreeHierarchyDB? TryGetChild<T>(Entity entity) where T : TreeHierarchyDB

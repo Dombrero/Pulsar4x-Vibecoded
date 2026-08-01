@@ -430,10 +430,13 @@ public sealed record IndustryJobView(
     string Status,
     bool MissingResources,
     double PercentComplete,
-    long ProductionPointsLeft)
+    long ProductionPointsLeft,
+    long ProductionPointsCost)
 {
-    /// <summary>What the job still needs (names pre-resolved), for status tooltips.</summary>
+    /// <summary>Inputs still owed for the current unit (zeros omitted).</summary>
     public IReadOnlyList<ResourceRequirement> RemainingRequirements { get; init; } = Array.Empty<ResourceRequirement>();
+    /// <summary>Full per-unit recipe costs (always the design totals).</summary>
+    public IReadOnlyList<ResourceRequirement> RecipeRequirements { get; init; } = Array.Empty<ResourceRequirement>();
 }
 
 public sealed record ResourceRequirement(string Name, long Amount);
@@ -448,6 +451,12 @@ public sealed record ConstructibleItemView(
     bool CanAutoInstall)
 {
     public IReadOnlyList<IndustryCostItem> Costs { get; init; } = Array.Empty<IndustryCostItem>();
+    /// <summary>Effective industry points this production line can spend per day on this design's
+    /// industry type (not a stockpile — capacity refreshes each day).</summary>
+    public double IndustryPointsPerDay { get; init; }
+    /// <summary>True for colony buildings (Factory, Refinery, …). Ship gear that happens to also
+    /// list PlanetInstallation (e.g. passive sensor) is false — those belong under components.</summary>
+    public bool IsColonyInstallation { get; init; }
 }
 
 public sealed record IndustryCostItem(
@@ -665,10 +674,15 @@ public static class StandingOrderTypes
 {
     // conditions
     public const string FuelCondition = "condition:fuel";
+    public const string HealthCondition = "condition:health";
+    public const string CargoFillCondition = "condition:cargo-fill";
+    public const string UnsurveyedGeoCondition = "condition:unsurveyed-geo";
+    public const string UnsurveyedAnomalyCondition = "condition:unsurveyed-anomaly";
 
     // actions
     public const string MoveToNearestColony = "action:move-to-nearest-colony";
     public const string MoveToNearestGeoSurvey = "action:move-to-nearest-geo-survey";
+    public const string MoveToNearestGravSurvey = "action:move-to-nearest-grav-survey";
     public const string MoveToNearestAnomaly = "action:move-to-nearest-anomaly";
     public const string Refuel = "action:refuel";
     public const string Resupply = "action:resupply";
@@ -729,6 +743,13 @@ public sealed class FleetSnapshot
     public bool InheritOrders { get; init; }
     public bool CanGeoSurvey { get; init; }
     public bool CanGravSurvey { get; init; }
+
+    /// <summary>
+    /// When the Issue/Standing queue is empty, optional standing reason shown instead of Idle
+    /// (e.g. "Can't find more anomalies").
+    /// </summary>
+    public string? StatusMessage { get; init; }
+
     public IReadOnlyList<OrderSnapshot> Orders { get; init; } = Array.Empty<OrderSnapshot>();
     public IReadOnlyList<StandingOrder> StandingOrders { get; init; } = Array.Empty<StandingOrder>();
     public IReadOnlyList<FleetSnapshot> SubFleets { get; init; } = Array.Empty<FleetSnapshot>();

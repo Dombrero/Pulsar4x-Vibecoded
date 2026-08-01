@@ -182,7 +182,7 @@ namespace Pulsar4X.Engine.Api
             (e, _) => e.TryGetDataBlob<AtmosphereDB>(out var a) ? ToAtmosphereView(a, a.OwningEntity?.Manager?.Game) : null,
             // Non-owners see a ship's class but not its internals (health, armor, crew).
             (e, f) => e.TryGetDataBlob<ShipInfoDB>(out var sh)
-                ? (e.FactionOwnerID == f ? ToShipView(sh, e, f) : new ShipView(sh.Design.Name))
+                ? (e.FactionOwnerID == f ? ToShipView(sh, e, f) : new ShipView(sh.Design?.Name ?? "Unknown"))
                 : null,
             (e, f) => e.TryGetDataBlob<GeoSurveyableDB>(out var g) ? ToGeoSurveyView(g, f) : null,
             (e, _) => e.HasDataBlob<ColonizeableDB>() ? new ColonizableView() : null,
@@ -430,8 +430,8 @@ namespace Pulsar4X.Engine.Api
             }
 
             return new ShipView(
-                shipInfo.Design.Name,
-                shipInfo.Design.CrewReq,
+                shipInfo.Design?.Name ?? "Unknown",
+                shipInfo.Design?.CrewReq ?? 0,
                 commander,
                 totalCount > 0 ? totalHealth / totalCount : 1,
                 operationalCount,
@@ -679,8 +679,18 @@ namespace Pulsar4X.Engine.Api
                     stockpile = store?.CurrentStoreInUnits[mineralId] ?? 0;
                 }
 
-                bool canMine = mining != null && mining.ActualMiningRate.ContainsKey(mineralId);
-                long annualProduction = canMine ? 365 * mining!.ActualMiningRate[mineralId] : 0;
+                bool canMine = mining != null && mining.BaseMiningRate.ContainsKey(mineralId);
+                double infraEfficiency = InfrastructureProcessor.GetEfficiency(colony);
+                double dailyRate = 0;
+                if (canMine && mining != null)
+                {
+                    float miningBonuses = 1.0f;
+                    if (colony.TryGetDataBlob<ColonyBonusesDB>(out var colonyBonusesDB))
+                        miningBonuses = colonyBonusesDB.GetBonus(AbilityType.Mine);
+                    long baseRate = mining.BaseMiningRate[mineralId];
+                    dailyRate = baseRate * miningBonuses * deposit.Accessibility * infraEfficiency;
+                }
+                long annualProduction = canMine ? (long)Math.Floor(365 * dailyRate) : 0;
 
                 rows.Add(new MineralMiningRow(
                     mineralId,
@@ -690,7 +700,7 @@ namespace Pulsar4X.Engine.Api
                     deposit.Amount.For(factionMask),
                     deposit.Accessibility,
                     annualProduction,
-                    canMine));
+                    canMine && dailyRate > 0));
             }
 
             return new ColonyMiningView(mining?.NumberOfMines ?? 0)
@@ -728,17 +738,30 @@ namespace Pulsar4X.Engine.Api
                 var jobs = new List<IndustryJobView>(line.Jobs.Count);
                 foreach (var job in line.Jobs)
                 {
-                    var requirements = new List<ResourceRequirement>(job.ResourcesRequiredRemaining.Count);
+                    var remaining = new List<ResourceRequirement>();
                     foreach (var (resourceId, amount) in job.ResourcesRequiredRemaining)
-                        requirements.Add(new ResourceRequirement(ResolveItemName(factionInfo, resourceId), amount));
+                    {
+                        if (amount <= 0) continue;
+                        remaining.Add(new ResourceRequirement(ResolveItemName(factionInfo, resourceId), amount));
+                    }
 
-                    double percent = (1 - (double)job.ProductionPointsLeft / job.ProductionPointsCost) * 100;
+                    var recipe = new List<ResourceRequirement>();
+                    if (job.ResourcesCosts != null)
+                    {
+                        foreach (var (resourceId, amount) in job.ResourcesCosts)
+                            recipe.Add(new ResourceRequirement(ResolveItemName(factionInfo, resourceId), amount));
+                    }
+
+                    double percent = job.ProductionPointsCost > 0
+                        ? (1 - (double)job.ProductionPointsLeft / job.ProductionPointsCost) * 100
+                        : 0;
                     jobs.Add(new IndustryJobView(
                         job.JobID, job.Name, job.NumberCompleted, job.NumberOrdered, job.Auto,
                         job.Status.ToString(), job.Status == IndustryJobStatus.MissingResources,
-                        percent, job.ProductionPointsLeft)
+                        percent, job.ProductionPointsLeft, job.ProductionPointsCost)
                     {
-                        RemainingRequirements = requirements,
+                        RemainingRequirements = remaining,
+                        RecipeRequirements = recipe,
                     });
                 }
 
@@ -752,9 +775,20 @@ namespace Pulsar4X.Engine.Api
                 }
 
                 var constructibles = new List<ConstructibleItemView>();
+                // Ship yards assemble hulls only; components belong on Factory lines.
+                // (Older installs may still carry a leftover component-construction rate.)
+                bool assemblesShips = line.IndustryTypeRates.ContainsKey("ship-assembly");
+                double infraEfficiency = InfrastructureProcessor.GetEfficiency(entity);
                 foreach (var design in sortedDesigns)
                 {
-                    if (!line.IndustryTypeRates.ContainsKey(design.IndustryTypeID)) continue;
+                    if (assemblesShips)
+                    {
+                        if (design is not ShipDesign) continue;
+                    }
+                    else if (!line.IndustryTypeRates.ContainsKey(design.IndustryTypeID))
+                    {
+                        continue;
+                    }
 
                     var costs = new List<IndustryCostItem>(design.ResourceCosts.Count);
                     foreach (var (resourceId, perUnit) in design.ResourceCosts)
@@ -769,11 +803,18 @@ namespace Pulsar4X.Engine.Api
                         costs.Add(new IndustryCostItem(ResolveItemName(factionInfo, resourceId), perUnit, available, canProduce));
                     }
 
+                    double pointsPerDay = 0;
+                    if (line.IndustryTypeRates.TryGetValue(design.IndustryTypeID, out var typeRate))
+                        pointsPerDay = typeRate * infraEfficiency;
+
+                    bool isColonyInstallation = IndustryTools.IsColonyInstallationDesign(design);
                     constructibles.Add(new ConstructibleItemView(
                         design.UniqueID, design.Name, design.IndustryPointCosts, design.OutputAmount,
-                        design.GuiHints == ConstructableGuiHints.CanBeInstalled)
+                        isColonyInstallation)
                     {
                         Costs = costs,
+                        IndustryPointsPerDay = pointsPerDay,
+                        IsColonyInstallation = isColonyInstallation,
                     });
                 }
 
@@ -1164,6 +1205,7 @@ namespace Pulsar4X.Engine.Api
                 InheritOrders = fleetDB?.InheritOrders ?? false,
                 CanGeoSurvey = fleet.HasGeoSurveyAbility(),
                 CanGravSurvey = fleet.HasJPSurveyAbililty(),
+                StatusMessage = fleetDB?.StandingStatusMessage,
                 Orders = ProjectOrders(fleet),
                 StandingOrders = ProjectStandingOrders(fleetDB),
                 SubFleets = subFleets,
@@ -1191,6 +1233,10 @@ namespace Pulsar4X.Engine.Api
                     string? conditionType = comparison switch
                     {
                         Engine.Orders.FuelCondition => StandingOrderTypes.FuelCondition,
+                        Engine.Orders.HealthCondition => StandingOrderTypes.HealthCondition,
+                        Engine.Orders.CargoFillCondition => StandingOrderTypes.CargoFillCondition,
+                        Engine.Orders.UnsurveyedGeoCondition => StandingOrderTypes.UnsurveyedGeoCondition,
+                        Engine.Orders.UnsurveyedAnomalyCondition => StandingOrderTypes.UnsurveyedAnomalyCondition,
                         _ => null,
                     };
                     if (conditionType == null)
@@ -1215,6 +1261,7 @@ namespace Pulsar4X.Engine.Api
                     {
                         Pulsar4X.Movement.MoveToNearestColonyAction => StandingOrderTypes.MoveToNearestColony,
                         Pulsar4X.Movement.MoveToNearestGeoSurveyAction => StandingOrderTypes.MoveToNearestGeoSurvey,
+                        Pulsar4X.Movement.MoveToNearestGravSurveyAction => StandingOrderTypes.MoveToNearestGravSurvey,
                         Pulsar4X.Movement.MoveToNearestAnomalyAction => StandingOrderTypes.MoveToNearestAnomaly,
                         Pulsar4X.Fleets.RefuelAction => StandingOrderTypes.Refuel,
                         Pulsar4X.Fleets.ResupplyAction => StandingOrderTypes.Resupply,
@@ -1251,7 +1298,7 @@ namespace Pulsar4X.Engine.Api
             }
 
             return new ShipSnapshot(ship.Id, ship.GetName(factionId), ship.Manager?.ManagerID ?? "",
-                                    shipInfo?.Design.Name ?? "", commander)
+                                    shipInfo?.Design?.Name ?? "", commander)
             {
                 Orders = ProjectOrders(ship),
             };

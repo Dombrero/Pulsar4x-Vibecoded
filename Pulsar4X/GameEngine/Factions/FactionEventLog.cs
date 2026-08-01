@@ -27,6 +27,14 @@ public class FactionEventLog : IEventLog
         };
     }
 
+    /// <summary>
+    /// <see cref="_masterTimePulse"/> is not serialized; call after <see cref="Game.Load"/>.
+    /// </summary>
+    public void BindTimePulse(MasterTimePulse masterTimePulse)
+    {
+        _masterTimePulse = masterTimePulse;
+    }
+
     public void Subscribe()
     {
         EventType allEvents = EventTypeHelper.GetAllEventTypes();
@@ -49,7 +57,7 @@ public class FactionEventLog : IEventLog
 
         if (_haltsOn.Contains(e.EventType))
         {
-            _masterTimePulse.PauseTime();
+            _masterTimePulse?.PauseTime();
         }
 
         _events.Add(e);

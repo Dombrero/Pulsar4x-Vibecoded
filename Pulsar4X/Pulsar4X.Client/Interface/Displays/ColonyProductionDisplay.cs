@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using ImGuiNET;
@@ -16,6 +18,8 @@ namespace Pulsar4X.Client
         private int _newJobBatchCount = 1;
         private bool _newJobRepeat = false;
         private bool _newJobAutoInstall = true;
+        /// <summary>0 = Components, 1 = Colony Installations (Factory new-job panel).</summary>
+        private int _newJobCategoryTab = 0;
 
         internal ColonyProductionDisplay() { }
 
@@ -36,6 +40,7 @@ namespace Pulsar4X.Client
 
             Vector2 windowContentSize = ImGui.GetContentRegionAvail();
             ProductionLineDisplay(entityId, industry, uiState);
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ProductionLines);
             ImGui.SameLine();
 
             var selectedLine = industry.ProductionLines.FirstOrDefault(l => l.Id == _selectedProdLine);
@@ -48,6 +53,7 @@ namespace Pulsar4X.Client
                 NewJobDisplay(entityId, selectedLine, uiState);
             }
             ImGui.EndChild();
+            TutorialHighlight.ReportItem(TutorialHighlightRegion.ProductionNewJob);
         }
 
         private void ProductionLineDisplay(int entityId, IndustryView industry, GlobalUIState uiState)
@@ -83,6 +89,7 @@ namespace Pulsar4X.Client
                             _selectedProdLine = line.Id;
                             _newJobDesignIndex = 0;
                             _newJobBatchCount = 1;
+                            _newJobCategoryTab = 0;
                         }
 
                         ImGui.SameLine();
@@ -160,17 +167,53 @@ namespace Pulsar4X.Client
                         ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 0f);
                         ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.1f, 0.1f, 0.1f, 1f));
                         ImGui.BeginTooltip();
-                        if (ImGui.BeginTable(job.JobId, 2, ImGuiTableFlags.Borders))
+
+                        ImGui.Text("Still needed");
+                        if (ImGui.BeginTable(job.JobId + "-need", 2, ImGuiTableFlags.Borders))
                         {
-                            ImGui.TableSetupColumn("Resource Required");
-                            ImGui.TableSetupColumn("Quantity Needed");
+                            ImGui.TableSetupColumn("Input");
+                            ImGui.TableSetupColumn("Amount");
                             ImGui.TableHeadersRow();
+
                             ImGui.TableNextColumn();
                             ImGui.Text("Industry Points");
                             ImGui.TableNextColumn();
                             ImGui.Text(job.ProductionPointsLeft.ToString());
 
-                            foreach (var requirement in job.RemainingRequirements)
+                            if (job.RemainingRequirements.Count == 0)
+                            {
+                                ImGui.TableNextColumn();
+                                ImGui.TextDisabled("(materials gathered)");
+                                ImGui.TableNextColumn();
+                                ImGui.TextDisabled("-");
+                            }
+                            else
+                            {
+                                foreach (var requirement in job.RemainingRequirements)
+                                {
+                                    ImGui.TableNextColumn();
+                                    ImGui.Text(requirement.Name);
+                                    ImGui.TableNextColumn();
+                                    ImGui.Text(requirement.Amount.ToString());
+                                }
+                            }
+                            ImGui.EndTable();
+                        }
+
+                        ImGui.Spacing();
+                        ImGui.Text("Recipe (per unit)");
+                        if (ImGui.BeginTable(job.JobId + "-recipe", 2, ImGuiTableFlags.Borders))
+                        {
+                            ImGui.TableSetupColumn("Input");
+                            ImGui.TableSetupColumn("Amount");
+                            ImGui.TableHeadersRow();
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text("Industry Points");
+                            ImGui.TableNextColumn();
+                            ImGui.Text(job.ProductionPointsCost.ToString());
+
+                            foreach (var requirement in job.RecipeRequirements)
                             {
                                 ImGui.TableNextColumn();
                                 ImGui.Text(requirement.Name);
@@ -179,6 +222,7 @@ namespace Pulsar4X.Client
                             }
                             ImGui.EndTable();
                         }
+
                         ImGui.EndTooltip();
                         ImGui.PopStyleColor();
                         ImGui.PopStyleVar(2);
@@ -245,10 +289,59 @@ namespace Pulsar4X.Client
                 return;
             }
 
-            if (_newJobDesignIndex >= line.Constructibles.Count)
+            var components = line.Constructibles.Where(c => !c.IsColonyInstallation).ToList();
+            var installations = line.Constructibles.Where(c => c.IsColonyInstallation).ToList();
+            bool splitTabs = components.Count > 0 && installations.Count > 0;
+
+            if (splitTabs)
+            {
+                ImGui.NewLine();
+                if (ImGui.BeginTabBar("##factory-job-categories"))
+                {
+                    if (ImGui.BeginTabItem($"Components ({components.Count})###components"))
+                    {
+                        if (_newJobCategoryTab != 0)
+                        {
+                            _newJobCategoryTab = 0;
+                            _newJobDesignIndex = 0;
+                        }
+                        NewJobForm(entityId, line, components, uiState);
+                        ImGui.EndTabItem();
+                    }
+                    if (ImGui.BeginTabItem($"Colony Installations ({installations.Count})###installations"))
+                    {
+                        if (_newJobCategoryTab != 1)
+                        {
+                            _newJobCategoryTab = 1;
+                            _newJobDesignIndex = 0;
+                        }
+                        NewJobForm(entityId, line, installations, uiState);
+                        ImGui.EndTabItem();
+                    }
+                    ImGui.EndTabBar();
+                }
+                return;
+            }
+
+            NewJobForm(entityId, line, line.Constructibles, uiState);
+        }
+
+        private void NewJobForm(
+            int entityId,
+            ProductionLineView line,
+            IReadOnlyList<ConstructibleItemView> filtered,
+            GlobalUIState uiState)
+        {
+            if (filtered.Count == 0)
+            {
+                ImGui.Text("Nothing available in this category.");
+                return;
+            }
+
+            if (_newJobDesignIndex >= filtered.Count)
                 _newJobDesignIndex = 0;
 
-            var constructableNames = line.Constructibles.Select(c => c.Name).ToArray();
+            var constructableNames = filtered.Select(c => c.Name).ToArray();
 
             ImGui.NewLine();
             ImGui.Text("Select a design:");
@@ -258,7 +351,7 @@ namespace Pulsar4X.Client
                 _newJobDesignIndex = curItemIndex;
             }
 
-            var selectedDesign = line.Constructibles[_newJobDesignIndex];
+            var selectedDesign = filtered[_newJobDesignIndex];
 
             ImGui.NewLine();
             ImGui.Text("Enter the quantity:");
@@ -280,11 +373,14 @@ namespace Pulsar4X.Client
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("A repeat job will run until cancelled.");
 
+            // Only colony buildings — ship components always go to cargo.
             if (selectedDesign.CanAutoInstall)
             {
                 ImGui.Checkbox("##autoinstall", ref _newJobAutoInstall);
                 ImGui.SameLine();
-                ImGui.Text("Auto-install on completion?");
+                ImGui.Text("Auto-install on colony?");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Install this building on the colony when finished.\nUncheck to leave it in cargo instead.");
             }
 
             ImGui.NewLine();
@@ -322,7 +418,20 @@ namespace Pulsar4X.Client
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("Total Cost = Cost Per Quantity * Quantity Ordered");
                 ImGui.TableNextColumn();
-                ImGui.Text("-");
+                // Industry points are daily capacity on this line, not a cargo stockpile.
+                var pointsPerDay = design.IndustryPointsPerDay;
+                ImGui.Text(pointsPerDay > 0
+                    ? Stringify.Quantity((long)Math.Round(pointsPerDay)) + "/day"
+                    : "0/day");
+                if (ImGui.IsItemHovered())
+                {
+                    double days = pointsPerDay > 0
+                        ? (design.IndustryPointsPerUnit * quantity) / pointsPerDay
+                        : 0;
+                    ImGui.SetTooltip(pointsPerDay > 0
+                        ? $"This production line can spend {pointsPerDay:0.##} industry points per day on this job type.\nEstimated time for this batch: ~{days:0.#} day(s)."
+                        : "This production line has no industry points for this job type.");
+                }
                 ImGui.TableNextRow();
 
                 foreach (var cost in design.Costs)

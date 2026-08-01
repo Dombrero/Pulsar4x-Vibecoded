@@ -23,6 +23,9 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
         Id = id;
     }
 
+    /// <summary>Used when the ID generator lagged behind a loaded save and minted a collision.</summary>
+    internal void ReassignId(int newId) => Id = newId;
+
     public static Entity Create()
     {
         int entityId = EntityIDGenerator.GenerateUniqueID();
@@ -124,8 +127,13 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public void AddComponent(ComponentInstance componentInstance)
     {
+        if (Manager is null)
+            throw new InvalidOperationException($"Cannot AddComponent: entity#{Id} has no Manager (not AddEntity'd yet).");
+
         componentInstance.ParentEntity = this;
-        var instancesDB = GetDataBlob<ComponentInstancesDB>();
+        if (!TryGetDataBlob<ComponentInstancesDB>(out var instancesDB) || instancesDB is null)
+            throw new InvalidOperationException($"Cannot AddComponent: entity#{Id} has no ComponentInstancesDB.");
+
         instancesDB.AddComponentInstance(componentInstance);
 
         foreach (var atbkvp in componentInstance.Design.AttributesByType)
@@ -171,6 +179,7 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
         }
 
         instancesDB.RemoveComponentInstance(instance);
+        ReCalcProcessor.ReCalcAbilities(this);
     }
 
     public void Destroy()

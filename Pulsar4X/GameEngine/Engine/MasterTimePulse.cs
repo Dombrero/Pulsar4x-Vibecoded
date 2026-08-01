@@ -68,7 +68,7 @@ namespace Pulsar4X.Engine
             => simulationTask.ContinueWith(t => { _ = t.Exception; SimulationStopped?.Invoke(); }, TaskScheduler.Default);
 
         [JsonIgnore]
-        private TimeSpan _tickInterval = TimeSpan.FromMilliseconds(100);
+        private TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
 
         [JsonProperty]
         public TimeSpan TickFrequency
@@ -157,6 +157,15 @@ namespace Pulsar4X.Engine
         {
             _game = game;
             _tickSource = new PeriodicTimer(_tickInterval);
+
+            // Past (or current) jump interrupts that were never removed after firing hang
+            // SimulateTimeUntil in an infinite subpulse. Drop anything already due.
+            if (EntityDictionary.Count > 0)
+            {
+                var stale = EntityDictionary.Keys.Where(k => k <= GameGlobalDateTime).ToList();
+                foreach (var key in stale)
+                    EntityDictionary.Remove(key);
+            }
         }
 
         #region Public Time Methods. UI interacts with time here
@@ -329,6 +338,9 @@ namespace Pulsar4X.Engine
                 }
 
             }
+            // Must remove after handling — otherwise the same interrupt is picked forever and
+            // SimulateTimeUntil never advances past GameGlobalDateTime.
+            EntityDictionary.Remove(nextInteruptDateTime);
             return nextInteruptDateTime;
         }
 

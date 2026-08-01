@@ -53,8 +53,15 @@ namespace Pulsar4X.Components
             get { return _parentEntity; }
             internal set
             {
-                _parentEntity = value;
-                ParentInstances = ParentEntity.GetDataBlob<ComponentInstancesDB>();
+                _parentEntity = value ?? throw new ArgumentNullException(nameof(value));
+                // Avoid obsolete GetDataBlob (NullRefs when Manager is unset). TryGet is safe and clear.
+                if (!_parentEntity.TryGetDataBlob<ComponentInstancesDB>(out var instances) || instances is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot mount component on entity#{_parentEntity.Id}: missing ComponentInstancesDB " +
+                        $"(Manager={(_parentEntity.Manager is null ? "null" : "set")}, IsValid={_parentEntity.IsValid}).");
+                }
+                ParentInstances = instances;
             }
         }
         [JsonProperty]

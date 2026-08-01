@@ -128,7 +128,13 @@ public static class MoveMath
                 break;
             case PositionDB.MoveTypes.Warp:
             {
-                var db = entity.GetDataBlob<WarpMovingDB>();
+                // After aborting hover-warp at a static anomaly, MoveType can briefly still be
+                // Warp while WarpMovingDB is already gone — fall back to frozen AbsolutePosition.
+                if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
+                {
+                    pos = position.AbsolutePosition2;
+                    break;
+                }
                 if (atDateTime < db.PredictedExitTime)
                 {
                     var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;
@@ -189,7 +195,11 @@ public static class MoveMath
                 break;
             case PositionDB.MoveTypes.Warp:
             {
-                var db = entity.GetDataBlob<WarpMovingDB>();
+                if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
+                {
+                    pos = position.RelativePosition2;
+                    break;
+                }
                 if (atDateTime < db.PredictedExitTime)
                 {
                     var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;

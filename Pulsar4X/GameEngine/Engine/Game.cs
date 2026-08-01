@@ -103,12 +103,22 @@ namespace Pulsar4X.Engine
         /// </summary>
         public const int MaxFactions = 32;
 
-        // This is horribly named, it generates the ID's for the ICargoables NOT Entities
+        // Cargoable / design IDs (not entity IDs). Must round-trip through save/load.
         [JsonProperty]
-        private int EntityIDCounterValue => EntityIDCounter;
+        private int EntityIDCounterValue
+        {
+            get => EntityIDCounter;
+            set => EntityIDCounter = value;
+        }
 
+        // Real entity IDs. Expression-bodied get-only used to ignore the saved value on load,
+        // leaving the static counter at 0 → "Entity with ID N already exists" on the next spawn.
         [JsonProperty]
-        internal int NextEntityID => EntityIDGenerator.NextId;
+        private int NextEntityID
+        {
+            get => EntityIDGenerator.NextId;
+            set => EntityIDGenerator.NextId = value;
+        }
 
         private static int EntityIDCounter = 0;
 
@@ -128,6 +138,8 @@ namespace Pulsar4X.Engine
             EventManager.Instance.Clear();
             MessagePublisher.Instance.Clear();
             LogisticsCycle.Clear();
+            EntityIDGenerator.Reset(0);
+            EntityIDCounter = 0;
         }
 
         public Game(NewGameSettings settings, ModDataStore modDataStore)
@@ -214,38 +226,77 @@ namespace Pulsar4X.Engine
                 TypeNameHandling = TypeNameHandling.Objects,
                 ContractResolver = new NonPublicResolver(),
             };
-            var loadedGame = JsonConvert.DeserializeObject<Game>(json, settings);
 
+            // Reset statics before deserialize so EventManager/etc. are clean; ID counters are
+            // restored from the JSON via NextEntityID / EntityIDCounterValue setters.
             ClearGlobalState();
+            var loadedGame = JsonConvert.DeserializeObject<Game>(json, settings);
+            // Safety net: even old saves / partial counter writes must not collide with live IDs.
+            loadedGame.ResyncEntityIdGenerator();
+
             loadedGame.TimePulse.Initialize(loadedGame);
             loadedGame.ProcessorManager = new ProcessorManager(loadedGame);
             loadedGame.OrderHandler = new StandAloneOrderHandler(loadedGame);
-            loadedGame.GlobalManager.Initialize(loadedGame);
+            // postLoad: keep saved system clocks / interrupt queues; only rebind runtime refs.
+            loadedGame.GlobalManager.Initialize(loadedGame, postLoad: true);
 
             foreach (var mgr in loadedGame.GlobalManagerDictionary)
             {
-                mgr.Value.Initialize(loadedGame);
-                mgr.Value.ManagerSubpulses.Initialize(mgr.Value, loadedGame.ProcessorManager);
+                mgr.Value.Initialize(loadedGame, postLoad: true);
             }
 
-            // Hook up the event logs
+            // Hook up the event logs (TimePulse is [JsonIgnore] on FactionEventLog — rebind it).
             foreach(var (id, faction) in loadedGame.Factions)
             {
-                faction.GetDataBlob<FactionInfoDB>().EventLog.Subscribe();
+                var info = faction.GetDataBlob<FactionInfoDB>();
+                if (info.EventLog is FactionEventLog factionLog)
+                    factionLog.BindTimePulse(loadedGame.TimePulse);
+                info.EventLog.Subscribe();
             }
-            loadedGame.GameMasterFaction.GetDataBlob<FactionInfoDB>().EventLog.Subscribe();
+            var gmInfo = loadedGame.GameMasterFaction.GetDataBlob<FactionInfoDB>();
+            if (gmInfo.EventLog is FactionEventLog gmLog)
+                gmLog.BindTimePulse(loadedGame.TimePulse);
+            gmInfo.EventLog.Subscribe();
 
-            // settings.Context = new StreamingContext(StreamingContextStates.All, loadedGame);
-            // loadedGame.TimePulse = JsonConvert.DeserializeObject<MasterTimePulse>(JObject.Parse(json)["GameInfo"]["TimePulse"].ToString(), settings);
-            // loadedGame.ProcessorManager = new ProcessorManager(loadedGame);
-            // //loadedGame.ProcessorManager = JsonConvert.DeserializeObject<ProcessorManager>(JObject.Parse(json)["GameInfo"]["ProcessManager"].ToString(), settings);
-            // loadedGame.GlobalManager = JsonConvert.DeserializeObject<EntityManager>(JObject.Parse(json)["GameInfo"]["GlobalManager"].ToString(), settings);
-            // loadedGame.GlobalManager.Initialize(loadedGame);
-            // loadedGame.GameMasterFaction = JsonConvert.DeserializeObject<Entity>(JObject.Parse(json)["GameInfo"]["GameMasterFaction"].ToString(), settings);
-            // StandAloneOrderHandler currently doesn't need to be serialized
-            // loadedGame.OrderHandler = JsonConvert.DeserializeObject<StandAloneOrderHandler>(JObject.Parse(json)["OrderHandler"].ToString(), settings);
+            // ActivityState is [JsonIgnore] and defaults to Stasis after deserialize.
+            foreach (var system in loadedGame.Systems)
+                system.UpdateActivityState();
+
+            // ComponentInstancesDB deserializes instances without re-running OnComponentInstallation;
+            // re-sum derived colony totals so save/load cannot leave PointsPerDay (etc.) stale.
+            foreach (var system in loadedGame.Systems)
+            {
+                foreach (var colony in system.GetAllEntitiesWithDataBlob<Colonies.ColonyInfoDB>())
+                    ReCalcProcessor.ReCalcAbilities(colony);
+            }
 
             return loadedGame;
+        }
+
+        /// <summary>
+        /// Advances <see cref="EntityIDGenerator"/> past every entity ID present in this game.
+        /// </summary>
+        internal void ResyncEntityIdGenerator()
+        {
+            int maxId = -1;
+            foreach (var mgr in GlobalManagerDictionary.Values)
+            {
+                foreach (var entity in mgr.GetAllEntites())
+                {
+                    if (entity.Id > maxId)
+                        maxId = entity.Id;
+                }
+            }
+            // Also cover the global manager if it is not in the dictionary yet.
+            if (GlobalManager != null)
+            {
+                foreach (var entity in GlobalManager.GetAllEntites())
+                {
+                    if (entity.Id > maxId)
+                        maxId = entity.Id;
+                }
+            }
+            EntityIDGenerator.EnsureMinimum(maxId + 1);
         }
 
         public void PostNewGameInitialization()

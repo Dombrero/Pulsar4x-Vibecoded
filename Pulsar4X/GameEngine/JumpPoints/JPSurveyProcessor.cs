@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pulsar4X.Api;
 using Pulsar4X.Engine;
 using Pulsar4X.Events;
 using Pulsar4X.Extensions;
@@ -14,7 +15,8 @@ namespace Pulsar4X.JumpPoints;
 
 public class JPSurveyProcessor : IHotloopProcessor
 {
-    public TimeSpan RunFrequency { get; } = TimeSpan.FromHours(1);
+    // Match GeoSurvey / component template ("survey points per day").
+    public TimeSpan RunFrequency { get; } = TimeSpan.FromDays(1);
     public TimeSpan FirstRunOffset { get; } = TimeSpan.FromHours(1);
     public Type GetParameterType { get; } = typeof(JPSurveyDB);
 
@@ -89,9 +91,10 @@ public class JPSurveyProcessor : IHotloopProcessor
                 jpSurveyableDB.OwningEntity.Id));
     }
 
-    private void RollToDiscoverJumpPoint(DateTime atDateTime, Entity discoveringEntity, Entity discoveredEntity)
+    private void RollToDiscoverJumpPoint(DateTime atDateTime, Entity discoveringEntity, Entity anomaly)
     {
-        // Roll is see if a jump point is revealed
+        // Chance = undiscovered JPs / remaining unsurveyed anomalies (including this one).
+        // On success the JP is moved to this anomaly — the anomaly *is* the grav signature.
         var surveyLocationsRemaining = discoveringEntity.Manager.GetAllDataBlobsOfType<JPSurveyableDB>()
                                                         .Where(db => !db.IsSurveyComplete(discoveringEntity.FactionOwnerID))
                                                         .ToList();
@@ -99,16 +102,39 @@ public class JPSurveyProcessor : IHotloopProcessor
                                            .Where(db => !db.IsDiscovered.Contains(discoveringEntity.FactionOwnerID))
                                            .ToList();
 
-        var chance = (double)jpRemaining.Count / (double)surveyLocationsRemaining.Count;
-        var roll = discoveredEntity.Manager.RNGNextDouble();
-
-        if(chance >= roll)
+        if (surveyLocationsRemaining.Count == 0)
         {
-            var jp = jpRemaining.First(); // TODO: pick randomly from remaining
+            DebugTraceLog.Warn("Standing",
+                $"JP survey roll skipped — no remaining anomaly sites (jpLeft={jpRemaining.Count})",
+                atDateTime);
+            return;
+        }
+
+        if (jpRemaining.Count == 0)
+        {
+            DebugTraceLog.Info("Standing",
+                $"JP survey of anomaly complete — no undiscovered jump points left in system " +
+                $"(sitesLeft={surveyLocationsRemaining.Count})",
+                atDateTime);
+            return;
+        }
+
+        var chance = (double)jpRemaining.Count / (double)surveyLocationsRemaining.Count;
+        var roll = anomaly.Manager.RNGNextDouble();
+
+        if (chance >= roll)
+        {
+            var jp = jpRemaining[anomaly.Manager.RNGNext(0, jpRemaining.Count)];
+            PlaceJumpPointAtAnomaly(jp.OwningEntity, anomaly, discoveringEntity.FactionOwnerID);
             jp.IsDiscovered.Add(discoveringEntity.FactionOwnerID);
 
             // Show the jump point to the faction that just completed the survey
             jp.OwningEntity.Manager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, jp.OwningEntity.Id);
+
+            DebugTraceLog.Info("Standing",
+                $"Jump Point discovered at anomaly (chance={chance:0.##}, roll={roll:0.##}, " +
+                $"jpLeft={jpRemaining.Count}, sitesLeft={surveyLocationsRemaining.Count})",
+                atDateTime);
 
             EventManager.Instance.Publish(
                 Event.Create(
@@ -119,18 +145,55 @@ public class JPSurveyProcessor : IHotloopProcessor
                     jp.OwningEntity.Manager.ManagerID,
                     jp.OwningEntity.Id));
 
-            // If this was the last jump point, hide the rest of the survey locations
-            if(jpRemaining.Count == 1)
-            {
-                foreach(var surveyLocation in surveyLocationsRemaining)
-                {
-                    if(surveyLocation.OwningEntity.Id == discoveredEntity.Id) continue;
+            MessagePublisher.Instance.Publish(Message.Create(
+                MessageTypes.EntityChanged,
+                entityId: jp.OwningEntity.Id,
+                systemId: jp.OwningEntity.Manager.ManagerID,
+                factionId: discoveringEntity.FactionOwnerID));
 
-                    surveyLocation.OwningEntity.Manager.HideNeutralEntityFromFaction(discoveringEntity.FactionOwnerID, surveyLocation.OwningEntity.Id);
+            // If this was the last jump point, hide the rest of the survey locations
+            if (jpRemaining.Count == 1)
+            {
+                foreach (var surveyLocation in surveyLocationsRemaining)
+                {
+                    if (surveyLocation.OwningEntity.Id == anomaly.Id) continue;
+
+                    surveyLocation.OwningEntity.Manager.HideNeutralEntityFromFaction(
+                        discoveringEntity.FactionOwnerID, surveyLocation.OwningEntity.Id);
                 }
             }
 
             RevealOtherSide(jp, atDateTime, discoveringEntity);
+        }
+        else
+        {
+            DebugTraceLog.Info("Standing",
+                $"JP survey found nothing (chance={chance:0.##}, roll={roll:0.##}, " +
+                $"jpLeft={jpRemaining.Count}, sitesLeft={surveyLocationsRemaining.Count})",
+                atDateTime);
+        }
+    }
+
+    /// <summary>
+    /// The surveyed anomaly is the gravitational locus — relocate the (previously hidden)
+    /// jump-point entity onto the anomaly so discovery happens where the ship surveyed.
+    /// </summary>
+    private static void PlaceJumpPointAtAnomaly(Entity jumpPoint, Entity anomaly, int discoveringFactionId)
+    {
+        if (!jumpPoint.TryGetDataBlob<PositionDB>(out var jpPos)
+            || !anomaly.TryGetDataBlob<PositionDB>(out var anomalyPos))
+            return;
+
+        jpPos.AbsolutePosition = anomalyPos.AbsolutePosition;
+        jpPos.MoveType = PositionDB.MoveTypes.None;
+        jpPos.Velocity = default;
+
+        if (jumpPoint.TryGetDataBlob<Names.NameDB>(out var jpName)
+            && anomaly.TryGetDataBlob<Names.NameDB>(out var anomalyName))
+        {
+            string anomalyLabel = anomalyName.OwnersName;
+            if (!string.IsNullOrEmpty(anomalyLabel) && anomalyLabel.Contains('#'))
+                jpName.SetName(discoveringFactionId, $"Jump Point ({anomalyLabel})");
         }
     }
 

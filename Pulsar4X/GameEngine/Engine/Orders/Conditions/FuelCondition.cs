@@ -21,37 +21,22 @@ namespace Pulsar4X.Engine.Orders
 
         public override bool Evaluate(Entity fleet)
         {
-            var fleetDB = fleet.GetDataBlob<FleetDB>();
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return false;
+
+            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
+            if (ships.Count == 0)
+                return false;
+
             var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
 
-            if(ships.Count() == 0) return false;
-
             double totalFuelPercentage = 0;
-            foreach(var ship in ships)
-            {
-                double fuelPercent = ship.GetFuelPercent(cargoLibrary);
-                totalFuelPercentage += fuelPercent;
-            }
+            foreach (var ship in ships)
+                totalFuelPercentage += ship.GetFuelPercent(cargoLibrary);
 
-            // Round the average so the equals to have a change to fire in the comparisons
-            var average = Math.Round(totalFuelPercentage / ships.Count());
-
-            switch(ComparisionType)
-            {
-                case ComparisonType.LessThan:
-                    return average < Threshold;
-                case ComparisonType.LessThanOrEqual:
-                    return average <= Threshold;
-                case ComparisonType.EqualTo:
-                    return average == Threshold;
-                case ComparisonType.GreaterThan:
-                    return average > Threshold;
-                case ComparisonType.GreaterThanOrEqual:
-                    return average >= Threshold;
-                default:
-                    throw new InvalidOperationException("Unknown comparison type.");
-            }
+            // Round the average so EqualTo has a chance to fire.
+            var average = Math.Round(totalFuelPercentage / ships.Count);
+            return Compare(average);
         }
     }
 }

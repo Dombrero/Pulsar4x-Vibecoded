@@ -44,22 +44,53 @@ namespace Pulsar4X.Storage
 
         public void ProcessEntity(CargoTransferDB transferDB, int deltaSeconds)
         {
+            try
+            {
+                ProcessEntityCore(transferDB, deltaSeconds);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CargoTransferProcessor failed: {ex.Message}");
+            }
+        }
+
+        private void ProcessEntityCore(CargoTransferDB transferDB, int deltaSeconds)
+        {
             var transferData = transferDB.TransferData;
-            var transferRange = transferDB.ParentStorageDB.TransferRangeDv_mps;
-            var transferRate = transferDB.ParentStorageDB.TransferRate;
+            CargoTransferOrder.EnsureMinimumTransferCapability(transferData.PrimaryStorageDB);
+            CargoTransferOrder.EnsureMinimumTransferCapability(transferData.SecondaryStorageDB);
+
             double dv_mps = CalcDVDifference_m(transferData.PrimaryEntity, transferData.SecondaryEntity);
 
+            int transferRate = CalcTransferRate(
+                dv_mps,
+                transferData.PrimaryStorageDB,
+                transferData.SecondaryStorageDB);
 
-            double massTransferable = transferRate * deltaSeconds;
-            if(dv_mps > transferRange || massTransferable <=0)
-                return;//early out if we're out of range or no more mass to move.
+            // Same orbit parent yields dv=0 (full rate). If rate is still 0 but entities are
+            // co-located / in range, allow a baseline so Refuel cannot stall forever.
+            if (transferRate <= 0)
+            {
+                double maxRange = Math.Max(
+                    transferData.PrimaryStorageDB.TransferRangeDv_mps,
+                    transferData.SecondaryStorageDB.TransferRangeDv_mps);
+                if (dv_mps <= 0 || dv_mps <= maxRange)
+                {
+                    transferRate = Math.Max(
+                        1,
+                        transferData.PrimaryStorageDB.TransferRate + transferData.SecondaryStorageDB.TransferRate);
+                }
+            }
+
+            double massTransferable = transferRate * (double)deltaSeconds;
+            if (massTransferable <= 0)
+                return;
 
             massTransferable -= MoveFromEscro(transferData.EscroHeldInPrimary, transferData.SecondaryStorageDB, transferData.PrimaryStorageDB, massTransferable);
             massTransferable -= MoveFromEscro(transferData.EscroHeldInSecondary, transferData.PrimaryStorageDB, transferData.SecondaryStorageDB, massTransferable);
 
             UpdateMassFuelAndDeltaV(transferData.PrimaryEntity);
             UpdateMassFuelAndDeltaV(transferData.SecondaryEntity);
-
         }
 
         private double MoveFromEscro(SafeList<(ICargoable item, long count, double mass)> escroList, CargoStorageDB moveTo, CargoStorageDB moveFrom, double massTransferable)
@@ -191,6 +222,16 @@ namespace Pulsar4X.Storage
         /// <returns></returns>
         public static double CalcDVDifference_m(Entity entity1, Entity entity2)
         {
+            // Same orbit parent (typical refuel: ship + colony both parented to Earth) —
+            // Hohmann between surface-offset and orbit is huge and wrongly yields rate 0.
+            if (entity1.TryGetDataBlob<PositionDB>(out var pos1)
+                && entity2.TryGetDataBlob<PositionDB>(out var pos2)
+                && pos1.Parent != null
+                && ReferenceEquals(pos1.Parent, pos2.Parent))
+            {
+                return 0;
+            }
+
             double dvDif = 0;
 
             Entity parent;
@@ -202,28 +243,33 @@ namespace Pulsar4X.Storage
             Entity? soi1 = entity1.GetSOIParentEntity();
             Entity? soi2 = entity2.GetSOIParentEntity();
 
-
-            if(soi1 is not null && soi2 is not null && soi1 == soi2)
+            if (soi1 is not null && soi2 is not null && soi1 == soi2)
             {
                 parent = soi1;
                 parentMass = parent.GetDataBlob<MassVolumeDB>().MassDry;
                 sgp = GeneralMath.StandardGravitationalParameter(parentMass);
 
-                (Vector3 pos, Vector3 Velocity) state1 = MoveMath.GetRelativeState(entity1);
-                (Vector3 pos, Vector3 Velocity) state2 = MoveMath.GetRelativeState(entity2);
-                r1 = state1.pos.Length();
-                r2 = state2.pos.Length();
+                try
+                {
+                    (Vector3 pos, Vector3 Velocity) state1 = MoveMath.GetRelativeState(entity1);
+                    (Vector3 pos, Vector3 Velocity) state2 = MoveMath.GetRelativeState(entity2);
+                    r1 = state1.pos.Length();
+                    r2 = state2.pos.Length();
+                }
+                catch (Exception)
+                {
+                    // Incomplete body data (tests / broken saves) — don't tear down the time pulse.
+                    return 0;
+                }
             }
             else
             {
-                //StaticRefLib.EventLog.AddEvent(new Event("Cargo calc failed, entities must have same soi parent"));
                 return double.PositiveInfinity;
             }
 
             var hohmann = OrbitalMath.Hohmann(sgp, r1, r2);
             dvDif = hohmann[0].deltaV.Length() + hohmann[1].deltaV.Length();
             return dvDif;
-
         }
 
 

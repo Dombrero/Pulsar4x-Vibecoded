@@ -50,7 +50,10 @@ namespace Pulsar4X.Fleets
             _entityCommanding = entity;
             EntityCommandingGuid = entity.Id;
             CreatedDate = entity.StarSysDateTime;
-            UseActionLanes = true;
+            // Instant fleet management must not depend on ActionList processing — otherwise
+            // assign/rename-adjacent ops can appear accepted while never mutating the tree
+            // (especially when the commanded entity's OrderableDB is busy or not processed).
+            UseActionLanes = false;
         }
 
         public static FleetOrder CreateFleetOrder(string name, Entity faction, StarSystem starSystem)
@@ -198,6 +201,10 @@ namespace Pulsar4X.Fleets
                 case FleetOrderType.AssignShip:
                     navyDB = _entityCommanding.GetDataBlob<FleetDB>();
 
+                    // Ships can sit on the faction root as "unattached"; drop that link before joining a fleet.
+                    if (factionRoot.Children.Contains(_targetEntity))
+                        factionRoot.RemoveChild(_targetEntity);
+
                     // If no children or no flagship set the ship as the flagship
                     if(navyDB.Children.Count == 0 || navyDB.FlagShipID == -1)
                     {
@@ -217,6 +224,14 @@ namespace Pulsar4X.Fleets
                         navyDB.FlagShipID = -1;
                         // if we have no flagship, move to the global entity manager
                         _manager.Transfer(_entityCommanding);
+                    }
+
+                    // Keep the ship visible in Fleet Management as "Unattached" under the faction root.
+                    // Without this, RemoveChild orphans the ship from the hierarchy projection.
+                    if (_entityCommanding != _factionEntity
+                        && !factionRoot.Children.Contains(_targetEntity))
+                    {
+                        factionRoot.AddChild(_targetEntity);
                     }
                     break;
                 case FleetOrderType.SetFlagShip:
@@ -246,12 +261,12 @@ namespace Pulsar4X.Fleets
             switch(OrderType)
             {
                 case FleetOrderType.Create:
-                    if(_manager.TryGetGlobalEntityById(RequestingFactionGuid, out _factionEntity)
-                        && _manager.TryGetGlobalEntityById(EntityCommandingGuid, out _entityCommanding))
-                    {
-                        return true;
-                    }
-                    break;
+                    // Faction lives on GlobalManager; resolve via Factions map rather than
+                    // searching the target star-system manager alone.
+                    if (!game.Factions.TryGetValue(RequestingFactionGuid, out _factionEntity))
+                        return false;
+                    _entityCommanding = _factionEntity;
+                    return true;
                 default:
                     if(game.Factions.ContainsKey(RequestingFactionGuid))
                     {
@@ -263,7 +278,6 @@ namespace Pulsar4X.Fleets
                     }
                     return RequestingFactionGuid == _entityCommanding.FactionOwnerID;
             }
-            return false;
         }
 
         public override EntityCommand Clone()

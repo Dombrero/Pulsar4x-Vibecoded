@@ -5,6 +5,15 @@ using Pulsar4X.Interfaces;
 
 namespace Pulsar4X.Engine.Orders
 {
+    /// <summary>
+    /// Where a fleet/ship order came from. Issued (player Issue Orders) always outranks Standing.
+    /// </summary>
+    public enum OrderSource
+    {
+        Issued = 0,
+        Standing = 1,
+    }
+
     public abstract class EntityCommand
     {
         [Flags]
@@ -24,6 +33,10 @@ namespace Pulsar4X.Engine.Orders
         public abstract bool IsBlocking { get; }
         public abstract string Name { get; }
         public abstract string Details { get; }
+
+        /// <summary>Player Issue Orders vs Standing Orders. Default is Issued.</summary>
+        [JsonProperty]
+        public OrderSource Source { get; set; } = OrderSource.Issued;
 
         public virtual void UpdateDetailString()
         {}
@@ -86,6 +99,16 @@ namespace Pulsar4X.Engine.Orders
         public bool GetIsFinished { get { return _isFinished; }}
 
         public abstract EntityCommand Clone();
+
+        /// <summary>
+        /// Standing-order templates keep <see cref="EntityCommandingGuid"/> across save/load but
+        /// drop the live <see cref="Entity"/> reference. Rebind before <see cref="Clone"/> /
+        /// <see cref="Execute"/>.
+        /// </summary>
+        internal virtual void BindCommandingEntity(Entity entity)
+        {
+            EntityCommandingGuid = entity.Id;
+        }
     }
 
     public static class CommandHelpers

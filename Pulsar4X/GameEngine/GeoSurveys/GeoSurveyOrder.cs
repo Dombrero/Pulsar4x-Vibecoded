@@ -1,19 +1,40 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
+using Pulsar4X.Fleets;
+using Pulsar4X.Movement;
+using Pulsar4X.Ships;
 
 namespace Pulsar4X.GeoSurveys;
 
+/// <summary>
+/// Single self-contained order: travel to the body (if needed), then geo-survey.
+/// Progress only counts ships that are actually at the target — no remote surveying.
+/// </summary>
 public class GeoSurveyOrder : EntityCommand
 {
     public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
 
     public override bool IsBlocking => true;
 
-    public override string Name => $"Geo Survey {Target.GetOwnersName()} ({GetProgressPercent()}%)";
+    public override string Name
+    {
+        get
+        {
+            string targetName = Target?.GetOwnersName() ?? "?";
+            if (!IsAtTarget())
+                return $"Geo Survey {targetName} (en route)";
+            return $"Geo Survey {targetName} ({GetProgressPercent():0.#}%)";
+        }
+    }
 
-    public override string Details => "";
+    public override string Details => IsAtTarget()
+        ? "Surveying at target."
+        : "Moving to survey target before scanning.";
 
     public Entity Target { get; private set; }
     public GeoSurveyableDB? TargetGeoSurveyDB { get; private set; } = null;
@@ -21,83 +42,146 @@ public class GeoSurveyOrder : EntityCommand
     public GeoSurveyProcessor? Processor { get; private set; } = null;
 
     private Entity _entityCommanding;
-    internal override Entity EntityCommanding
-    {
-        get { return _entityCommanding; }
-    }
+    private readonly List<WarpMoveCommand> _travelCommands = new();
+    private bool _surveyStarted;
+
+    internal override Entity EntityCommanding => _entityCommanding;
 
     public GeoSurveyOrder() { }
+
     public GeoSurveyOrder(Entity commandingEntity, Entity target)
     {
         _entityCommanding = commandingEntity;
         Target = target;
-        if(Target.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
-        {
+        if (Target.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
             TargetGeoSurveyDB = geoSurveyableDB;
-        }
     }
 
     public override EntityCommand Clone()
     {
-        var command = new GeoSurveyOrder(EntityCommanding, Target)
+        return new GeoSurveyOrder(EntityCommanding, Target)
         {
-            UseActionLanes = this.UseActionLanes,
-            RequestingFactionGuid = this.RequestingFactionGuid,
-            EntityCommandingGuid = this.EntityCommandingGuid,
-            CreatedDate = this.CreatedDate,
-            ActionOnDate = this.ActionOnDate,
-            ActionedOnDate = this.ActionedOnDate,
-            IsRunning = this.IsRunning
+            UseActionLanes = UseActionLanes,
+            RequestingFactionGuid = RequestingFactionGuid,
+            EntityCommandingGuid = EntityCommandingGuid,
+            CreatedDate = CreatedDate,
+            ActionOnDate = ActionOnDate,
+            ActionedOnDate = ActionedOnDate,
+            IsRunning = IsRunning,
+            Source = Source,
         };
-
-        return command;
     }
 
     internal override bool IsFinished()
     {
-        return _isFinished = TargetGeoSurveyDB == null ? true : TargetGeoSurveyDB.IsSurveyComplete(EntityCommanding.FactionOwnerID);
+        return _isFinished = TargetGeoSurveyDB == null
+            || TargetGeoSurveyDB.IsSurveyComplete(EntityCommanding.FactionOwnerID);
     }
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!IsRunning)
+        if (TargetGeoSurveyDB == null || IsFinished())
+            return;
+
+        IsRunning = true;
+
+        if (!IsAtTarget())
         {
-            IsRunning = true;
+            EnsureTravel(atDateTime);
+            return;
+        }
+
+        // Arrived — survey only from ships on station.
+        if (!_surveyStarted)
+        {
+            _surveyStarted = true;
             PreviousUpdate = atDateTime;
             Processor = new GeoSurveyProcessor(EntityCommanding, Target);
+            return;
         }
-        else
+
+        if (PreviousUpdate != null && atDateTime - PreviousUpdate >= TimeSpan.FromDays(1))
         {
-            if(PreviousUpdate != null && atDateTime - PreviousUpdate >= TimeSpan.FromDays(1))
-            {
-                Processor?.ProcessEntity(EntityCommanding, atDateTime);
-                PreviousUpdate = atDateTime;
-            }
+            Processor?.ProcessEntity(EntityCommanding, atDateTime);
+            PreviousUpdate = atDateTime;
         }
     }
 
+    private bool IsAtTarget()
+        => Target != null && FleetOrderCleanup.IsFleetAtBody(EntityCommanding, Target);
+
+        private void EnsureTravel(DateTime atDateTime)
+        {
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return;
+
+            // Still warping toward this target — wait; do not stack another hop.
+            if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
+                return;
+
+            bool needsRedispatch = _travelCommands.Count == 0
+                || _travelCommands.Any(c => c.WasCancelled)
+                || _travelCommands.All(c =>
+                    !c.EntityCommanding.TryGetDataBlob<OrderableDB>(out var shipOrders)
+                    || !shipOrders.ActionList.Contains(c));
+
+            if (!needsRedispatch)
+                return;
+
+            var shipsNeedingTravel = fleetDB.Children
+                .Where(c => c.HasDataBlob<ShipInfoDB>()
+                            && c.HasDataBlob<WarpAbilityDB>()
+                            && !FleetOrderCleanup.IsShipAtBody(c, Target))
+                .ToList();
+
+            if (shipsNeedingTravel.Count == 0)
+                return;
+
+            // Leaving the current body for survey — clear cargo so Movement is free for warp.
+            FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
+
+            _travelCommands.Clear();
+
+            foreach (var ship in shipsNeedingTravel)
+            {
+                try
+                {
+                    var cmd = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
+                    _travelCommands.Add(cmd);
+                    if (!ship.Manager.Game.OrderHandler.HandleOrder(cmd))
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"GeoSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"GeoSurvey travel failed for ship {ship.Id}: {ex}");
+                }
+            }
+        }
+
     internal override bool IsValidCommand(Game game)
-    {
-        return TargetGeoSurveyDB != null;
-    }
+        => TargetGeoSurveyDB != null;
 
     public static GeoSurveyOrder CreateCommand(int requestingFactionId, Entity fleet, Entity target)
     {
-        var command = new GeoSurveyOrder(fleet, target)
+        return new GeoSurveyOrder(fleet, target)
         {
-            RequestingFactionGuid = requestingFactionId
+            RequestingFactionGuid = requestingFactionId,
+            EntityCommandingGuid = fleet.Id,
+            Source = OrderSource.Issued,
         };
-
-        return command;
     }
 
     private float GetProgressPercent()
     {
-        if(TargetGeoSurveyDB == null) return 0f;
-        if(!TargetGeoSurveyDB.HasSurveyStarted(RequestingFactionGuid)) return 0f;
+        if (TargetGeoSurveyDB == null) return 0f;
+        if (!TargetGeoSurveyDB.HasSurveyStarted(RequestingFactionGuid)) return 0f;
 
         uint pointsRequired = TargetGeoSurveyDB.PointsRequired;
         uint currentValue = TargetGeoSurveyDB.GeoSurveyStatus[RequestingFactionGuid];
+        if (pointsRequired == 0) return 100f;
 
         return (1f - ((float)currentValue / (float)pointsRequired)) * 100f;
     }

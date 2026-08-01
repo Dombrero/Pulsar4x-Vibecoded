@@ -255,6 +255,8 @@ namespace Pulsar4X.Client
         /// </summary>
         public void RenderUI()
         {
+            TutorialHighlight.BeginFrame();
+
             // ImGui helper windows
             if (_state.ShowMetrixWindow)
                 ImGui.ShowMetricsWindow(ref _state.ShowMetrixWindow);
@@ -286,6 +288,8 @@ namespace Pulsar4X.Client
 
             // Render the maneuver node panel overlay (if active)
             _state.DisplayManeuverNodePanel();
+
+            TutorialHighlight.DrawOverlay();
         }
 
         public override void Exit()

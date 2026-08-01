@@ -6,7 +6,7 @@ namespace Pulsar4X.Client.Interface.Menus;
 
 public class SaveGame : UniquePulsarGuiWindow<SaveGame>
 {
-    private string _filePath = Path.Combine(PulsarMainWindow.GetAppDataPath(), PulsarMainWindow.SavesPath);
+    private string _filePath = Path.Combine(PulsarMainWindow.GetAppDataPath() ?? "", PulsarMainWindow.SavesPath);
     private string _fileName = "savegame.sav";
 
     private SaveGame() {}
@@ -30,12 +30,27 @@ public class SaveGame : UniquePulsarGuiWindow<SaveGame>
                 return;
             }
 
-            _uiState.Lifecycle?.SaveGame(Path.Combine(_filePath, _fileName));
+            try
+            {
+                if (!Directory.Exists(_filePath))
+                    Directory.CreateDirectory(_filePath);
+
+                string name = _fileName;
+                if (!name.EndsWith(".sav", StringComparison.OrdinalIgnoreCase))
+                    name += ".sav";
+
+                _uiState.Lifecycle?.SaveGame(Path.Combine(_filePath, name));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SaveGame UI Error: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+            }
         }
     }
 
     public void UpdateSaveName(string name)
     {
-        _fileName = name + ".sav";
+        _fileName = name.EndsWith(".sav", StringComparison.OrdinalIgnoreCase) ? name : name + ".sav";
     }
 }

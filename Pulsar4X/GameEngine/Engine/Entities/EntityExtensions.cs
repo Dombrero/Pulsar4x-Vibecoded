@@ -85,53 +85,91 @@ namespace Pulsar4X.Extensions
 
         public static double GetFuelPercent(this Entity entity, CargoDefinitionsLibrary cargoLibrary)
         {
-            if(entity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB) && entity.TryGetDataBlob<CargoStorageDB>(out var volumeStorageDB))
+            if (entity.TryGetDataBlob<CargoStorageDB>(out var volumeStorageDB))
             {
                 string thrusterFuel = String.Empty;
-                foreach(var component in shipInfoDB.Design.Components.ToArray())
+
+                if (entity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB) && shipInfoDB.Design != null)
                 {
-                    if(!component.design.TryGetAttribute<NewtonionThrustAtb>(out var newtonionThrustAtb)) continue;
-                    thrusterFuel = newtonionThrustAtb.FuelType;
-                    break;
+                    foreach (var component in shipInfoDB.Design.Components.ToArray())
+                    {
+                        if (!component.design.TryGetAttribute<NewtonionThrustAtb>(out var newtonionThrustAtb))
+                            continue;
+                        thrusterFuel = newtonionThrustAtb.FuelType;
+                        break;
+                    }
                 }
 
-                if(thrusterFuel == String.Empty) return 0;
+                // Warp-driven surveyors often have no newton thruster — use warp energy type.
+                if (thrusterFuel == String.Empty
+                    && entity.TryGetDataBlob<Movement.WarpAbilityDB>(out var warp)
+                    && !string.IsNullOrEmpty(warp.EnergyType))
+                {
+                    thrusterFuel = warp.EnergyType;
+                }
+
+                if (thrusterFuel == String.Empty)
+                    return 0;
 
                 var fuelType = cargoLibrary.GetAny(thrusterFuel);
-                if(fuelType == null) return 0;
+                if (fuelType == null)
+                    return 0;
+                if (!volumeStorageDB.TypeStores.ContainsKey(fuelType.CargoTypeID))
+                    return 0;
 
-                var typeStore = volumeStorageDB.TypeStores[fuelType.CargoTypeID];
-                var freeVolume = volumeStorageDB.GetFreeVolume(fuelType.CargoTypeID);
-                var percentFree = (freeVolume / typeStore.MaxVolume) * 100;
-                var percentStored = Math.Round( 100 - percentFree, 3);
+                // Percent of this fuel item's tank capacity (not whole TypeStore fill).
+                long stored = volumeStorageDB.GetUnitsStored(fuelType, includeEscro: false);
+                long free = volumeStorageDB.GetFreeUnitSpace(fuelType, includeEscro: false);
+                long capacity = stored + free;
+                if (capacity <= 0)
+                    return 0;
 
-                return percentStored;
+                return Math.Round(100.0 * stored / capacity, 3);
             }
+
             return 0;
         }
 
         public static (ICargoable?, double) GetFuelInfo(this Entity entity, CargoDefinitionsLibrary cargoLibrary)
         {
-            if(entity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB) && entity.TryGetDataBlob<CargoStorageDB>(out var volumeStorageDB))
+            if (entity.TryGetDataBlob<CargoStorageDB>(out var volumeStorageDB))
             {
                 string thrusterFuel = String.Empty;
-                foreach(var component in shipInfoDB.Design.Components.ToArray())
+
+                if (entity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB) && shipInfoDB.Design != null)
                 {
-                    if(!component.design.TryGetAttribute<NewtonionThrustAtb>(out var newtonionThrustAtb)) continue;
-                    thrusterFuel = newtonionThrustAtb.FuelType;
-                    break;
+                    foreach (var component in shipInfoDB.Design.Components.ToArray())
+                    {
+                        if (!component.design.TryGetAttribute<NewtonionThrustAtb>(out var newtonionThrustAtb))
+                            continue;
+                        thrusterFuel = newtonionThrustAtb.FuelType;
+                        break;
+                    }
                 }
 
-                if(thrusterFuel == String.Empty) return (null, 0);
+                if (thrusterFuel == String.Empty
+                    && entity.TryGetDataBlob<Movement.WarpAbilityDB>(out var warp)
+                    && !string.IsNullOrEmpty(warp.EnergyType))
+                {
+                    thrusterFuel = warp.EnergyType;
+                }
+
+                if (thrusterFuel == String.Empty)
+                    return (null, 0);
 
                 var fuelType = cargoLibrary.GetAny(thrusterFuel);
-                if(fuelType == null) return (null, 0);
+                if (fuelType == null)
+                    return (null, 0);
+                if (!volumeStorageDB.TypeStores.ContainsKey(fuelType.CargoTypeID))
+                    return (null, 0);
 
-                var typeStore = volumeStorageDB.TypeStores[fuelType.CargoTypeID];
-                var freeVolume = volumeStorageDB.GetFreeVolume(fuelType.CargoTypeID);
-                var percentFree = freeVolume / typeStore.MaxVolume;
-                var percentStored = Math.Round( 1 - percentFree, 3);
+                long stored = volumeStorageDB.GetUnitsStored(fuelType, includeEscro: false);
+                long free = volumeStorageDB.GetFreeUnitSpace(fuelType, includeEscro: false);
+                long capacity = stored + free;
+                if (capacity <= 0)
+                    return (fuelType, 0);
 
+                var percentStored = Math.Round((double)stored / capacity, 3);
                 return (fuelType, percentStored);
             }
 

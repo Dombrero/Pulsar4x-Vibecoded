@@ -53,36 +53,44 @@ public class CargoTransferDataDB : BaseDataBlob
             (ICargoable item, long amount) tuple = OrderedToTransfer[index];
             var cargoItem = tuple.item;
             var unitAmount = tuple.amount;
-            TypeStore store;
-            SafeList<(ICargoable item, long count, double mass)> itemsToRemove; //reference which list.
-            long unitsStorable; 
+            TypeStore? store;
+            SafeList<(ICargoable item, long count, double mass)> itemsToRemove;
+            long unitsStorable;
             if (unitAmount < 0) //we're moving items from primary to secondary
             {
                 unitAmount *= -1;
-                store = PrimaryStorageDB.TypeStores[cargoItem.CargoTypeID];
                 itemsToRemove = EscroHeldInPrimary;
+                if (!PrimaryStorageDB.TypeStores.TryGetValue(cargoItem.CargoTypeID, out store))
+                {
+                    itemsToRemove.Add((cargoItem, 0, 0));
+                    continue;
+                }
                 unitsStorable = CargoMath.GetFreeUnitSpace(SecondaryStorageDB, cargoItem);
             }
-            else   //we're moving items from secondary to primary
+            else //we're moving items from secondary to primary
             {
-                store = SecondaryStorageDB.TypeStores[cargoItem.CargoTypeID];
                 itemsToRemove = EscroHeldInSecondary;
+                if (!SecondaryStorageDB.TypeStores.TryGetValue(cargoItem.CargoTypeID, out store))
+                {
+                    itemsToRemove.Add((cargoItem, 0, 0));
+                    continue;
+                }
                 unitsStorable = CargoMath.GetFreeUnitSpace(PrimaryStorageDB, cargoItem);
             }
+
             if (store.CurrentStoreInUnits.ContainsKey(cargoItem.ID))
             {
                 long amountInStore = store.CurrentStoreInUnits[cargoItem.ID];
-                
+
                 long amountToRemove = Math.Min(unitAmount, amountInStore);
                 amountToRemove = Math.Min(unitsStorable, amountToRemove);
                 store.CurrentStoreInUnits[cargoItem.ID] -= amountToRemove;
                 double massToRemove = cargoItem.MassPerUnit * amountToRemove;
-                itemsToRemove.Add((cargoItem,amountToRemove, massToRemove));
+                itemsToRemove.Add((cargoItem, amountToRemove, massToRemove));
             }
             else
             {
-                //in this case we're trying to remove items that don't exist. not sure how we should handle this yet.
-                itemsToRemove.Add((cargoItem,0,0));
+                itemsToRemove.Add((cargoItem, 0, 0));
             }
         }
     }

@@ -416,7 +416,8 @@ public class MoveStateProcessor : IInstanceProcessor
             }
             case PositionDB.MoveTypes.Warp:
             {
-                WarpMoveProcessor.ProcessEntity(entity, toDateTime);
+                if (entity.HasDataBlob<WarpMovingDB>())
+                    WarpMoveProcessor.ProcessEntity(entity, toDateTime);
                 break;
             }
             default:

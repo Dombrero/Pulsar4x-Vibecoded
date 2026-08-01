@@ -295,7 +295,11 @@ namespace Pulsar4X.Client.Rendering
                 _entityIcons.TryAdd(entity.Id, new BeamIcon(beam, position));
             }
 
-            if (entity.HasView<GravSurveyView>() && entity.HasView<PositionView>())
+            if (entity.HasView<JumpPointView>() && entity.HasView<PositionView>())
+            {
+                AddEntityIcon(entity, PointOfInterestIcon.ForJumpPoint(position));
+            }
+            else if (entity.HasView<GravSurveyView>() && entity.HasView<PositionView>())
             {
                 AddEntityIcon(entity, new PointOfInterestIcon(position));
             }

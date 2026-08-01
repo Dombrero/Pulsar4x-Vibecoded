@@ -1,4 +1,5 @@
 using Pulsar4X.Engine;
+using Pulsar4X.Engine.Orders;
 using Pulsar4X.JumpPoints;
 
 namespace Pulsar4X.Movement
@@ -7,6 +8,7 @@ namespace Pulsar4X.Movement
     {
         public override string Name => "Anomaly Survey Nearest";
         public override string Details => "Moves the fleet to the nearest Grav Anomaly that can be surveyed.";
+
         private bool GravSurveyFilter(Entity entity)
         {
             return entity.HasDataBlob<JPSurveyableDB>()
@@ -22,6 +24,28 @@ namespace Pulsar4X.Movement
                 RequestingFactionGuid = factionId,
                 EntityCommandingGuid = commandingEntity.Id,
                 EntityFactionFilter = DataStructures.EntityFilter.Neutral
+            };
+            command.Filter = command.GravSurveyFilter;
+            return command;
+        }
+
+        protected override void EnsureFiltersConfigured()
+        {
+            Filter ??= GravSurveyFilter;
+        }
+
+        public override EntityCommand Clone()
+        {
+            var command = new MoveToNearestAnomalyAction()
+            {
+                _entityCommanding = _entityCommanding,
+                UseActionLanes = UseActionLanes,
+                RequestingFactionGuid = RequestingFactionGuid,
+                EntityCommandingGuid = EntityCommandingGuid,
+                CreatedDate = CreatedDate,
+                ActionOnDate = ActionOnDate,
+                ActionedOnDate = ActionedOnDate,
+                EntityFactionFilter = EntityFactionFilter,
             };
             command.Filter = command.GravSurveyFilter;
             return command;

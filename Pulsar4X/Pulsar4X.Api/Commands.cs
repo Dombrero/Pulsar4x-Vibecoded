@@ -109,9 +109,13 @@ public sealed record TransferCargoCommand(
 /// (<see cref="OrderSnapshot.OrderId"/>).</summary>
 public sealed record SetOrderPauseCommand(int TargetEntityId, string OrderId, bool Pause) : GameCommand(TargetEntityId);
 
-/// <summary>Remove a queued order (<see cref="OrderSnapshot.OrderId"/>) that has not started
-/// running yet.</summary>
+/// <summary>Remove a queued order (<see cref="OrderSnapshot.OrderId"/>), including running ones.
+/// Cargo transfers restore escrowed goods on both partners.</summary>
 public sealed record CancelOrderCommand(int TargetEntityId, string OrderId) : GameCommand(TargetEntityId);
+
+/// <summary>Clear the fleet's order queue and every assigned ship's queue (including stuck cargo
+/// transfers that otherwise block Movement).</summary>
+public sealed record ClearFleetOrdersCommand(int TargetEntityId) : GameCommand(TargetEntityId);
 
 // ----- ship movement orders (commanded entity: the ship) -----
 

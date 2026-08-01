@@ -15,33 +15,11 @@ public class LocalConstructionAtb : IComponentDesignAttribute
         PointsPerDay = pointsPerDay;
     }
 
-    public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance)
-    {
-        // Ensure the LocalConstructionDB exists.
-        if (!parentEntity.TryGetDataBlob<LocalConstructionDB>(out var localConstructionDB))
-        {
-            localConstructionDB = new LocalConstructionDB();
-            parentEntity.SetDataBlob(localConstructionDB);
-        }
+    // Totals are recomputed by LocalConstructionProcessor.RecalcPoints off ComponentInstancesDB
+    // recalc (same pattern as InfrastructureCapacityAtb), so these are no-ops.
+    public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance) { }
 
-        // Add this component's construction points to the total.
-        localConstructionDB.PointsPerDay += Level * PointsPerDay;
-    }
-
-    public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
-    {
-        if (parentEntity.TryGetDataBlob<LocalConstructionDB>(out var localConstructionDB))
-        {
-            // Subtract this component's construction points from the total.
-            localConstructionDB.PointsPerDay -= Level * PointsPerDay;
-
-            // If no construction points remain, remove the DataBlob.
-            if (localConstructionDB.PointsPerDay <= 0)
-            {
-                parentEntity.RemoveDataBlob<LocalConstructionDB>();
-            }
-        }
-    }
+    public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance) { }
 
     public string AtbName()
     {

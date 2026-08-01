@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Engine;
 using Pulsar4X.Factions;
@@ -10,6 +11,16 @@ namespace Pulsar4X.Industry
     {
         internal string TypeID;
         public IndustryJobStatus Status { get; internal set; } = IndustryJobStatus.Queued;
+
+        /// <summary>
+        /// Deserialization only. Without this, Newtonsoft picks
+        /// <see cref="IndustryJob(FactionInfoDB, string)"/> and passes a null factionInfo
+        /// (not present in the JSON), which NullRefs and aborts the whole save load.
+        /// </summary>
+        [JsonConstructor]
+        private IndustryJob()
+        {
+        }
 
         public IndustryJob(FactionInfoDB factionInfo, string itemID)
         {

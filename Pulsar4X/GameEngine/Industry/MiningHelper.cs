@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Pulsar4X.Engine;
-using Pulsar4X.DataStructures;
 using Pulsar4X.Colonies;
+using Pulsar4X.DataStructures;
+using Pulsar4X.Engine;
 
 namespace Pulsar4X.Industry
 {
     public static class MiningHelper
     {
-        public static Dictionary<int, long> CalculateActualMiningRates(Entity colonyEntity)
+        /// <summary>
+        /// Effective units/day (double) after accessibility and mining bonuses.
+        /// </summary>
+        public static Dictionary<int, double> CalculateExactMiningRates(Entity colonyEntity)
         {
             if (!colonyEntity.TryGetDataBlob<MiningDB>(out var miningDB))
                 throw new Exception("Entity does not have MiningDB");
@@ -24,18 +26,28 @@ namespace Pulsar4X.Industry
                 miningBonuses = colonyBonusesDB.GetBonus(AbilityType.Mine);
             }
 
-            var mineRates = miningDB.BaseMiningRate.ToDictionary(k => k.Key, v => v.Value);
             var planetMinerals = mineralsDB.Minerals;
-
-            foreach (var (key, value) in mineRates)
+            var mineRates = new Dictionary<int, double>(miningDB.BaseMiningRate.Count);
+            foreach (var (key, baseRate) in miningDB.BaseMiningRate)
             {
-                long baseRateFromMiningInstallations = mineRates[key];
                 double accessibility = planetMinerals.ContainsKey(key) ? planetMinerals[key].Accessibility : 0;
-                double actualRate = baseRateFromMiningInstallations * miningBonuses * accessibility;
-                mineRates[key] = Convert.ToInt64(actualRate);
+                mineRates[key] = baseRate * miningBonuses * accessibility;
             }
 
             return mineRates;
+        }
+
+        /// <summary>
+        /// Integer rates for <see cref="MiningDB.ActualMiningRate"/> (save-compatible long dict).
+        /// Floors; sub-1 production is handled via <see cref="MiningDB.MiningRemainder"/>.
+        /// </summary>
+        public static Dictionary<int, long> CalculateActualMiningRates(Entity colonyEntity)
+        {
+            var exact = CalculateExactMiningRates(colonyEntity);
+            var rounded = new Dictionary<int, long>(exact.Count);
+            foreach (var (key, rate) in exact)
+                rounded[key] = (long)Math.Floor(rate);
+            return rounded;
         }
     }
 }

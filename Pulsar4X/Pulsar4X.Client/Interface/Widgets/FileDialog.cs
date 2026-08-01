@@ -78,15 +78,16 @@ public static class FileDialog
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Save to Binary location");
         
         //this is Editor specific TODO: add a way to add specific dir to the LH colomn
-        if (ImGui.Button("GameData/basemod"))
-        {
-            var dir = new DirectoryInfo(_curDir);
-            while (dir.Name != "Pulsar4X")
+            if (ImGui.Button("GameData/basemod"))
             {
-                dir = Directory.GetParent(dir.FullName);
+                var dir = new DirectoryInfo(_curDir);
+                while (dir != null && dir.Name != "Pulsar4X")
+                {
+                    dir = dir.Parent;
+                }
+                if (dir != null)
+                    _pathString = Path.Combine(dir.FullName, "GameData/basemod");
             }
-            _pathString = Path.Combine(dir.FullName, "GameData/basemod");
-        }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Save to Source location");
 
 
@@ -107,10 +108,33 @@ public static class FileDialog
         {
             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
             {
-                _pathString = Directory.GetParent(_pathString).FullName;
+                var parent = Directory.GetParent(_pathString);
+                if (parent != null)
+                    _pathString = parent.FullName;
             }
         }
         ImGui.TableNextRow();
+
+        if (!Directory.Exists(_pathString))
+        {
+            ImGui.TextColored(new System.Numerics.Vector4(1f, 0.3f, 0.3f, 1f), "Path does not exist — will be created on Save");
+            ImGui.EndTable();
+            ImGui.Columns(1);
+            if (DialogType == SaveOrLoad.Save && ImGui.Button("Save"))
+            {
+                isok = true;
+                IsActive = false;
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+            {
+                IsActive = false;
+                isok = false;
+            }
+            ImGui.End();
+            path = _pathString;
+            return isok;
+        }
 
         var dirs = Directory.EnumerateDirectories(_pathString);
         _i = 0;

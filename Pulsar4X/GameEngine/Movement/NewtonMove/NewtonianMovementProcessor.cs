@@ -334,16 +334,20 @@ namespace Pulsar4X.Movement
             var factionDataStore = parentEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data;
             var db = parentEntity.GetDataBlob<NewtonThrustAbilityDB>();
             var ft = db.FuelType;
-            var ev = db.ExhaustVelocity;
             var totalMass = parentEntity.GetDataBlob<MassVolumeDB>().MassTotal;
-            ProcessedMaterial fuel = factionDataStore.CargoGoods.GetMaterial(ft);
 
             double fuelMass = 0;
-            if(parentEntity.HasDataBlob<CargoStorageDB>())
+            // GetMaterial/GetAny use .First() and throw when the fuel id is missing — that used to
+            // abort CreateShip with a confusing failure during pad launch.
+            if (!string.IsNullOrEmpty(ft)
+                && factionDataStore.CargoGoods.Contains(ft)
+                && parentEntity.TryGetDataBlob<CargoStorageDB>(out var cargo))
             {
-                var cargo = parentEntity.GetDataBlob<CargoStorageDB>();
-                fuelMass = cargo.GetMassStored(fuel, false);
+                var fuel = factionDataStore.CargoGoods.GetAny(ft);
+                if (fuel != null)
+                    fuelMass = cargo.GetMassStored(fuel, false);
             }
+
             db.SetFuel(fuelMass, totalMass);
         }
     }

@@ -1,0 +1,10 @@
+{
+  "Author": "PCUser",
+  "ModName": "Tutorial Mod",
+  "Version": "0.1.0",
+  "Namespace": "pcuser.tutorial-mod",
+  "DefaultEnabled": false,
+  "DataFiles": [
+    "tutorial-starts.json"
+  ]
+}

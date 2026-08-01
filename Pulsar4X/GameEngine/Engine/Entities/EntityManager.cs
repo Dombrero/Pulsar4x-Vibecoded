@@ -2,6 +2,8 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Engine.Auth;
@@ -131,11 +133,15 @@ namespace Pulsar4X.Engine
             }
             else
             {
+                // Json.NET leaves missing ints as 0 (field initializer -1 is skipped). Treat
+                // unset / legacy-zero seeds as "regenerate" so Load does not throw.
+                if (_rngSeed == -1 || _rngSeed == 0)
+                    _rngSeed = unchecked(ManagerID?.GetHashCode() ?? game.TimePulse.GameGlobalDateTime.GetHashCode());
                 if (_rngSeed == 0)
-                    throw new Exception("postload but seed is not set");
+                    _rngSeed = 1;
             }
 
-            RNG = new Random(seed);
+            RNG = new Random(_rngSeed);
 
             SetEntities();
             InitializeManagerSubPulse(game, postLoad);
@@ -192,22 +198,36 @@ namespace Pulsar4X.Engine
 
         #region Entity Management Functions
 
-        public async void AddEntity(Entity entity, IEnumerable<BaseDataBlob>? dataBlobs = null)
+        public void AddEntity(Entity entity, IEnumerable<BaseDataBlob>? dataBlobs = null)
         {
-            if (_entities.ContainsKey(entity.Id))
-                throw new ArgumentException($"Entity with ID {entity.Id} already exists");
+            if (_entities.ContainsKey(entity.Id) || IdTakenGlobally(entity.Id))
+            {
+                // ID generator out of sync with a loaded save — mint a free id instead of aborting spawn.
+                int newId;
+                do
+                {
+                    newId = EntityIDGenerator.GenerateUniqueID();
+                }
+                while (_entities.ContainsKey(newId) || IdTakenGlobally(newId));
+
+                DebugTraceLog.Warn("Engine",
+                    $"Entity ID {entity.Id} already in use; reassigned to {newId}.");
+                entity.ReassignId(newId);
+            }
 
             entity.Manager = this;
 
             // Add the entity
             _entities[entity.Id] = entity;
 
-            // Add any specified datablobs
+            // Add any specified datablobs without per-blob listener fan-out. Publishing DBAdded for
+            // each blob mid-construction re-entered the API projector on a half-built ship (async
+            // void SetDataBlob), which raced AddComponent and surfaced as Manager==null NullRefs.
             if (dataBlobs != null)
             {
                 foreach (var blob in dataBlobs)
                 {
-                    SetDataBlob(entity.Id, blob);
+                    SetDataBlob(entity.Id, blob, updateListeners: false);
                 }
             }
 
@@ -216,13 +236,17 @@ namespace Pulsar4X.Engine
 
             entity.IsValid = true;
 
-            // Update listeners
-            await MessagePublisher.Instance.Publish(
-                Message.Create(
-                    MessageTypes.EntityAdded,
-                    entity.Id,
-                    ManagerID
-                ));
+            PublishFireAndForget(Message.Create(
+                MessageTypes.EntityAdded,
+                entity.Id,
+                ManagerID));
+        }
+
+        private bool IdTakenGlobally(int id)
+        {
+            if (Game == null)
+                return false;
+            return Game.GlobalManager.TryGetGlobalEntityById(id, out _);
         }
 
         public Entity CreateAndAddEntity(ProtoEntity protoEntity)
@@ -268,7 +292,7 @@ namespace Pulsar4X.Engine
             return _entities.ContainsKey(entityID);
         }
 
-        internal async void TagEntityForRemoval(Entity entity)
+        internal void TagEntityForRemoval(Entity entity)
         {
             //check we've not already tagged this.
             if (!_entitiesTaggedForRemoval.Contains(entity))
@@ -282,12 +306,11 @@ namespace Pulsar4X.Engine
                 entity.IsValid = false;
                 ManagerSubpulses.RemoveEntity(entity);
                 _entitiesTaggedForRemoval.Add(entity);
-                await MessagePublisher.Instance.Publish(
-                    Message.Create(
-                        MessageTypes.EntityRemoved,
-                        entity.Id,
-                        ManagerID
-                    ));
+                PublishFireAndForget(Message.Create(
+                    MessageTypes.EntityRemoved,
+                    entity.Id,
+                    ManagerID
+                ));
             }
         }
 
@@ -453,7 +476,7 @@ namespace Pulsar4X.Engine
             return false;
         }
 
-        internal async void SetDataBlob<T>(int entityId, T dataBlob, bool updateListeners = true) where T : BaseDataBlob
+        internal void SetDataBlob<T>(int entityId, T dataBlob, bool updateListeners = true) where T : BaseDataBlob
         {
             if (dataBlob is null)
                 throw new ArgumentNullException(nameof(dataBlob));
@@ -467,22 +490,29 @@ namespace Pulsar4X.Engine
             _datablobStores[type][entityId] = dataBlob;
             dataBlob.OwningEntity = _entities[entityId];
             dataBlob.OnSetToEntity();
-            ManagerSubpulses.AddSystemInterupt(dataBlob);
+            try
+            {
+                ManagerSubpulses.AddSystemInterupt(dataBlob);
+            }
+            catch (Exception ex)
+            {
+                // Never let interrupt math kill the process when a ship/colony blob is attached mid-turn.
+                DebugTraceLog.Error("Engine",
+                    $"AddSystemInterupt failed for {type.Name} on entity#{entityId}: {ex.GetType().Name}: {ex.Message}");
+            }
 
             if(updateListeners)
             {
-                var message = Message.Create(
+                PublishFireAndForget(Message.Create(
                         MessageTypes.DBAdded,
                         entityId,
                         ManagerID,
                         null,
-                        dataBlob);
-
-                await MessagePublisher.Instance.Publish(message);
+                        dataBlob));
             }
         }
 
-        public async void RemoveDatablob<T>(int entityId) where T : BaseDataBlob
+        public void RemoveDatablob<T>(int entityId) where T : BaseDataBlob
         {
             var type = typeof(T);
             if (_datablobStores.ContainsKey(type))
@@ -492,15 +522,25 @@ namespace Pulsar4X.Engine
                 blob.OwningEntity = null;
                 _datablobStores[type].Remove(entityId);
 
-                var message = Message.Create(
+                PublishFireAndForget(Message.Create(
                         MessageTypes.DBRemoved,
                         entityId,
                         ManagerID,
                         null,
-                        blob);
-
-                await MessagePublisher.Instance.Publish(message);
+                        blob));
             }
+        }
+
+        private static void PublishFireAndForget(Message message)
+        {
+            _ = MessagePublisher.Instance.Publish(message).ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception != null)
+                {
+                    DebugTraceLog.Error("Engine",
+                        $"Message publish {message.MessageType} failed: {t.Exception.GetBaseException().Message}");
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         #endregion

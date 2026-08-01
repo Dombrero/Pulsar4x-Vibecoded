@@ -23,6 +23,10 @@ namespace Pulsar4X.Ships
 
         [JsonProperty]
         public bool ReadyToLaunch { get; set; }
+
+        /// <summary>Prevents spamming the game log every daily tick while waiting for fuel.</summary>
+        [JsonProperty]
+        public bool LaunchFuelWarningIssued { get; set; }
     }
 
     public class LaunchQueueEntry

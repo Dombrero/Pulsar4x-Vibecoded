@@ -55,38 +55,41 @@ namespace Pulsar4X.Industry
 
         private void MineResources(Entity colonyEntity, ColonyInfoDB colonyInfoDB, MineralsDB mineralsDB, MiningDB miningDB, CargoStorageDB stockpile)
         {
-            Dictionary<int, long> actualMiningRates = miningDB.ActualMiningRate;
             Dictionary<int, MineralDeposit> planetMinerals = mineralsDB.Minerals;
+            miningDB.MiningRemainder ??= new Dictionary<int, double>();
 
             // Mines are buildings too: scale their output by the colony's infrastructure capacity.
             double infraEfficiency = InfrastructureProcessor.GetEfficiency(colonyEntity);
 
-            foreach (var kvp in actualMiningRates)
+            // Use exact (double) rates so accessibility/infra fractions accumulate instead of
+            // truncating to 0 units/day (the Rare Earth Elements bug).
+            var exactRates = MiningHelper.CalculateExactMiningRates(colonyEntity);
+
+            foreach (var kvp in exactRates)
             {
-                ICargoable mineral = _minerals[kvp.Key];
+                if (!_minerals.TryGetValue(kvp.Key, out var mineralDef))
+                    continue;
+                if (!planetMinerals.TryGetValue(kvp.Key, out var mineralDeposit))
+                    continue;
+
+                ICargoable mineral = mineralDef;
                 string cargoTypeID = mineral.CargoTypeID;
 
-                var unitsMinableThisTick = (long)Math.Min(actualMiningRates[kvp.Key] * infraEfficiency, planetMinerals[kvp.Key].Amount.Actual);
+                miningDB.MiningRemainder.TryGetValue(kvp.Key, out double remainder);
+                double exactUnits = kvp.Value * infraEfficiency + remainder;
+                long unitsWanted = (long)Math.Floor(exactUnits);
+                remainder = exactUnits - unitsWanted;
+                miningDB.MiningRemainder[kvp.Key] = remainder;
 
-                if(!stockpile.TypeStores.ContainsKey(cargoTypeID))
-                {
-                    // var type = StaticRefLib.StaticData.CargoTypes[cargoTypeID];
-                    // string erstr = "We didn't mine a potential " + unitsMinableThisTick + " of " + mineral.Name + " because we have no way to store " + type.Name + " cargo.";
-                    // StaticRefLib.EventLog.AddPlayerEntityErrorEvent(colonyEntity, EventType.Storage, erstr);
+                var unitsMinableThisTick = Math.Min(unitsWanted, mineralDeposit.Amount.Actual);
+                if (unitsMinableThisTick < 1)
+                    continue;
+
+                if (!stockpile.TypeStores.ContainsKey(cargoTypeID))
                     continue; //can't store this mineral
-                }
 
                 var unitsMinedThisTick = stockpile.AddCargoByUnit(mineral, unitsMinableThisTick);
 
-                if (unitsMinableThisTick > unitsMinedThisTick)
-                {
-                    // long dif = unitsMinableThisTick - unitsMinedThisTick;
-                    // var type = StaticRefLib.StaticData.CargoTypes[cargoTypeID];
-                    // string erstr = "We didn't mine a potential " + dif + " of " + mineral.Name + " because we don't have enough space to store it.";
-                    // StaticRefLib.EventLog.AddPlayerEntityErrorEvent(colonyEntity,EventType.Storage, erstr);
-                }
-
-                MineralDeposit mineralDeposit = planetMinerals[kvp.Key];
                 long newAmount = mineralDeposit.Amount.Actual - unitsMinedThisTick;
 
                 var amount = mineralDeposit.Amount;

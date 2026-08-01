@@ -1,0 +1,10 @@
+{
+  "Author": "PCUser",
+  "ModName": "My First Mod",
+  "Version": "0.1.0",
+  "Namespace": "pcuser.my-first-mod",
+  "DefaultEnabled": false,
+  "DataFiles": [
+    "theme-tweak.json"
+  ]
+}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using Pulsar4X.Api;
 using Pulsar4X.Blueprints;
 using Pulsar4X.Components;
 using Pulsar4X.DataStructures;
@@ -10,7 +11,6 @@ using Pulsar4X.Industry;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Extensions;
 using Pulsar4X.Factions;
-using Pulsar4X.Fleets;
 using Pulsar4X.Damage;
 using Pulsar4X.Engine;
 using Pulsar4X.Names;
@@ -68,27 +68,21 @@ namespace Pulsar4X.Ships
             batchJob.ResourcesRequiredRemaining = new Dictionary<string, long>(designInfo.ResourceCosts);
             batchJob.ProductionPointsLeft = designInfo.IndustryPointCosts;
 
-            var faction = industryEntity.GetFactionOwner;
+            var shipName = NameFactory.GetShipName(industryEntity.Manager.Game);
+            DebugTraceLog.Info("Production",
+                $"Ship assembly complete: '{shipName}' design={designInfo.UniqueID} ({designInfo.Name}) batch {batchJob.NumberCompleted}/{batchJob.NumberOrdered} on colony#{industryEntity.Id}",
+                industryEntity.StarSysDateTime);
 
-            if (industryEntity.TryGetDataBlob<LaunchComplexDB>(out var launchDB))
+            try
             {
-                var shipName = NameFactory.GetShipName(industryEntity.Manager.Game);
-                launchDB.LaunchQueue.Add(new LaunchQueueEntry
-                {
-                    DesignId = designInfo.UniqueID,
-                    ShipName = shipName
-                });
+                LaunchComplexProcessor.DeliverAssembledShip(industryEntity, (ShipDesign)designInfo, shipName);
             }
-            else
+            catch (Exception ex)
             {
-                var industryParent = industryEntity.GetSOIParentEntity();
-                if(industryParent == null) throw new NullReferenceException("industryParent cannot be null");
-
-                var ship = ShipFactory.CreateShip((ShipDesign)designInfo, faction, industryParent);
-                if(faction.TryGetDataBlob<FleetDB>(out var fleetDB))
-                {
-                    fleetDB.AddChild(ship);
-                }
+                DebugTraceLog.Error("Production",
+                    $"Failed to deliver assembled ship '{shipName}': {ex.GetType().Name}: {ex.Message}",
+                    industryEntity.StarSysDateTime);
+                // Job still counts as completed industrially; delivery failure is logged above.
             }
 
             if (batchJob.NumberCompleted == batchJob.NumberOrdered)
@@ -97,6 +91,7 @@ namespace Pulsar4X.Ships
                 if (batchJob.Auto)
                 {
                     batchJob.NumberCompleted = 0;
+                    batchJob.Status = IndustryJobStatus.Queued;
                     industryDB.ProductionLines[productionLine].Jobs.Add(batchJob);
                 }
             }
@@ -157,7 +152,9 @@ namespace Pulsar4X.Ships
             MineralCosts.ToList().ForEach(x => ResourceCosts[x.Key] = x.Value);
             MaterialCosts.ToList().ForEach(x => ResourceCosts[x.Key] = x.Value);
             ComponentCosts.ToList().ForEach(x => ResourceCosts[x.Key] = x.Value);
-            IndustryPointCosts = (long)(MassPerUnit * 0.1);
+            // At least 1 so a tiny hull cannot complete on the same industry tick it is queued
+            // (ProductionPointsLeft == 0 is treated as "done" once resources are paid).
+            IndustryPointCosts = Math.Max(1L, (long)(MassPerUnit * 0.1));
         }
 
         /// <summary>

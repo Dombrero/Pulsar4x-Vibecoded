@@ -12,11 +12,17 @@ namespace Pulsar4X.Client;
 /// </summary>
 public class ImGuiSDL3 : IDisposable
 {
+    // ImGui 1.89+ platform clipboard: void Set(ImGuiContext*, const char*); const char* Get(ImGuiContext*).
+    // Must keep delegates rooted or GC collects them and SetClipboardText silently fails.
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate bool ImGuiIOSetClipboardTextFn(string text);
+    private delegate void ImGuiSetClipboardTextFn(IntPtr ctx, IntPtr textUtf8);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate string ImGuiIOGetClipboardTextFn();
+    private delegate IntPtr ImGuiGetClipboardTextFn(IntPtr ctx);
+
+    private readonly ImGuiSetClipboardTextFn _setClipboard;
+    private readonly ImGuiGetClipboardTextFn _getClipboard;
+    private IntPtr _clipboardOwned; // SDL_GetClipboardText allocation, freed on next get/dispose
 
     public readonly nint Window;
     public readonly nint Renderer;
@@ -39,9 +45,11 @@ public class ImGuiSDL3 : IDisposable
         WindowId = SDL.GetWindowID(Window);
         Renderer = renderer;
 
+        _setClipboard = SetClipboardText;
+        _getClipboard = GetClipboardText;
         ImGuiPlatformIOPtr platformIo = ImGui.GetPlatformIO();
-        platformIo.Platform_SetClipboardTextFn = Marshal.GetFunctionPointerForDelegate<ImGuiIOSetClipboardTextFn>(SDL.SetClipboardText);
-        platformIo.Platform_GetClipboardTextFn = Marshal.GetFunctionPointerForDelegate<ImGuiIOGetClipboardTextFn>(SDL.GetClipboardText);
+        platformIo.Platform_SetClipboardTextFn = Marshal.GetFunctionPointerForDelegate(_setClipboard);
+        platformIo.Platform_GetClipboardTextFn = Marshal.GetFunctionPointerForDelegate(_getClipboard);
 
         _mouseCursors[(int)ImGuiMouseCursor.Arrow] = SDL.CreateSystemCursor(SDL.SystemCursor.Default);
         _mouseCursors[(int)ImGuiMouseCursor.TextInput] = SDL.CreateSystemCursor(SDL.SystemCursor.Text);
@@ -59,8 +67,41 @@ public class ImGuiSDL3 : IDisposable
 
     public void Dispose()
     {
+        FreeOwnedClipboard();
         for(int i = 0; i < _mouseCursors.Length; i++)
             SDL.DestroyCursor(_mouseCursors[i]);
+    }
+
+    private void SetClipboardText(IntPtr ctx, IntPtr textUtf8)
+    {
+        if (textUtf8 == IntPtr.Zero)
+            return;
+        string? text = Marshal.PtrToStringUTF8(textUtf8);
+        if (text != null)
+            SDL.SetClipboardText(text);
+    }
+
+    private IntPtr GetClipboardText(IntPtr ctx)
+    {
+        FreeOwnedClipboard();
+        // SDL_GetClipboardText returns a new allocation that the caller must SDL_free.
+        // ImGui keeps the pointer until the next get — we free the previous one here.
+        string? text = SDL.GetClipboardText();
+        if (string.IsNullOrEmpty(text))
+            return IntPtr.Zero;
+
+        // Hand ImGui a stable UTF-8 buffer we own until next call.
+        _clipboardOwned = Marshal.StringToCoTaskMemUTF8(text);
+        return _clipboardOwned;
+    }
+
+    private void FreeOwnedClipboard()
+    {
+        if (_clipboardOwned != IntPtr.Zero)
+        {
+            Marshal.FreeCoTaskMem(_clipboardOwned);
+            _clipboardOwned = IntPtr.Zero;
+        }
     }
 
     public void NewFrame()

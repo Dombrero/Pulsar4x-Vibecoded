@@ -1,4 +1,7 @@
 using System;
+using Pulsar4X.Colonies;
+using Pulsar4X.Components;
+using Pulsar4X.Datablobs;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Engine;
 using Pulsar4X.Events;
@@ -23,6 +26,41 @@ public class LocalConstructionProcessor : IHotloopProcessor
     public void Init(Game game)
     {
         // No initialization needed
+    }
+
+    /// <summary>
+    /// Recomputes <see cref="LocalConstructionDB.PointsPerDay"/> from installed
+    /// <see cref="LocalConstructionAtb"/> components. Driven off ComponentInstancesDB
+    /// recalc (and after load) so the counter stays in sync after save/load.
+    /// </summary>
+    internal static void RecalcPoints(Entity colonyEntity)
+    {
+        if (!colonyEntity.HasDataBlob<ColonyInfoDB>()
+            || !colonyEntity.TryGetDataBlob<ComponentInstancesDB>(out var instancesDB))
+            return;
+
+        long total = 0;
+        foreach (var design in instancesDB.GetDesignsByType(typeof(LocalConstructionAtb)))
+        {
+            var atb = design.GetAttribute<LocalConstructionAtb>();
+            long perInstance = (long)atb.Level * atb.PointsPerDay;
+            total += perInstance * instancesDB.GetNumberOfComponentsOfDesign(design.UniqueID);
+        }
+
+        if (total <= 0)
+        {
+            if (colonyEntity.HasDataBlob<LocalConstructionDB>())
+                colonyEntity.RemoveDataBlob<LocalConstructionDB>();
+            return;
+        }
+
+        if (!colonyEntity.TryGetDataBlob<LocalConstructionDB>(out var constructionDB))
+        {
+            constructionDB = new LocalConstructionDB();
+            colonyEntity.SetDataBlob(constructionDB);
+        }
+
+        constructionDB.PointsPerDay = total;
     }
 
     public void ProcessEntity(Entity entity, int deltaSeconds)

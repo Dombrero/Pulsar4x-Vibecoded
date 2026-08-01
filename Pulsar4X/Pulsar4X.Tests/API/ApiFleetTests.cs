@@ -3,7 +3,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Pulsar4X.Api;
+using Pulsar4X.Datablobs;
+using Pulsar4X.Engine;
+using Pulsar4X.Fleets;
 using Pulsar4X.Messaging;
+using Pulsar4X.Names;
 
 namespace Pulsar4X.Tests
 {
@@ -133,6 +137,89 @@ namespace Pulsar4X.Tests
             Assert.That(nested, Has.Count.EqualTo(1));
             Assert.That(nested[0].SubFleets, Has.Count.EqualTo(1));
             Assert.That(nested[0].SubFleets[0].Id, Is.EqualTo(fleets[1].Id));
+        }
+
+        [Test]
+        public void ReassignShip_moves_unattached_ship_into_fleet_and_back()
+        {
+            var session = Connect();
+            Assert.That(_game.Factions.TryGetValue(session.FactionId, out var faction), Is.True);
+
+            // Place a ship-like entity on the faction root (unattached).
+            var ship = Entity.Create(session.FactionId);
+            _game.Systems[0].AddEntity(ship, new List<BaseDataBlob>
+            {
+                new NameDB("Test Courier", session.FactionId, "Test Courier"),
+            });
+            Assert.That(faction.TryGetDataBlob<FleetDB>(out var factionFleet), Is.True);
+            factionFleet!.AddChild(ship);
+
+            _server.SubmitCommand(session, new CreateFleetCommand(session.FactionId, _game.Systems[0].ID));
+            var (fleets, unattached) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(fleets, Has.Count.EqualTo(1));
+            Assert.That(unattached.Any(s => s.Id == ship.Id), Is.True);
+
+            var assign = _server.SubmitCommand(session, new ReassignShipCommand(ship.Id, fleets[0].Id));
+            Assert.That(assign.Accepted, Is.True, assign.RejectionReason);
+
+            (fleets, unattached) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(unattached.Any(s => s.Id == ship.Id), Is.False);
+            Assert.That(fleets[0].Ships.Any(s => s.Id == ship.Id), Is.True);
+            Assert.That(fleets[0].FlagshipId, Is.EqualTo(ship.Id));
+
+            var unassign = _server.SubmitCommand(session, new ReassignShipCommand(ship.Id, session.FactionId));
+            Assert.That(unassign.Accepted, Is.True, unassign.RejectionReason);
+
+            (fleets, unattached) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(fleets[0].Ships.Any(s => s.Id == ship.Id), Is.False);
+            Assert.That(unattached.Any(s => s.Id == ship.Id), Is.True);
+        }
+
+        [Test]
+        public void RenameFleet_updates_projected_fleet_name()
+        {
+            var session = Connect();
+            _server.SubmitCommand(session, new CreateFleetCommand(session.FactionId, _game.Systems[0].ID));
+            var (fleets, _) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(fleets, Has.Count.EqualTo(1));
+
+            var result = _server.SubmitCommand(session, new Pulsar4X.Api.RenameCommand(fleets[0].Id, "Celestial Commanders"));
+            Assert.That(result.Accepted, Is.True, result.RejectionReason);
+
+            (fleets, _) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(fleets[0].Name, Is.EqualTo("Celestial Commanders"));
+        }
+
+        [Test]
+        public async Task AttachUnattachedShip_pushes_FleetsChanged_with_the_ship()
+        {
+            // Mirrors post-construction / post-launch membership: EntityAdded alone projects the
+            // tree before AddChild, so FleetHierarchy.AttachUnattachedShip must raise FleetReorganized.
+            var session = Connect();
+            Assert.That(_game.Factions.TryGetValue(session.FactionId, out var faction), Is.True);
+
+            var ship = Entity.Create(session.FactionId);
+            _game.Systems[0].AddEntity(ship, new List<BaseDataBlob>
+            {
+                new NameDB("Fresh Hull", session.FactionId, "Fresh Hull"),
+            });
+
+            var received = new List<GameEventEnvelope>();
+            using (_server.Subscribe(session, received.Add))
+            {
+                received.Clear();
+                FleetHierarchy.AttachUnattachedShip(faction, ship);
+
+                // Publish is async; allow the FleetReorganized → FleetsChanged bridge to land.
+                await Task.Delay(50);
+
+                var push = received.LastOrDefault(e => e.Type == GameEventType.FleetsChanged);
+                Assert.That(push, Is.Not.Null, "expected a FleetsChanged push after AttachUnattachedShip");
+                Assert.That(push!.UnattachedShips!.Any(s => s.Id == ship.Id), Is.True);
+            }
+
+            var (_, unattached) = _projector.ProjectFleetHierarchy(session.FactionId);
+            Assert.That(unattached.Any(s => s.Id == ship.Id), Is.True);
         }
     }
 }

@@ -78,7 +78,7 @@
       "UniqueID": "automine",
       "Name": "RoboMiner",
       "Formulas": {
-        "Description": "An unmanned, transportable resources collector",
+        "Description": "An unmanned, transportable resources collector. Weaker infrastructure than a full Mine for the same footprint, but no crew and can be shipped as cargo. At default size it matches roughly one Mine's daily output.",
         "Mass": "PropertyValue('Size') * 2000.0",
         "Volume": "PropertyValue('Size')",
         "HTK": "0.5",
@@ -103,18 +103,18 @@
       "Properties": [
         {
           "Name": "Size",
-          "DescriptionFormula": "'Size (volume) of this installation'",
+          "DescriptionFormula": "'Size (volume) of this installation. Larger = higher mining rate.'",
           "GuiHint": "GuiSelectionMaxMin",
           "MaxFormula": "5000",
           "MinFormula": "5",
-          "StepFormula": "1",
+          "StepFormula": "5",
           "PropertyFormula": "5"
         },
         {
           "Name": "MiningAmount",
-          "DescriptionFormula": "'Mining rate'",
+          "DescriptionFormula": "'Mining rate in units per day (same scale as a full Mine). Default Size 5 ≈ 1 Mine; portable and unmanned.'",
           "GuiHint": "GuiTextDisplay",
-          "PropertyFormula": "PropertyValue('Size') * 0.005"
+          "PropertyFormula": "PropertyValue('Size') * 0.2"
         },
         {
           "Name": "MiningAmountDict",
@@ -326,7 +326,7 @@
       "UniqueID": "shipyard",
       "Name": "Ship Yard",
       "Formulas": {
-        "Description": "Construction and launch facilities for ships",
+        "Description": "Assembles and launches ships. Build components at a Factory.",
         "Mass": "PropertyValue('Slip Size') * 8",
         "Volume": "PropertyValue('Slip Size')",
         "HTK": "0.5",
@@ -347,11 +347,6 @@
       "CargoTypeID": "general-storage",
       "IndustryTypeID": "installation-construction",
       "Properties": [
-        {
-          "Name": "Component Construction Points",
-          "GuiHint": "GuiTextDisplay",
-          "PropertyFormula": "PropertyValue('Crew Size') * 0.01"
-        },
         {
           "Name": "Ship Assembly Points",
           "GuiHint": "GuiTextDisplay",
@@ -379,7 +374,6 @@
           "Name": "db",
           "GuiHint": "None",
           "DataDict": {
-            "component-construction": "PropertyValue('Component Construction Points')",
             "ship-assembly": "PropertyValue('Ship Assembly Points')"
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict], PropertyValue('Slip Size'))",
@@ -675,7 +669,7 @@
           "Name": "DBargsTransfer",
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Cargo Transfer Rate'), PropertyValue('Transfer Range'))",
-          "AttributeType": "Pulsar4X.Datablobs.CargoTransferAtbDB"
+          "AttributeType": "Pulsar4X.Storage.CargoTransferAtb"
         },
         {
           "Name": "DBargsStorage",

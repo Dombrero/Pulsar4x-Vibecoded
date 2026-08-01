@@ -4,6 +4,7 @@ using Pulsar4X.Input;
 using Pulsar4X.Orbital;
 using SDL3;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 
@@ -21,15 +22,23 @@ namespace Pulsar4X.Client
         protected readonly GlobalUIState _state;
         private readonly IPosition _position;
         private readonly double _radiusAU;
+        private readonly bool _showOrders;
 
         protected virtual void DrawExt(IntPtr rendererPtr, Camera camera) {}
         protected virtual void OnFrameUpdateExt(Matrix matrix, Camera camera) {}
 
         private SDL.Color _color;
+        private SDL.Color _orderColor;
         protected string _name = "??";
 
         private IntPtr _nameTexture = IntPtr.Zero;
         protected SDL.FRect _nameRect = new ();
+
+        private string _orderText = "";
+        private IntPtr _orderTexture = IntPtr.Zero;
+        private SDL.FRect _orderRect = new ();
+        private float _shipScreenX;
+        private float _shipScreenY;
 
         public RectangleF Rect = new ();
 
@@ -47,6 +56,7 @@ namespace Pulsar4X.Client
         private const float MinLeaderOffset = 12f;
         private const float BodyEdgeGap = 18f;
         private const float BodyLineGap = 8f;
+        private const float OrderAboveShipGap = 14f;
 
         private uint _padding = 0;
         public uint Padding {
@@ -76,6 +86,7 @@ namespace Pulsar4X.Client
             _radiusAU = entity.GetView<MassVolumeView>() is { } massVolume
                 ? Distance.MToAU(massVolume.RadiusMetres)
                 : 0;
+            _showOrders = entity.HasView<ShipView>();
 
             _color = entity.Relation switch
             {
@@ -83,6 +94,7 @@ namespace Pulsar4X.Client
                 OwnerRelation.Owned or OwnerRelation.Friendly => Styles.Theme.Text.ToSDLColor(),
                 _ => Styles.BadColor.ToSDLColor(),
             };
+            _orderColor = new SDL.Color { R = _color.R, G = _color.G, B = _color.B, A = 200 };
 
             if (Styles.SDLDefaultFont != IntPtr.Zero)
             {
@@ -100,6 +112,7 @@ namespace Pulsar4X.Client
         ~EntityLabel()
         {
             DestroyName();
+            DestroyOrder();
         }
 
         private void DestroyName()
@@ -109,6 +122,16 @@ namespace Pulsar4X.Client
 
             var p = _nameTexture;
             _nameTexture = IntPtr.Zero;
+            SDL.DestroyTexture(p);
+        }
+
+        private void DestroyOrder()
+        {
+            if (_orderTexture == IntPtr.Zero)
+                return;
+
+            var p = _orderTexture;
+            _orderTexture = IntPtr.Zero;
             SDL.DestroyTexture(p);
         }
 
@@ -160,6 +183,8 @@ namespace Pulsar4X.Client
 
             float anchorX = (float)point.X;
             float anchorY = (float)point.Y;
+            _shipScreenX = anchorX;
+            _shipScreenY = anchorY;
 
             // Diagonal distance from body center to the elbow must clear the
             // body's on-screen radius. The leader rises by `offset` in both X
@@ -182,7 +207,45 @@ namespace Pulsar4X.Client
 
             Rect.Location = new (_nameRect.X - Padding, _nameRect.Y - Padding);
 
+            if (_showOrders)
+                UpdateOrderLayout();
+
             OnFrameUpdateExt(matrix, camera);
+        }
+
+        private void UpdateOrderLayout()
+        {
+            string? next = ResolveCurrentOrderText();
+            if (!string.Equals(_orderText, next, StringComparison.Ordinal))
+            {
+                _orderText = next ?? "";
+                DestroyOrder();
+            }
+
+            if (string.IsNullOrEmpty(_orderText) || Styles.SDLDefaultFont == IntPtr.Zero)
+            {
+                _orderRect = default;
+                return;
+            }
+
+            float h = SDL3.TTF.GetFontHeight(Styles.SDLDefaultFont);
+            SDL3.TTF.GetStringSize(Styles.SDLDefaultFont, _orderText, 0, out int w, out _);
+            _orderRect.W = w;
+            _orderRect.H = h;
+            _orderRect.X = _shipScreenX - w * 0.5f;
+            _orderRect.Y = _shipScreenY - OrderAboveShipGap - h;
+        }
+
+        private string? ResolveCurrentOrderText()
+        {
+            var entity = _state.GameClient?.Galaxy.GetSystem(SystemId)?.GetEntity(EntityId);
+            var current = OrderDisplayHelpers.ResolveCurrentOrder(
+                _state.GameClient, EntityId, entity?.GetView<OrdersView>());
+            if (current == null || string.IsNullOrWhiteSpace(current.Name))
+                return null;
+            if (current.Name.Equals("Idle", StringComparison.OrdinalIgnoreCase))
+                return null;
+            return current.Name;
         }
 
         private bool RenderName(IntPtr rendererPtr)
@@ -212,13 +275,46 @@ namespace Pulsar4X.Client
             return true;
         }
 
+        private bool RenderOrder(IntPtr rendererPtr)
+        {
+            if (string.IsNullOrEmpty(_orderText))
+                return false;
+
+            IntPtr textSurface = SDL3.TTF.RenderTextSolid(
+                    Styles.SDLDefaultFont,
+                    _orderText,
+                    0,
+                    _orderColor);
+
+            if (textSurface == IntPtr.Zero) {
+                Trace.WriteLine("EntityLabel: failed to create order surface");
+                return false;
+            }
+
+            _orderTexture = SDL.CreateTextureFromSurface(rendererPtr, textSurface);
+            SDL.DestroySurface(textSurface);
+
+            if (_orderTexture == IntPtr.Zero) {
+                Trace.WriteLine("EntityLabel: failed to create order texture");
+                return false;
+            }
+
+            return true;
+        }
+
         public void Draw(IntPtr rendererPtr, Camera camera)
         {
-            if (rendererPtr == IntPtr.Zero ||
-                    ! camera.IsOnScreen(Rect.X, Rect.Y, Rect.Width, Rect.Height))
+            if (rendererPtr == IntPtr.Zero)
                 return;
 
-            if (_pressed || _hovered)
+            bool nameOnScreen = camera.IsOnScreen(Rect.X, Rect.Y, Rect.Width, Rect.Height);
+            bool orderOnScreen = _showOrders
+                && !string.IsNullOrEmpty(_orderText)
+                && camera.IsOnScreen(_orderRect.X, _orderRect.Y, _orderRect.W, _orderRect.H);
+            if (!nameOnScreen && !orderOnScreen)
+                return;
+
+            if (nameOnScreen && (_pressed || _hovered))
             {
                 byte r, g, b, a;
                 SDL.GetRenderDrawColor(rendererPtr, out r, out g, out b, out a);
@@ -246,18 +342,21 @@ namespace Pulsar4X.Client
                 SDL.SetRenderDrawColor(rendererPtr, r, g, b ,a);
             }
 
-            if (_nameTexture == IntPtr.Zero && ! RenderName(rendererPtr))
-                return; // failure
+            if (nameOnScreen && (_nameTexture != IntPtr.Zero || RenderName(rendererPtr)))
+            {
+                // Leader line: diagonal from body at 45° down-right, then horizontal under the label.
+                byte lr, lg, lb, la;
+                SDL.GetRenderDrawColor(rendererPtr, out lr, out lg, out lb, out la);
+                SDL.SetRenderDrawColor(rendererPtr, _color.R, _color.G, _color.B, _color.A);
+                SDL.RenderLine(rendererPtr, _lineStartX, _lineStartY, _elbowX, _elbowY);
+                SDL.RenderLine(rendererPtr, _elbowX, _elbowY, _elbowX + _nameRect.W, _elbowY);
+                SDL.SetRenderDrawColor(rendererPtr, lr, lg, lb, la);
 
-            // Leader line: diagonal from body at 45° down-right, then horizontal under the label.
-            byte lr, lg, lb, la;
-            SDL.GetRenderDrawColor(rendererPtr, out lr, out lg, out lb, out la);
-            SDL.SetRenderDrawColor(rendererPtr, _color.R, _color.G, _color.B, _color.A);
-            SDL.RenderLine(rendererPtr, _lineStartX, _lineStartY, _elbowX, _elbowY);
-            SDL.RenderLine(rendererPtr, _elbowX, _elbowY, _elbowX + _nameRect.W, _elbowY);
-            SDL.SetRenderDrawColor(rendererPtr, lr, lg, lb, la);
+                SDL.RenderTexture(rendererPtr, _nameTexture, IntPtr.Zero, in _nameRect);
+            }
 
-            SDL.RenderTexture(rendererPtr, _nameTexture, IntPtr.Zero, in _nameRect);
+            if (orderOnScreen && (_orderTexture != IntPtr.Zero || RenderOrder(rendererPtr)))
+                SDL.RenderTexture(rendererPtr, _orderTexture, IntPtr.Zero, in _orderRect);
 
             DrawExt(rendererPtr, camera);
         }

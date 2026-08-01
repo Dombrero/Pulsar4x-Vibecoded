@@ -13,6 +13,8 @@ using Pulsar4X.Ships;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Engine;
+using Pulsar4X.Datablobs;
+using Pulsar4X.Api;
 using Stringify = Pulsar4X.Api.Stringify;
 
 namespace Pulsar4X.Movement
@@ -36,7 +38,23 @@ namespace Pulsar4X.Movement
             get
             {
                 string targetName = _targetEntity.GetDataBlob<NameDB>().GetName(_factionEntity);
-                return "Warp to + " + Stringify.Distance(EndpointRelitivePosition.Length()) + " from " + targetName;
+                double offset_m = EndpointRelitivePosition.Length();
+                double travel_m = 0;
+                if (_warpingDB != null)
+                    travel_m = (_warpingDB.ExitPointAbsolute - _warpingDB.EntryPointAbsolute).Length();
+                else if (_entityCommanding != null && _targetEntity != null)
+                {
+                    try
+                    {
+                        travel_m = (MoveMath.GetAbsoluteState(_targetEntity).pos
+                                    - MoveMath.GetAbsoluteState(_entityCommanding).pos).Length();
+                    }
+                    catch { /* best-effort for UI */ }
+                }
+
+                // Offset is often 0 for grav anomalies (park on the point) — show travel distance.
+                double shown = travel_m > 1 ? travel_m : offset_m;
+                return "Warp to + " + Stringify.Distance(shown) + " from " + targetName;
             }
         }
 
@@ -108,12 +126,24 @@ namespace Pulsar4X.Movement
                 targetEntity = info.PlanetEntity;
 
             (Vector3 pos, Vector3 vel) departureState;
-            if(orderEntity.Manager.Game.Settings.UseRelativeVelocity)
+            try
             {
-                departureState = MoveMath.GetRelativeFutureState(orderEntity, transitStartDatetime);
+                if (orderEntity.Manager.Game.Settings.UseRelativeVelocity)
+                    departureState = MoveMath.GetRelativeFutureState(orderEntity, transitStartDatetime);
+                else
+                    departureState = MoveMath.GetAbsoluteState(orderEntity, transitStartDatetime);
             }
-            else
-                departureState = MoveMath.GetAbsoluteState(orderEntity, transitStartDatetime);
+            catch
+            {
+                // Ship may lack OrbitDB after an aborted warp; still allow a new warp order.
+                var abs = orderEntity.TryGetDataBlob<PositionDB>(out var pdb)
+                    ? pdb.AbsolutePosition
+                    : Vector3.Zero;
+                departureState = (abs, new Vector3(0, 1, 0));
+            }
+
+            if (departureState.vel.Length() < 1e-9)
+                departureState.vel = new Vector3(0, 1, 0);
 
             var cmd = new WarpMoveCommand()
             {
@@ -205,15 +235,62 @@ namespace Pulsar4X.Movement
         {
             if (!IsRunning)
             {
-                var warpDB = _entityCommanding.GetDataBlob<WarpAbilityDB>();
-                var powerDB = _entityCommanding.GetDataBlob<EnergyGenAbilityDB>();
-                string eType = warpDB.EnergyType;
-                double estored = powerDB.EnergyStored[eType];
-                double creationCost = warpDB.BubbleCreationCost;
-
-                // FIXME: alert the player?
-                if (creationCost > estored)
+                if (!_entityCommanding.TryGetDataBlob<WarpAbilityDB>(out var warpDB)
+                    || !_entityCommanding.TryGetDataBlob<EnergyGenAbilityDB>(out var powerDB))
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — missing WarpAbility/EnergyGen",
+                        atDateTime);
                     return;
+                }
+
+                // Capacitors start at 0 and only fill when EnergyGen runs. Checking before
+                // generating left warps queued forever ("en route") with full cargo fuel tanks.
+                try
+                {
+                    EnergyGenProcessor.EnergyGen(_entityCommanding, atDateTime);
+                }
+                catch (Exception ex)
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: EnergyGen failed: {ex.Message}",
+                        atDateTime);
+                    return;
+                }
+
+                string eType = warpDB.EnergyType;
+                if (string.IsNullOrEmpty(eType)
+                    || !powerDB.EnergyStored.TryGetValue(eType, out double estored))
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — no energy store for '{eType}'",
+                        atDateTime);
+                    return;
+                }
+
+                double creationCost = warpDB.BubbleCreationCost;
+                if (creationCost > estored)
+                {
+                    // Catch up generation across large time-steps so one daily tick can fill batteries.
+                    CatchUpEnergyStore(_entityCommanding, powerDB, eType, creationCost, atDateTime);
+                    estored = powerDB.EnergyStored[eType];
+                }
+
+                if (creationCost > estored)
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — bubble needs {creationCost:0} kJ, have {estored:0} kJ (cargo fuel is separate)",
+                        atDateTime);
+                    return;
+                }
+
+                if (!WarpMoveProcessor.HasWarpTankFuel(_entityCommanding))
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — cargo fuel tank empty",
+                        atDateTime);
+                    return;
+                }
 
                 _warpingDB = new WarpMovingDB(_entityCommanding, _targetEntity, EndpointRelitivePosition, EndpointTargetOrbit);
 
@@ -227,24 +304,65 @@ namespace Pulsar4X.Movement
 
                 EntityCommanding.SetDataBlob(_warpingDB);
 
-                WarpMoveProcessor.StartNonNewtTranslation(EntityCommanding);
+                if (!WarpMoveProcessor.StartNonNewtTranslation(EntityCommanding))
+                {
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: StartNonNewtTranslation failed after energy check",
+                        atDateTime);
+                    return;
+                }
+
                 IsRunning = true;
+            }
+        }
 
-                //debug code:
-                double distance = (_warpingDB.EntryPointAbsolute - _warpingDB.ExitPointAbsolute).Length();
-                double time = distance / _entityCommanding.GetDataBlob<WarpAbilityDB>().MaxSpeed;
-                //Assert.AreEqual((_warpingDB.PredictedExitTime - _warpingDB.EntryDateTime).TotalSeconds, time, 1.0e-10);
-
+        /// <summary>
+        /// EnergyGen applies ~1s of output per call. Large pulses must catch up or warps never start.
+        /// </summary>
+        private static void CatchUpEnergyStore(
+            Entity ship, EnergyGenAbilityDB powerDB, string eType, double need, DateTime atDateTime)
+        {
+            const int maxSteps = 10_000;
+            for (int i = 0; i < maxSteps; i++)
+            {
+                if (!powerDB.EnergyStored.TryGetValue(eType, out double stored))
+                    return;
+                if (stored >= need)
+                    return;
+                if (powerDB.EnergyStoreMax.TryGetValue(eType, out double max) && stored >= max - 1e-6)
+                    return;
+                try
+                {
+                    EnergyGenProcessor.EnergyGen(ship, atDateTime);
+                }
+                catch
+                {
+                    return;
+                }
             }
         }
 
         internal override bool IsFinished()
         {
+            if (WasCancelled)
+                return _isFinished = true;
             if(_warpingDB != null)
                 _isFinished = _warpingDB.IsAtTarget;
             else
                 _isFinished = false;
             return _isFinished;
+        }
+
+        /// <summary>True when aborted to make room for a higher-priority move.</summary>
+        internal bool WasCancelled { get; private set; }
+
+        /// <summary>Mark cancelled so fleet-level move orders can re-dispatch after a preempt.</summary>
+        internal void CancelInPlace()
+        {
+            WasCancelled = true;
+            _isFinished = true;
+            IsRunning = false;
+            _warpingDB = null;
         }
 
         public override EntityCommand Clone()
@@ -269,7 +387,7 @@ namespace Pulsar4X.Movement
 
         public Entity Target { get; set; }
 
-        List<EntityCommand> _shipCommands = new List<EntityCommand>();
+            List<WarpMoveCommand> _shipCommands = new List<WarpMoveCommand>();
 
         public override EntityCommand Clone()
         {
@@ -279,41 +397,63 @@ namespace Pulsar4X.Movement
         internal override bool IsFinished()
         {
             if(!IsRunning)
-                _isFinished = false;
-            else
+                return _isFinished = false;
+
+            // Ship warps were preempted — stay in the fleet queue and re-dispatch later.
+            if (_shipCommands.Any(c => c.WasCancelled))
+                return _isFinished = false;
+
+            // Empty after Execute: every ship was already at the target (or colony body).
+            if (_shipCommands.Count == 0)
+                return _isFinished = true;
+
+            foreach (var command in _shipCommands)
             {
-                foreach (var command in _shipCommands)
-                {
-                    if (!command.IsFinished())
-                        return _isFinished = false;
-                }
-                _isFinished = true;
+                if (!command.IsFinished())
+                    return _isFinished = false;
             }
-            return _isFinished;
+            return _isFinished = true;
         }
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(IsRunning) return;
             if(!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-            // Get all the ships we need to add the movement command to
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
 
+            bool needsRedispatch = !IsRunning
+                || _shipCommands.Count == 0
+                || _shipCommands.Any(c => c.WasCancelled)
+                || _shipCommands.All(c =>
+                    !c.EntityCommanding.TryGetDataBlob<OrderableDB>(out var shipOrders)
+                    || !shipOrders.ActionList.Contains(c));
+
+            if (IsRunning && !needsRedispatch)
+                return;
+
+            // Clear leftover ship Movement-lane warps so the new destination runs now.
+            FleetOrderCleanup.AbortShipMovementOrders(_entityCommanding);
+
+            _shipCommands.Clear();
+            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
 
             foreach(var ship in ships)
             {
-                //don't give move order if ship is already at location.
                 var shipParent = ship.GetDataBlob<PositionDB>().Parent;
                 if(shipParent == Target)
                     continue;
                 if (Target.TryGetDataBlob<ColonyInfoDB>(out var colonyDB) && colonyDB.PlanetEntity == shipParent)
                     continue;
                 if(!ship.HasDataBlob<WarpAbilityDB>()) continue;
-                
-                var shipCommand = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
 
-                _shipCommands.Add(shipCommand);
-                ship.Manager.Game.OrderHandler.HandleOrder(shipCommand);
+                try
+                {
+                    var shipCommand = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
+                    _shipCommands.Add(shipCommand);
+                    ship.Manager.Game.OrderHandler.HandleOrder(shipCommand);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"WarpFleetTowardsTarget ship {ship.Id}: {ex.Message}");
+                }
             }
             IsRunning = true;
         }

@@ -1,4 +1,5 @@
 using System;
+using Pulsar4X.Api;
 using Pulsar4X.Orbital;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Datablobs;
@@ -87,7 +88,11 @@ public class NewtonSimpleProcessor : IHotloopProcessor
 
             //remove fuel
             double fuelBurned = OrbitMath.TsiolkovskyFuelUse(massdb.MassTotal, thrustdb.ExhaustVelocity, moveDeltaV);
+            double fuelBefore = fuelMass;
             CargoTransferProcessor.AddRemoveCargoMass(entity, fuelType, -fuelBurned);
+            DebugTraceLog.Warn("Fuel",
+                $"ship#{entity.Id}: NewtonSimple burned {fuelBurned:0.#} kg fuel (Δv={moveDeltaV:0.#} m/s, had {fuelBefore:0.#} kg)",
+                toDateTime);
 
             //tag as complete
             newtonSimplelMoveDB.IsComplete = true;

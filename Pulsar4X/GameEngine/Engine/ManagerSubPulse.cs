@@ -121,7 +121,23 @@ namespace Pulsar4X.Engine
         internal void PostLoadInit(EntityManager entityManager) //this one is used after loading a game.
         {
             _entityManager = entityManager;
+            _game = entityManager.Game;
             _processManager = entityManager.Game.ProcessorManager;
+
+            // _processToDateTime / _subStepDateTime are not serialized. After load they stay at
+            // DateTime.MinValue, so the first SetDataBlob (e.g. spawning a finished ship) computes
+            // nextDT in the past and throws — crashing via async void SetDataBlob.
+            _processToDateTime = StarSysDateTime;
+            _subStepDateTime = StarSysDateTime;
+
+            // Saved hotloop slots can end up before the restored clock (e.g. older saves /
+            // interrupted pulses). Clamp them so GetNextInterupt cannot Temporal-Anomaly.
+            foreach (var key in HotLoopProcessorsNextRun.Keys.ToList())
+            {
+                var at = HotLoopProcessorsNextRun[key];
+                if (at != null && at < StarSysDateTime)
+                    HotLoopProcessorsNextRun[key] = StarSysDateTime;
+            }
         }
 
         private void InitHotloopProcessors()
@@ -142,10 +158,15 @@ namespace Pulsar4X.Engine
         /// <param name="entity"></param>
         internal void AddEntityInterupt(DateTime nextDateTime, string actionProcessor, Entity entity)
         {
-            if(nextDateTime < StarSysDateTime)
-                throw new Exception("Trying to add an interrupt in the past");
+            // Never schedule before the current system clock.
+            if (nextDateTime < StarSysDateTime)
+                nextDateTime = StarSysDateTime;
 
-            if (nextDateTime < _subStepDateTime)
+            // Only pull the current sub-step earlier when the interrupt is still in the future
+            // relative to the clock. Rewinding _subStepDateTime to StarSysDateTime mid-pulse
+            // leaves a hotloop slot that becomes "in the past" on the next GetNextInterupt and
+            // used to Temporal-Anomaly-crash after ship spawn.
+            if (nextDateTime > StarSysDateTime && nextDateTime < _subStepDateTime)
                 _subStepDateTime = nextDateTime;
 
             lock (_lock)
@@ -204,15 +225,40 @@ namespace Pulsar4X.Engine
                 return;
             var proc = _game.ProcessorManager.HotloopProcessors[db.GetType()];
 
+            // While a pulse is running, new blobs (e.g. OrbitDB on a just-spawned ship) must be
+            // scheduled at/after the current sub-step target — not StarSysDateTime. Otherwise the
+            // slot is already in the past once StarSysDateTime catches up to _subStepDateTime.
+            DateTime basis = StarSysDateTime;
+            if (IsProcessing)
+            {
+                if (_subStepDateTime > basis) basis = _subStepDateTime;
+                if (_processToDateTime > basis) basis = _processToDateTime;
+            }
+            else if (_processToDateTime > basis)
+            {
+                basis = _processToDateTime;
+            }
+
             DateTime startDate = _game.Settings.StartDateTime;
-            var elapsed = _processToDateTime - startDate;
+            var elapsed = basis - startDate;
             elapsed -= proc.FirstRunOffset;
 
-            var nextInSec = proc.RunFrequency.TotalSeconds - elapsed.TotalSeconds % proc.RunFrequency.TotalSeconds;
-            var next = TimeSpan.FromSeconds(nextInSec);
-            DateTime nextDT = _processToDateTime + next;
+            double freqSec = proc.RunFrequency.TotalSeconds;
+            if (freqSec <= 0)
+                freqSec = 1;
+            // Positive modulo — C# % keeps the dividend's sign and can push nextDT backwards.
+            double rem = elapsed.TotalSeconds % freqSec;
+            if (rem < 0)
+                rem += freqSec;
+            var nextInSec = freqSec - rem;
+            if (nextInSec <= 0 || nextInSec > freqSec)
+                nextInSec = freqSec;
+            DateTime nextDT = basis + TimeSpan.FromSeconds(nextInSec);
 
-            if(nextDT < StarSysDateTime) throw new Exception("Trying to add an interrupt in the past");
+            if (nextDT < basis)
+                nextDT = basis;
+            if (nextDT < StarSysDateTime)
+                nextDT = StarSysDateTime;
 
             Type dbType = db.GetType();
             AddSystemInterupt(nextDT, dbType);
@@ -306,11 +352,27 @@ namespace Pulsar4X.Engine
 
         private DateTime GetNextInterupt(TimeSpan maxSpan)
         {
-            DateTime nextInteruptDateTime = StarSysDateTime + maxSpan;
-
-            if(HotLoopProcessorsNextRun.Count > 0 && nextInteruptDateTime >= HotLoopProcessorsNextRun.Values.Min())
+            // Stale slots (entity spawned mid-pulse, post-load drift) must not pull time backwards.
+            foreach (var key in HotLoopProcessorsNextRun.Keys.ToList())
             {
-                nextInteruptDateTime = HotLoopProcessorsNextRun.Values.Min() ?? nextInteruptDateTime;
+                var at = HotLoopProcessorsNextRun[key];
+                if (at != null && at < StarSysDateTime)
+                    HotLoopProcessorsNextRun[key] = StarSysDateTime;
+            }
+
+            DateTime nextInteruptDateTime = StarSysDateTime + maxSpan;
+            if (maxSpan < TimeSpan.Zero)
+                nextInteruptDateTime = StarSysDateTime;
+
+            var scheduled = HotLoopProcessorsNextRun.Values
+                .Where(v => v != null)
+                .Select(v => v!.Value)
+                .ToList();
+            if (scheduled.Count > 0)
+            {
+                var min = scheduled.Min();
+                if (nextInteruptDateTime >= min)
+                    nextInteruptDateTime = min;
             }
 
             lock (_lock)
@@ -320,7 +382,7 @@ namespace Pulsar4X.Engine
             }
 
             if (nextInteruptDateTime < StarSysDateTime)
-                throw new Exception("Temproal Anomaly Exception. Cannot go back in time!"); //because this was actualy happening somehow.
+                nextInteruptDateTime = StarSysDateTime;
             return nextInteruptDateTime;
         }
 

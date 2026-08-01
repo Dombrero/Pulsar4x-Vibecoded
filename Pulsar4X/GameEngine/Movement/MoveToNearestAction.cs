@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 using Pulsar4X.Orbital;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Extensions;
@@ -10,6 +11,7 @@ using Pulsar4X.Ships;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Engine;
+using Pulsar4X.Datablobs;
 
 namespace Pulsar4X.Movement
 {
@@ -22,41 +24,63 @@ namespace Pulsar4X.Movement
 
         public override bool IsBlocking => true;
 
-        /// <summary>
-        /// Entity commanding is a fleet in this action
-        /// </summary>
         protected Entity _entityCommanding;
         internal override Entity EntityCommanding
         {
             get { return _entityCommanding; }
         }
 
-        public EntityManager.FilterEntities Filter { get; protected set; }
+        [JsonIgnore]
+        public EntityManager.FilterEntities? Filter { get; protected set; }
 
         public delegate Entity EntitySelector(Entity entity);
+
+        [JsonIgnore]
         public EntitySelector? TargetSelector { get; protected set; }
+
         public EntityFilter EntityFactionFilter { get; protected set; } = EntityFilter.Friendly | EntityFilter.Neutral | EntityFilter.Hostile;
 
         private List<EntityCommand> _shipCommands = new List<EntityCommand>();
 
+        protected virtual void EnsureFiltersConfigured() { }
+
         internal override bool IsFinished()
         {
+            if (!IsRunning)
+                return _isFinished = false;
+
+            // Preempted warps — stay in the queue so Execute can re-dispatch.
+            if (_shipCommands.Any(c => c is WarpMoveCommand { WasCancelled: true }))
+                return _isFinished = false;
+
+            // After Execute, an empty list means every ship was already at the target
+            // (no warps needed). Returning false here used to block Refuel forever.
+            if (_shipCommands.Count == 0)
+                return _isFinished = true;
+
             return _isFinished = ShipsFinishedWarping();
         }
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(!IsRunning) FindNearestAndSetupWarpCommands();
+            EnsureFiltersConfigured();
+
+            bool needsRedispatch = !IsRunning
+                || _shipCommands.Count == 0
+                || _shipCommands.Any(c => c is WarpMoveCommand { WasCancelled: true });
+
+            if (needsRedispatch)
+                FindNearestAndSetupWarpCommands();
         }
 
         private void FindNearestAndSetupWarpCommands()
         {
-            if(!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-            if(fleetDB.FlagShipID == -1) return;
-            if(!EntityCommanding.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)) return;
-            if(!flagship.TryGetDataBlob<PositionDB>(out var flagshipPositionDB)) return;
+            if (Filter == null) return;
+            if (!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
+            if (fleetDB.FlagShipID == -1) return;
+            if (!EntityCommanding.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)) return;
+            if (!flagship.TryGetDataBlob<PositionDB>(out var flagshipPositionDB)) return;
 
-            // Get all entites based on the filter
             List<Entity> filteredEntities = EntityCommanding.Manager.GetFilteredEntities(
                 EntityFactionFilter,
                 RequestingFactionGuid,
@@ -65,62 +89,66 @@ namespace Pulsar4X.Movement
             Entity? closestValidEntity = null;
             double closestDistance = double.MaxValue;
 
-            // Find the closest colony
-            foreach(var entity in filteredEntities)
+            foreach (var entity in filteredEntities)
             {
-                if(!entity.TryGetDataBlob<PositionDB>(out var positionDB))
-                {
+                if (!entity.TryGetDataBlob<PositionDB>(out var positionDB))
                     continue;
-                }
 
                 var distance = positionDB.GetDistanceTo_m(flagshipPositionDB);
-                if(distance < closestDistance)
+                if (distance < closestDistance)
                 {
                     closestDistance = distance;
                     closestValidEntity = entity;
                 }
             }
 
-            if(closestValidEntity == null) return;
+            if (closestValidEntity == null) return;
 
             var targetEntity = TargetSelector == null ? closestValidEntity : TargetSelector(closestValidEntity);
 
-            if(!targetEntity.TryGetDataBlob<PositionDB>(out var targetEntityPositionDB))
-            {
+            if (!targetEntity.TryGetDataBlob<PositionDB>(out var targetEntityPositionDB))
                 return;
-            }
 
-            if(targetEntityPositionDB.Parent == null) return;
+            if (targetEntityPositionDB.Parent == null) return;
 
-            double targetSMA = OrbitMath.LowOrbitRadius(targetEntityPositionDB.Parent);
+            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
+            bool anyNeedsWarp = ships.Any(ship =>
+                ship.HasDataBlob<WarpAbilityDB>()
+                && ship.TryGetDataBlob<PositionDB>(out var shipPos)
+                && shipPos.Parent != targetEntityPositionDB.OwningEntity);
 
-            // Get all the ships we need to add the movement command to
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
+            // Only clear the Movement lane when we are actually leaving. Aborting cargo while
+            // already at the colony kills an in-progress standing Refuel transfer → loop.
+            if (anyNeedsWarp)
+                FleetOrderCleanup.AbortShipOrdersBlockingMovement(EntityCommanding);
+            else
+                FleetOrderCleanup.AbortShipMovementOrders(EntityCommanding);
 
-            foreach(var ship in ships)
+            _shipCommands.Clear();
+
+            foreach (var ship in ships)
             {
-                if(!ship.HasDataBlob<WarpAbilityDB>()) continue;
-                if(!ship.TryGetDataBlob<PositionDB>(out var shipPositionDB)) continue;
-                if(shipPositionDB.Parent == targetEntityPositionDB.OwningEntity) continue;
+                if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
+                if (!ship.TryGetDataBlob<PositionDB>(out var shipPositionDB)) continue;
+                if (shipPositionDB.Parent == targetEntityPositionDB.OwningEntity) continue;
 
-                var shipMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
+                try
+                {
+                    if (!targetEntity.TryGetDataBlob<OrbitDB>(out _))
+                        continue;
 
-                (Vector3 position, DateTime _) = WarpMath.GetInterceptPosition
-                (
-                    ship,
-                    targetEntity.GetDataBlob<OrbitDB>(),
-                    EntityCommanding.StarSysDateTime
-                );
-
-                //var maxRangeRate = CargoTransferProcessor.GetMaxRangeRate(targetEntity, ship);
-
-                // Create the movement order
-                var cmd = WarpMoveCommand.CreateCommandEZ(
-                    ship,
-                    targetEntity,
-                    EntityCommanding.StarSysDateTime);
-                _shipCommands.Add(cmd);
-                ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    var cmd = WarpMoveCommand.CreateCommandEZ(
+                        ship,
+                        targetEntity,
+                        EntityCommanding.StarSysDateTime);
+                    _shipCommands.Add(cmd);
+                    ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"MoveToNearest warp failed for ship {ship.Id}: {ex.Message}");
+                }
             }
 
             IsRunning = true;
@@ -128,11 +156,11 @@ namespace Pulsar4X.Movement
 
         private bool ShipsFinishedWarping()
         {
-            if(!IsRunning) return false;
+            if (!IsRunning) return false;
 
-            foreach(var command in _shipCommands)
+            foreach (var command in _shipCommands)
             {
-                if(!command.IsFinished())
+                if (!command.IsFinished())
                     return false;
             }
             return true;
@@ -147,6 +175,8 @@ namespace Pulsar4X.Movement
 
         protected static T CreateCommand<T>(int factionId, Entity commandingEntity) where T : MoveToNearestAction, new()
         {
+            ArgumentNullException.ThrowIfNull(commandingEntity);
+
             var command = new T()
             {
                 _entityCommanding = commandingEntity,
@@ -156,6 +186,13 @@ namespace Pulsar4X.Movement
             };
 
             return command;
+        }
+
+        internal override void BindCommandingEntity(Entity entity)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            _entityCommanding = entity;
+            base.BindCommandingEntity(entity);
         }
 
         public override EntityCommand Clone()
@@ -171,7 +208,8 @@ namespace Pulsar4X.Movement
                 ActionOnDate = this.ActionOnDate,
                 ActionedOnDate = this.ActionedOnDate,
                 IsRunning = this.IsRunning,
-                TargetSelector = this.TargetSelector
+                TargetSelector = this.TargetSelector,
+                EntityFactionFilter = this.EntityFactionFilter,
             };
 
             return command;

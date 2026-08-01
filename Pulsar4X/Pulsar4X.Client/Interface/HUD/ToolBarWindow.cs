@@ -112,6 +112,15 @@ namespace Pulsar4X.Client
             };
             orderedButtons.Add((190, btn));
 
+            btn = new ToolBarOption()
+            {
+                Picture = _uiState.Img_Firecon(),
+                TooltipText = "Debug Log (orders / standing / movement)",
+                OnClick = new Action(DebugLogWindow.GetInstance().ToggleActive),
+                GetActive = new Func<bool>(DebugLogWindow.GetInstance().GetActive)
+            };
+            orderedButtons.Add((200, btn));
+
             // Host-registered tools that asked for a toolbar button (designer/SM/debug windows
             // live in the host executable, not this library), merged by Order.
             foreach (var tool in _uiState.DevTools)
@@ -183,10 +192,13 @@ namespace Pulsar4X.Client
                         }
                     }
 
-                    if (button.OnClick != null && ImGui.ImageButton($"###{name}-nonblank", button.Picture.ToTextureRef(), ButtonSize))//Make the button
+                    // ImageButton immer zeichnen, damit ReportToolbarTooltip die richtige Item-Rect hat.
+                    if (ImGui.ImageButton($"###{name}-nonblank", button.Picture.ToTextureRef(), ButtonSize))
                     {
-                        button.OnClick();
+                        button.OnClick?.Invoke();
                     }
+
+                    TutorialHighlight.ReportToolbarTooltip(button.TooltipText);
 
                     if (ImGui.IsItemHovered())
                         ImGui.SetTooltip(button.TooltipText);

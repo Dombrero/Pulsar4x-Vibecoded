@@ -83,6 +83,7 @@ namespace Pulsar4X.Client
                     }
                 }
                 ImGui.EndChild();
+                TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyList);
 
                 // Re-resolve the selected colony against the current push.
                 var selectedSystem = _selectedSystemId == null ? null : galaxy.GetSystem(_selectedSystemId);
@@ -94,6 +95,8 @@ namespace Pulsar4X.Client
                     DisplaySelectedColony(selectedSystem, selectedColony);
                 }
             }
+
+            TutorialHighlight.ReportCurrentWindow(TutorialHighlightRegion.WindowColonyManagement);
             Window.End();
         }
 
@@ -105,23 +108,27 @@ namespace Pulsar4X.Client
 
                 if (ImGui.BeginTabItem("Summary"))
                 {
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabSummary);
                     DisplaySummary(selectedColony, selectedSystem);
                     ImGui.EndTabItem();
                 }
                 if (ImGui.BeginTabItem("Production"))
                 {
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabProduction);
                     _productionDisplay ??= new ColonyProductionDisplay();
                     _productionDisplay.Display(selectedColony.Id, selectedColony.GetView<IndustryView>(), _uiState);
                     ImGui.EndTabItem();
                 }
                 if (ImGui.BeginTabItem("Construction"))
                 {
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabConstruction);
                     _constructionDisplay ??= new ColonyConstructionDisplay();
                     _constructionDisplay.Display(selectedColony.Id, selectedColony.GetView<ConstructionView>(), _uiState);
                     ImGui.EndTabItem();
                 }
                 if (selectedColony.GetView<ColonyMiningView>() is { } mining && ImGui.BeginTabItem("Mining"))
                 {
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabMining);
                     mining.Display();
                     ImGui.EndTabItem();
                 }
@@ -209,16 +216,19 @@ namespace Pulsar4X.Client
 
                     // Use TextUnformatted: ImGui.Text/TextColored treat the string as a printf
                     // format, so a literal '%' would be parsed as a format specifier.
+                    // One decimal: Provided/Required can be 99.7% which :0 wrongly showed as "100%".
+                    string efficiencyPct = (infrastructure.Efficiency * 100).ToString("0.0");
                     if(overCapacity)
                     {
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.4f, 0.4f, 1f));
-                        ImGui.TextUnformatted($"Over capacity - all output reduced to {infrastructure.Efficiency * 100:0}%");
+                        ImGui.TextUnformatted(
+                            $"Over capacity by {(-infrastructure.CapacityAvailable).ToString("N0")} — all output at {efficiencyPct}%");
                         ImGui.PopStyleColor();
                     }
                     else
                     {
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
-                        ImGui.TextUnformatted($"Output at {infrastructure.Efficiency * 100:0}% of capacity");
+                        ImGui.TextUnformatted($"Output at {efficiencyPct}% of capacity");
                         ImGui.PopStyleColor();
                     }
                 }
@@ -249,6 +259,7 @@ namespace Pulsar4X.Client
                             CreateTransferWindow.GetInstance().SetLeft(colony.Id, _selectedSystemId);
                             CreateTransferWindow.GetInstance().SetActive(true);
                         }
+                        TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTransferButton);
                         ImGui.PopStyleColor(3);
 
                         ImGui.Columns(2);
@@ -258,6 +269,7 @@ namespace Pulsar4X.Client
                         ImGui.Columns(1);
                         storage.Display(colony.Id, _uiState, ImGuiTreeNodeFlags.None);
                     }
+                    TutorialHighlight.ReportCurrentWindow(TutorialHighlightRegion.ColonyStockpile);
                 }
             }
             ImGui.EndChild();
