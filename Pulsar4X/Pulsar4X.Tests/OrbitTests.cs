@@ -166,12 +166,8 @@ namespace Pulsar4X.Tests
                 Assert.AreEqual(r, r2, angleDelta, "two simular functions shouldbe the same");
 
                 Assert.AreEqual(angle, theta, angleDelta,  "inc: " + i + " r: " + r);
-                if (angle != theta3)
-                {
-                    var foo = Angle.DifferenceBetweenRadians(angle, theta3);
-                    var foodeg = Angle.ToDegrees(foo);
-                }
-                //Assert.AreEqual(angle, theta3, angleDelta);
+                Assert.AreEqual(angle, theta2, angleDelta, "AngleAtRadus2 inc: " + i);
+                Assert.AreEqual(angle, theta3, angleDelta, "AngleAtRadus3 inc: " + i);
                 i++;
             }
         }

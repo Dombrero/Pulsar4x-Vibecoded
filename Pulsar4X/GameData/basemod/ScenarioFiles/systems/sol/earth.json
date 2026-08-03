@@ -63,7 +63,9 @@
         { "Id": "default-design-research-lab", "Amount": 2 },
         { "id": "default-design-city-hall", "amount": 1 },
         { "Id": "default-design-local-construction", "Amount": 1},
-        { "Id": "default-design-launch-complex", "Amount": 1 }
+        { "Id": "default-design-launch-complex", "Amount": 1 },
+        { "Id": "default-design-coal-plant", "Amount": 1 },
+        { "Id": "default-design-colony-battery", "Amount": 1 }
       ],
       "Cargo": [
         { "Id": "iron", "Amount": 500000 },
@@ -103,6 +105,7 @@
         "beam-fire-control",
         "reactor",
         "battery-bank",
+        "colony-battery-bank",
         "rtg",
         "steam-turbine-reactor",
         "conventional-engine",
@@ -121,6 +124,7 @@
         "general-cargo-hold",
         "fuel-cargo-hold",
         "stainless-steel-fuel-tank",
+        "colony-fuel-storage",
         "infrastructure",
         "stainless-steel",
         "rp-1",
@@ -129,7 +133,6 @@
         "ntp",
         "plastic",
         "fissile-fuels",
-        "electricity",
         "hydrocarbons",
         "iron",
         "aluminium",
@@ -154,7 +157,11 @@
         "tech-panel-density",
         "solarArray",
         "local-construction",
-        "launch-complex"
+        "launch-complex",
+        "coal-power-plant",
+        "solar-power-plant",
+        "wind-power-plant",
+        "nuclear-power-plant"
       ],
       "ComponentDesigns": [
         "default-design-alcubierre-2k",
@@ -192,7 +199,9 @@
         "default-design_solarpanel",
         "default-design-battery-25kg",
         "default-design-local-construction",
-        "default-design-launch-complex"
+        "default-design-launch-complex",
+        "default-design-coal-plant",
+        "default-design-colony-battery"
       ],
       "ShipDesigns": [
         "default-ship-design-courier",

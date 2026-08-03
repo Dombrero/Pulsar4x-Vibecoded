@@ -21,7 +21,7 @@
         "copper": "[Mass] * 0.1"
       },
       "ComponentType": "Sensor",
-      "MountType": "PlanetInstallation, ShipComponent, ShipCargo, Fighter",
+      "MountType": "ShipComponent, ShipCargo, Fighter",
       "IndustryTypeID": "component-construction",
       "CargoTypeID": "general-storage",
       "Properties": [

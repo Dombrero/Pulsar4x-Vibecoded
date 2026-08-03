@@ -111,14 +111,69 @@
           "DescriptionFormula": "'Mass of the bank'",
           "GuiHint": "GuiSelectionMaxMinInt",
           "MaxFormula": "25000",
-          "MinFormula": "1000",
-          "StepFormula": "250",
+          "MinFormula": "25",
+          "StepFormula": "25",
           "PropertyFormula": "1500"
         },
         {
           "Name": "Energy Storage",
           "Units": "KJ",
           "DescriptionFormula": "'Energy capacity of this part'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Mass') * 500 * TechData('tech-battery-capacity')"
+        },
+        {
+          "Name": "DB",
+          "DescriptionFormula": "''",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs('electricity', PropertyValue('Energy Storage'))",
+          "AttributeType": "Pulsar4X.Energy.EnergyStoreAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "colony-battery-bank",
+      "Name": "Colony Battery Bank",
+      "Formulas": {
+        "Description": "Stores electricity for a colony grid and ship dock-recharge",
+        "Mass": "PropertyValue('Mass')",
+        "Volume": "[Mass] / 2896.6",
+        "HTK": "0.5",
+        "CrewReq": "0",
+        "ResearchCost": "[Mass] * 0.25",
+        "CreditCost": "[Mass]",
+        "BuildPointCost": "[Mass]"
+      },
+      "ResourceCost": {
+        "plastic": "[Mass] * 0.2",
+        "copper": "[Mass] * 0.2",
+        "lithium": "[Mass] * 0.4",
+        "graphite": "[Mass] * 0.1",
+        "aluminium": "[Mass] * 0.05",
+        "rare-earth-elements": "[Mass] * 0.05"
+      },
+      "ComponentType": "Energy Storage",
+      "MountType": "ShipCargo, PlanetInstallation",
+      "CargoTypeID": "general-storage",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Mass",
+          "Units": "kg",
+          "DescriptionFormula": "'Mass of the colony battery bank'",
+          "GuiHint": "GuiSelectionMaxMinInt",
+          "MaxFormula": "500000",
+          "MinFormula": "5000",
+          "StepFormula": "1000",
+          "PropertyFormula": "10000"
+        },
+        {
+          "Name": "Energy Storage",
+          "Units": "KJ",
+          "DescriptionFormula": "'Energy capacity of this installation'",
           "GuiHint": "GuiTextDisplay",
           "PropertyFormula": "PropertyValue('Mass') * 500 * TechData('tech-battery-capacity')"
         },

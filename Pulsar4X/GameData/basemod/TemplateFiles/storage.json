@@ -46,6 +46,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs('general-storage', PropertyValue('Storage Volume'))",
           "AttributeType": "Pulsar4X.Storage.CargoStorageAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Climate control, lighting and cargo handling.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "1200"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -167,6 +180,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Transfer Rate'), PropertyValue('Transfer Range'))",
           "AttributeType": "Pulsar4X.Storage.CargoTransferAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Shuttle ops, fueling and cargo elevators.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "6000"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }

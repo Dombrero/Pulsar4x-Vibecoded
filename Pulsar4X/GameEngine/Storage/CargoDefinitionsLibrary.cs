@@ -129,10 +129,36 @@ namespace Pulsar4X.Storage
         }
 
         public ICargoable GetAny(int id) => _definitions[id];
-        public ICargoable? GetAny(string id) => _definitions.Count == 0 ? null : _definitions.Where(d => d.Value.UniqueID.Equals(id)).Select(kvp => kvp.Value).First();
+
+        /// <summary>
+        /// Lookup by UniqueID. Checks minerals/materials tables as well as the
+        /// combined definitions map so ID collisions (e.g. a ComponentDesign
+        /// reusing a mineral's int ID after EntityIDCounter reset) do not hide
+        /// unlocked cargo goods from ResourceCost validation.
+        /// </summary>
+        public ICargoable? GetAny(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return null;
+
+            var fromDefinitions = _definitions.Values.FirstOrDefault(d => d.UniqueID.Equals(id));
+            if (fromDefinitions != null)
+                return fromDefinitions;
+
+            if (IsMineral(id))
+                return GetMineral(id);
+
+            if (IsMaterial(id))
+                return GetMaterial(id);
+
+            return null;
+        }
 
         public bool Contains(int id) => _definitions.ContainsKey(id);
-        public bool Contains(string uniqueID) => _definitions.Any(d => d.Value.UniqueID.Equals(uniqueID));
+        public bool Contains(string uniqueID) =>
+            _definitions.Values.Any(d => d.UniqueID.Equals(uniqueID))
+            || IsMineral(uniqueID)
+            || IsMaterial(uniqueID);
 
         public SafeDictionary<int, ICargoable> GetAll() => _definitions;
 

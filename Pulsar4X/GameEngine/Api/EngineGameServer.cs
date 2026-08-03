@@ -333,6 +333,14 @@ namespace Pulsar4X.Engine.Api
                 // A new component design also registers a research project for itself.
                 if (command is CreateComponentDesignCommand)
                     PushComponentDesigns(session.FactionId);
+
+                // Ship designs live on the faction but appear in colony IndustryView Constructibles
+                // (shipyard dropdown). The commanded entity is the faction (GlobalManager), so
+                // PushEntityRefresh above is a no-op — re-push colonies so the yard updates immediately.
+                if (command is SaveShipDesignCommand
+                    or DeleteShipDesignCommand
+                    or SetShipDesignObsoleteCommand)
+                    PushColonies(session.FactionId);
             }
 
             return result;
@@ -374,6 +382,15 @@ namespace Pulsar4X.Engine.Api
             foreach (var sub in SnapshotSubscriptions())
                 if (sub.FactionId == factionId)
                     sub.Send(evt);
+        }
+
+        private void PushColonies(int factionId)
+        {
+            foreach (var sub in SnapshotSubscriptions())
+            {
+                if (sub.FactionId != factionId) continue;
+                RefreshColonies(sub);
+            }
         }
 
         private void PushEntityRefresh(Entity commanded, int factionId)

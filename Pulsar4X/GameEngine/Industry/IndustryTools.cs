@@ -16,23 +16,18 @@ namespace Pulsar4X.Industry
     public static class IndustryTools
     {
         /// <summary>
-        /// Colony buildings (Factory, Refinery, …). Dual-mount ship gear that also lists
-        /// <see cref="ComponentMountType.PlanetInstallation"/> (e.g. passive sensor) is not a colony building.
+        /// Colony buildings for the Factory "Colony Installations" tab / Auto-install.
+        /// Rule: mountable on a planet and not a ship component. Dual-use gear must use
+        /// separate ship vs colony templates (e.g. battery-bank vs colony-battery-bank).
         /// </summary>
         public static bool IsColonyInstallationDesign(IConstructableDesign design)
         {
             if (design is not ComponentDesign component)
                 return false;
-            if (!component.ComponentMountType.HasFlag(ComponentMountType.PlanetInstallation))
-                return false;
 
-            // Pure colony buildings only. Dual-mount ship gear (sensors, fuel tanks, …) that
-            // also lists PlanetInstallation must stay under Components — otherwise Fuel Tank
-            // designs appear as "Colony Installations" and offer a misleading Auto-install.
-            if (!component.ComponentMountType.HasFlag(ComponentMountType.ShipComponent))
-                return true;
-
-            return component.ComponentType is "Facility" or "Infrastructure";
+            var mounts = component.ComponentMountType;
+            return mounts.HasFlag(ComponentMountType.PlanetInstallation)
+                && !mounts.HasFlag(ComponentMountType.ShipComponent);
         }
 
         public static void AddJob(Entity industryEntity, string plineID, IndustryJob job)
@@ -132,15 +127,18 @@ namespace Pulsar4X.Industry
                 throw new Exception("Unable to find IndustryAbilityDB");
             }
 
-            // Infrastructure is the limiting factor on a colony's output: when the colony's
-            // buildings exceed its infrastructure capacity, every production rate is scaled down.
+            PurgeUnconstructableElectricityJobs(industryDB, factionInfo);
+
+            // Infrastructure and colony power efficiency both scale industry throughput.
             double infraEfficiency = InfrastructureProcessor.GetEfficiency(industryEntity);
+            double powerEfficiency = Pulsar4X.Energy.ColonyPowerProcessor.GetPowerEfficiency(industryEntity);
+            double efficiency = infraEfficiency * powerEfficiency;
 
             foreach (var (prodLineID, prodLine) in industryDB.ProductionLines.ToArray())
             {
                 var industryPointsRemaining = new Dictionary<string, int>();
                 foreach (var rate in prodLine.IndustryTypeRates)
-                    industryPointsRemaining[rate.Key] = (int)(rate.Value * infraEfficiency);
+                    industryPointsRemaining[rate.Key] = (int)(rate.Value * efficiency);
 
                 foreach(var batchJob in prodLine.Jobs.ToArray())
                 {
@@ -361,6 +359,24 @@ namespace Pulsar4X.Industry
             }
             if(bestLine.lineID != String.Empty)
                 AddJob(industrydb, bestLine.lineID, job);
+        }
+
+        /// <summary>
+        /// Removes leftover refinery "electricity" jobs (empty ResourceCosts caused industry loops).
+        /// Also strips electricity from IndustryDesigns if an old save still listed it.
+        /// </summary>
+        internal static void PurgeUnconstructableElectricityJobs(IndustryAbilityDB industryDB, FactionInfoDB factionInfo)
+        {
+            factionInfo.IndustryDesigns.Remove("electricity");
+
+            foreach (var line in industryDB.ProductionLines.Values)
+            {
+                line.Jobs.RemoveAll(job =>
+                    job.ItemGuid == "electricity"
+                    || (factionInfo.IndustryDesigns.TryGetValue(job.ItemGuid, out var design)
+                        && design is ProcessedMaterial mat
+                        && string.IsNullOrEmpty(mat.IndustryTypeID)));
+            }
         }
     }
 }

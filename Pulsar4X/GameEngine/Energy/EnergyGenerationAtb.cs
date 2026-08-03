@@ -85,7 +85,7 @@ namespace Pulsar4X.Energy
         public string AtbDescription()
         {
             //string fuelName = StaticRefLib.StaticData.CargoGoods.GetAny(FuelType).Name;
-            return "Generates " + PowerOutputMax + " Mw, using: " + FuelUsedAtMax + "kg/s of ";// + fuelName;
+            return "Generates " + PowerOutputMax + " kW, using: " + FuelUsedAtMax + " kg/s of ";// + fuelName;
         }
     }
 }

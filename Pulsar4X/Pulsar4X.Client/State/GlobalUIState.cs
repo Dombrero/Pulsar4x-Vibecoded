@@ -234,12 +234,14 @@ namespace Pulsar4X.Client
             // Need to pre load all textures
             this.Img_Cancel();
             this.Img_Cargo();
+            this.Img_Commanders();
             this.Img_DesComponent();
             this.Img_DesignOrdnance();
             this.Img_DesignShip();
             this.Img_Discord();
             this.Img_Down();
             this.Img_Firecon();
+            this.Img_Fleet();
             this.Img_GalaxyMap();
             this.Img_Industry();
             this.Img_Logo();

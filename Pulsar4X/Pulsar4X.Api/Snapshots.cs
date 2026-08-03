@@ -216,7 +216,11 @@ public sealed record ShipView(
     int OperationalComponents = 0,
     int TotalComponents = 0,
     /// <summary>0 when the ship has no armor.</summary>
-    double ArmorThicknessMm = 0) : IComponentView;
+    double ArmorThicknessMm = 0,
+    /// <summary>True when this hull can contribute to a fleet geo survey.</summary>
+    bool CanGeoSurvey = false,
+    /// <summary>True when this hull can contribute to a fleet grav/JP survey.</summary>
+    bool CanGravSurvey = false) : IComponentView;
 
 /// <summary>Newtonian propulsion stats; ΔV values are pre-computed server-side.</summary>
 public sealed record ThrustView(
@@ -230,11 +234,33 @@ public sealed record ThrustView(
     /// <summary>Mass of fuel currently aboard (kg), for burn-time/fuel-cost previews.</summary>
     public double TotalFuelKg { get; init; }
 
+    /// <summary>Fuel tank capacity for the drive's fuel type (kg); 0 when unknown.</summary>
+    public double MaxFuelKg { get; init; }
+
     /// <summary>Display name of the fuel the drive burns.</summary>
     public string FuelName { get; init; } = "";
 }
 
-public sealed record WarpAbilityView(double MaxSpeedMps) : IComponentView;
+public sealed record WarpAbilityView(
+    double MaxSpeedMps,
+    /// <summary>One-shot battery cost to form the warp bubble (kJ).</summary>
+    double BubbleCreationCostKJ = 0,
+    /// <summary>Continuous warp sustain demand (kW).</summary>
+    double BubbleSustainCostKW = 0) : IComponentView;
+
+/// <summary>
+/// Pending order that needs energy/fuel the ship currently lacks.
+/// Shown on the ship panel so the player sees why an action is stuck.
+/// </summary>
+public sealed record EnergyActionBlock(
+    string ActionName,
+    double NeedKJ,
+    double HaveKJ,
+    double CreationKJ,
+    double SustainDeficitKJ,
+    double TravelSeconds,
+    /// <summary>Human-readable missing resource explanation.</summary>
+    string Reason);
 
 /// <summary>Power generation/storage state (owner-only): the current load/output/demand and
 /// stored energy, plus a short chronological history for plotting.</summary>
@@ -247,7 +273,63 @@ public sealed record EnergyView(
     double StoreMax) : IComponentView
 {
     public IReadOnlyList<EnergyHistogramPoint> Histogram { get; init; } = Array.Empty<EnergyHistogramPoint>();
+    /// <summary>Ship battery charge accept rate (kW), 0 when none.</summary>
+    public double AcceptRateKW { get; init; }
+    /// <summary>True while docked and actively drawing colony power into batteries.</summary>
+    public bool IsRecharging { get; init; }
+    /// <summary>Stored as percent of capacity (0–100).</summary>
+    public double StoredPercent => StoreMax > 0 ? 100.0 * Stored / StoreMax : 0;
+    /// <summary>Set when a queued warp (or similar) cannot start with current stores.</summary>
+    public EnergyActionBlock? ActionBlock { get; init; }
 }
+
+/// <summary>Colony power grid: generation, demand, battery store, dock recharge rate.</summary>
+public sealed record ColonyPowerView(
+    double GenerationKW,
+    double DemandKW,
+    double StoredKJ,
+    double CapacityKJ,
+    double PowerEfficiency,
+    double DockChargeRateKW) : IComponentView
+{
+    public double StoredPercent => CapacityKJ > 0 ? 100.0 * StoredKJ / CapacityKJ : 0;
+    public bool IsUndersupplied => DemandKW > GenerationKW && PowerEfficiency < 0.999;
+
+    /// <summary>Installed loads with <c>PowerDemandAtb</c>, grouped by design.</summary>
+    public IReadOnlyList<ColonyPowerConsumer> Consumers { get; init; } = Array.Empty<ColonyPowerConsumer>();
+
+    /// <summary>Installed plants with <c>PowerGenerationAtb</c>, grouped by design.</summary>
+    public IReadOnlyList<ColonyPowerGenerator> Generators { get; init; } = Array.Empty<ColonyPowerGenerator>();
+
+    /// <summary>Ships currently drawing dock charge from this colony.</summary>
+    public IReadOnlyList<ColonyPowerConsumer> DockConsumers { get; init; } = Array.Empty<ColonyPowerConsumer>();
+
+    /// <summary>Hourly samples oldest→newest (generation, facility demand, dock draw, stored kJ). Up to ~10 years retained.</summary>
+    public IReadOnlyList<ColonyPowerHistogramPoint> Histogram { get; init; }
+        = Array.Empty<ColonyPowerHistogramPoint>();
+}
+
+/// <summary>One hourly colony power sample for dashboard charts.</summary>
+public sealed record ColonyPowerHistogramPoint(
+    double GenerationKW,
+    double DemandKW,
+    double DockKW,
+    double StoredKJ);
+
+/// <summary>One consumer line on the colony energy panel (installation group or docked ship).</summary>
+public sealed record ColonyPowerConsumer(
+    string Name,
+    int Count,
+    double DemandKW,
+    /// <summary>False when every instance in the group is disabled.</summary>
+    bool IsEnabled = true);
+
+/// <summary>One generator line on the colony energy panel.</summary>
+public sealed record ColonyPowerGenerator(
+    string Name,
+    int Count,
+    double GenerationKW,
+    bool IsEnabled = true);
 
 /// <summary>One sample of the energy history; <see cref="Seconds"/> is relative to the start of
 /// the sampling window.</summary>
@@ -454,8 +536,8 @@ public sealed record ConstructibleItemView(
     /// <summary>Effective industry points this production line can spend per day on this design's
     /// industry type (not a stockpile — capacity refreshes each day).</summary>
     public double IndustryPointsPerDay { get; init; }
-    /// <summary>True for colony buildings (Factory, Refinery, …). Ship gear that happens to also
-    /// list PlanetInstallation (e.g. passive sensor) is false — those belong under components.</summary>
+    /// <summary>True for colony buildings (Factory, Colony Battery Bank, …).
+    /// Ship components never qualify — dual-use gear uses separate colony templates.</summary>
     public bool IsColonyInstallation { get; init; }
 }
 
@@ -465,7 +547,13 @@ public sealed record IndustryCostItem(
     /// <summary>Units currently in the entity's stockpile.</summary>
     long Available,
     /// <summary>Whether the faction could produce/mine more of this input itself.</summary>
-    bool CanProduce);
+    bool CanProduce)
+{
+    /// <summary>Optional flavour text from the cargo definition.</summary>
+    public string? Description { get; init; }
+    /// <summary>Where/how the player can obtain more (Refinery, Mining, import-only, …).</summary>
+    public string? ProductionHint { get; init; }
+}
 
 /// <summary>An entity's local construction capability: build rate, FIFO queue, and the designs the
 /// faction can queue here.</summary>
@@ -653,6 +741,12 @@ public sealed record OrderSnapshot(
 /// fleet-hierarchy snapshots, this view serves per-entity UI like the entity window).</summary>
 public sealed record OrdersView(IReadOnlyList<OrderSnapshot> Orders) : IComponentView;
 
+/// <summary>
+/// What this ship hull is doing right now (owner-only), from live ship state —
+/// recharge blob, survey blob, warp, etc. Separate from the fleet's order queue.
+/// </summary>
+public sealed record ActivityView(string Name, string Details = "") : IComponentView;
+
 /// <summary>A ship as a fleet member: identity, the system it currently resides in, and the
 /// display details the fleet UI shows (design, commander, queued orders).</summary>
 public sealed record ShipSnapshot(
@@ -686,6 +780,8 @@ public static class StandingOrderTypes
     public const string MoveToNearestAnomaly = "action:move-to-nearest-anomaly";
     public const string Refuel = "action:refuel";
     public const string Resupply = "action:resupply";
+    public const string EnergyCondition = "condition:energy";
+    public const string Recharge = "action:recharge";
 }
 
 public enum StandingOrderComparison

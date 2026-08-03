@@ -48,6 +48,6 @@ public class CargoTransferAtb : IComponentDesignAttribute
 
     public string AtbDescription()
     {
-        return "Adds " + TransferRate_kgs + " kg per hour at " + TransferRange_ms + " m/s Dv";
+        return "Adds " + TransferRate_kgs + " kg/s at " + TransferRange_ms + " m/s Dv";
     }
 }

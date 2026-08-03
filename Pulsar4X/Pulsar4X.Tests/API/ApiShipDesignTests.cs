@@ -102,10 +102,14 @@ namespace Pulsar4X.Tests
             var delete = _server.SubmitCommand(session, new DeleteShipDesignCommand(session.FactionId, goner.UniqueID));
             Assert.That(delete.Accepted, Is.True, delete.RejectionReason);
             Assert.That(info.ShipDesigns.ContainsKey(goner.UniqueID), Is.False);
+            Assert.That(info.IndustryDesigns.ContainsKey(goner.UniqueID), Is.False,
+                "deleted designs must leave industry constructibles");
 
             var obsolete = _server.SubmitCommand(session, new SetShipDesignObsoleteCommand(session.FactionId, keeper.UniqueID));
             Assert.That(obsolete.Accepted, Is.True, obsolete.RejectionReason);
             Assert.That(info.ShipDesigns[keeper.UniqueID].IsObsolete, Is.True);
+            Assert.That(info.ShipDesigns[keeper.UniqueID].IsValid, Is.False,
+                "obsolete designs must not stay constructible in shipyards");
         }
 
         [Test]
@@ -129,6 +133,33 @@ namespace Pulsar4X.Tests
             var badDesignId = _server.SubmitCommand(session, new SaveShipDesignCommand(
                 session.FactionId, "no-such-design", "Name", new[] { new ShipComponentCount(componentId, 1) }, armorId, 3, false));
             Assert.That(badDesignId.Accepted, Is.False);
+        }
+
+        [Test]
+        public void SaveShipDesign_pushes_colony_refresh_without_waiting_for_tick()
+        {
+            var session = Connect();
+            var (componentId, armorId) = SetUpDesignData(session);
+
+            // Need a subscribed client and at least one colony so RefreshColonies has something to push.
+            var received = new System.Collections.Generic.List<GameEventEnvelope>();
+            using var _ = _server.Subscribe(session, received.Add);
+
+            var info = Info(session);
+            if (info.Colonies.Count == 0)
+                Assert.Inconclusive("test universe has no colonies to refresh");
+
+            received.Clear();
+            var create = _server.SubmitCommand(session, new SaveShipDesignCommand(
+                session.FactionId, null, "Yard Visible Class",
+                new[] { new ShipComponentCount(componentId, 1) }, armorId, 3, false));
+            Assert.That(create.Accepted, Is.True, create.RejectionReason);
+
+            var colonyIds = info.Colonies.Select(c => c.Id).ToHashSet();
+            Assert.That(received.Any(e => e.Type == GameEventType.EntityChanged
+                    && e.EntityId is int id && colonyIds.Contains(id)),
+                Is.True,
+                "saving a ship design must push colony EntityChanged so shipyards refresh Constructibles immediately");
         }
     }
 }

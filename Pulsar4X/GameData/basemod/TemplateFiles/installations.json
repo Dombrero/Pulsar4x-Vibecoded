@@ -68,6 +68,19 @@
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict])",
           "AttributeType": "Pulsar4X.Industry.MineResourcesAtbDB"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Electrical demand for vehicles, conveyors and processing.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Area') * 0.008"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -78,7 +91,7 @@
       "UniqueID": "automine",
       "Name": "RoboMiner",
       "Formulas": {
-        "Description": "An unmanned, transportable resources collector. Weaker infrastructure than a full Mine for the same footprint, but no crew and can be shipped as cargo. At default size it matches roughly one Mine's daily output.",
+        "Description": "An unmanned resources collector. Weaker infrastructure than a full Mine for the same footprint, but no crew. Requires colony electrical power; output scales with power efficiency. At default size it matches roughly one Mine's daily output.",
         "Mass": "PropertyValue('Size') * 2000.0",
         "Volume": "PropertyValue('Size')",
         "HTK": "0.5",
@@ -97,8 +110,8 @@
         "plastic": "[Mass] * 0.05"
       },
       "ComponentType": "Facility",
-      "MountType": "ShipCargo, PlanetInstallation",
-      "CargoTypeID": "general-storage",
+      "MountType": "PlanetInstallation",
+      "CargoTypeID": "None",
       "IndustryTypeID": "installation-construction",
       "Properties": [
         {
@@ -115,6 +128,13 @@
           "DescriptionFormula": "'Mining rate in units per day (same scale as a full Mine). Default Size 5 ≈ 1 Mine; portable and unmanned.'",
           "GuiHint": "GuiTextDisplay",
           "PropertyFormula": "PropertyValue('Size') * 0.2"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Continuous electrical demand; output scales with colony power efficiency.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 2000"
         },
         {
           "Name": "MiningAmountDict",
@@ -139,6 +159,12 @@
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict])",
           "AttributeType": "Pulsar4X.Industry.MineResourcesAtbDB"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -193,6 +219,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Research Points'), PropertyValue('Cost Per Day'), PropertyValue('Research Specialty'))",
           "AttributeType": "Pulsar4X.Technology.ResearchPointsAtbDB"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Lab equipment and compute load.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "2500"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -246,6 +285,19 @@
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict])",
           "AttributeType": "Pulsar4X.Industry.IndustryAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Smelters, crushers and process heat.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 1.2"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -316,6 +368,19 @@
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict])",
           "AttributeType": "Pulsar4X.Industry.IndustryAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Machine tools, foundries and assembly lines.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 1.2"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -378,6 +443,19 @@
           },
           "PropertyFormula": "AtbConstrArgs([GuidDict], PropertyValue('Slip Size'))",
           "AttributeType": "Pulsar4X.Industry.IndustryAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Cranes, welders and yard infrastructure.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Slip Size') * 0.7"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -424,6 +502,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Logistic Capacity'))",
           "AttributeType": "Pulsar4X.Atb.LogiBaseAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Office systems and scheduling computers.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "1500"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -449,9 +540,9 @@
         "aluminium": "[Mass] * 0.25"
       },
       "ComponentType":"Fuel Storage",
-      "MountType": "ShipComponent, ShipCargo, PlanetInstallation, Fighter",
+      "MountType": "ShipComponent, ShipCargo, Fighter",
       "CargoTypeID": "general-storage",
-      "IndustryTypeID": "installation-construction",
+      "IndustryTypeID": "component-construction",
       "Properties": [
         {
           "Name": "Tank Radius",
@@ -504,9 +595,9 @@
         "stainless-steel": "[Mass]"
       },
       "ComponentType":"Fuel Storage",
-      "MountType": "ShipComponent, ShipCargo, PlanetInstallation, Fighter",
+      "MountType": "ShipComponent, ShipCargo, Fighter",
       "CargoTypeID": "general-storage",
-      "IndustryTypeID": "installation-construction",
+      "IndustryTypeID": "component-construction",
       "Properties": [
         {
           "Name": "Tank Volume",
@@ -527,6 +618,61 @@
         {
           "Name": "Dry Weight",
           "DescriptionFormula": "'The weight of the empty tank'",
+          "Units": "kg",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "(1.333 * Pi * ( Pow(PropertyValue('Tank Radius'),3) - Pow( PropertyValue('Tank Radius') - 0.004, 3)  ) * 8000)"
+        },
+        {
+          "Name": "DBargs",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs('fuel-storage', PropertyValue('Tank Volume'))",
+          "AttributeType": "Pulsar4X.Storage.CargoStorageAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "colony-fuel-storage",
+      "Name": "Colony Fuel Farm",
+      "Formulas": {
+        "Description": "Large planetary fuel depot for colony storage and ship refueling",
+        "Mass": "PropertyValue('Dry Weight')",
+        "Volume": "PropertyValue('Tank Volume')",
+        "HTK": "0.5",
+        "CrewReq": "0",
+        "ResearchCost": "0",
+        "CreditCost": "[Mass]",
+        "BuildPointCost": "[Mass] * 0.1"
+      },
+      "ResourceCost": {
+        "stainless-steel": "[Mass]"
+      },
+      "ComponentType": "Fuel Storage",
+      "MountType": "ShipCargo, PlanetInstallation",
+      "CargoTypeID": "general-storage",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Tank Volume",
+          "DescriptionFormula": "'The volume of this fuel farm'",
+          "GuiHint": "GuiSelectionMaxMin",
+          "MaxFormula": "50000000",
+          "MinFormula": "10000",
+          "StepFormula": "1000",
+          "PropertyFormula": "5000000"
+        },
+        {
+          "Name": "Tank Radius",
+          "DescriptionFormula": "'Equivalent spherical radius of this depot.'",
+          "Units": "m",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "Pow(3 * (PropertyValue('Tank Volume') / (4 * Pi) ), 1/3)"
+        },
+        {
+          "Name": "Dry Weight",
+          "DescriptionFormula": "'The weight of the empty depot structure'",
           "Units": "kg",
           "GuiHint": "GuiTextDisplay",
           "PropertyFormula": "(1.333 * Pi * ( Pow(PropertyValue('Tank Radius'),3) - Pow( PropertyValue('Tank Radius') - 0.004, 3)  ) * 8000)"
@@ -640,7 +786,7 @@
         },
         {
           "Name": "Cargo Transfer Rate",
-          "DescriptionFormula": "'How much cargo can be transfered per secong in kg.'",
+          "DescriptionFormula": "'How much cargo can be transferred per second in kg.'",
           "GuiHint": "GuiSelectionMaxMin",
           "DataDict": {},
           "MaxFormula": "10000",
@@ -676,6 +822,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs('general-storage', PropertyValue('Total Cargo Stored'))",
           "AttributeType": "Pulsar4X.Storage.CargoStorageAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Cargo handling, lighting and life support.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "5000"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -821,7 +980,7 @@
         "stainless-steel": "[Mass] * 0.1"
       },
       "ComponentType":"Facility",
-      "MountType": "ShipComponent, ShipCargo, PlanetInstallation",
+      "MountType": "ShipCargo, PlanetInstallation",
       "CargoTypeID": "general-storage",
       "IndustryTypeID": "installation-construction",
       "Properties": [
@@ -850,6 +1009,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Cargo Transfer Rate'), PropertyValue('Transfer Range'))",
           "AttributeType": "Pulsar4X.Storage.CargoTransferAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Cargo elevators and berth systems.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "4500"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -905,6 +1077,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Admin Level'), PropertyValue('Office Space'))",
           "AttributeType": "GameEngine.People.AdminSpaceAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Lighting, HVAC and office systems.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "800"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -950,6 +1135,19 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Level'), 5)",
           "AttributeType": "Pulsar4X.Industry.LocalConstructionAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Construction equipment and site power.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Level') * 2000"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
         }
       ]
     }
@@ -995,6 +1193,219 @@
           "GuiHint": "None",
           "PropertyFormula": "AtbConstrArgs(PropertyValue('Max Tonnage'))",
           "AttributeType": "Pulsar4X.Ships.LaunchComplexAtb"
+        },
+        {
+          "Name": "Power Demand",
+          "Units": "kW",
+          "DescriptionFormula": "'Pad systems, fueling and range control.'",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "4000"
+        },
+        {
+          "Name": "PowerDemandDB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Demand'))",
+          "AttributeType": "Pulsar4X.Energy.PowerDemandAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "coal-power-plant",
+      "Name": "Coal Power Plant",
+      "Formulas": {
+        "Description": "Baseline colony power plant. Constant electrical output into colony batteries.",
+        "Mass": "PropertyValue('Size') * 50000",
+        "Volume": "PropertyValue('Size') * 20",
+        "HTK": "0.5",
+        "CrewReq": "PropertyValue('Size') * 10",
+        "ResearchCost": "0",
+        "CreditCost": "200",
+        "BuildPointCost": "[Mass]"
+      },
+      "ResourceCost": {
+        "iron": "[Mass] * 0.4",
+        "copper": "[Mass] * 0.1",
+        "stainless-steel": "[Mass] * 0.2",
+        "graphite": "[Mass] * 0.1",
+        "space-crete": "[Mass] * 0.2"
+      },
+      "ComponentType": "Facility",
+      "MountType": "PlanetInstallation",
+      "CargoTypeID": "None",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Size",
+          "GuiHint": "GuiSelectionMaxMinInt",
+          "MaxFormula": "100",
+          "MinFormula": "1",
+          "StepFormula": "1",
+          "PropertyFormula": "1"
+        },
+        {
+          "Name": "Power Output",
+          "Units": "kW",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 50000"
+        },
+        {
+          "Name": "DB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Output'), 'Constant')",
+          "AttributeType": "Pulsar4X.Energy.PowerGenerationAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "solar-power-plant",
+      "Name": "Solar Power Plant",
+      "Formulas": {
+        "Description": "Colony solar farm. Output follows a day/night sine; zero without a star in-system.",
+        "Mass": "PropertyValue('Size') * 10000",
+        "Volume": "PropertyValue('Size') * 50",
+        "HTK": "0.3",
+        "CrewReq": "PropertyValue('Size') * 2",
+        "ResearchCost": "0",
+        "CreditCost": "150",
+        "BuildPointCost": "[Mass]"
+      },
+      "ResourceCost": {
+        "aluminium": "[Mass] * 0.3",
+        "silicon": "[Mass] * 0.4",
+        "copper": "[Mass] * 0.1",
+        "plastic": "[Mass] * 0.1",
+        "rare-earth-elements": "[Mass] * 0.1"
+      },
+      "ComponentType": "Facility",
+      "MountType": "PlanetInstallation",
+      "CargoTypeID": "None",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Size",
+          "GuiHint": "GuiSelectionMaxMinInt",
+          "MaxFormula": "100",
+          "MinFormula": "1",
+          "StepFormula": "1",
+          "PropertyFormula": "1"
+        },
+        {
+          "Name": "Power Output",
+          "Units": "kW",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 20000"
+        },
+        {
+          "Name": "DB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Output'), 'SolarSine')",
+          "AttributeType": "Pulsar4X.Energy.PowerGenerationAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "wind-power-plant",
+      "Name": "Wind Power Plant",
+      "Formulas": {
+        "Description": "Colony wind farm. Variable seeded output.",
+        "Mass": "PropertyValue('Size') * 15000",
+        "Volume": "PropertyValue('Size') * 40",
+        "HTK": "0.3",
+        "CrewReq": "PropertyValue('Size') * 3",
+        "ResearchCost": "0",
+        "CreditCost": "150",
+        "BuildPointCost": "[Mass]"
+      },
+      "ResourceCost": {
+        "iron": "[Mass] * 0.4",
+        "aluminium": "[Mass] * 0.3",
+        "copper": "[Mass] * 0.15",
+        "plastic": "[Mass] * 0.15"
+      },
+      "ComponentType": "Facility",
+      "MountType": "PlanetInstallation",
+      "CargoTypeID": "None",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Size",
+          "GuiHint": "GuiSelectionMaxMinInt",
+          "MaxFormula": "100",
+          "MinFormula": "1",
+          "StepFormula": "1",
+          "PropertyFormula": "1"
+        },
+        {
+          "Name": "Power Output",
+          "Units": "kW",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 15000"
+        },
+        {
+          "Name": "DB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Output'), 'WindRng')",
+          "AttributeType": "Pulsar4X.Energy.PowerGenerationAtb"
+        }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentTemplate",
+    "Payload": {
+      "UniqueID": "nuclear-power-plant",
+      "Name": "Nuclear Power Plant",
+      "Formulas": {
+        "Description": "High-output colony fission plant. Constant generation.",
+        "Mass": "PropertyValue('Size') * 80000",
+        "Volume": "PropertyValue('Size') * 25",
+        "HTK": "0.6",
+        "CrewReq": "PropertyValue('Size') * 25",
+        "ResearchCost": "0",
+        "CreditCost": "500",
+        "BuildPointCost": "[Mass]"
+      },
+      "ResourceCost": {
+        "stainless-steel": "[Mass] * 0.35",
+        "copper": "[Mass] * 0.1",
+        "graphite": "[Mass] * 0.15",
+        "fissionables": "[Mass] * 0.2",
+        "titanium": "[Mass] * 0.1",
+        "space-crete": "[Mass] * 0.1"
+      },
+      "ComponentType": "Facility",
+      "MountType": "PlanetInstallation",
+      "CargoTypeID": "None",
+      "IndustryTypeID": "installation-construction",
+      "Properties": [
+        {
+          "Name": "Size",
+          "GuiHint": "GuiSelectionMaxMinInt",
+          "MaxFormula": "50",
+          "MinFormula": "1",
+          "StepFormula": "1",
+          "PropertyFormula": "1"
+        },
+        {
+          "Name": "Power Output",
+          "Units": "kW",
+          "GuiHint": "GuiTextDisplay",
+          "PropertyFormula": "PropertyValue('Size') * 200000"
+        },
+        {
+          "Name": "DB",
+          "GuiHint": "None",
+          "PropertyFormula": "AtbConstrArgs(PropertyValue('Power Output'), 'Constant')",
+          "AttributeType": "Pulsar4X.Energy.PowerGenerationAtb"
         }
       ]
     }

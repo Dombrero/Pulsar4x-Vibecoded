@@ -442,6 +442,8 @@ namespace Pulsar4X.Client
                     ImGui.Text("");
                     ImGui.SameLine();
                     ImGui.Text(cost.Name);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip(BuildCostItemTooltip(cost));
                     ImGui.TableNextColumn();
                     ImGui.Text(cost.PerUnit.ToString());
                     ImGui.TableNextColumn();
@@ -459,14 +461,13 @@ namespace Pulsar4X.Client
                     if (short_)
                     {
                         if (ImGui.IsItemHovered())
-                        {
-                            if (cost.CanProduce)
-                                ImGui.SetTooltip("Not enough " + cost.Name + " available on this colony.\nImport or produce some!");
-                            else
-                                ImGui.SetTooltip("Not enough " + cost.Name + " available on this colony.\nAnd we can't build this item!");
-                        }
+                            ImGui.SetTooltip(BuildShortageTooltip(cost));
 
                         ImGui.PopStyleColor();
+                    }
+                    else if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(cost.ProductionHint))
+                    {
+                        ImGui.SetTooltip(cost.ProductionHint);
                     }
                     ImGui.TableNextRow();
                 }
@@ -495,6 +496,28 @@ namespace Pulsar4X.Client
 
                 ImGui.EndTable();
             }
+        }
+
+        private static string BuildCostItemTooltip(IndustryCostItem cost)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(cost.Description))
+                parts.Add(cost.Description!);
+            if (!string.IsNullOrWhiteSpace(cost.ProductionHint))
+                parts.Add(cost.ProductionHint!);
+            else if (!cost.CanProduce)
+                parts.Add("Cannot be produced — import or salvage it.");
+            return parts.Count > 0 ? string.Join("\n\n", parts) : cost.Name;
+        }
+
+        private static string BuildShortageTooltip(IndustryCostItem cost)
+        {
+            string shortage = cost.CanProduce
+                ? "Not enough " + cost.Name + " available on this colony."
+                : "Not enough " + cost.Name + " available on this colony.\nAnd we can't produce this item!";
+            if (!string.IsNullOrWhiteSpace(cost.ProductionHint))
+                return shortage + "\n\n" + cost.ProductionHint;
+            return shortage;
         }
     }
 }

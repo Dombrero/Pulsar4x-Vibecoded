@@ -152,55 +152,79 @@ namespace Pulsar4X.Movement
             }
         }
 
+        /// <summary>
+        /// Battery kJ needed to start a warp hop of <paramref name="distanceM"/>.
+        /// Creation is a one-shot pulse; sustain is continuous demand covered by reactor output first,
+        /// with only the deficit drawn from batteries over the trip.
+        /// </summary>
+        public static bool TryGetWarpEnergyNeed(
+            WarpAbilityDB warpDB,
+            EnergyGenAbilityDB powerDB,
+            double distanceM,
+            out double needKJ,
+            out double travelSeconds,
+            out double creationCost,
+            out double sustainDeficitKJ)
+        {
+            needKJ = 0;
+            travelSeconds = double.PositiveInfinity;
+            creationCost = warpDB.BubbleCreationCost;
+            sustainDeficitKJ = 0;
+
+            if (warpDB.MaxSpeed <= 0 || double.IsNaN(distanceM) || distanceM < 0)
+                return false;
+
+            travelSeconds = distanceM / warpDB.MaxSpeed;
+            if (double.IsInfinity(travelSeconds) || double.IsNaN(travelSeconds))
+                return false;
+
+            double sustainDeficitKW = Math.Max(0, warpDB.BubbleSustainCost - powerDB.TotalOutputMax);
+            sustainDeficitKJ = sustainDeficitKW * travelSeconds;
+            needKJ = creationCost + sustainDeficitKJ;
+            return true;
+        }
+
         public static bool StartNonNewtTranslation(Entity entity)
         {
-
             var warpDB = entity.GetDataBlob<WarpAbilityDB>();
             var positionDB = entity.GetDataBlob<PositionDB>();
             var maxSpeedMS = warpDB.MaxSpeed;
             var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();
             EnergyGenProcessor.EnergyGen(entity, entity.StarSysDateTime);
-            
-            // Check to make sure we don't set the position parent to itself
-            if(positionDB.Parent != positionDB.Root)
-                positionDB.SetParent(positionDB.Root);
-
-            Vector3 currentPositionMt = positionDB.AbsolutePosition;
-
 
             var moveDB = entity.GetDataBlob<WarpMovingDB>();
-            // Keep MoveState parent in sync — otherwise ProcessForType nulls Parent via unset _parentEnitity.
-            moveDB._parentEnitity = positionDB.Root ?? moveDB._parentEnitity;
-            var tgt = moveDB.TargetEntity.GetDataBlob<PositionDB>();
-            var tgtpos = tgt.AbsolutePosition;
+            Vector3 currentPositionMt = positionDB.AbsolutePosition;
             moveDB._position = (Vector2)positionDB.AbsolutePosition;
             Vector3 targetPosMt = moveDB.ExitPointAbsolute;
-            Vector3 postionDelta = currentPositionMt - targetPosMt;
-            double totalDistance = postionDelta.Length();
+            double totalDistance = (currentPositionMt - targetPosMt).Length();
 
-            var creationCost = warpDB.BubbleCreationCost;
-            var t = totalDistance / warpDB.MaxSpeed;
-            var tcost = t * warpDB.BubbleSustainCost;
-            double estored = powerDB.EnergyStored[warpDB.EnergyType];
-            bool canStart = false;
-            if (creationCost <= estored && HasWarpTankFuel(entity))
+            if (!TryGetWarpEnergyNeed(warpDB, powerDB, totalDistance,
+                    out double needKJ, out double travelSeconds, out _, out _)
+                || !powerDB.EnergyStored.TryGetValue(warpDB.EnergyType, out double estored)
+                || needKJ > estored
+                || !HasWarpTankFuel(entity))
             {
-
-                var currentVelocityMS = Vector3.Normalise(targetPosMt - currentPositionMt) * maxSpeedMS;
-                var speed = currentVelocityMS.Length();
-                moveDB.CurrentNonNewtonionVectorMS = currentVelocityMS;
-                moveDB.LastProcessDateTime = entity.StarSysDateTime;
-
-                //estore = (estore.stored - creationCost, estore.maxStore);
-                powerDB.AddDemand(creationCost, entity.StarSysDateTime);
-                powerDB.AddDemand(-creationCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
-                powerDB.AddDemand(warpDB.BubbleSustainCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
-                //powerDB.EnergyStore[warpDB.EnergyType] = estore;
-                moveDB.HasStarted = true;
-                canStart = true;
+                return false;
             }
 
-            return canStart;
+            // Detach to system root only once the hop is actually affordable.
+            if (positionDB.Parent != positionDB.Root)
+                positionDB.SetParent(positionDB.Root);
+
+            // Keep MoveState parent in sync — otherwise ProcessForType nulls Parent via unset _parentEnitity.
+            moveDB._parentEnitity = positionDB.Root ?? moveDB._parentEnitity;
+            moveDB._position = (Vector2)positionDB.AbsolutePosition;
+            targetPosMt = moveDB.ExitPointAbsolute;
+
+            var currentVelocityMS = Vector3.Normalise(targetPosMt - positionDB.AbsolutePosition) * maxSpeedMS;
+            moveDB.CurrentNonNewtonionVectorMS = currentVelocityMS;
+            moveDB.LastProcessDateTime = entity.StarSysDateTime;
+
+            powerDB.AddDemand(warpDB.BubbleCreationCost, entity.StarSysDateTime);
+            powerDB.AddDemand(-warpDB.BubbleCreationCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
+            powerDB.AddDemand(warpDB.BubbleSustainCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
+            moveDB.HasStarted = true;
+            return true;
         }
 
 

@@ -24,7 +24,7 @@
         "graphite": "[Mass] * 0.1"
       },
       "ComponentType": "Weapon",
-      "MountType": "ShipComponent, ShipCargo, PlanetInstallation",
+      "MountType": "ShipComponent, ShipCargo",
       "CargoTypeID": "general-storage",
       "IndustryTypeID": "component-construction",
       "Properties": [

@@ -7,13 +7,15 @@ namespace Pulsar4X.Industry
 {
     public class MiningDB : BaseDataBlob, IAbilityDescription
     {
+        /// <summary>
+        /// Exact base units/day from mines (before accessibility / bonuses).
+        /// Kept as double so fractional template rates accumulate via <see cref="MiningRemainder"/>.
+        /// </summary>
         [JsonProperty]
-        public Dictionary<int, long> BaseMiningRate { get; set; }
+        public Dictionary<int, double> BaseMiningRate { get; set; }
 
         /// <summary>
-        /// Integer snapshot for UI/legacy; actual mining uses <see cref="BaseMiningRate"/> with
-        /// fractional accumulation in <see cref="MiningRemainder"/> so old saves keep loading
-        /// (<c>Dictionary&lt;int,long&gt;</c> $type in JSON).
+        /// Integer snapshot for UI/legacy display (floored exact rates).
         /// </summary>
         [JsonProperty]
         public Dictionary<int, long> ActualMiningRate { get; set; }
@@ -29,14 +31,14 @@ namespace Pulsar4X.Industry
 
         public MiningDB()
         {
-            BaseMiningRate = new Dictionary<int, long>();
+            BaseMiningRate = new Dictionary<int, double>();
             ActualMiningRate = new Dictionary<int, long>();
             MiningRemainder = new Dictionary<int, double>();
         }
 
         public MiningDB(MiningDB db)
         {
-            BaseMiningRate = new Dictionary<int, long>(db.BaseMiningRate);
+            BaseMiningRate = new Dictionary<int, double>(db.BaseMiningRate);
             ActualMiningRate = new Dictionary<int, long>(db.ActualMiningRate);
             MiningRemainder = db.MiningRemainder != null
                 ? new Dictionary<int, double>(db.MiningRemainder)

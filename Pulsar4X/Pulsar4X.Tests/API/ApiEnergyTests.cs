@@ -4,7 +4,9 @@ using NUnit.Framework;
 using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
+using Pulsar4X.Engine.Orders;
 using Pulsar4X.Galaxy;
+using Pulsar4X.Movement;
 using Pulsar4X.Names;
 using Pulsar4X.Orbital;
 
@@ -77,6 +79,58 @@ namespace Pulsar4X.Tests
 
             Assert.That(_projector.ProjectEntity(ship, _game.GameMasterFaction.Id).GetView<EnergyView>(), Is.Null,
                 "power internals must not leak to other factions");
+        }
+
+        [Test]
+        public void EnergyView_ActionBlock_when_pending_warp_lacks_battery()
+        {
+            var session = Connect();
+            var data = _game.Factions[session.FactionId].GetDataBlob<Pulsar4X.Factions.FactionInfoDB>().Data;
+            var energyGood = data.CargoGoods.GetAll().Values.Concat(data.LockedCargoGoods.GetAll().Values).First();
+
+            var star = _game.Systems[0].GetFirstEntityWithDataBlob<StarInfoDB>();
+            var target = Entity.Create();
+            _game.Systems[0].AddEntity(target, new List<BaseDataBlob>
+            {
+                new NameDB("Target", session.FactionId, "Target"),
+                new PositionDB(new Vector3(1e11, 0, 0), star),
+                new MassVolumeDB { MassDry = 1e24 },
+            });
+
+            var ship = Entity.Create(session.FactionId);
+            _game.Systems[0].AddEntity(ship, new List<BaseDataBlob>
+            {
+                new NameDB("Scout", session.FactionId, "Scout"),
+                new PositionDB(Vector3.Zero, star),
+                new MassVolumeDB { MassDry = 1000 },
+                new OrderableDB(),
+                new Pulsar4X.Movement.WarpAbilityDB
+                {
+                    MaxSpeed = 1e8,
+                    EnergyType = energyGood.UniqueID,
+                    BubbleCreationCost = 1_000_000,
+                    BubbleSustainCost = 0,
+                },
+                new Pulsar4X.Energy.EnergyGenAbilityDB(_game.TimePulse.GameGlobalDateTime)
+                {
+                    EnergyType = energyGood,
+                    MaxOutputFromReactor = 0,
+                    EnergyStored = new Dictionary<string, double> { [energyGood.UniqueID] = 100 },
+                    // Cap below bubble cost so CatchUpEnergyStore cannot secretly fill enough.
+                    EnergyStoreMax = new Dictionary<string, double> { [energyGood.UniqueID] = 500_000 },
+                },
+            });
+
+            var warpCmd = Pulsar4X.Movement.WarpMoveCommand.CreateCommandEZ(
+                ship, target, ship.StarSysDateTime);
+            Assert.That(_game.OrderHandler.HandleOrder(warpCmd), Is.True);
+
+            var view = _projector.ProjectEntity(ship, session.FactionId).GetView<EnergyView>();
+            Assert.That(view, Is.Not.Null);
+            Assert.That(view!.ActionBlock, Is.Not.Null, "pending warp with empty battery must surface ActionBlock");
+            Assert.That(view.ActionBlock!.NeedKJ, Is.EqualTo(1_000_000).Within(1));
+            Assert.That(view.ActionBlock.HaveKJ, Is.LessThan(1_000_000));
+            Assert.That(view.ActionBlock.Reason, Does.Contain("short").IgnoreCase);
         }
     }
 }

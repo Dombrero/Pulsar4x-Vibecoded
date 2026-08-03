@@ -253,6 +253,8 @@ namespace Pulsar4X.Engine.Api
                     {
                         StandingOrderTypes.FuelCondition => new FuelCondition(
                             Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
+                        StandingOrderTypes.EnergyCondition => new EnergyCondition(
+                            Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
                         StandingOrderTypes.HealthCondition => new HealthCondition(
                             Math.Clamp(condition.Threshold, 0, 100), ToComparisonType(condition.Comparison)),
                         StandingOrderTypes.CargoFillCondition => new CargoFillCondition(
@@ -289,6 +291,7 @@ namespace Pulsar4X.Engine.Api
                         StandingOrderTypes.MoveToNearestGravSurvey => MoveToNearestGravSurveyAction.CreateCommand(faction.Id, commanded),
                         StandingOrderTypes.MoveToNearestAnomaly => MoveToNearestAnomalyAction.CreateCommand(faction.Id, commanded),
                         StandingOrderTypes.Refuel => RefuelAction.CreateCommand(faction.Id, commanded),
+                        StandingOrderTypes.Recharge => RechargeEnergyAction.CreateCommand(faction.Id, commanded),
                         _ => null,
                     };
                     if (action == null)
@@ -296,8 +299,8 @@ namespace Pulsar4X.Engine.Api
                     actions.Add(action);
                 }
 
-                // Refuel already warps to the nearest colony — drop redundant Move-to-Colony.
-                if (actions.Any(a => a is RefuelAction))
+                // Refuel/Recharge already warp to the nearest colony — drop redundant Move-to-Colony.
+                if (actions.Any(a => a is RefuelAction || a is RechargeEnergyAction))
                 {
                     for (int i = actions.Count - 1; i >= 0; i--)
                     {
@@ -368,6 +371,13 @@ namespace Pulsar4X.Engine.Api
             {
                 compound.ConditionItems.Add(new ConditionItem(
                     new FuelCondition(30f, DataStructures.ComparisonType.LessThan)));
+                return;
+            }
+
+            if (actions.Any(a => a is RechargeEnergyAction))
+            {
+                compound.ConditionItems.Add(new ConditionItem(
+                    new EnergyCondition(30f, DataStructures.ComparisonType.LessThan)));
             }
         }
 
@@ -833,6 +843,7 @@ namespace Pulsar4X.Engine.Api
                 || !factionInfo.ShipDesigns.Remove(delete.DesignId))
                 return CommandResult.Reject($"Ship design {delete.DesignId} not found.");
 
+            factionInfo.IndustryDesigns.Remove(delete.DesignId);
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
@@ -844,6 +855,7 @@ namespace Pulsar4X.Engine.Api
                 return CommandResult.Reject($"Ship design {obsolete.DesignId} not found.");
 
             design.IsObsolete = true;
+            design.IsValid = false;
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
@@ -934,8 +946,7 @@ namespace Pulsar4X.Engine.Api
 
             var job = new IndustryJob(factionInfo, queue.DesignId);
 
-            // Auto-install only for real colony buildings (Facility / Infrastructure / …), not
-            // dual-mount ship gear that also lists PlanetInstallation (e.g. passive sensor).
+            // Auto-install only for colony installations (PlanetInstallation, not ShipComponent).
             if (queue.AutoInstall
                 && design is Pulsar4X.Components.ComponentDesign componentDesign
                 && IndustryTools.IsColonyInstallationDesign(componentDesign))

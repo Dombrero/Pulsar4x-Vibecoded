@@ -110,6 +110,51 @@
   {
     "Type": "Tech",
     "Payload": {
+      "UniqueID": "tech-colony-solar-power",
+      "Name": "Colony Solar Power",
+      "Description": "Unlocks planetary solar power plants.",
+      "Category": "tech-category-power-propulsion",
+      "MaxLevel": 1,
+      "DataFormula": "1",
+      "CostFormula": "800",
+      "Unlocks": {
+        "1": [ "solar-power-plant" ]
+      }
+    }
+  },
+  {
+    "Type": "Tech",
+    "Payload": {
+      "UniqueID": "tech-colony-wind-power",
+      "Name": "Colony Wind Power",
+      "Description": "Unlocks planetary wind power plants.",
+      "Category": "tech-category-power-propulsion",
+      "MaxLevel": 1,
+      "DataFormula": "1",
+      "CostFormula": "800",
+      "Unlocks": {
+        "1": [ "wind-power-plant" ]
+      }
+    }
+  },
+  {
+    "Type": "Tech",
+    "Payload": {
+      "UniqueID": "tech-colony-nuclear-power",
+      "Name": "Colony Nuclear Power",
+      "Description": "Unlocks planetary nuclear fission power plants.",
+      "Category": "tech-category-power-propulsion",
+      "MaxLevel": 1,
+      "DataFormula": "1",
+      "CostFormula": "2000",
+      "Unlocks": {
+        "1": [ "nuclear-power-plant" ]
+      }
+    }
+  },
+  {
+    "Type": "Tech",
+    "Payload": {
       "UniqueID": "tech-conductors",
       "Name": "Conductors",
       "Description": "",
@@ -493,6 +538,10 @@
           "tech-battery-capacity",
           "tech-capacitors",
           "tech-conductors",
+          "tech-colony-solar-power",
+          "tech-colony-wind-power",
+          "tech-colony-nuclear-power",
+          "coal-power-plant",
           "tech-alcubierre-miniaturization",
           "tech-alcubierre-bubble-creation-cost",
           "tech-alcubierre-sustain-cost",

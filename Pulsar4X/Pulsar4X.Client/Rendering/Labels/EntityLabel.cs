@@ -239,13 +239,19 @@ namespace Pulsar4X.Client
         private string? ResolveCurrentOrderText()
         {
             var entity = _state.GameClient?.Galaxy.GetSystem(SystemId)?.GetEntity(EntityId);
-            var current = OrderDisplayHelpers.ResolveCurrentOrder(
-                _state.GameClient, EntityId, entity?.GetView<OrdersView>());
-            if (current == null || string.IsNullOrWhiteSpace(current.Name))
-                return null;
-            if (current.Name.Equals("Idle", StringComparison.OrdinalIgnoreCase))
-                return null;
-            return current.Name;
+            var own = entity?.GetView<OrdersView>();
+            var shipActivity = OrderDisplayHelpers.GetShipActivityOrders(
+                own, entity?.GetView<ActivityView>());
+            if (shipActivity.Count > 0 && !string.IsNullOrWhiteSpace(shipActivity[0].Name)
+                && !shipActivity[0].Name.Equals("Idle", StringComparison.OrdinalIgnoreCase))
+                return shipActivity[0].Name;
+
+            var fleet = OrderDisplayHelpers.GetFleetOrders(_state.GameClient, EntityId);
+            if (fleet.Count > 0 && !string.IsNullOrWhiteSpace(fleet[0].Name)
+                && !fleet[0].Name.Equals("Idle", StringComparison.OrdinalIgnoreCase))
+                return "Fleet: " + fleet[0].Name;
+
+            return null;
         }
 
         private bool RenderName(IntPtr rendererPtr)

@@ -65,7 +65,7 @@ namespace Pulsar4X.Client
 
             btn =  new ToolBarOption()
             {
-                Picture = _uiState.Img_Select(),
+                Picture = _uiState.Img_Fleet(),
                 TooltipText = "Fleet Management",
                 OnClick = new Action(FleetWindow.GetInstance().ToggleActive),
                 GetActive = new Func<bool>(FleetWindow.GetInstance().GetActive)
@@ -75,7 +75,7 @@ namespace Pulsar4X.Client
 
             btn =  new ToolBarOption()
             {
-                Picture = _uiState.Img_Select(),
+                Picture = _uiState.Img_Commanders(),
                 TooltipText = "Commanders",
                 OnClick = new Action(CommanderWindow.GetInstance().ToggleActive),
                 GetActive = new Func<bool>(CommanderWindow.GetInstance().GetActive)

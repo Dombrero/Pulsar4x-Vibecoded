@@ -7,6 +7,11 @@ Pulsar4X/Pulsar4X.Client/Data/*
 Pulsar4X/Benchmarks/BenchmarksDotNet.Artifacts/*
 Pulsar4X/Pulsar4X.Tests/TestResults/
 
+# Local build / UI scratch (never commit)
+Pulsar4X/_build_check_*/
+**/imgui.ini
+imgui.ini
+
 # Doxygen output
 doc/doxygen/html/
 # C# Temp Files:

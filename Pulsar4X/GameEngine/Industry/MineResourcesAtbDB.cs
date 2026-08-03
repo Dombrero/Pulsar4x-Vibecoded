@@ -9,21 +9,18 @@ namespace Pulsar4X.Industry
 {
     public class MineResourcesAtbDB : BaseDataBlob, IComponentDesignAttribute
     {
-        public Dictionary<string, long> ResourcesPerEconTick { get; internal set; }
+        public Dictionary<string, double> ResourcesPerEconTick { get; internal set; }
 
         public MineResourcesAtbDB() { }
 
         /// <summary>
-        /// Component factory constructor.
+        /// Component factory constructor. Rates stay as doubles so fractional
+        /// template values can accumulate across ticks via mining remainder.
         /// </summary>
-        /// <param name="resources">values will be cast to longs!</param>
+        /// <param name="resources">units per economy tick</param>
         public MineResourcesAtbDB(Dictionary<string, double> resources)
         {
-            ResourcesPerEconTick = new Dictionary<string, long>();
-            foreach (var kvp in resources)
-            {
-                ResourcesPerEconTick.Add(kvp.Key,(long)kvp.Value);
-            }
+            ResourcesPerEconTick = new Dictionary<string, double>(resources);
         }
 
         public MineResourcesAtbDB(MineResourcesAtbDB db)

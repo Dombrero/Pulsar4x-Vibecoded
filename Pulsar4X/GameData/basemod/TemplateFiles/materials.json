@@ -173,16 +173,16 @@
     "Payload": {
       "UniqueID": "electricity",
       "Name": "Electricity",
-      "Description": "Electrical Energy",
+      "Description": "Electrical Energy (energy-type id for ship/colony batteries; not refinable)",
       "CargoTypeID": "battery-storage",
       "MassPerUnit": 0.0,
       "VolumePerUnit": 0,
       "ResourceCosts": {
       },
-      "IndustryPointCosts": 10,
-      "IndustryTypeID": "refining",
+      "IndustryPointCosts": 0,
+      "IndustryTypeID": "",
       "WealthCost": 0,
-      "OutputAmount": 100
+      "OutputAmount": 0
     }
   },
   {

@@ -221,35 +221,35 @@ namespace Pulsar4X.Orbital
         #region ArgumentOfPeriapsis
 
         /// <summary>
-        /// DO NOT USE! Gives wrong results in testing, needs fixing.
+        /// Argument of periapsis from node and eccentricity vectors (Wikipedia / classical orbital elements).
+        /// Equatorial orbits use atan2 on the eccentricity vector.
         /// </summary>
-        /// <param name="nodeVector"></param>
-        /// <param name="eccentricityVector"></param>
-        /// <param name="pos"></param>
-        /// <param name="vel"></param>
-        /// <returns></returns>
         public static double GetArgumentOfPeriapsis1(Vector3 nodeVector, Vector3 eccentricityVector, Vector3 pos, Vector3 vel)
         {
-            //throw new Exception("Broken Math Function, This function should not be used.");
             double aop;
-            if (nodeVector.Length() == 0)
+            double eMag = eccentricityVector.Length();
+            double nMag = nodeVector.Length();
+
+            if (nMag < Epsilon)
             {
+                // Equatorial: ω measured from reference X axis in the orbital plane.
                 aop = Math.Atan2(eccentricityVector.Y, eccentricityVector.X);
                 if (Vector3.Cross(pos, vel).Z < 0)
-                    aop = 2 * Math.PI + aop;
+                    aop = -aop;
+            }
+            else if (eMag < Epsilon)
+            {
+                aop = 0;
             }
             else
             {
-                var foo = Vector3.Dot(nodeVector, eccentricityVector);
-                var foo2 = nodeVector.Length() * eccentricityVector.Length();
-                aop = Math.Acos(foo / foo2);
+                double cosArg = Math.Clamp(Vector3.Dot(nodeVector, eccentricityVector) / (nMag * eMag), -1.0, 1.0);
+                aop = Math.Acos(cosArg);
                 if (eccentricityVector.Z < 0)
-                    aop = 2 * Math.PI + aop;
+                    aop = 2 * Math.PI - aop;
             }
 
-            aop = Angle.NormaliseRadians(aop);
-
-            return aop;
+            return SnapNearTwoPiToZero(Angle.NormaliseRadiansPositive(aop));
         }
 
         public static double GetArgumentOfPeriapsis(Vector3 pos, double incl, double loAN, double trueAnomaly)
@@ -281,37 +281,39 @@ namespace Pulsar4X.Orbital
         }
 
         /// <summary>
-        /// DO NOT USE! Gives wrong results in testing, needs fixing.
+        /// Argument of periapsis from inclination, eccentricity vector and node vector.
         /// </summary>
-        /// <param name="inclination"></param>
-        /// <param name="eccentricityVector"></param>
-        /// <param name="nodeVector"></param>
-        /// <returns></returns>
         public static double GetArgumentOfPeriapsis3(double inclination, Vector3 eccentricityVector, Vector3 nodeVector)
         {
-            //throw new Exception("Broken Math Function, This function shoudl not be used.");
-            double aoP = 0;
             double e = eccentricityVector.Length();
-            if (Math.Abs(inclination) < Epsilon)
+            double aoP;
+
+            if (Math.Abs(inclination) < Epsilon || nodeVector.Length() < Epsilon)
             {
-                if (Math.Abs(e) < Epsilon)
+                if (e < Epsilon)
                     aoP = 0;
                 else
-                    aoP = Math.Acos(eccentricityVector.X / e);
+                    aoP = Math.Atan2(eccentricityVector.Y, eccentricityVector.X);
             }
             else
             {
-                var foo = Vector3.Dot(nodeVector, eccentricityVector);
-                var foo2 = nodeVector.Length() * e;
-                aoP = Math.Acos(foo / foo2);
+                double nMag = nodeVector.Length();
+                double cosArg = Math.Clamp(Vector3.Dot(nodeVector, eccentricityVector) / (nMag * e), -1.0, 1.0);
+                aoP = Math.Acos(cosArg);
+                if (eccentricityVector.Z < 0)
+                    aoP = 2 * Math.PI - aoP;
             }
 
-            if (Math.Abs(e) > Epsilon && eccentricityVector.Z < 0)
-            {
-                aoP = 2 * Math.PI - aoP;
-            }
+            return SnapNearTwoPiToZero(Angle.NormaliseRadiansPositive(aoP));
+        }
 
-            return aoP;
+        /// <summary>Treat angles within epsilon of 2π as 0 for numerical stability.</summary>
+        private static double SnapNearTwoPiToZero(double radians)
+        {
+            const double snap = 1e-7;
+            if (radians < snap || Math.Abs(radians - 2 * Math.PI) < snap)
+                return 0;
+            return radians;
         }
 
 

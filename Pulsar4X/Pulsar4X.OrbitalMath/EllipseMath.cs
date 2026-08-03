@@ -157,28 +157,21 @@ namespace Pulsar4X.Orbital
         }
         
         /// <summary>
-        /// !!I think this is incorrect!!
-        /// This is plucked from https://control.asu.edu/Classes/MAE462/462Lecture05.pdf
+        /// True anomaly from radius (same polar relation as <see cref="TrueAnomalyAtRadus"/>).
+        /// Alias kept for callers/tests; previously had an algebraically wrong formula.
         /// </summary>
-        /// <param name="radius"></param>
-        /// <param name="semiLatusRectum"></param>
-        /// <param name="eccentricity"></param>
-        /// <returns></returns>
         public static double AngleAtRadus2(double radius, double semiLatusRectum, double eccentricity)
         {
-            return Math.Acos(1 / eccentricity - radius / (eccentricity * semiLatusRectum));
+            return TrueAnomalyAtRadus(radius, semiLatusRectum, eccentricity);
         }
         
         /// <summary>
-        /// plucked from a YT comment. also incorrect.
+        /// True anomaly from radius (same polar relation as <see cref="TrueAnomalyAtRadus"/>).
+        /// Alias kept for callers/tests; previously had an algebraically wrong formula.
         /// </summary>
-        /// <param name="radius"></param>
-        /// <param name="semiLatusRectum"></param>
-        /// <param name="eccentricity"></param>
-        /// <returns></returns>
         public static double AngleAtRadus3(double radius, double semiLatusRectum, double eccentricity)
         {
-            return Math.Acos((semiLatusRectum / radius * eccentricity - 1) / eccentricity);
+            return TrueAnomalyAtRadus(radius, semiLatusRectum, eccentricity);
         }
         
         /// <summary>

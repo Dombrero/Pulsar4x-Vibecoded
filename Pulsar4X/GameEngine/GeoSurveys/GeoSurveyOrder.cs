@@ -74,8 +74,11 @@ public class GeoSurveyOrder : EntityCommand
 
     internal override bool IsFinished()
     {
-        return _isFinished = TargetGeoSurveyDB == null
+        bool finished = TargetGeoSurveyDB == null
             || TargetGeoSurveyDB.IsSurveyComplete(EntityCommanding.FactionOwnerID);
+        if (finished)
+            ClearSurveyingBlobs();
+        return _isFinished = finished;
     }
 
     internal override void Execute(DateTime atDateTime)
@@ -87,6 +90,7 @@ public class GeoSurveyOrder : EntityCommand
 
         if (!IsAtTarget())
         {
+            ClearSurveyingBlobs();
             EnsureTravel(atDateTime);
             return;
         }
@@ -97,8 +101,11 @@ public class GeoSurveyOrder : EntityCommand
             _surveyStarted = true;
             PreviousUpdate = atDateTime;
             Processor = new GeoSurveyProcessor(EntityCommanding, Target);
+            SyncSurveyingBlobs();
             return;
         }
+
+        SyncSurveyingBlobs();
 
         if (PreviousUpdate != null && atDateTime - PreviousUpdate >= TimeSpan.FromDays(1))
         {
@@ -109,6 +116,63 @@ public class GeoSurveyOrder : EntityCommand
 
     private bool IsAtTarget()
         => Target != null && FleetOrderCleanup.IsFleetAtBody(EntityCommanding, Target);
+
+    /// <summary>
+    /// Put <see cref="GeoSurveyingDB"/> on hulls that can and are surveying; clear it elsewhere.
+    /// </summary>
+    private void SyncSurveyingBlobs()
+    {
+        if (Target == null)
+        {
+            ClearSurveyingBlobs();
+            return;
+        }
+
+        if (_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+        {
+            foreach (var child in fleetDB.Children)
+            {
+                if (child.HasDataBlob<FleetDB>())
+                    continue;
+                if (!child.HasDataBlob<ShipInfoDB>())
+                    continue;
+
+                bool surveying = child.HasDataBlob<GeoSurveyAbilityDB>()
+                    && FleetOrderCleanup.IsShipAtBody(child, Target);
+                if (surveying)
+                    child.SetDataBlob(new GeoSurveyingDB { TargetId = Target.Id });
+                else if (child.HasDataBlob<GeoSurveyingDB>())
+                    child.RemoveDataBlob<GeoSurveyingDB>();
+            }
+            return;
+        }
+
+        if (_entityCommanding.HasDataBlob<ShipInfoDB>()
+            && _entityCommanding.HasDataBlob<GeoSurveyAbilityDB>()
+            && FleetOrderCleanup.IsShipAtBody(_entityCommanding, Target))
+        {
+            _entityCommanding.SetDataBlob(new GeoSurveyingDB { TargetId = Target.Id });
+        }
+        else if (_entityCommanding.HasDataBlob<GeoSurveyingDB>())
+        {
+            _entityCommanding.RemoveDataBlob<GeoSurveyingDB>();
+        }
+    }
+
+    private void ClearSurveyingBlobs()
+    {
+        if (_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+        {
+            foreach (var child in fleetDB.Children)
+            {
+                if (child.HasDataBlob<GeoSurveyingDB>())
+                    child.RemoveDataBlob<GeoSurveyingDB>();
+            }
+        }
+
+        if (_entityCommanding.HasDataBlob<GeoSurveyingDB>())
+            _entityCommanding.RemoveDataBlob<GeoSurveyingDB>();
+    }
 
         private void EnsureTravel(DateTime atDateTime)
         {

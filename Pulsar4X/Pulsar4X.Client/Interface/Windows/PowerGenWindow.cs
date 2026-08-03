@@ -66,7 +66,24 @@ namespace Pulsar4X.Client
 
                 ImGui.Text("Stored: ");
                 ImGui.SameLine();
-                ImGui.Text(energy.Stored + " / " + energy.StoreMax);
+                ImGui.Text($"{energy.Stored:N0} / {energy.StoreMax:N0} ({energy.StoredPercent:0.#}%)");
+
+                if (energy.AcceptRateKW > 0)
+                {
+                    ImGui.Text("Dock Accept Rate: ");
+                    ImGui.SameLine();
+                    ImGui.Text($"{energy.AcceptRateKW:N1} kW");
+                    if (energy.StoreMax > energy.Stored && energy.AcceptRateKW > 0)
+                    {
+                        double etaHours = (energy.StoreMax - energy.Stored) / (energy.AcceptRateKW * 3600.0);
+                        ImGui.Text($"ETA to full (dock): {etaHours:0.##} h");
+                    }
+                }
+
+                if (energy.StoreMax <= 0)
+                {
+                    ImGui.TextColored(Styles.BadColor, "No batteries — energy cannot be stored.");
+                }
 
                 var histogram = energy.Histogram;
                 if (histogram.Count > 1 && energy.StoreMax > 0)

@@ -19,6 +19,7 @@ namespace Pulsar4X.Client
 
         private ColonyProductionDisplay? _productionDisplay;
         private ColonyConstructionDisplay? _constructionDisplay;
+        private ColonyEnergyDisplay? _energyDisplay;
 
         internal static ColonyManagementWindow GetInstance()
         {
@@ -130,6 +131,12 @@ namespace Pulsar4X.Client
                 {
                     TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabMining);
                     mining.Display();
+                    ImGui.EndTabItem();
+                }
+                if (selectedColony.GetView<ColonyPowerView>() is { } power && ImGui.BeginTabItem("Energy"))
+                {
+                    _energyDisplay ??= new ColonyEnergyDisplay();
+                    _energyDisplay.Display(power);
                     ImGui.EndTabItem();
                 }
                 if (selectedColony.GetView<NavalAcademyView>() is { } academy && ImGui.BeginTabItem("Naval Academy"))

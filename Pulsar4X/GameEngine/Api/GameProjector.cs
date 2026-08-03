@@ -161,12 +161,14 @@ namespace Pulsar4X.Engine.Api
             // which gates the order-queue UI.
             (e, f) => e.FactionOwnerID == f && e.HasDataBlob<OrderableDB>()
                 ? new OrdersView(ProjectOrders(e)) : null,
+            (e, f) => e.FactionOwnerID == f && e.HasDataBlob<ShipInfoDB>()
+                ? ToActivityView(e, f) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.NewtonThrustAbilityDB>(out var th)
                 ? ToThrustView(th, e, f) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.WarpAbilityDB>(out var wa)
-                ? new WarpAbilityView(wa.MaxSpeed) : null,
+                ? new WarpAbilityView(wa.MaxSpeed, wa.BubbleCreationCost, wa.BubbleSustainCost) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Energy.EnergyGenAbilityDB>(out var eg)
-                ? ToEnergyView(eg) : null,
+                ? ToEnergyView(eg, e) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var wm)
                 ? new WarpMovingView(wm.CurrentNonNewtonionVectorMS.Length())
                 {
@@ -199,6 +201,7 @@ namespace Pulsar4X.Engine.Api
                 : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<ComponentInstancesDB>(out var ci) ? ToInstallationsView(ci, e) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<ColonyInfoDB>(out var col) ? ToColonyMiningView(col, e, f) : null,
+            (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<Pulsar4X.Energy.ColonyPowerDB>(out var cp) ? ToColonyPowerView(cp, e, f) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<NavalAcademyDB>(out var na) ? ToNavalAcademyView(na) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<IndustryAbilityDB>(out var ind) ? ToIndustryView(ind, e, f) : null,
             (e, f) => e.FactionOwnerID == f && e.TryGetDataBlob<LocalConstructionDB>(out var lc) ? ToConstructionView(lc, e, f) : null,
@@ -248,15 +251,20 @@ namespace Pulsar4X.Engine.Api
                 StandardGravParameter = ke.StandardGravParameter,
             };
 
-        private static EnergyView? ToEnergyView(Pulsar4X.Energy.EnergyGenAbilityDB energy)
+        private static EnergyView? ToEnergyView(Pulsar4X.Energy.EnergyGenAbilityDB energy, Entity entity)
         {
-            string? energyType = energy.EnergyType?.UniqueID;
-            if (energyType == null
-                || !energy.EnergyStored.TryGetValue(energyType, out double stored)
+            string? energyType = energy.EnergyType?.UniqueID ?? Pulsar4X.Energy.ColonyPowerDB.EnergyTypeId;
+            if (!energy.EnergyStored.TryGetValue(energyType, out double stored)
                 || !energy.EnergyStoreMax.TryGetValue(energyType, out double storeMax))
-                return null;
+            {
+                // Batteries may exist without EnergyType set yet.
+                if (energy.EnergyStoreMax.Count == 0)
+                    return null;
+                energyType = energy.EnergyStoreMax.Keys.First();
+                energy.EnergyStored.TryGetValue(energyType, out stored);
+                storeMax = energy.EnergyStoreMax[energyType];
+            }
 
-            // Unroll the engine's ring buffer into chronological order for plotting.
             var histogram = new List<EnergyHistogramPoint>(energy.Histogram.Count);
             for (int i = 0; i < energy.Histogram.Count; i++)
             {
@@ -267,6 +275,179 @@ namespace Pulsar4X.Engine.Api
             return new EnergyView(energy.Load, energy.Output, energy.TotalOutputMax, energy.Demand, stored, storeMax)
             {
                 Histogram = histogram,
+                AcceptRateKW = Pulsar4X.Energy.EnergyRechargeHelper.GetShipAcceptRateKW(entity),
+                IsRecharging = entity.HasDataBlob<Pulsar4X.Energy.EnergyRechargeDB>(),
+                ActionBlock = TryProjectEnergyActionBlock(entity, energy, stored),
+            };
+        }
+
+        /// <summary>
+        /// If the ship has a pending warp that cannot start, explain the shortfall for the UI.
+        /// </summary>
+        private static EnergyActionBlock? TryProjectEnergyActionBlock(
+            Entity entity, Pulsar4X.Energy.EnergyGenAbilityDB energy, double storedKJ)
+        {
+            if (!entity.TryGetDataBlob<Pulsar4X.Movement.WarpAbilityDB>(out var warpDB))
+                return null;
+
+            // Already translating — no pending gate.
+            if (entity.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var moving) && moving.HasStarted)
+                return null;
+
+            if (!entity.TryGetDataBlob<OrderableDB>(out var orderable))
+                return null;
+
+            Pulsar4X.Movement.WarpMoveCommand? pending = null;
+            foreach (var action in orderable.ActionList)
+            {
+                if (action is Pulsar4X.Movement.WarpMoveCommand warpCmd
+                    && !warpCmd.WasCancelled
+                    && !warpCmd.GetIsFinished)
+                {
+                    pending = warpCmd;
+                    break;
+                }
+            }
+
+            if (pending == null)
+                return null;
+
+            if (!entity.Manager.TryGetEntityById(pending.TargetEntityGuid, out var target)
+                && !(entity.Manager.Game?.GlobalManager.TryGetGlobalEntityById(pending.TargetEntityGuid, out target) ?? false))
+                return null;
+
+            string actionName = pending.Name;
+            try
+            {
+                if (!entity.TryGetDataBlob<Pulsar4X.Movement.PositionDB>(out var shipPos)
+                    || !target.TryGetDataBlob<Pulsar4X.Movement.PositionDB>(out var tgtPos))
+                    return null;
+
+                // Approximate hop length: absolute separation (+ queued endpoint offset).
+                // Exact ExitPointAbsolute needs intercept math; this is close enough for UI gating.
+                double distanceM = (shipPos.AbsolutePosition
+                    - (tgtPos.AbsolutePosition + pending.EndpointRelitivePosition)).Length();
+
+                if (!Pulsar4X.Movement.WarpMoveProcessor.TryGetWarpEnergyNeed(
+                        warpDB, energy, distanceM,
+                        out double needKJ, out double travelSeconds, out double creationKJ, out double sustainDeficit)
+                    || double.IsInfinity(travelSeconds))
+                {
+                    return new EnergyActionBlock(
+                        actionName, 0, storedKJ, warpDB.BubbleCreationCost, 0, 0,
+                        "Warp hop invalid (speed or distance).");
+                }
+
+                bool fuelOk = Pulsar4X.Movement.WarpMoveProcessor.HasWarpTankFuel(entity);
+                bool energyOk = needKJ <= storedKJ + 1e-6;
+
+                if (energyOk && fuelOk)
+                    return null;
+
+                var parts = new List<string>(2);
+                if (!energyOk)
+                {
+                    double shortfall = Math.Max(0, needKJ - storedKJ);
+                    parts.Add(
+                        $"need {Stringify.Energy(needKJ)} " +
+                        $"(bubble {Stringify.Energy(creationKJ)}" +
+                        (sustainDeficit > 1e-6
+                            ? $" + sustain deficit {Stringify.Energy(sustainDeficit)} over {travelSeconds:0}s"
+                            : "") +
+                        $"), have {Stringify.Energy(storedKJ)} — short {Stringify.Energy(shortfall)}");
+                }
+                if (!fuelOk)
+                    parts.Add("cargo fuel tank empty");
+
+                return new EnergyActionBlock(
+                    actionName, needKJ, storedKJ, creationKJ, sustainDeficit, travelSeconds,
+                    string.Join("; ", parts));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static ColonyPowerView ToColonyPowerView(Pulsar4X.Energy.ColonyPowerDB power, Entity colony, int factionId)
+        {
+            var consumers = new List<ColonyPowerConsumer>();
+            var generators = new List<ColonyPowerGenerator>();
+            var dockConsumers = new List<ColonyPowerConsumer>();
+
+            if (colony.TryGetDataBlob<ComponentInstancesDB>(out var instances))
+            {
+                if (instances.TryGetComponentsByAttribute<Pulsar4X.Energy.PowerDemandAtb>(out var loads))
+                {
+                    foreach (var group in loads.GroupBy(i => i.Design.UniqueID))
+                    {
+                        var list = group.ToList();
+                        var enabled = list.Where(i => i.IsEnabled).ToList();
+                        double demand = enabled.Sum(i =>
+                            Pulsar4X.Energy.ColonyPowerProcessor.GetInstanceDemandKW(colony, i));
+                        consumers.Add(new ColonyPowerConsumer(
+                            list[0].Name,
+                            list.Count,
+                            demand,
+                            enabled.Count > 0));
+                    }
+                }
+
+                if (instances.TryGetComponentsByAttribute<Pulsar4X.Energy.PowerGenerationAtb>(out var plants))
+                {
+                    DateTime at = colony.StarSysDateTime;
+                    foreach (var group in plants.GroupBy(i => i.Design.UniqueID))
+                    {
+                        var list = group.ToList();
+                        var enabled = list.Where(i => i.IsEnabled).ToList();
+                        double generation = enabled.Sum(i =>
+                            Pulsar4X.Energy.ColonyPowerProcessor.ComputePlantOutputKW(
+                                colony, i.Design.GetAttribute<Pulsar4X.Energy.PowerGenerationAtb>(), at)
+                            * i.HealthPercent);
+                        generators.Add(new ColonyPowerGenerator(
+                            list[0].Name,
+                            list.Count,
+                            generation,
+                            enabled.Count > 0));
+                    }
+                }
+            }
+
+            if (colony.Manager != null)
+            {
+                foreach (var ship in colony.Manager.GetAllEntitiesWithDataBlob<Pulsar4X.Energy.EnergyRechargeDB>())
+                {
+                    if (!ship.TryGetDataBlob<Pulsar4X.Energy.EnergyRechargeDB>(out var recharge))
+                        continue;
+                    if (recharge.ColonyEntityId != colony.Id)
+                        continue;
+                    if (ship.FactionOwnerID != factionId)
+                        continue;
+
+                    dockConsumers.Add(new ColonyPowerConsumer(
+                        ship.GetName(factionId),
+                        1,
+                        recharge.RateKW));
+                }
+            }
+
+            consumers.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            generators.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            dockConsumers.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+            var hist = power.GetHistogramChronological();
+            var histPoints = new List<ColonyPowerHistogramPoint>(hist.Count);
+            foreach (var s in hist)
+                histPoints.Add(new ColonyPowerHistogramPoint(s.GenerationKW, s.DemandKW, s.DockKW, s.StoredKJ));
+
+            return new ColonyPowerView(
+                power.GenerationKW, power.DemandKW, power.EnergyStoredKJ, power.StorageCapacityKJ,
+                power.PowerEfficiency, power.DockChargeRateKW)
+            {
+                Consumers = consumers,
+                Generators = generators,
+                DockConsumers = dockConsumers,
+                Histogram = histPoints,
             };
         }
 
@@ -436,13 +617,16 @@ namespace Pulsar4X.Engine.Api
                 totalCount > 0 ? totalHealth / totalCount : 1,
                 operationalCount,
                 totalCount,
-                armorThickness);
+                armorThickness,
+                ship.HasDataBlob<GeoSurveyAbilityDB>(),
+                ship.HasDataBlob<JPSurveyAbilityDB>());
         }
 
         private static ThrustView? ToThrustView(Pulsar4X.Movement.NewtonThrustAbilityDB thrust, Entity ship, int factionId)
         {
             // ΔV at full tanks: the dry mass pushed by however much fuel the tanks could hold.
             double maxDeltaV = 0;
+            double maxFuelKg = 0;
             string fuelName = "";
             if (ship.Manager?.Game is { } game
                 && game.Factions.TryGetValue(factionId, out var faction)
@@ -451,15 +635,18 @@ namespace Pulsar4X.Engine.Api
                 && factionInfo.Data.CargoGoods.GetAny(thrust.FuelType) is { } fuel)
             {
                 fuelName = fuel.Name;
-                if (thrust.ExhaustVelocity > 0 && fuel.VolumePerUnit > 0
-                    && ship.TryGetDataBlob<MassVolumeDB>(out var massVolume)
+                if (fuel.VolumePerUnit > 0
                     && ship.TryGetDataBlob<CargoStorageDB>(out var storage)
                     && storage.TypeStores.TryGetValue(fuel.CargoTypeID, out var fuelStore))
                 {
-                    double maxFuelKg = fuelStore.MaxVolume / fuel.VolumePerUnit * fuel.MassPerUnit;
-                    double dryMass = massVolume.MassTotal - thrust.TotalFuel_kg;
-                    if (dryMass > 0 && maxFuelKg > 0)
-                        maxDeltaV = thrust.ExhaustVelocity * Math.Log((dryMass + maxFuelKg) / dryMass);
+                    maxFuelKg = fuelStore.MaxVolume / fuel.VolumePerUnit * fuel.MassPerUnit;
+                    if (thrust.ExhaustVelocity > 0
+                        && ship.TryGetDataBlob<MassVolumeDB>(out var massVolume))
+                    {
+                        double dryMass = massVolume.MassTotal - thrust.TotalFuel_kg;
+                        if (dryMass > 0 && maxFuelKg > 0)
+                            maxDeltaV = thrust.ExhaustVelocity * Math.Log((dryMass + maxFuelKg) / dryMass);
+                    }
                 }
             }
 
@@ -467,6 +654,7 @@ namespace Pulsar4X.Engine.Api
                 thrust.DeltaV, maxDeltaV)
             {
                 TotalFuelKg = thrust.TotalFuel_kg,
+                MaxFuelKg = maxFuelKg,
                 FuelName = fuelName,
             };
         }
@@ -687,8 +875,8 @@ namespace Pulsar4X.Engine.Api
                     float miningBonuses = 1.0f;
                     if (colony.TryGetDataBlob<ColonyBonusesDB>(out var colonyBonusesDB))
                         miningBonuses = colonyBonusesDB.GetBonus(AbilityType.Mine);
-                    long baseRate = mining.BaseMiningRate[mineralId];
-                    dailyRate = baseRate * miningBonuses * deposit.Accessibility * infraEfficiency;
+                    double powerEfficiency = Pulsar4X.Energy.ColonyPowerProcessor.GetPowerEfficiency(colony);
+                    dailyRate = mining.BaseMiningRate[mineralId] * miningBonuses * deposit.Accessibility * infraEfficiency * powerEfficiency;
                 }
                 long annualProduction = canMine ? (long)Math.Floor(365 * dailyRate) : 0;
 
@@ -800,7 +988,11 @@ namespace Pulsar4X.Engine.Api
                         bool canProduce = factionInfo.IndustryDesigns.ContainsKey(resourceId)
                             || factionInfo.Data.CargoGoods.IsMineral(resourceId);
 
-                        costs.Add(new IndustryCostItem(ResolveItemName(factionInfo, resourceId), perUnit, available, canProduce));
+                        costs.Add(new IndustryCostItem(ResolveItemName(factionInfo, resourceId), perUnit, available, canProduce)
+                        {
+                            Description = TryGetCargoDescription(factionInfo, resourceId),
+                            ProductionHint = ResolveProductionHint(factionInfo, industry, resourceId),
+                        });
                     }
 
                     double pointsPerDay = 0;
@@ -877,6 +1069,61 @@ namespace Pulsar4X.Engine.Api
             }
             cargoable = null!;
             return false;
+        }
+
+        private static string? TryGetCargoDescription(FactionInfoDB factionInfo, string resourceId)
+        {
+            if (factionInfo.Data.CargoGoods.IsMineral(resourceId))
+                return factionInfo.Data.CargoGoods.GetMineral(resourceId).Description;
+            if (factionInfo.Data.CargoGoods.IsMaterial(resourceId))
+                return factionInfo.Data.CargoGoods.GetMaterial(resourceId).Description;
+            if (factionInfo.ComponentDesigns.TryGetValue(resourceId, out var design)
+                && !string.IsNullOrWhiteSpace(design.Description))
+                return design.Description;
+            return null;
+        }
+
+        /// <summary>
+        /// Player-facing "where do I get more of this?" text for industry cost tooltips.
+        /// </summary>
+        private static string ResolveProductionHint(FactionInfoDB factionInfo, IndustryAbilityDB industry, string resourceId)
+        {
+            if (factionInfo.Data.CargoGoods.IsMineral(resourceId))
+                return "Mined from planetary deposits.\nOpen the Mining tab to see rates.";
+
+            if (!factionInfo.IndustryDesigns.TryGetValue(resourceId, out var design)
+                || string.IsNullOrEmpty(design.IndustryTypeID))
+                return "Cannot be produced industrially — import or salvage it.";
+
+            string typeId = design.IndustryTypeID;
+            string where = IndustryTypeFacilityHint(typeId, factionInfo);
+
+            bool hasLine = industry.ProductionLines.Values
+                .Any(l => l.IndustryTypeRates.ContainsKey(typeId));
+
+            if (hasLine)
+                return $"Produced at {where}.\nQueue a job on that production line to make more.";
+
+            return $"Produced at {where}.\nThis colony has no matching production line yet — build or unlock one first.";
+        }
+
+        private static string IndustryTypeFacilityHint(string typeId, FactionInfoDB factionInfo)
+        {
+            return typeId switch
+            {
+                "refining" => "a Refinery",
+                "component-construction" => "a Factory (Components)",
+                "installation-construction" => "a Factory (Colony Installations)",
+                "ordnance-construction" => "a Factory (Ordnance)",
+                "ship-assembly" => "a Ship Yard",
+                _ => FallbackIndustryTypeName(typeId, factionInfo),
+            };
+        }
+
+        private static string FallbackIndustryTypeName(string typeId, FactionInfoDB factionInfo)
+        {
+            string name = factionInfo.Data.GetName(typeId);
+            return name.Length > 0 ? name : typeId;
         }
 
         private static ResearcherView ToResearcherView(ResearcherDB r, Entity lab, int factionId)
@@ -1233,6 +1480,7 @@ namespace Pulsar4X.Engine.Api
                     string? conditionType = comparison switch
                     {
                         Engine.Orders.FuelCondition => StandingOrderTypes.FuelCondition,
+                        Engine.Orders.EnergyCondition => StandingOrderTypes.EnergyCondition,
                         Engine.Orders.HealthCondition => StandingOrderTypes.HealthCondition,
                         Engine.Orders.CargoFillCondition => StandingOrderTypes.CargoFillCondition,
                         Engine.Orders.UnsurveyedGeoCondition => StandingOrderTypes.UnsurveyedGeoCondition,
@@ -1264,6 +1512,7 @@ namespace Pulsar4X.Engine.Api
                         Pulsar4X.Movement.MoveToNearestGravSurveyAction => StandingOrderTypes.MoveToNearestGravSurvey,
                         Pulsar4X.Movement.MoveToNearestAnomalyAction => StandingOrderTypes.MoveToNearestAnomaly,
                         Pulsar4X.Fleets.RefuelAction => StandingOrderTypes.Refuel,
+                        Pulsar4X.Fleets.RechargeEnergyAction => StandingOrderTypes.Recharge,
                         Pulsar4X.Fleets.ResupplyAction => StandingOrderTypes.Resupply,
                         _ => null,
                     };
@@ -1302,6 +1551,64 @@ namespace Pulsar4X.Engine.Api
             {
                 Orders = ProjectOrders(ship),
             };
+        }
+
+        private static ActivityView ToActivityView(Entity ship, int factionId)
+        {
+            // Prefer the ship's own queued work when present — that is already what it is doing.
+            if (ship.TryGetDataBlob<OrderableDB>(out var orderable) && orderable.ActionList.Count > 0)
+            {
+                var action = orderable.ActionList.FirstOrDefault(a => a.IsRunning) ?? orderable.ActionList[0];
+                return new ActivityView(action.Name, action.Details);
+            }
+
+            if (ship.TryGetDataBlob<Pulsar4X.Energy.EnergyRechargeDB>(out var recharge))
+            {
+                string colonyName = "colony";
+                if (recharge.ColonyEntity != null)
+                    colonyName = recharge.ColonyEntity.GetName(factionId);
+                else if (ship.Manager != null
+                         && ship.Manager.TryGetEntityById(recharge.ColonyEntityId, out var colonyEnt))
+                    colonyName = colonyEnt.GetName(factionId);
+
+                string pct = "";
+                if (ship.TryGetDataBlob<Pulsar4X.Energy.EnergyGenAbilityDB>(out var gen))
+                {
+                    string typeId = Pulsar4X.Energy.EnergyRechargeHelper.EnergyTypeId;
+                    if (gen.EnergyStoreMax.TryGetValue(typeId, out var max) && max > 0)
+                    {
+                        gen.EnergyStored.TryGetValue(typeId, out var stored);
+                        pct = $" ({100.0 * stored / max:0}%)";
+                    }
+                }
+                return new ActivityView("Recharging" + pct, "Transferring energy from " + colonyName + ".");
+            }
+
+            if (ship.TryGetDataBlob<GeoSurveyingDB>(out var geoSurveying)
+                && ship.Manager != null
+                && ship.Manager.TryGetEntityById(geoSurveying.TargetId, out var geoTarget))
+            {
+                return new ActivityView(
+                    "Geo Survey " + geoTarget.GetName(factionId),
+                    "Surveying at target.");
+            }
+
+            if (ship.TryGetDataBlob<JPSurveyDB>(out var jpSurvey)
+                && ship.Manager != null
+                && ship.Manager.TryGetEntityById(jpSurvey.TargetId, out var jpTarget))
+            {
+                return new ActivityView(
+                    "Jump Point Survey " + jpTarget.GetName(factionId),
+                    "Surveying at target.");
+            }
+
+            if (ship.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var warp))
+            {
+                string target = warp.TargetEntity?.GetName(factionId) ?? "destination";
+                return new ActivityView("Warping", "En route to " + target + ".");
+            }
+
+            return new ActivityView("Idle");
         }
 
         private static IReadOnlyList<OrderSnapshot> ProjectOrders(Entity entity)

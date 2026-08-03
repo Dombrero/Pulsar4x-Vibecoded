@@ -65,11 +65,13 @@ namespace Pulsar4X.Client
             (StandingOrderTypes.MoveToNearestGravSurvey, "Grav Survey Nearest Anomaly"),
             (StandingOrderTypes.MoveToNearestAnomaly, "Move to Nearest Anomaly"),
             (StandingOrderTypes.Refuel, "Refuel"),
+            (StandingOrderTypes.Recharge, "Recharge Energy"),
         };
 
         private static readonly (string Id, string Label, string Description, float Min, float Max)[] StandingOrderConditionTypes =
         {
             (StandingOrderTypes.FuelCondition, "Fuel (Fleet Avg)", "percent", 0, 100),
+            (StandingOrderTypes.EnergyCondition, "Energy (Fleet Avg)", "percent", 0, 100),
             (StandingOrderTypes.HealthCondition, "Health (Fleet Avg)", "percent", 0, 100),
             (StandingOrderTypes.CargoFillCondition, "Cargo Fill (Fleet Avg)", "percent", 0, 100),
             (StandingOrderTypes.UnsurveyedGeoCondition, "Unsurveyed Geo Targets", "targets", 0, 50),
@@ -86,6 +88,7 @@ namespace Pulsar4X.Client
             => conditionTypeId switch
             {
                 StandingOrderTypes.FuelCondition => (StandingOrderComparison.LessThan, 30f),
+                StandingOrderTypes.EnergyCondition => (StandingOrderComparison.LessThan, 30f),
                 StandingOrderTypes.HealthCondition => (StandingOrderComparison.LessThan, 50f),
                 StandingOrderTypes.CargoFillCondition => (StandingOrderComparison.GreaterThanOrEqual, 90f),
                 StandingOrderTypes.UnsurveyedGeoCondition => (StandingOrderComparison.GreaterThan, 0f),
@@ -897,6 +900,8 @@ namespace Pulsar4X.Client
 
             if (list.Contains(StandingOrderTypes.Refuel))
                 list.RemoveAll(a => a == StandingOrderTypes.MoveToNearestColony);
+            if (list.Contains(StandingOrderTypes.Recharge))
+                list.RemoveAll(a => a == StandingOrderTypes.MoveToNearestColony);
 
             return list;
         }
@@ -1120,6 +1125,7 @@ namespace Pulsar4X.Client
                                     StandingOrderTypes.MoveToNearestAnomaly => StandingOrderTypes.UnsurveyedAnomalyCondition,
                                     StandingOrderTypes.MoveToNearestGeoSurvey => StandingOrderTypes.UnsurveyedGeoCondition,
                                     StandingOrderTypes.Refuel => StandingOrderTypes.FuelCondition,
+                                    StandingOrderTypes.Recharge => StandingOrderTypes.EnergyCondition,
                                     _ => null,
                                 };
                                 if (condId != null)

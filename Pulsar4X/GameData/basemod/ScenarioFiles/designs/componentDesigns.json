@@ -131,7 +131,7 @@
     "Payload": {
       "UniqueId": "default-design-fuel-farm-5000k",
       "Name": "Fuel Farm 5000km^3",
-      "TemplateId": "stainless-steel-fuel-tank",
+      "TemplateId": "colony-fuel-storage",
       "Properties": [
         { "key": "Tank Volume", "value": 5000000 }
       ]
@@ -457,6 +457,28 @@
       "UniqueId": "default-design-launch-complex",
       "Name": "Launch Complex",
       "TemplateId": "launch-complex"
+    }
+  },
+  {
+    "Type": "ComponentDesign",
+    "Payload": {
+      "UniqueId": "default-design-coal-plant",
+      "Name": "Coal Power Plant",
+      "TemplateId": "coal-power-plant",
+      "Properties": [
+        { "Key": "Size", "Value": 1 }
+      ]
+    }
+  },
+  {
+    "Type": "ComponentDesign",
+    "Payload": {
+      "UniqueId": "default-design-colony-battery",
+      "Name": "Colony Battery Bank",
+      "TemplateId": "colony-battery-bank",
+      "Properties": [
+        { "Key": "Mass", "Value": 10000 }
+      ]
     }
   }
 ]

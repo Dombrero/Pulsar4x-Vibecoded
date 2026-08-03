@@ -1,61 +1,100 @@
+using System;
 using System.Collections.Generic;
 using Pulsar4X.Api;
 
 namespace Pulsar4X.Client
 {
     /// <summary>
-    /// Fleet Issue Orders live on the fleet entity; member ships often have an empty queue
-    /// while still executing that mission. Resolve what the UI should show as "current order".
+    /// Fleet Issue Orders live on the fleet entity; member ships may also have their own queue
+    /// or an engine-projected <see cref="ActivityView"/> for work that lives as ship state
+    /// (recharge blob, geo/grav survey blob, warp).
     /// </summary>
     internal static class OrderDisplayHelpers
     {
-        public static OrderSnapshot? ResolveCurrentOrder(IGameClient? client, int entityId, OrdersView? ownOrders)
+        /// <summary>
+        /// Headline for map labels: this ship's activity first, else the parent fleet mission.
+        /// </summary>
+        public static OrderSnapshot? ResolveCurrentOrder(
+            IGameClient? client, int entityId, OrdersView? ownOrders, ActivityView? activity = null)
         {
-            var fleets = client?.Galaxy.Fleets;
-            if (fleets != null)
-            {
-                var fleet = FindFleetContainingShip(fleets, entityId);
-                if (fleet?.Orders is { Count: > 0 })
-                    return fleet.Orders[0];
-                if (!string.IsNullOrWhiteSpace(fleet?.StatusMessage))
-                    return StatusAsOrder(fleet!.StatusMessage!);
-            }
-
-            if (ownOrders?.Orders is { Count: > 0 } shipOrders)
+            var shipOrders = GetShipActivityOrders(ownOrders, activity);
+            if (shipOrders.Count > 0)
                 return shipOrders[0];
 
-            // Fleet entity itself (not a member ship).
-            if (fleets != null)
-            {
-                var asFleet = FindFleetById(fleets, entityId);
-                if (asFleet?.Orders is { Count: > 0 })
-                    return asFleet.Orders[0];
-                if (!string.IsNullOrWhiteSpace(asFleet?.StatusMessage))
-                    return StatusAsOrder(asFleet!.StatusMessage!);
-            }
+            var fleet = GetFleetOrders(client, entityId);
+            if (fleet.Count > 0)
+                return fleet[0];
 
             return null;
         }
 
-        /// <summary>
-        /// Ship's own queue, or the parent fleet's queue when the ship is idle under a fleet mission.
-        /// </summary>
-        public static IReadOnlyList<OrderSnapshot> ResolveOrdersList(IGameClient? client, int entityId, OrdersView? ownOrders)
+        /// <summary>Orders queued on this entity (ship or fleet body).</summary>
+        public static IReadOnlyList<OrderSnapshot> GetShipOrders(OrdersView? ownOrders)
         {
-            if (ownOrders?.Orders is { Count: > 0 } shipOrders)
-                return shipOrders;
+            if (ownOrders?.Orders is { Count: > 0 } orders)
+                return orders;
+            return Array.Empty<OrderSnapshot>();
+        }
 
-            var fleets = client?.Galaxy.Fleets;
-            if (fleets != null)
+        /// <summary>
+        /// What this ship is doing: its own order queue, otherwise the engine's
+        /// <see cref="ActivityView"/> (recharging, surveying, warping, idle).
+        /// </summary>
+        public static IReadOnlyList<OrderSnapshot> GetShipActivityOrders(
+            OrdersView? ownOrders, ActivityView? activity)
+        {
+            var own = GetShipOrders(ownOrders);
+            if (own.Count > 0)
+                return own;
+
+            if (activity != null
+                && !string.IsNullOrWhiteSpace(activity.Name)
+                && !activity.Name.Equals("Idle", StringComparison.OrdinalIgnoreCase))
             {
-                var fleet = FindFleetContainingShip(fleets, entityId) ?? FindFleetById(fleets, entityId);
-                if (fleet?.Orders is { Count: > 0 })
-                    return fleet.Orders;
-                if (!string.IsNullOrWhiteSpace(fleet?.StatusMessage))
-                    return new[] { StatusAsOrder(fleet!.StatusMessage!) };
+                return new[]
+                {
+                    new OrderSnapshot(activity.Name, IsRunning: true, IsFinished: false, activity.Details),
+                };
             }
 
-            return System.Array.Empty<OrderSnapshot>();
+            return Array.Empty<OrderSnapshot>();
+        }
+
+        /// <summary>
+        /// Parent fleet mission when <paramref name="entityId"/> is a member ship,
+        /// or this entity's own fleet queue when it is the fleet root.
+        /// </summary>
+        public static IReadOnlyList<OrderSnapshot> GetFleetOrders(IGameClient? client, int entityId)
+        {
+            var fleets = client?.Galaxy.Fleets;
+            if (fleets == null)
+                return Array.Empty<OrderSnapshot>();
+
+            var parent = FindFleetContainingShip(fleets, entityId);
+            if (parent != null)
+                return FleetOrdersOrStatus(parent);
+
+            var asFleet = FindFleetById(fleets, entityId);
+            if (asFleet != null)
+                return FleetOrdersOrStatus(asFleet);
+
+            return Array.Empty<OrderSnapshot>();
+        }
+
+        /// <summary>True when entityId is a ship listed under a fleet (not the fleet root itself).</summary>
+        public static bool IsFleetMember(IGameClient? client, int entityId)
+        {
+            var fleets = client?.Galaxy.Fleets;
+            return fleets != null && FindFleetContainingShip(fleets, entityId) != null;
+        }
+
+        private static IReadOnlyList<OrderSnapshot> FleetOrdersOrStatus(FleetSnapshot fleet)
+        {
+            if (fleet.Orders is { Count: > 0 })
+                return fleet.Orders;
+            if (!string.IsNullOrWhiteSpace(fleet.StatusMessage))
+                return new[] { StatusAsOrder(fleet.StatusMessage!) };
+            return Array.Empty<OrderSnapshot>();
         }
 
         private static OrderSnapshot StatusAsOrder(string status)

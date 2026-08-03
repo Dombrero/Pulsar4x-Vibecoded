@@ -268,22 +268,6 @@ namespace Pulsar4X.Movement
                     return;
                 }
 
-                double creationCost = warpDB.BubbleCreationCost;
-                if (creationCost > estored)
-                {
-                    // Catch up generation across large time-steps so one daily tick can fill batteries.
-                    CatchUpEnergyStore(_entityCommanding, powerDB, eType, creationCost, atDateTime);
-                    estored = powerDB.EnergyStored[eType];
-                }
-
-                if (creationCost > estored)
-                {
-                    DebugTraceLog.Warn("Warp",
-                        $"ship#{_entityCommanding.Id}: warp blocked — bubble needs {creationCost:0} kJ, have {estored:0} kJ (cargo fuel is separate)",
-                        atDateTime);
-                    return;
-                }
-
                 if (!WarpMoveProcessor.HasWarpTankFuel(_entityCommanding))
                 {
                     DebugTraceLog.Warn("Warp",
@@ -304,10 +288,51 @@ namespace Pulsar4X.Movement
 
                 EntityCommanding.SetDataBlob(_warpingDB);
 
+                double distanceM = (_warpingDB.ExitPointAbsolute
+                    - _entityCommanding.GetDataBlob<PositionDB>().AbsolutePosition).Length();
+
+                if (!WarpMoveProcessor.TryGetWarpEnergyNeed(
+                        warpDB, powerDB, distanceM,
+                        out double needKJ, out double travelSeconds, out double creationCost, out double sustainDeficit)
+                    || double.IsInfinity(travelSeconds))
+                {
+                    _entityCommanding.RemoveDataBlob<WarpMovingDB>();
+                    _warpingDB = null;
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — invalid hop (speed={warpDB.MaxSpeed}, dist={distanceM:0}m)",
+                        atDateTime);
+                    return;
+                }
+
+                if (needKJ > estored)
+                {
+                    // Catch up generation across large time-steps so one daily tick can fill batteries.
+                    CatchUpEnergyStore(_entityCommanding, powerDB, eType, needKJ, atDateTime);
+                    estored = powerDB.EnergyStored[eType];
+                }
+
+                if (needKJ > estored)
+                {
+                    _entityCommanding.RemoveDataBlob<WarpMovingDB>();
+                    _warpingDB = null;
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{_entityCommanding.Id}: warp blocked — need {needKJ:0} kJ " +
+                        $"(creation {creationCost:0} + sustain deficit {sustainDeficit:0} over {travelSeconds:0}s), " +
+                        $"have {estored:0} kJ (cargo fuel is separate)",
+                        atDateTime);
+                    return;
+                }
+
                 if (!WarpMoveProcessor.StartNonNewtTranslation(EntityCommanding))
                 {
+                    // Do not leave a half-started WarpMovingDB on the ship.
+                    if (_entityCommanding.HasDataBlob<WarpMovingDB>())
+                        _entityCommanding.RemoveDataBlob<WarpMovingDB>();
+                    _warpingDB = null;
+                    powerDB.EnergyStored.TryGetValue(eType, out estored);
                     DebugTraceLog.Warn("Warp",
-                        $"ship#{_entityCommanding.Id}: StartNonNewtTranslation failed after energy check",
+                        $"ship#{_entityCommanding.Id}: warp start failed — need {needKJ:0} kJ, have {estored:0} kJ " +
+                        $"(or tank fuel missing after check)",
                         atDateTime);
                     return;
                 }

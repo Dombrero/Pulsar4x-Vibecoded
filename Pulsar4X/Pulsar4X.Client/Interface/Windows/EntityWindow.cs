@@ -22,9 +22,11 @@ namespace Pulsar4X.Client
 
         private Vector4 _accentColor;
 
-        // Animation constants
-        private const float WindowWidth = 624f;
-        private const float WindowHeight = 420f;
+        // Animation constants — ships need more height for gauges + orders + cargo without scrolling.
+        private const float DefaultWindowWidth = 624f;
+        private const float DefaultWindowHeight = 420f;
+        private const float ShipWindowWidth = 720f;
+        private const float ShipWindowHeight = 620f;
         private const float AnimationDuration = 0.2f; // seconds
         private const float BottomMargin = 4f;
         private const float RightMargin = 4f;
@@ -121,13 +123,21 @@ namespace Pulsar4X.Client
             }
         }
 
+        private Vector2 GetWindowSize()
+        {
+            if (_bodyType == UserOrbitSettings.OrbitBodyType.Ship)
+                return new Vector2(ShipWindowWidth, ShipWindowHeight);
+            return new Vector2(DefaultWindowWidth, DefaultWindowHeight);
+        }
+
         private Vector2 CalculateWindowPosition()
         {
             var viewportSize = _uiState.ViewPort.Size;
+            var size = GetWindowSize();
 
             // Final position: bottom right corner
-            float finalX = viewportSize.Width - WindowWidth - RightMargin;
-            float finalY = viewportSize.Height - WindowHeight - BottomMargin;
+            float finalX = viewportSize.Width - size.X - RightMargin;
+            float finalY = viewportSize.Height - size.Y - BottomMargin;
 
             // Animate from right (offscreen beyond right edge) into final position
             // When progress is 0, window is offscreen to the right
@@ -162,9 +172,11 @@ namespace Pulsar4X.Client
             Title = _entity.GetView<NameView>()?.Name ?? "Unknown";
 
             var windowPos = CalculateWindowPosition();
+            var windowSize = GetWindowSize();
             ImGui.SetNextWindowPos(windowPos, ImGuiCond.Always);
-            ImGui.SetNextWindowSize(new Vector2(WindowWidth, WindowHeight), ImGuiCond.Always);
-            ImGui.SetNextWindowBgAlpha(0.85f);
+            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            // Ships pack dense order text; keep the panel more opaque so list UI behind it does not bleed through.
+            ImGui.SetNextWindowBgAlpha(_bodyType == UserOrbitSettings.OrbitBodyType.Ship ? 0.94f : 0.85f);
 
             var accentColor = GetAccentColor();
 
@@ -422,39 +434,56 @@ namespace Pulsar4X.Client
 
         private void DisplayOrders()
         {
-            var orders = OrderDisplayHelpers.ResolveOrdersList(
-                _uiState.GameClient, EntityId, _entity?.GetView<OrdersView>());
-            if (orders.Count == 0) return;
+            var own = _entity?.GetView<OrdersView>();
+            var shipOrders = OrderDisplayHelpers.GetShipActivityOrders(
+                own, _entity?.GetView<ActivityView>());
+            var isMember = OrderDisplayHelpers.IsFleetMember(_uiState.GameClient, EntityId);
+            var fleetOrders = (isMember || OrderDisplayHelpers.FindFleetById(
+                    _uiState.GameClient?.Galaxy.Fleets ?? Array.Empty<FleetSnapshot>(), EntityId) != null)
+                ? OrderDisplayHelpers.GetFleetOrders(_uiState.GameClient, EntityId)
+                : Array.Empty<OrderSnapshot>();
+
+            if (shipOrders.Count == 0 && fleetOrders.Count == 0)
+                return;
 
             if (ImGui.CollapsingHeader("Orders", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                if (ImGui.BeginTable("OrdersTable", 3, Styles.TableFlags))
-                {
-                    ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthStretch, 0.1f);
-                    ImGui.TableSetupColumn("Order", ImGuiTableColumnFlags.WidthStretch, 0.2f);
-                    ImGui.TableSetupColumn("Details", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-                    ImGui.TableHeadersRow();
-
-                    for (int i = 0; i < orders.Count; i++)
-                    {
-                        ImGui.TableNextColumn();
-                        ImGui.Text((i + 1).ToString());
-                        ImGui.TableNextColumn();
-                        ImGui.Text(orders[i].Name);
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.BeginTooltip();
-                            ImGui.Text("IsRunning: " + orders[i].IsRunning);
-                            ImGui.Text("IsFinished: " + orders[i].IsFinished);
-                            ImGui.EndTooltip();
-                        }
-                        ImGui.TableNextColumn();
-                        ImGui.Text(orders[i].Details);
-                    }
-
-                    ImGui.EndTable();
-                }
+                if (shipOrders.Count > 0)
+                    DrawOrdersCollapseTable("Ship", "OrdersTableShip", shipOrders);
+                if (fleetOrders.Count > 0)
+                    DrawOrdersCollapseTable(isMember ? "Fleet" : "Fleet queue", "OrdersTableFleet", fleetOrders);
             }
+        }
+
+        private void DrawOrdersCollapseTable(string heading, string tableId, System.Collections.Generic.IReadOnlyList<OrderSnapshot> orders)
+        {
+            ImGui.TextDisabled(heading);
+            if (!ImGui.BeginTable(tableId, 3, Styles.TableFlags))
+                return;
+
+            ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthStretch, 0.1f);
+            ImGui.TableSetupColumn("Order", ImGuiTableColumnFlags.WidthStretch, 0.2f);
+            ImGui.TableSetupColumn("Details", ImGuiTableColumnFlags.WidthStretch, 0.7f);
+            ImGui.TableHeadersRow();
+
+            for (int i = 0; i < orders.Count; i++)
+            {
+                ImGui.TableNextColumn();
+                ImGui.Text((i + 1).ToString());
+                ImGui.TableNextColumn();
+                ImGui.Text(orders[i].Name);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.Text("IsRunning: " + orders[i].IsRunning);
+                    ImGui.Text("IsFinished: " + orders[i].IsFinished);
+                    ImGui.EndTooltip();
+                }
+                ImGui.TableNextColumn();
+                ImGui.Text(orders[i].Details);
+            }
+
+            ImGui.EndTable();
         }
 
         private void DisplaySurveyInfo()
@@ -788,73 +817,161 @@ namespace Pulsar4X.Client
                     dvValue = Math.Clamp((float)(dv / thrust.MaxDeltaVMps), 0f, 1f);
             }
 
-            // Draw five indicators left-aligned
+            // Battery / power store
+            float energyValue = 0f;
+            string energyText = "N/A";
+            string energyTooltip = null;
+            bool energyPlaceholder = true;
+            var energy = _entity.GetView<EnergyView>();
+            if (energy != null && energy.StoreMax > 0)
+            {
+                energyPlaceholder = false;
+                energyValue = Math.Clamp((float)(energy.Stored / energy.StoreMax), 0f, 1f);
+                energyText = energy.StoredPercent.ToString("0") + "%";
+                energyTooltip = Stringify.Energy(energy.Stored) + " / " + Stringify.Energy(energy.StoreMax);
+                if (energy.IsRecharging)
+                    energyTooltip += "\nRecharging";
+                if (energy.AcceptRateKW > 0)
+                    energyTooltip += "\nAccept " + Stringify.Power(energy.AcceptRateKW);
+                if (energy.ActionBlock != null)
+                {
+                    energyText = "!";
+                    energyTooltip += "\nBLOCKED: " + energy.ActionBlock.ActionName
+                        + "\n" + energy.ActionBlock.Reason;
+                }
+            }
+
+            // Drive fuel (separate from general cargo stores shown below)
+            float fuelValue = 0f;
+            string fuelText = "N/A";
+            string fuelTooltip = null;
+            bool fuelPlaceholder = true;
+            if (thrust != null && thrust.MaxFuelKg > 0)
+            {
+                fuelPlaceholder = false;
+                fuelValue = Math.Clamp((float)(thrust.TotalFuelKg / thrust.MaxFuelKg), 0f, 1f);
+                fuelText = (fuelValue * 100f).ToString("0") + "%";
+                fuelTooltip = Stringify.Mass(thrust.TotalFuelKg) + " / " + Stringify.Mass(thrust.MaxFuelKg);
+                if (!string.IsNullOrEmpty(thrust.FuelName))
+                    fuelTooltip = thrust.FuelName + "\n" + fuelTooltip;
+            }
+            else if (thrust != null && thrust.TotalFuelKg > 0)
+            {
+                // Have fuel mass but no tank capacity figure — show absolute mass only.
+                fuelPlaceholder = false;
+                fuelValue = 1f;
+                fuelText = CompactMass(thrust.TotalFuelKg);
+                fuelTooltip = Stringify.Mass(thrust.TotalFuelKg);
+                if (!string.IsNullOrEmpty(thrust.FuelName))
+                    fuelTooltip = thrust.FuelName + "\n" + fuelTooltip;
+            }
+
+            // Six indicators: propulsion / hull / stores
             float x0 = cursorPos.X + radius;
 
             DrawRadialIndicator(drawList, new Vector2(x0, centerY),
                 radius, ringThickness, dvValue, "Δv", dvText, dvPlaceholder, dvTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth, centerY),
-                radius, ringThickness, htkValue, "HTK", htkText, false);
+                radius, ringThickness, fuelValue, "FUEL", fuelText, fuelPlaceholder, fuelTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 2f, centerY),
-                radius, ringThickness, compValue, "COMP", compText, false);
+                radius, ringThickness, htkValue, "HTK", htkText, false);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 3f, centerY),
-                radius, ringThickness, armorValue, "ARMOR", armorText, armorPlaceholder);
+                radius, ringThickness, compValue, "COMP", compText, false);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 4f, centerY),
-                radius, ringThickness, 0f, "SHIELD", "N/A", true);
+                radius, ringThickness, armorValue, "ARMOR", armorText, armorPlaceholder);
+            DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 5f, centerY),
+                radius, ringThickness, energyValue, "ENERGY", energyText, energyPlaceholder, energyTooltip);
 
-            // Current order (right-aligned on the same row)
-            string orderLabel = "CURRENT ORDER";
-            string orderName = "Idle";
-            string orderDetails = "";
+            // Gauges only here — ship/fleet orders live in their own sections below so long
+            // names/details cannot paint over the rings.
+            float labelPad = ImGui.GetTextLineHeight() + 6f;
+            ImGui.InvisibleButton("##statusRow", new Vector2(availWidth, radius * 2f + ringThickness + labelPad));
+        }
 
-            var current = OrderDisplayHelpers.ResolveCurrentOrder(
-                _uiState.GameClient, EntityId, _entity.GetView<OrdersView>());
-            if (current != null)
+        private static string CompactMass(double kg)
+        {
+            if (kg >= 1e6)
+                return (kg / 1e6).ToString("0.#") + "M";
+            if (kg >= 1e3)
+                return (kg / 1e3).ToString("0.#") + "k";
+            return kg.ToString("0");
+        }
+
+        private void DrawOrdersSection(
+            string sectionTitle,
+            string tableId,
+            System.Collections.Generic.IReadOnlyList<OrderSnapshot> orders,
+            bool allowManeuverEdit,
+            bool showIdleIfEmpty = false)
+        {
+            if (orders.Count == 0)
             {
-                orderName = current.Name;
-                orderDetails = current.Details;
+                if (showIdleIfEmpty)
+                {
+                    SectionLabel(sectionTitle);
+                    ImGui.Indent();
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                    ImGui.TextUnformatted("Idle");
+                    ImGui.PopStyleColor();
+                    ImGui.Unindent();
+                }
+                return;
             }
 
-            float rightEdge = cursorPos.X + availWidth;
-            var labelSize = ImGui.CalcTextSize(orderLabel);
-            var nameSize = ImGui.CalcTextSize(orderName);
+            SectionLabel(sectionTitle + " (" + orders.Count + ")");
+            ImGui.Indent();
 
-            // Right-align: find the widest text to anchor from
-            float maxTextWidth = Math.Max(labelSize.X, nameSize.X);
-            if (orderDetails.Length > 0)
+            // Stack name then details (wrapped) — a fixed-width name column was clipping into details.
+            for (int i = 0; i < orders.Count; i++)
             {
-                var detailSize = ImGui.CalcTextSize(orderDetails);
-                maxTextWidth = Math.Max(maxTextWidth, detailSize.X);
+                var order = orders[i];
+                ImGui.PushID(tableId + i);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                ImGui.TextUnformatted((i + 1).ToString() + ".");
+                ImGui.PopStyleColor();
+                ImGui.SameLine();
+
+                if (allowManeuverEdit && order.IsEditableManeuver)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Header, Styles.InvisibleColor);
+                    ImGui.PushStyleColor(ImGuiCol.HeaderHovered,
+                        new Vector4(_accentColor.X * 0.2f, _accentColor.Y * 0.2f, _accentColor.Z * 0.2f, 0.5f));
+                    ImGui.PushStyleColor(ImGuiCol.HeaderActive,
+                        new Vector4(_accentColor.X * 0.3f, _accentColor.Y * 0.3f, _accentColor.Z * 0.3f, 0.7f));
+                    if (ImGui.Selectable(order.Name + "##sel", false))
+                        _uiState.OpenManeuverPanelForOrder(EntityId, SystemId, order);
+                    ImGui.PopStyleColor(3);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Click to edit or delete this order");
+                }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, _accentColor);
+                    ImGui.TextWrapped(order.Name);
+                    ImGui.PopStyleColor();
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text("Running: " + order.IsRunning);
+                        ImGui.Text("Finished: " + order.IsFinished);
+                        ImGui.EndTooltip();
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(order.Details))
+                {
+                    ImGui.Indent();
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                    ImGui.TextWrapped(order.Details);
+                    ImGui.PopStyleColor();
+                    ImGui.Unindent();
+                }
+
+                ImGui.PopID();
             }
-            float textX = rightEdge - maxTextWidth;
 
-            // Label
-            float textY = cursorPos.Y + 4f;
-            drawList.AddText(
-                new Vector2(textX, textY),
-                ImGui.ColorConvertFloat4ToU32(Styles.DescriptiveColor),
-                orderLabel);
-
-            // Order name
-            float nameY = textY + labelSize.Y + 2f;
-            var nameColor = orderDetails.Length > 0 ? _accentColor : Styles.NeutralColor;
-            drawList.AddText(
-                new Vector2(textX, nameY),
-                ImGui.ColorConvertFloat4ToU32(nameColor),
-                orderName);
-
-            // Order details (if any)
-            if (orderDetails.Length > 0)
-            {
-                float detailY = nameY + nameSize.Y + 1f;
-                drawList.AddText(
-                    new Vector2(textX, detailY),
-                    ImGui.ColorConvertFloat4ToU32(Styles.DescriptiveColor),
-                    orderDetails);
-            }
-
-            // Reserve vertical space for the indicator row
-            ImGui.InvisibleButton("##statusRow", new Vector2(availWidth, radius * 2f + 24f));
+            ImGui.Unindent();
         }
 
         // --- Type-Specific Content ---
@@ -917,6 +1034,15 @@ namespace Pulsar4X.Client
                     }
                     ImGui.EndTable();
                 }
+
+                if (warp != null && (warp.BubbleCreationCostKJ > 0 || warp.BubbleSustainCostKW > 0))
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                    ImGui.TextWrapped(
+                        "Bubble " + Stringify.Energy(warp.BubbleCreationCostKJ)
+                        + "  ·  Sustain " + Stringify.Power(warp.BubbleSustainCostKW));
+                    ImGui.PopStyleColor();
+                }
                 ImGui.Unindent();
             }
 
@@ -947,97 +1073,99 @@ namespace Pulsar4X.Client
                 ImGui.Unindent();
             }
 
-            // Orders (inline, no collapsing header) — fleet mission when the ship queue is empty
-            var orders = OrderDisplayHelpers.ResolveOrdersList(
-                _uiState.GameClient, EntityId, _entity.GetView<OrdersView>());
-            if (orders is { Count: > 0 })
+            // Ship activity | fleet mission side by side.
+            var ownOrdersView = _entity.GetView<OrdersView>();
+            var shipOrders = OrderDisplayHelpers.GetShipActivityOrders(
+                ownOrdersView, _entity.GetView<ActivityView>());
+            bool isFleetMember = OrderDisplayHelpers.IsFleetMember(_uiState.GameClient, EntityId);
+            var fleetOrders = isFleetMember
+                ? OrderDisplayHelpers.GetFleetOrders(_uiState.GameClient, EntityId)
+                : System.Array.Empty<OrderSnapshot>();
+
+            bool shipHasQueuedOrders = OrderDisplayHelpers.GetShipOrders(ownOrdersView).Count > 0;
+            int orderCols = isFleetMember ? 2 : 1;
+            if (ImGui.BeginTable("##ship-fleet-orders", orderCols,
+                    ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.NoPadOuterX))
             {
-                SectionLabel("ORDERS (" + orders.Count + ")");
+                ImGui.TableNextColumn();
+                DrawOrdersSection("SHIP ORDERS", "##ship-orders", shipOrders,
+                    allowManeuverEdit: shipHasQueuedOrders, showIdleIfEmpty: true);
 
-                ImGui.Indent();
-                if (ImGui.BeginTable("##orders", 3,
-                    ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoPadOuterX))
+                if (isFleetMember)
                 {
-                    ImGui.TableSetupColumn("##n", ImGuiTableColumnFlags.WidthFixed, 20f);
-                    ImGui.TableSetupColumn("##cmd", ImGuiTableColumnFlags.WidthFixed, 100f);
-                    ImGui.TableSetupColumn("##det", ImGuiTableColumnFlags.WidthStretch);
-
-                    for (int i = 0; i < orders.Count; i++)
-                    {
-                        ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
-                        ImGui.Text((i + 1).ToString());
-                        ImGui.PopStyleColor();
-                        ImGui.TableNextColumn();
-
-                        // Make thrust-maneuver orders clickable for editing
-                        if (orders[i].IsEditableManeuver)
-                        {
-                            ImGui.PushStyleColor(ImGuiCol.Header, Styles.InvisibleColor);
-                            ImGui.PushStyleColor(ImGuiCol.HeaderHovered,
-                                new Vector4(_accentColor.X * 0.2f, _accentColor.Y * 0.2f, _accentColor.Z * 0.2f, 0.5f));
-                            ImGui.PushStyleColor(ImGuiCol.HeaderActive,
-                                new Vector4(_accentColor.X * 0.3f, _accentColor.Y * 0.3f, _accentColor.Z * 0.3f, 0.7f));
-                            if (ImGui.Selectable(orders[i].Name + "##order" + i, false, ImGuiSelectableFlags.SpanAllColumns))
-                            {
-                                _uiState.OpenManeuverPanelForOrder(EntityId, SystemId, orders[i]);
-                            }
-                            ImGui.PopStyleColor(3);
-                            if (ImGui.IsItemHovered())
-                            {
-                                ImGui.BeginTooltip();
-                                ImGui.Text("Click to edit or delete this order");
-                                ImGui.EndTooltip();
-                            }
-                        }
-                        else
-                        {
-                            ImGui.Text(orders[i].Name);
-                            if (ImGui.IsItemHovered())
-                            {
-                                ImGui.BeginTooltip();
-                                ImGui.Text("Running: " + orders[i].IsRunning);
-                                ImGui.Text("Finished: " + orders[i].IsFinished);
-                                ImGui.EndTooltip();
-                            }
-                        }
-
-                        ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
-                        ImGui.Text(orders[i].Details);
-                        ImGui.PopStyleColor();
-                    }
-                    ImGui.EndTable();
+                    ImGui.TableNextColumn();
+                    DrawOrdersSection("FLEET ORDERS", "##fleet-orders", fleetOrders,
+                        allowManeuverEdit: false, showIdleIfEmpty: true);
                 }
-                ImGui.Unindent();
+
+                ImGui.EndTable();
             }
 
-            // Cargo summary bars
+            // Cargo + energy summary bars
             var storage = _entity.GetView<CargoStorageView>();
-            if (storage != null && storage.Stores.Count > 0)
+            var shipEnergy = _entity.GetView<EnergyView>();
+            bool hasCargoBars = storage != null && storage.Stores.Count > 0;
+            bool hasEnergyBar = shipEnergy != null && shipEnergy.StoreMax > 0;
+
+            if (hasCargoBars || hasEnergyBar)
             {
                 SectionLabel("CARGO");
 
                 ImGui.Indent();
-                foreach (var store in storage.Stores)
+                if (hasCargoBars)
                 {
-                    double usedVolume = store.MaxVolume - store.FreeVolume;
-                    double percent = store.MaxVolume > 0 ? usedVolume / store.MaxVolume : 0;
+                    foreach (var store in storage!.Stores)
+                    {
+                        double usedVolume = store.MaxVolume - store.FreeVolume;
+                        double percent = store.MaxVolume > 0 ? usedVolume / store.MaxVolume : 0;
 
-                    string barLabel = store.TypeName + "  " + (percent * 100).ToString("0") + "%  ·  " +
-                        Stringify.VolumeLtr(usedVolume) + " / " + Stringify.VolumeLtr(store.MaxVolume);
+                        string barLabel = store.TypeName + "  " + (percent * 100).ToString("0") + "%  ·  " +
+                            Stringify.VolumeLtr(usedVolume) + " / " + Stringify.VolumeLtr(store.MaxVolume);
 
-                    Vector4 barColor = new Vector4(
-                        _accentColor.X * 0.4f, _accentColor.Y * 0.4f, _accentColor.Z * 0.4f, 0.8f);
-                    if (percent > 0.9)
-                        barColor = Styles.BadColor;
-                    else if (percent > 0.75)
-                        barColor = Styles.OkColor;
+                        Vector4 barColor = new Vector4(
+                            _accentColor.X * 0.4f, _accentColor.Y * 0.4f, _accentColor.Z * 0.4f, 0.8f);
+                        if (percent > 0.9)
+                            barColor = Styles.BadColor;
+                        else if (percent > 0.75)
+                            barColor = Styles.OkColor;
+
+                        ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.08f, 0.08f, 0.1f, 0.5f));
+                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, barColor);
+                        ImGui.ProgressBar((float)percent, new Vector2(ImGui.GetContentRegionAvail().X, 16), barLabel);
+                        ImGui.PopStyleColor(2);
+                    }
+                }
+
+                if (hasEnergyBar)
+                {
+                    float fill = Math.Clamp((float)(shipEnergy!.Stored / shipEnergy.StoreMax), 0f, 1f);
+                    bool blocked = shipEnergy.ActionBlock != null;
+                    string energyLabel = (shipEnergy.IsRecharging ? "Energy (recharging)  " : "Energy  ")
+                        + shipEnergy.StoredPercent.ToString("0") + "%  ·  "
+                        + Stringify.Energy(shipEnergy.Stored) + " / " + Stringify.Energy(shipEnergy.StoreMax);
+
+                    // Low charge is the warning case (opposite of cargo fill).
+                    Vector4 energyColor = new Vector4(
+                        _accentColor.X * 0.45f, _accentColor.Y * 0.55f, _accentColor.Z * 0.35f, 0.85f);
+                    if (blocked || fill < 0.2f)
+                        energyColor = Styles.BadColor;
+                    else if (fill < 0.4f)
+                        energyColor = Styles.OkColor;
 
                     ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.08f, 0.08f, 0.1f, 0.5f));
-                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, barColor);
-                    ImGui.ProgressBar((float)percent, new Vector2(ImGui.GetContentRegionAvail().X, 16), barLabel);
+                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, energyColor);
+                    ImGui.ProgressBar(fill, new Vector2(ImGui.GetContentRegionAvail().X, 16), energyLabel);
                     ImGui.PopStyleColor(2);
+
+                    if (blocked)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
+                        ImGui.TextWrapped("Cannot start: " + shipEnergy.ActionBlock!.ActionName);
+                        ImGui.PopStyleColor();
+                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.OkColor);
+                        ImGui.TextWrapped(shipEnergy.ActionBlock.Reason);
+                        ImGui.PopStyleColor();
+                    }
                 }
                 ImGui.Unindent();
             }

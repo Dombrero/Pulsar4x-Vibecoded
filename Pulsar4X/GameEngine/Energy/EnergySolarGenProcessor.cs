@@ -3,6 +3,7 @@ using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Movement;
 using Pulsar4X.Sensors;
+using Pulsar4X.Galaxy;
 
 namespace Pulsar4X.Energy;
 using System;
@@ -42,6 +43,16 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
         double totalSolar = 0;
         var genDB = entity.GetDataBlob<EnergyGenAbilityDB>();
 
+        // Explicit: no star in system ⇒ solar generation is zero.
+        bool hasStar = false;
+        foreach (var _ in entity.Manager.GetAllEntitiesWithDataBlob<StarInfoDB>())
+        {
+            hasStar = true;
+            break;
+        }
+        if (!hasStar || genDB.SolarPanels.Count == 0)
+            return 0;
+
         var position = entity.GetDataBlob<PositionDB>();
         var emitters = entity.Manager.GetAllEntitiesWithDataBlob<SensorProfileDB>();
 
@@ -50,13 +61,16 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
             double panelAbsorbed = 0;
             foreach (var star in emitters)
             {
+                if (!star.HasDataBlob<StarInfoDB>())
+                    continue;
+
                 var starProfile = star.GetDataBlob<SensorProfileDB>();
                 var starPos = star.GetDataBlob<PositionDB>();
                 double distance = Vector3.Distance(position.AbsolutePosition, starPos.AbsolutePosition);
                 if (distance <= 0) continue;
 
                 var attenuated = SensorTools.AttenuatedForDistanceList(starProfile, distance, 0.1);
-                panelAbsorbed += AbsorbedPower(panelAtb, attenuated); // Reuse/adapt DetectonQuality
+                panelAbsorbed += AbsorbedPower(panelAtb, attenuated);
             }
             totalSolar += panelAbsorbed;
         }

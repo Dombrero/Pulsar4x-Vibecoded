@@ -40,15 +40,30 @@ namespace Pulsar4X.Colonies
 
                 if(factionInfo.Data.CargoGoods.IsMaterial(id))
                 {
-                    factionInfo.IndustryDesigns[id] = (IConstructableDesign)factionInfo.Data.CargoGoods[id];
+                    var material = factionInfo.Data.CargoGoods.GetMaterial(id);
+                    // Empty IndustryTypeID = energy-type / unconstructable (e.g. electricity).
+                    if (!string.IsNullOrEmpty(material.IndustryTypeID))
+                        factionInfo.IndustryDesigns[id] = (IConstructableDesign)material;
                 }
             }
+
+            // Energy type must be in CargoGoods for reactor/battery EnergyType lookups,
+            // but must never appear as a refinery constructible.
+            factionInfo.Data.Unlock("electricity");
+            factionInfo.IndustryDesigns.Remove("electricity");
 
             // Add component designs
             ComponentDesigner.StartResearched = true;
             foreach(var id in colonyBlueprint.ComponentDesigns)
             {
-                ComponentDesignFromJson.Create(faction, factionInfo.Data, game.StartingGameData.ComponentDesigns[id]);
+                try
+                {
+                    ComponentDesignFromJson.Create(faction, factionInfo.Data, game.StartingGameData.ComponentDesigns[id]);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed to create starting component design '{id}': {ex.Message}", ex);
+                }
             }
             ComponentDesigner.StartResearched = false;
 
@@ -97,6 +112,15 @@ namespace Pulsar4X.Colonies
                     factionInfo.InternalComponentDesigns[installation.Id],
                     (int)installation.Amount
                 );
+            }
+
+            // Seed colony batteries after plants/batteries are installed.
+            Pulsar4X.Energy.ColonyPowerProcessor.RecalcAbilities(colonyEntity);
+            if (colonyEntity.TryGetDataBlob<Pulsar4X.Energy.ColonyPowerDB>(out var colonyPower)
+                && colonyPower.StorageCapacityKJ > 0)
+            {
+                colonyPower.EnergyStoredKJ = colonyPower.StorageCapacityKJ;
+                colonyPower.PowerEfficiency = 1.0;
             }
 
             // Add starting colony cargo

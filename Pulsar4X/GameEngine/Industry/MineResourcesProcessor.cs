@@ -58,8 +58,11 @@ namespace Pulsar4X.Industry
             Dictionary<int, MineralDeposit> planetMinerals = mineralsDB.Minerals;
             miningDB.MiningRemainder ??= new Dictionary<int, double>();
 
-            // Mines are buildings too: scale their output by the colony's infrastructure capacity.
+            // Mines are buildings too: scale their output by the colony's infrastructure capacity
+            // and by power efficiency when power-gated loads (AutoMines) are present.
             double infraEfficiency = InfrastructureProcessor.GetEfficiency(colonyEntity);
+            double powerEfficiency = Pulsar4X.Energy.ColonyPowerProcessor.GetPowerEfficiency(colonyEntity);
+            double efficiency = infraEfficiency * powerEfficiency;
 
             // Use exact (double) rates so accessibility/infra fractions accumulate instead of
             // truncating to 0 units/day (the Rare Earth Elements bug).
@@ -76,7 +79,7 @@ namespace Pulsar4X.Industry
                 string cargoTypeID = mineral.CargoTypeID;
 
                 miningDB.MiningRemainder.TryGetValue(kvp.Key, out double remainder);
-                double exactUnits = kvp.Value * infraEfficiency + remainder;
+                double exactUnits = kvp.Value * efficiency + remainder;
                 long unitsWanted = (long)Math.Floor(exactUnits);
                 remainder = exactUnits - unitsWanted;
                 miningDB.MiningRemainder[kvp.Key] = remainder;
@@ -113,7 +116,7 @@ namespace Pulsar4X.Industry
                 !colonyEntity.TryGetDataBlob<MiningDB>(out var miningDB))
                 return;
 
-            var rates = new Dictionary<int, long>();
+            var rates = new Dictionary<int, double>();
             var cargoLibrary = factionInfoDB.Data.CargoGoods;
 
             if (instancesDB.TryGetComponentsByAttribute<MineResourcesAtbDB>(out var instances))
@@ -127,7 +130,7 @@ namespace Pulsar4X.Industry
                     {
                         // Need to convert the uniqueID (item.Key) to an int ID
                         var cargoable = cargoLibrary[item.Key];
-                        rates.SafeValueAdd(cargoable.ID, Convert.ToInt64(item.Value * healthPercent));
+                        rates.SafeValueAdd(cargoable.ID, item.Value * healthPercent);
                     }
                 }
             }

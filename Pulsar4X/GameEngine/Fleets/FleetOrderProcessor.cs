@@ -4,6 +4,7 @@ using System.Linq;
 using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
+using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
@@ -36,6 +37,9 @@ namespace Pulsar4X.Fleets
     {
         /// <summary>Extra percent above a Fuel &lt; T threshold before leaving the refuel mission.</summary>
         public const float FuelExitHysteresisPercent = 40f;
+
+        /// <summary>Extra percent above an Energy &lt; T threshold before leaving the recharge mission.</summary>
+        public const float EnergyExitHysteresisPercent = 40f;
 
         public TimeSpan RunFrequency => TimeSpan.FromHours(1);
 
@@ -160,14 +164,18 @@ namespace Pulsar4X.Fleets
 
                 if (busy)
                 {
-                    // Stale cargo blobs must not pin a finished Refuel commitment forever —
-                    // that blocked Standing from resuming after player Issue Orders.
+                    // Exit band may be reached while ship transfers still finish (refuel / recharge).
+                    // Clear the standing fleet queue so we don't thrash release→adopt-orphan every
+                    // hour, then fall through to pick the next mission. Ship-level transfers keep
+                    // running; new Refuel/Recharge ENTRY is blocked while they linger.
                     if (!OrderStillNeedsAction(fleet, activeOrder))
                     {
                         DebugTraceLog.Info("Standing",
                             $"{fleetName}: release commitment [{active}] {OrderName(fleetDB, active)} " +
-                            $"(fuel={fuelPct:0.#}% — exit met while ship work lingering)",
+                            $"(fuel={fuelPct:0.#}% — exit met, clearing standing queue; ship work may linger)",
                             gameTime);
+                        orderableDB.ActionList.RemoveAll(a => a.Source == OrderSource.Standing);
+                        PublishOrdersChanged(fleet);
                         fleetDB.ActiveStandingOrderIndex = -1;
                         // Fall through to pick a new match.
                     }
@@ -230,11 +238,16 @@ namespace Pulsar4X.Fleets
                 return;
             }
 
-            // Only block starting a NEW Refuel while tanks are already filling — never block
-            // Grav/Geo survey re-entry after an Issue Order.
+            // Only block starting a NEW Refuel/Recharge while transfers are already filling —
+            // never block Grav/Geo survey re-entry after an Issue Order.
             if (enterMatch >= 0
                 && OrderLooksLikeRefuel(fleetDB.StandingOrders[enterMatch])
                 && FleetShipsHaveRefuelWork(fleet))
+                return;
+
+            if (enterMatch >= 0
+                && OrderLooksLikeRecharge(fleetDB.StandingOrders[enterMatch])
+                && FleetShipsHaveRechargeWork(fleet))
                 return;
 
             if (enterMatch < 0)
@@ -372,11 +385,18 @@ namespace Pulsar4X.Fleets
             if (noConditions)
                 return ActionStillHasWork(fleet, order);
 
-            // Fuel LessThan uses a higher exit band so we don't bounce survey↔refuel at the threshold.
+            // Fuel/Energy LessThan uses a higher exit band so we don't bounce at the threshold.
             if (TryGetFuelLessThanThreshold(order, out float enterThreshold))
             {
                 float exitThreshold = Math.Min(95f, enterThreshold + FuelExitHysteresisPercent);
                 double avg = GetFleetAverageFuelPercent(fleet);
+                return avg < exitThreshold;
+            }
+
+            if (TryGetEnergyLessThanThreshold(order, out float energyEnter))
+            {
+                float exitThreshold = Math.Min(95f, energyEnter + EnergyExitHysteresisPercent);
+                double avg = GetFleetAverageEnergyPercent(fleet);
                 return avg < exitThreshold;
             }
 
@@ -393,6 +413,9 @@ namespace Pulsar4X.Fleets
 
             if (OrderLooksLikeRefuel(order))
                 return GetFleetAverageFuelPercent(fleet) < 95f;
+
+            if (OrderLooksLikeRecharge(order))
+                return GetFleetAverageEnergyPercent(fleet) < 95f;
 
             if (OrderLooksLikeSurvey(order))
             {
@@ -435,6 +458,8 @@ namespace Pulsar4X.Fleets
                         matches = OrderStillNeedsAction(fleet, order);
                     else if (OrderLooksLikeRefuel(order))
                         matches = GetFleetAverageFuelPercent(fleet) < 30f;
+                    else if (OrderLooksLikeRecharge(order))
+                        matches = GetFleetAverageEnergyPercent(fleet) < 30f;
                     else
                         matches = ActionStillHasWork(fleet, order);
                 }
@@ -469,6 +494,42 @@ namespace Pulsar4X.Fleets
             }
 
             return false;
+        }
+
+        private static bool TryGetEnergyLessThanThreshold(ConditionalOrder order, out float threshold)
+        {
+            threshold = 0;
+            if (order.Condition?.ConditionItems == null)
+                return false;
+
+            foreach (var item in order.Condition.ConditionItems)
+            {
+                if (item.Condition is EnergyCondition energy
+                    && (energy.ComparisionType == ComparisonType.LessThan
+                        || energy.ComparisionType == ComparisonType.LessThanOrEqual))
+                {
+                    threshold = energy.Threshold;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static double GetFleetAverageEnergyPercent(Entity fleet)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return 100;
+
+            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
+            if (ships.Count == 0)
+                return 100;
+
+            double total = 0;
+            foreach (var ship in ships)
+                total += EnergyRechargeHelper.GetShipEnergyPercent(ship);
+
+            return total / ships.Count;
         }
 
         internal static double GetFleetAverageFuelPercent(Entity fleet)
@@ -594,6 +655,9 @@ namespace Pulsar4X.Fleets
             if (list.Any(a => a is RefuelAction))
                 list = list.Where(a => a is not MoveToNearestColonyAction).ToList();
 
+            if (list.Any(a => a is RechargeEnergyAction))
+                list = list.Where(a => a is not MoveToNearestColonyAction).ToList();
+
             return list;
         }
 
@@ -622,14 +686,20 @@ namespace Pulsar4X.Fleets
             if (treatAsRefuel && FleetShipsHaveRefuelWork(fleet))
                 return true;
 
+            bool treatAsRecharge = active != null && OrderLooksLikeRecharge(active);
+            if (treatAsRecharge && FleetShipsHaveRechargeWork(fleet))
+                return true;
+
             // Survey commitment: geo survey order or travel warps spawned by it.
             bool treatAsSurvey = active != null && OrderLooksLikeSurvey(active);
             if (treatAsSurvey && FleetShipsHaveSurveyWork(fleet, orderable))
                 return true;
 
-            // No commitment yet — still treat active ship fuel transfers as busy so we don't
-            // stamp a new Refuel on top of an in-flight tank fill (empty fleet queue flicker).
+            // No commitment yet — still treat active ship fuel/energy transfers as busy so we don't
+            // stamp a new Refuel/Recharge on top of an in-flight fill (empty fleet queue flicker).
             if (activeIndex < 0 && FleetShipsHaveRefuelWork(fleet))
+                return true;
+            if (activeIndex < 0 && FleetShipsHaveRechargeWork(fleet))
                 return true;
 
             return false;
@@ -641,6 +711,7 @@ namespace Pulsar4X.Fleets
                 return false;
 
             bool orderHasRefuel = OrderLooksLikeRefuel(order);
+            bool orderHasRecharge = OrderLooksLikeRecharge(order);
             bool orderHasSurvey = OrderLooksLikeSurvey(order);
 
             var effectiveTypes = new HashSet<Type>(
@@ -649,6 +720,9 @@ namespace Pulsar4X.Fleets
             foreach (var queued in orderable.ActionList)
             {
                 if (orderHasRefuel && IsRefuelFleetOrder(queued))
+                    return true;
+
+                if (orderHasRecharge && IsRechargeFleetOrder(queued))
                     return true;
 
                 if (orderHasSurvey && IsSurveyFleetOrder(queued))
@@ -665,6 +739,9 @@ namespace Pulsar4X.Fleets
             if (orderHasRefuel && FleetShipsHaveRefuelWork(fleet))
                 return true;
 
+            if (orderHasRecharge && FleetShipsHaveRechargeWork(fleet))
+                return true;
+
             if (orderHasSurvey && FleetShipsHaveSurveyWork(fleet, orderable))
                 return true;
 
@@ -673,6 +750,9 @@ namespace Pulsar4X.Fleets
 
         private static bool OrderLooksLikeRefuel(ConditionalOrder order)
             => order.Actions != null && order.Actions.Any(a => a is RefuelAction);
+
+        private static bool OrderLooksLikeRecharge(ConditionalOrder order)
+            => order.Actions != null && order.Actions.Any(a => a is RechargeEnergyAction);
 
         private static bool OrderLooksLikeSurvey(ConditionalOrder order)
             => order.Actions != null && order.Actions.Any(a =>
@@ -684,6 +764,12 @@ namespace Pulsar4X.Fleets
         private static bool IsRefuelFleetOrder(EntityCommand cmd)
             => cmd is RefuelAction
                || cmd is RefuelWhenAtColonyOrder
+               || cmd is WarpFleetTowardsTargetOrder
+               || cmd is MoveToNearestColonyAction;
+
+        private static bool IsRechargeFleetOrder(EntityCommand cmd)
+            => cmd is RechargeEnergyAction
+               || cmd is RechargeWhenAtColonyOrder
                || cmd is WarpFleetTowardsTargetOrder
                || cmd is MoveToNearestColonyAction;
 
@@ -704,6 +790,20 @@ namespace Pulsar4X.Fleets
                     return true;
                 if (ship.TryGetDataBlob<OrderableDB>(out var shipOrders)
                     && shipOrders.ActionList.OfType<CargoTransferOrder>().Any())
+                    return true;
+            }
+
+            return false;
+        }
+
+        internal static bool FleetShipsHaveRechargeWork(Entity fleet)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return false;
+
+            foreach (var ship in fleetDB.Children.Where(c => !c.HasDataBlob<FleetDB>()))
+            {
+                if (ship.HasDataBlob<EnergyRechargeDB>())
                     return true;
             }
 

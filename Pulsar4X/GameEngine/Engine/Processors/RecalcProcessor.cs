@@ -21,6 +21,7 @@ namespace Pulsar4X.Engine
                 {
                     InfrastructureProcessor.RecalcCapacity(CurrentEntity);
                     LocalConstructionProcessor.RecalcPoints(CurrentEntity);
+                    Pulsar4X.Energy.ColonyPowerProcessor.RecalcAbilities(CurrentEntity);
                 }) },
 
                 // { typeof(ShipInfoDB), new Action<ShipInfoDB>(processor => {ShipAndColonyInfoProcessor.ReCalculateShipTonnaageAndHTK(CurrentEntity); }) },

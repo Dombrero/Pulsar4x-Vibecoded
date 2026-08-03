@@ -173,6 +173,32 @@ namespace Pulsar4X.Engine
             AtmosphericGases = new SafeDictionary<string, GasBlueprint>(modDataStore.AtmosphericGas);
             TechCategories = new SafeDictionary<string, TechCategoryBlueprint>(modDataStore.TechCategories);
             SystemGenSettings = modDataStore.SystemGenSettings["default-system-gen-settings"];
+
+            // Minerals/materials receive EntityIDCounter IDs during mod load.
+            // ClearGlobalState() resets that counter to 0 while those objects keep
+            // their old IDs — new ComponentDesigns would then collide in CargoGoods
+            // and overwrite minerals (Quickstart: Sequence contains no elements).
+            EnsureCargoableIdCounter(modDataStore);
+        }
+
+        /// <summary>
+        /// Keep <see cref="EntityIDCounter"/> ahead of every mineral/material ID
+        /// already minted while loading mods.
+        /// </summary>
+        private static void EnsureCargoableIdCounter(ModDataStore modDataStore)
+        {
+            int next = EntityIDCounter;
+            foreach (var mineral in modDataStore.Minerals.Values)
+            {
+                if (mineral.ID >= next)
+                    next = mineral.ID + 1;
+            }
+            foreach (var material in modDataStore.ProcessedMaterials.Values)
+            {
+                if (material.ID >= next)
+                    next = material.ID + 1;
+            }
+            EntityIDCounter = next;
         }
 
         [CanBeNull]
