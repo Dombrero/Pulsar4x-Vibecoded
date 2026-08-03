@@ -34,7 +34,7 @@ public static class ShipVisualStateFactory
 
         return new ShipVisualState
         {
-            Name = ship.DesignName,
+            Name = ship.DesignName ?? "Ship",
             Seed = seed,
             Size = size,
             Spread = spread,

@@ -20,7 +20,7 @@ public static class FileDialog
         Load
     }
     private static byte[] _strInputBuffer = new byte[128];
-    private static string _pathString;
+    private static string _pathString = "";
     private static string _curDir = Directory.GetCurrentDirectory();
     private static int _selectedIndex = -1;
     private static int _i = 0;

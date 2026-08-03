@@ -63,7 +63,7 @@ namespace Pulsar4X.Client
     public class Shape : IShape
     {
         public SDL.Color Color;    //could change due to entity changes.
-        public Vector2[] Points; //relative to the IconPosition. could change with entity changes.
+        public Vector2[] Points = null!; //relative to the IconPosition. could change with entity changes.
 
         // https://stackoverflow.com/a/14998816
         public bool Contains(System.Drawing.PointF point)

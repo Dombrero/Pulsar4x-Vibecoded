@@ -28,7 +28,7 @@ namespace Pulsar4X.Client
             //_flags = ImGuiWindowFlags.NoCollapse;
 
             var mainWin = (PulsarMainWindow)_uiState.ViewPort;
-            mainWin.MouseButtonUpOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
                 if (_uiState.LoadedWindows.ContainsKey(typeof(DistanceRuler)) &&
                         e.Button.Button == 1 &&
                         _measuring)

@@ -158,8 +158,8 @@ public static class Utils
 
     internal static IEnumerable<SDL.DisplayMode> GetDisplayModes()
     {
-        foreach (var i in SDL.GetDisplays(out _))
-            foreach (var j in SDL.GetFullscreenDisplayModes(i, out _))
+        foreach (var i in SDL.GetDisplays(out _) ?? Array.Empty<uint>())
+            foreach (var j in SDL.GetFullscreenDisplayModes(i, out _) ?? Array.Empty<SDL.DisplayMode>())
                 yield return j;
     }
 }

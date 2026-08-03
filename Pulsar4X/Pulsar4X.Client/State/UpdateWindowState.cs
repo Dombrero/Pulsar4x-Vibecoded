@@ -4,7 +4,7 @@ namespace Pulsar4X.Client
 {
     public abstract class UpdateWindowState
     {
-        internal static GlobalUIState _uiState;
+        internal static GlobalUIState _uiState = null!;
 
         public abstract bool GetActive();
 

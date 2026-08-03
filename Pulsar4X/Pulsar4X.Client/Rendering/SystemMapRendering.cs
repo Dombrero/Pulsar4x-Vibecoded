@@ -53,7 +53,7 @@ namespace Pulsar4X.Client.Rendering
         };
 
         ConcurrentDictionary<int, InteractableState[]> _interactable = new ();
-        IOrderedEnumerable<IGrouping<byte, InteractableState>> _interactableGrouped;
+        IOrderedEnumerable<IGrouping<byte, InteractableState>> _interactableGrouped = null!;
 
         internal List<IDrawData> SelectedEntityExtras = new List<IDrawData>();
         internal Vector2 GalacticMapPosition = new Vector2();
@@ -79,7 +79,7 @@ namespace Pulsar4X.Client.Rendering
             }
 
             var mainWin = (PulsarMainWindow)window;
-            mainWin.MouseButtonDownOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseButtonDownOccured += (object? sender, SDL.Event e) => {
                 if (mainWin.PlatformBackend.WantsMouseCapture())
                     return;
 
@@ -105,7 +105,7 @@ namespace Pulsar4X.Client.Rendering
                     }
                 }
             };
-            mainWin.MouseButtonUpOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
                 if (mainWin.PlatformBackend.WantsMouseCapture())
                     return;
 
@@ -131,7 +131,7 @@ namespace Pulsar4X.Client.Rendering
                     }
                 }
             };
-            mainWin.MouseMoveOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) => {
                 foreach (var i in _interactableGrouped)
                 {
                     var key = i.Key;
@@ -181,13 +181,13 @@ namespace Pulsar4X.Client.Rendering
             };
 
             _camera.PanOccured +=
-                (object sender, Orbital.Vector3 pos) => _updateLabels = true;
+                (object? sender, Orbital.Vector3 pos) => _updateLabels = true;
 
             _camera.ZoomOccured +=
-                (object sender, float zoom) => _updateLabels = true;
+                (object? sender, float zoom) => _updateLabels = true;
 
             SystemViewPreferences.GetInstance().ViewUpdateOccured +=
-                (object sender, SystemViewPreferences.View view) => _updateLabels = true;
+                (object? sender, SystemViewPreferences.View view) => _updateLabels = true;
 
             // should be empty
             _interactableGrouped = _interactable

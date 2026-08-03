@@ -241,7 +241,7 @@ namespace Pulsar4X.Client
 
     public class ProjectileIcon : Icon
     {
-        private Shape _flame;
+        private Shape _flame = null!;
 
         public ProjectileIcon(Vector3 position_m) : base(position_m)
         {

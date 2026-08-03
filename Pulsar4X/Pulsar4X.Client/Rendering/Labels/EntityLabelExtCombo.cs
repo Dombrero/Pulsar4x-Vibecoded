@@ -14,7 +14,7 @@ namespace Pulsar4X.Client
 
         private SDL.FRect _dropDownRect = new ();
 
-        private IOrderedEnumerable<IGrouping<UserOrbitSettings.OrbitBodyType, EntityLabel>> _subEntities;
+        private IOrderedEnumerable<IGrouping<UserOrbitSettings.OrbitBodyType, EntityLabel>> _subEntities = null!;
 
         public EntityLabelExtCombo(GlobalUIState state, EntitySnapshot entity, string systemId, IEnumerable<EntityLabel>? subEntities = null)
             : base(state, entity, systemId)
@@ -89,7 +89,7 @@ namespace Pulsar4X.Client
             }
             if(ImGui.BeginPopupContextItem(_name + "##Alt"))
             {
-                _state.ContextMenu.Display();
+                _state.ContextMenu?.Display();
                 ImGui.EndPopup();
             }
 

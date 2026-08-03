@@ -90,7 +90,7 @@ namespace Pulsar4X.Client
             _viewPort = viewPort;
 
             var mainWin = (PulsarMainWindow)viewPort;
-            mainWin.MouseMoveOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) => {
                 _mouseX = e.Motion.X;
                 _mouseY = e.Motion.Y;
             };
@@ -295,8 +295,8 @@ namespace Pulsar4X.Client
             return new Orbital.Vector2(viewSize.X / ZoomLevel, viewSize.Y / ZoomLevel);
         }
 
-        internal event EventHandler<float> ZoomOccured;
-        internal event EventHandler<Vector3> PanOccured;
+        internal event EventHandler<float>? ZoomOccured;
+        internal event EventHandler<Vector3>? PanOccured;
 
         /// <summary>
         /// Offset the position of the camare i.e. Pan in world units.

@@ -706,7 +706,7 @@ namespace Pulsar4X.Client
         private void DrawRadialIndicator(
             ImDrawListPtr drawList, Vector2 center, float radius, float ringThickness,
             float value, string label, string centerText, bool isPlaceholder,
-            string extraTooltip = null)
+            string? extraTooltip = null)
         {
             var dimColor = new Vector4(
                 _accentColor.X * 0.3f, _accentColor.Y * 0.3f, _accentColor.Z * 0.3f, 0.4f);
@@ -795,7 +795,7 @@ namespace Pulsar4X.Client
             // Compute delta V values
             float dvValue = 0f;
             string dvText = "N/A";
-            string dvTooltip = null;
+            string? dvTooltip = null;
             bool dvPlaceholder = true;
 
             if (thrust != null && thrust.ExhaustVelocityMps > 0)
@@ -820,7 +820,7 @@ namespace Pulsar4X.Client
             // Battery / power store
             float energyValue = 0f;
             string energyText = "N/A";
-            string energyTooltip = null;
+            string? energyTooltip = null;
             bool energyPlaceholder = true;
             var energy = _entity.GetView<EnergyView>();
             if (energy != null && energy.StoreMax > 0)
@@ -844,7 +844,7 @@ namespace Pulsar4X.Client
             // Drive fuel (separate from general cargo stores shown below)
             float fuelValue = 0f;
             string fuelText = "N/A";
-            string fuelTooltip = null;
+            string? fuelTooltip = null;
             bool fuelPlaceholder = true;
             if (thrust != null && thrust.MaxFuelKg > 0)
             {

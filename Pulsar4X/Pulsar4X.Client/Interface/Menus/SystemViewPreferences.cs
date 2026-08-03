@@ -46,7 +46,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
 
     Dictionary<string, int> ViewIndexes { get; set; } = new ();
 
-    internal event EventHandler<View> ViewUpdateOccured;
+    internal event EventHandler<View>? ViewUpdateOccured;
 
     public int GetViewIndex(string key)
     {
@@ -93,8 +93,8 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
     internal SystemViewPreferences()
     {
         // Read and apply any view preferences
-        string baseDirectory = SDL.GetPrefPath(PulsarMainWindow.OrgName, PulsarMainWindow.AppName);
-        ViewsDirectory = Path.Combine(baseDirectory, "Views");
+        string? baseDirectory = SDL.GetPrefPath(PulsarMainWindow.OrgName, PulsarMainWindow.AppName);
+        ViewsDirectory = Path.Combine(baseDirectory ?? "", "Views");
 
         if(!Directory.Exists(ViewsDirectory))
         {

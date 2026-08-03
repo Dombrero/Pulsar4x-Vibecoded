@@ -378,9 +378,9 @@ namespace Pulsar4X.Client
         }
 
 
-        IPosition IKepler.PositionDB => _myPosDB;
+        IPosition IKepler.PositionDB => _myPosDB!;
 
-        IPosition IKepler.ParentPosDB => _parentPosDB;
+        IPosition IKepler.ParentPosDB => _parentPosDB!;
 
         double IKepler.SemiMaj => _ke.SemiMajorAxis;
 

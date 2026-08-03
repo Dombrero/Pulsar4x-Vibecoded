@@ -262,7 +262,7 @@ namespace Pulsar4X.Client
             this.Img_Up();
 
             var mainWin = (PulsarMainWindow)ViewPort;
-            mainWin.MouseButtonDownOccured += (object sender, SDL.Event e) =>
+            mainWin.MouseButtonDownOccured += (object? sender, SDL.Event e) =>
             {
                 if (e.Button.Button == 1)
                 {
@@ -282,7 +282,7 @@ namespace Pulsar4X.Client
                     }
                 }
             };
-            mainWin.MouseButtonUpOccured += (object sender, SDL.Event e) =>
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) =>
             {
                 if (e.Button.Button == 1)
                 {
@@ -308,14 +308,14 @@ namespace Pulsar4X.Client
                     }
                 }
             };
-            mainWin.MouseWheelOccured += (object sender, SDL.Event e) =>
+            mainWin.MouseWheelOccured += (object? sender, SDL.Event e) =>
             {
                 if (e.Wheel.Y > 0)
                     Camera.ZoomIn((int)e.Wheel.MouseX, (int)e.Wheel.MouseY);
                 else if (e.Wheel.Y < 0)
                     Camera.ZoomOut((int)e.Wheel.MouseX, (int)e.Wheel.MouseY);
             };
-            mainWin.MouseMoveOccured += (object sender, SDL.Event e) =>
+            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) =>
             {
                 if (_isDraggingNode)
                 {

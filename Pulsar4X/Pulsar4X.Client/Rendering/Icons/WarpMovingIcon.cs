@@ -24,7 +24,7 @@ namespace Pulsar4X.Client
         public byte Blu = 0;
         byte alpha = 100;
         //SDL.SDL_Point[] _drawPoints = new SDL.SDL_Point[2];
-        private Vector2[] _bezierCurve;
+        private Vector2[] _bezierCurve = null!;
         SDL.FPoint[] _bezierDrawPoints = new SDL.FPoint[10];
         public WarpMovingIcon(Pulsar4X.Api.WarpMovingView warp, IPosition position,
             IPosition? targetParentPosition) : base(new Vector3())

@@ -27,7 +27,7 @@ namespace Pulsar4X.Client
     {
         internal bool DebugShowCenter = false;
 
-        protected IPosition _positionDB;
+        protected IPosition _positionDB = null!;
         protected Orbital.Vector3 _worldPosition_m { get; set; }
         public Orbital.Vector3 WorldPosition_AU
         {
@@ -53,7 +53,7 @@ namespace Pulsar4X.Client
         protected bool positionByDB;
         public SDL.Point ViewScreenPos;
         public List<Shape> Shapes = new List<Shape>(); //these could change with entity changes.
-        public Shape[] DrawShapes;
+        public Shape[] DrawShapes = null!;
         //public bool ShapesScaleWithZoom = false; //this possibly could change if you're zoomed in enough? normaly though, false for entity icons, true for orbit rings
         public float Scale = 1;
         public float Heading = 0;
@@ -205,7 +205,7 @@ namespace Pulsar4X.Client
     public class SimpleCircle : IDrawData
     {
         Shape _shape;
-        Shape _drawShape;
+        Shape _drawShape = null!;
         protected IPosition _positionDB;
         protected Vector3 _worldPosition;
         public SDL.Point ViewScreenPos;
@@ -279,7 +279,7 @@ namespace Pulsar4X.Client
     public class SimpleLine : IDrawData
     {
         Shape _shape;
-        Shape _drawShape;
+        Shape _drawShape = null!;
         protected IPosition _positionDB;
         protected Orbital.Vector3 _worldPosition;
         public SDL.Point ViewScreenPos;

@@ -31,7 +31,7 @@ namespace Pulsar4X.Client
         public static string ModsPath = "Mods";
         public static string ResourcesPath = "Resources";
         private readonly GlobalUIState _state;
-        private ITheme _theme;
+        private ITheme _theme = null!;
 
         /// <summary>The UI state, exposed so the composition root can register its dev tools.</summary>
         internal GlobalUIState State => _state;
@@ -132,10 +132,10 @@ namespace Pulsar4X.Client
             _theme.Apply();
         }
 
-        internal event EventHandler<SDL.Event> MouseMoveOccured;
-        internal event EventHandler<SDL.Event> MouseButtonDownOccured;
-        internal event EventHandler<SDL.Event> MouseButtonUpOccured;
-        internal event EventHandler<SDL.Event> MouseWheelOccured;
+        internal event EventHandler<SDL.Event>? MouseMoveOccured;
+        internal event EventHandler<SDL.Event>? MouseButtonDownOccured;
+        internal event EventHandler<SDL.Event>? MouseButtonUpOccured;
+        internal event EventHandler<SDL.Event>? MouseWheelOccured;
 
         public override void HandleEvent(SDL.Event e)
         {

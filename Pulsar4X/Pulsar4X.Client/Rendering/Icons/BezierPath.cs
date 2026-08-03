@@ -7,14 +7,14 @@ namespace Pulsar4X.Client
 {
     public class BezierPath
     {
-        List<BezierCurve> _segments;
+        List<BezierCurve> _segments = null!;
     }
 
     public class BezierCurve: IDrawData
     {
         Vector2[] _controlPoints;
-        List<Vector2> _linePoints;
-        Vector2[] _drawPoints;
+        List<Vector2> _linePoints = null!;
+        Vector2[] _drawPoints = null!;
         public bool Scales = true;
 
         public BezierCurve(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3)

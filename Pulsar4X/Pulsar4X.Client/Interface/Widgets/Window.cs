@@ -131,7 +131,7 @@ public static class Window
     {
         try
         {
-            string currentDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? currentDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             while (!string.IsNullOrEmpty(currentDirectory))
             {
                 if (Directory.GetFiles(currentDirectory, "*.csproj").Length > 0)

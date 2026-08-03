@@ -37,7 +37,7 @@ namespace Pulsar4X.Client
         internal float _aop;
         internal float _eccentricity;
         internal float _linearEccentricity; //distance from the center of the ellpse to one of the focal points.
-        protected Vector2[] _points; //we calculate points around the ellipse and add them here. when we draw them we translate all the points.
+        protected Vector2[] _points = null!; //we calculate points around the ellipse and add them here. when we draw them we translate all the points.
         protected SDL.Point[] _drawPoints = new SDL.Point[0];
         protected SDL.Point[] _fullOrbitDrawPoints = new SDL.Point[0];
         protected bool IsRetrogradeOrbit = false;

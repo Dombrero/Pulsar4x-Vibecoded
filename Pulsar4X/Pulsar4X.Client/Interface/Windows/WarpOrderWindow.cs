@@ -43,7 +43,7 @@ namespace Pulsar4X.Client
 
         private NewtonionRadialOrderUI? _newtonUI;
 
-        string _displayText;
+        string _displayText = "";
         string _tooltipText = "";
 
         WarpMoveOrderWidget? _moveWidget;
@@ -94,7 +94,7 @@ namespace Pulsar4X.Client
             };
 
             var mainWin = (PulsarMainWindow)_uiState.ViewPort;
-            mainWin.MouseButtonUpOccured += (object sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
                 if (e.Button.Button == 1)
                     fsm[(byte)CurrentState, (byte)Events.SelectedPosition].Invoke();
                 else if (e.Button.Button == 3)

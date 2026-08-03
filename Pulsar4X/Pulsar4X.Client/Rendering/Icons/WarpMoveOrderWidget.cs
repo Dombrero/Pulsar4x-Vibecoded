@@ -136,8 +136,8 @@ namespace Pulsar4X.Client
 
         //DateTime TransitDateTime;
         //Vector4 _transitPosition;
-        Shape _progradeArrow;
-        Orbital.Vector2[] _arrow;
+        Shape _progradeArrow = null!;
+        Orbital.Vector2[] _arrow = null!;
 
         private TransitIcon(IPosition parentPos) : base(parentPos)
         {

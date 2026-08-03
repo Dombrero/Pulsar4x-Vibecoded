@@ -131,7 +131,7 @@ namespace Pulsar4X.Client
         public const double ThreeQuarterCircle = HalfCircle + QuarterCircle;
 
 
-        private static Shape _centerWidget;
+        private static Shape _centerWidget = null!;
 
         public static Shape CenterWidget(Matrix matrix)
         {
