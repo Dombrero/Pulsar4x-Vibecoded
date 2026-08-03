@@ -1,5 +1,6 @@
 ﻿using System;
 using ImGuiNET;
+using Pulsar4X.Api;
 
 namespace Pulsar4X.Client
 {
@@ -47,8 +48,33 @@ namespace Pulsar4X.Client
             ContextButton(typeof(ChangeCurrentOrbitWindow));
             ContextButton(typeof(NavWindow));
             ContextButton(typeof(OrdersListWindow));
+
+            if (_state.SMenabled)
+                DisplaySpaceMasterActions();
+
             ImGui.EndGroup();
 
+        }
+
+        void DisplaySpaceMasterActions()
+        {
+            if (_entityState?.StarSystemId == null) return;
+
+            var snapshot = _state.GameClient?.Galaxy
+                .GetSystem(_entityState.StarSystemId)
+                ?.GetEntity(_entityState.Id);
+            if (snapshot == null) return;
+
+            var geo = snapshot.GetView<GeoSurveyView>();
+            if (geo == null || geo.IsSurveyComplete)
+                return;
+
+            ImGui.Separator();
+            if (ImGui.SmallButton("SM: Complete Geo Survey"))
+            {
+                _state.GameClient?.SubmitCommandAsync(new CompleteGeoSurveyCommand(_entityState.Id));
+                ImGui.CloseCurrentPopup();
+            }
         }
     }
 }

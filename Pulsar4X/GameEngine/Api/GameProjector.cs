@@ -473,7 +473,7 @@ namespace Pulsar4X.Engine.Api
         private static BodyView ToBodyView(SystemBodyInfoDB b)
             => new(b.BodyType.ToDescription(), b.Gravity, b.BaseTemperature, b.LengthOfDay,
                    b.AxialTilt, b.Tectonics.ToDescription(), b.MagneticField, b.SupportsPopulations,
-                   b.RadiationLevel, b.AtmosphericDust);
+                   b.RadiationLevel, b.AtmosphericDust, (byte)b.BodyType, (float)b.Albedo);
 
         private static AtmosphereView ToAtmosphereView(AtmosphereDB a, Game? game)
         {

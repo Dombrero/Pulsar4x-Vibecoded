@@ -109,7 +109,12 @@ namespace Pulsar4X.Client
             OnPaddingUpdate();
         }
 
-        ~EntityLabel()
+        /// <summary>
+        /// Releases SDL textures on the UI thread. Do not destroy textures from a finalizer —
+        /// GC runs off-thread and <see cref="SDL.DestroyTexture"/> then crashes (seen after
+        /// geo-survey icon rebuilds).
+        /// </summary>
+        public void DisposeTextures()
         {
             DestroyName();
             DestroyOrder();

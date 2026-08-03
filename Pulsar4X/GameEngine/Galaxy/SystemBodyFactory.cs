@@ -142,7 +142,16 @@ namespace Pulsar4X.Galaxy
                 break;
             }
 
-            systemBodyInfoDB.BaseTemperature = (float)SystemBodyFactory.CalculateBaseTemperatureOfBody(sun, orbitDB);
+            // Prefer authored Sol temperatures. Auto-calc only when missing — and never use a
+            // moon→planet SMA as if it were distance to the star (that yields ~5000–9000 °C).
+            if (systemBodyBlueprint.Info.BaseTemperature.HasValue)
+                systemBodyInfoDB.BaseTemperature = systemBodyBlueprint.Info.BaseTemperature.Value;
+            else
+            {
+                var starInfo = sun.GetDataBlob<StarInfoDB>();
+                systemBodyInfoDB.BaseTemperature = (float)CalculateBaseTemperatureOfBody(
+                    sun, starInfo, HeliocentricDistanceM(sun, parentBody, orbitDB));
+            }
 
             // Calculate day length from orbital period if not provided in the blueprint.
             if (systemBodyInfoDB.LengthOfDay == TimeSpan.Zero)
@@ -186,10 +195,11 @@ namespace Pulsar4X.Galaxy
                 blobsToAdd.Add(atmosphereDB);
             }
 
-            if(!string.IsNullOrEmpty(systemBodyBlueprint.GenerateMinerals))
+            string? mineralMode = systemBodyBlueprint.GenerateMinerals ?? systemBodyBlueprint.MineralGeneration;
+            if(!string.IsNullOrEmpty(mineralMode))
             {
                 MineralsDB? mineralsDB = null;
-                switch(systemBodyBlueprint.GenerateMinerals)
+                switch(mineralMode)
                 {
                     case "randomHW":
                         mineralsDB = MineralDepositFactory.GenerateRandomHW(game.GalaxyGen.Settings, game.StartingGameData.Minerals.Values.ToList(), system, systemBodyInfoDB, massVolumeDB);
@@ -367,7 +377,14 @@ namespace Pulsar4X.Galaxy
                 break;
             }
 
-            systemBodyInfoDB.BaseTemperature = (float)SystemBodyFactory.CalculateBaseTemperatureOfBody(sun, orbitDB);
+            if (info["baseTemperature"] != null)
+                systemBodyInfoDB.BaseTemperature = (float)info["baseTemperature"];
+            else
+            {
+                var starInfo = sun.GetDataBlob<StarInfoDB>();
+                systemBodyInfoDB.BaseTemperature = (float)CalculateBaseTemperatureOfBody(
+                    sun, starInfo, HeliocentricDistanceM(sun, parentBody, orbitDB));
+            }
 
             // Calculate day length from orbital period if not provided in the JSON data.
             if (systemBodyInfoDB.LengthOfDay == TimeSpan.Zero)
@@ -1399,9 +1416,68 @@ namespace Pulsar4X.Galaxy
             StarInfoDB starInfoDB = star.GetDataBlob<StarInfoDB>();
             //https://cosmicreflections.skythisweek.info/2017/11/15/average-orbital-distance/
             //time averaged distance = r = a(1+ e^2/2)
-            double averageDistanceFromStar = orbit.SemiMajorAxis * (1 + Math.Pow(orbit.Eccentricity, 2) / 2);
+            double averageDistanceFromStar = NormalizedSemiMajorAxisMetres(orbit)
+                * (1 + Math.Pow(orbit.Eccentricity, 2) / 2);
             return CalculateBaseTemperatureOfBody(star, starInfoDB, averageDistanceFromStar);
 
+        }
+
+        /// <summary>Heliocentric metres for insolation (moons: parent planet's orbit, not Moon→Planet SMA).</summary>
+        private static double HeliocentricDistanceM(Entity sun, Entity parentBody, OrbitDB bodyOrbit)
+        {
+            OrbitDB orbit = bodyOrbit;
+            if (!ReferenceEquals(parentBody, sun) && parentBody != null)
+            {
+                Entity? walk = parentBody;
+                for (int i = 0; i < 12 && walk != null && !ReferenceEquals(walk, sun); i++)
+                {
+                    if (!walk.TryGetDataBlob<OrbitDB>(out var o) || o == null)
+                        break;
+                    orbit = o;
+                    walk = o.Parent;
+                }
+            }
+
+            double a = NormalizedSemiMajorAxisMetres(orbit);
+            return a * (1 + Math.Pow(orbit.Eccentricity, 2) / 2);
+        }
+
+        /// <summary>
+        /// OrbitDB.SemiMajorAxis is metres. Guard against accidental AU values only
+        /// (km vs m cannot be distinguished for moon-scale orbits).
+        /// </summary>
+        private static double NormalizedSemiMajorAxisMetres(OrbitDB orbit)
+        {
+            double a = orbit.SemiMajorAxis;
+            if (a <= 0)
+                return Distance.AuToMt(1.0);
+            // Typical planetary AU range stored by mistake (Earth ≈ 1)
+            if (a > 0.05 && a < 80)
+                return Distance.AuToMt(a);
+            return a;
+        }
+
+        /// <summary>
+        /// Orbit used for stellar heating. Moons/asteroids orbit a planet — use that planet's
+        /// heliocentric orbit (walk up until the parent is the system star).
+        /// </summary>
+        private static OrbitDB OrbitForInsolation(Entity sun, Entity parentBody, OrbitDB bodyOrbit)
+        {
+            if (ReferenceEquals(parentBody, sun) || parentBody == null)
+                return bodyOrbit;
+
+            Entity current = parentBody;
+            OrbitDB? heliocentric = null;
+            int guard = 0;
+            while (current != null && !ReferenceEquals(current, sun) && guard++ < 12)
+            {
+                if (!current.TryGetDataBlob<OrbitDB>(out var orb) || orb == null)
+                    break;
+                heliocentric = orb;
+                current = orb.Parent;
+            }
+
+            return heliocentric ?? bodyOrbit;
         }
 
         /// <summary>

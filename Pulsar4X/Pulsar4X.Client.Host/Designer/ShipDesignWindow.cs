@@ -636,7 +636,8 @@ namespace Pulsar4X.Client
 
             var rgba = _shipVisualComposer.Compose(visualState);
             _shipVisualBmp = ShipVisualRawBmp.ToRawBmp(rgba);
-            RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, _shipVisualBmp.Value, ref _shipImgPtr, SDL.PixelFormat.ARGB8888);
+            // Buffer is byte-order R,G,B,A → Textures.RgbaByteOrder (ABGR8888).
+            RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, _shipVisualBmp.Value, ref _shipImgPtr, Textures.RgbaByteOrder);
             rawimagewidth = _shipVisualBmp.Value.Width;
             rawimageheight = _shipVisualBmp.Value.Height;
             _imagecreated = true;

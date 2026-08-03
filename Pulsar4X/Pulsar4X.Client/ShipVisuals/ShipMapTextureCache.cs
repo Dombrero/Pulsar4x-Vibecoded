@@ -34,7 +34,7 @@ public static class ShipMapTextureCache
         GCHandle handle = GCHandle.Alloc(rgba.Pixels, GCHandleType.Pinned);
         try
         {
-            Textures.CreateTexture(
+                Textures.CreateTexture(
                 _renderer,
                 ref texture,
                 rgba.Width,
@@ -42,7 +42,7 @@ public static class ShipMapTextureCache
                 32,
                 rgba.Width * 4,
                 handle.AddrOfPinnedObject(),
-                SDL.PixelFormat.ARGB8888);
+                Textures.RgbaByteOrder);
         }
         finally
         {

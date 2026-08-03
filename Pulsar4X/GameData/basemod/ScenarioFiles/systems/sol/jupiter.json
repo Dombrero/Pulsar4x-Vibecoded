@@ -47,7 +47,6 @@
       "Name": "Io",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -74,7 +73,15 @@
         "Gases": [
           { "Symbol": "SO2", "Percent": 0.9 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "iron", "Abundance": 0.55, "Accessibility": 0.8 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.75 },
+        { "Id": "titanium", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "copper", "Abundance": 0.3, "Accessibility": 0.6 },
+        { "Id": "graphite", "Abundance": 0.25, "Accessibility": 0.55 },
+        { "Id": "regolith", "Abundance": 0.6, "Accessibility": 0.9 }
+      ]
     }
   },
   {
@@ -84,7 +91,6 @@
       "Name": "Europa",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -100,7 +106,13 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.9, "Accessibility": 0.95 },
+        { "Id": "silicon", "Abundance": 0.4, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.3, "Accessibility": 0.45 },
+        { "Id": "regolith", "Abundance": 0.35, "Accessibility": 0.7 }
+      ]
     }
   },
   {
@@ -110,7 +122,6 @@
       "Name": "Ganymede",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -137,7 +148,14 @@
         "Gases": [
           { "Symbol": "O2", "Percent": 0.55 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.7, "Accessibility": 0.8 },
+        { "Id": "silicon", "Abundance": 0.45, "Accessibility": 0.6 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.5 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.4 },
+        { "Id": "regolith", "Abundance": 0.4, "Accessibility": 0.75 }
+      ]
     }
   },
   {
@@ -147,7 +165,6 @@
       "Name": "Callisto",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -175,7 +192,14 @@
           { "Symbol": "CO2", "Percent": 0.1 },
           { "Symbol": "O2", "Percent": 0.05 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.65, "Accessibility": 0.75 },
+        { "Id": "silicon", "Abundance": 0.4, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.3, "Accessibility": 0.45 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "graphite", "Abundance": 0.15, "Accessibility": 0.35 }
+      ]
     }
   },
   {
@@ -185,7 +209,13 @@
       "Name": "Amalthea",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -210,7 +240,13 @@
       "Name": "Elara",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -235,7 +271,13 @@
       "Name": "Himalia",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -260,7 +302,13 @@
       "Name": "Lysithea",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -285,7 +333,13 @@
       "Name": "Pasiphae",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",
@@ -310,7 +364,13 @@
       "Name": "Sinope",
       "Parent": "Jupiter",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "regolith", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.5, "Accessibility": 0.8 },
+        { "Id": "iron", "Abundance": 0.35, "Accessibility": 0.65 },
+        { "Id": "aluminium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "nickel", "Abundance": 0.2, "Accessibility": 0.45 }
+      ],
       "GeoSurveyPointsRequired": 500,
       "Info": {
         "Type": "moon",

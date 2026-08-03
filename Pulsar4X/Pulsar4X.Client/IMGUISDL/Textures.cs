@@ -8,6 +8,12 @@ namespace Pulsar4X.Client;
 
 public static class Textures
 {
+    /// <summary>
+    /// SDL pixel format for CPU buffers laid out as R,G,B,A bytes (little-endian Windows).
+    /// Do not use ARGB8888 (swaps R↔B) or RGBA8888 (scrambles alpha into RGB).
+    /// </summary>
+    public const SDL.PixelFormat RgbaByteOrder = SDL.PixelFormat.ABGR8888;
+
     public static void CreateTexture(IntPtr renderer, ref IntPtr texture, int width, int height, int depth, int stride, IntPtr pixels,
             SDL.PixelFormat pixelFormat = SDL.PixelFormat.RGBA8888)
     {

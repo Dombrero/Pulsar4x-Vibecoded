@@ -145,7 +145,11 @@ public sealed record BodyView(
     double MagneticFieldMicroTesla,
     bool SupportsPopulations,
     double RadiationLevel = 0,
-    double AtmosphericDust = 0) : IComponentView;
+    double AtmosphericDust = 0,
+    /// <summary>Engine <c>BodyType</c> enum ordinal for client visuals.</summary>
+    byte BodyTypeId = 0,
+    /// <summary>Bond albedo 0–1 (surface reflectivity). Used for rocky body tint.</summary>
+    double Albedo = 0) : IComponentView;
 
 /// <summary>A body's atmosphere; gas names are pre-resolved from game static data.</summary>
 public sealed record AtmosphereView(

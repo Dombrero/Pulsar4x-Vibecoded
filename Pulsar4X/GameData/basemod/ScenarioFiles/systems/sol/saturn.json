@@ -60,7 +60,13 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.7, "Accessibility": 0.8 },
+        { "Id": "silicon", "Abundance": 0.4, "Accessibility": 0.6 },
+        { "Id": "regolith", "Abundance": 0.5, "Accessibility": 0.9 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.45 }
+      ]
     }
   },
   {
@@ -84,7 +90,12 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.95, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.25, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.35 }
+      ]
     }
   },
   {
@@ -108,7 +119,12 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.8, "Accessibility": 0.85 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.9 },
+        { "Id": "silicon", "Abundance": 0.3, "Accessibility": 0.5 }
+      ]
     }
   },
   {
@@ -132,7 +148,13 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "regolith", "Abundance": 0.5, "Accessibility": 0.9 }
+      ]
     }
   },
   {
@@ -156,7 +178,12 @@
         "LoAN": 0,
         "AoP": 0,
         "MeanAnomaly": 0
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.85, "Accessibility": 0.9 },
+        { "Id": "silicon", "Abundance": 0.3, "Accessibility": 0.5 },
+        { "Id": "regolith", "Abundance": 0.45, "Accessibility": 0.85 }
+      ]
     }
   },
   {
@@ -194,7 +221,14 @@
           { "Symbol": "CH4", "Percent": 0.014 },
           { "Symbol": "H2", "Percent": 0.002 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "hydrocarbons", "Abundance": 0.95, "Accessibility": 1.0 },
+        { "Id": "water", "Abundance": 0.55, "Accessibility": 0.6 },
+        { "Id": "graphite", "Abundance": 0.35, "Accessibility": 0.5 },
+        { "Id": "silicon", "Abundance": 0.25, "Accessibility": 0.35 },
+        { "Id": "iron", "Abundance": 0.15, "Accessibility": 0.3 }
+      ]
     }
   }
 ]

@@ -49,6 +49,7 @@ namespace Pulsar4X.Engine.Api
                 [typeof(SetStandingOrdersCommand)] = TranslateSetStandingOrders,
                 [typeof(MoveToBodyCommand)] = TranslateMoveToBody,
                 [typeof(Pulsar4X.Api.GeoSurveyCommand)] = TranslateGeoSurvey,
+                [typeof(CompleteGeoSurveyCommand)] = TranslateCompleteGeoSurvey,
                 [typeof(GravSurveyCommand)] = TranslateGravSurvey,
                 [typeof(Pulsar4X.Api.JumpCommand)] = TranslateJump,
                 [typeof(RefuelAtCommand)] = TranslateRefuelAt,
@@ -412,6 +413,33 @@ namespace Pulsar4X.Engine.Api
             // One order: travel (if needed) then survey. Separate Warp+Survey pairs raced Movement
             // lanes and allowed surveying while still at Earth.
             return Dispatch(GeoSurveyOrder.CreateCommand(faction.Id, commanded, body));
+        }
+
+        private CommandResult TranslateCompleteGeoSurvey(Entity faction, Entity commanded, GameCommand command)
+        {
+            if (faction.Id != _game.GameMasterFaction.Id)
+                return CommandResult.Reject("Space Master only.");
+
+            if (!commanded.TryGetDataBlob<GeoSurveyableDB>(out var geo))
+                return CommandResult.Reject("Body is not geo-surveyable.");
+
+            commanded.TryGetDataBlob<MineralsDB>(out var minerals);
+
+            // Complete for every faction so SM and player views both see the result after toggle.
+            foreach (var (fid, fac) in _game.Factions)
+            {
+                geo.GeoSurveyStatus[fid] = 0;
+                if (minerals != null && fac.TryGetDataBlob<FactionInfoDB>(out var info))
+                    minerals.GrantFactionPartialAccess(info.FactionMask);
+            }
+
+            MessagePublisher.Instance.Publish(Message.Create(
+                MessageTypes.EntityChanged,
+                entityId: commanded.Id,
+                systemId: commanded.Manager.ManagerID,
+                factionId: faction.Id));
+
+            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
         private CommandResult TranslateGravSurvey(Entity faction, Entity commanded, GameCommand command)

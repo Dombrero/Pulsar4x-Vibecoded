@@ -5,7 +5,6 @@
       "UniqueID": "dwarf-ceres",
       "Name": "Ceres",
       "Colonizable": true,
-      "MineralGeneration": "random",
       "GeoSurveyPointsRequired": 750,
       "Info": {
         "Type": "dwarf-planet",
@@ -22,7 +21,15 @@
         "LoAN": 80.3,
         "AoP": 73.6,
         "MeanAnomaly": 291.4
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.85, "Accessibility": 0.95 },
+        { "Id": "regolith", "Abundance": 0.7, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.45, "Accessibility": 0.7 },
+        { "Id": "iron", "Abundance": 0.3, "Accessibility": 0.55 },
+        { "Id": "hydrocarbons", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "aluminium", "Abundance": 0.2, "Accessibility": 0.4 }
+      ]
     }
   },
   {
@@ -31,7 +38,13 @@
       "UniqueID": "dwarf-eris",
       "Name": "Eris",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.3 }
+      ],
       "GeoSurveyPointsRequired": 750,
       "Info": {
         "Type": "dwarf-planet",
@@ -56,7 +69,13 @@
       "UniqueID": "dwarf-haumea",
       "Name": "Haumea",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.3 }
+      ],
       "GeoSurveyPointsRequired": 750,
       "Info": {
         "Type": "dwarf-planet",
@@ -82,7 +101,13 @@
       "UniqueID": "dwarf-makemake",
       "Name": "Makemake",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.3 }
+      ],
       "GeoSurveyPointsRequired": 750,
       "Info": {
         "Type": "dwarf-planet",
@@ -107,7 +132,13 @@
       "UniqueID": "dwarf-pluto",
       "Name": "Pluto",
       "Colonizable": true,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.3 }
+      ],
       "GeoSurveyPointsRequired": 750,
       "Info": {
         "Gravity": 0.62,

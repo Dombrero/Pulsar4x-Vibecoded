@@ -10,6 +10,8 @@
       "Info": {
         "Gravity": 1.625,
         "Type": "moon",
+        "Albedo": 0.12,
+        "BaseTemperature": -53,
         "Mass": 7.34767309E22,
         "Radius": 1737.4,
         "LengthOfDay": "27.07:43:00"
@@ -23,7 +25,13 @@
         "MeanAnomaly_d": 115.3654
       },
       "Minerals": [
-        { "Id": "iron", "Abundance": 0.5, "Accessibility": 1 }
+        { "Id": "regolith", "Abundance": 0.92, "Accessibility": 1.0 },
+        { "Id": "silicon", "Abundance": 0.72, "Accessibility": 0.95 },
+        { "Id": "aluminium", "Abundance": 0.58, "Accessibility": 0.85 },
+        { "Id": "iron", "Abundance": 0.32, "Accessibility": 0.7 },
+        { "Id": "titanium", "Abundance": 0.42, "Accessibility": 0.75 },
+        { "Id": "rare-earth-elements", "Abundance": 0.22, "Accessibility": 0.45 },
+        { "Id": "water", "Abundance": 0.08, "Accessibility": 0.25 }
       ]
     }
   }

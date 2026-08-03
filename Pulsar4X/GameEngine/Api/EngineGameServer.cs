@@ -314,7 +314,12 @@ namespace Pulsar4X.Engine.Api
             // CreateFleet targets the faction). (Commands with a secondary target — e.g. a move
             // destination — carry that as a separate DTO field, which the translator resolves; only
             // the commanded entity is ownership-checked here.)
-            if (commanded.Id != session.FactionId && commanded.FactionOwnerID != session.FactionId)
+            // SM geo-survey cheat targets a body the GM does not "own".
+            bool smGeoCheat = command is CompleteGeoSurveyCommand
+                && session.FactionId == _game.GameMasterFaction.Id;
+            if (!smGeoCheat
+                && commanded.Id != session.FactionId
+                && commanded.FactionOwnerID != session.FactionId)
                 return CommandResult.Reject("Faction does not control the commanded entity.");
 
             var result = _commands.Translate(faction, commanded, command);

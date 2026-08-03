@@ -6,11 +6,11 @@
       "Name": "Earth",
       "CanStartHere": true,
       "Colonizable": true,
-      "GenerateMinerals": "randomHW",
       "Info": {
         "Gravity": 9.8,
         "Type": "terrestrial",
         "Albedo": 0.306,
+        "BaseTemperature": 15,
         "AxialTilt": 23.439,
         "MagneticField": 45,
         "Mass": 5.9726E24,
@@ -41,7 +41,24 @@
           { "Symbol": "CO2", "Percent": 0.000415 },
           { "Symbol": "Ne", "Percent": 0.0000182 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "iron", "Abundance": 0.85, "Accessibility": 0.9 },
+        { "Id": "silicon", "Abundance": 0.9, "Accessibility": 0.95 },
+        { "Id": "aluminium", "Abundance": 0.75, "Accessibility": 0.85 },
+        { "Id": "copper", "Abundance": 0.45, "Accessibility": 0.7 },
+        { "Id": "titanium", "Abundance": 0.4, "Accessibility": 0.65 },
+        { "Id": "nickel", "Abundance": 0.35, "Accessibility": 0.6 },
+        { "Id": "chromium", "Abundance": 0.3, "Accessibility": 0.55 },
+        { "Id": "lithium", "Abundance": 0.25, "Accessibility": 0.5 },
+        { "Id": "tungsten", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "graphite", "Abundance": 0.35, "Accessibility": 0.6 },
+        { "Id": "hydrocarbons", "Abundance": 0.7, "Accessibility": 0.85 },
+        { "Id": "fissionables", "Abundance": 0.35, "Accessibility": 0.5 },
+        { "Id": "rare-earth-elements", "Abundance": 0.3, "Accessibility": 0.45 },
+        { "Id": "water", "Abundance": 0.8, "Accessibility": 1.0 },
+        { "Id": "regolith", "Abundance": 0.5, "Accessibility": 0.8 }
+      ]
     }
   },
   {

@@ -288,6 +288,7 @@ namespace Pulsar4X.Client
 
             // Render the maneuver node panel overlay (if active)
             _state.DisplayManeuverNodePanel();
+            _state.DisplayPendingEntityContextMenu();
 
             TutorialHighlight.DrawOverlay();
         }

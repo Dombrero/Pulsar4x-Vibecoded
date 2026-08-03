@@ -105,6 +105,8 @@ namespace Pulsar4X.Client
         internal SystemMapRendering? SelectedSysMapRender => GalacticMap == null ? null : GalacticMap.SelectedSysMapRender;
         internal DateTime PrimarySystemDateTime;
         internal EntityContextMenu? ContextMenu { get; set; }
+        /// <summary>When set, the next UI frame opens the entity context menu for this id.</summary>
+        internal int? PendingContextMenuEntityId { get; set; }
         internal Camera Camera;
         internal SDL3Window ViewPort { get; private set; }
 
@@ -427,6 +429,7 @@ namespace Pulsar4X.Client
             PrimaryEntity = null;
             SelectedStarSystemId = "";
             ContextMenu = null;
+            PendingContextMenuEntityId = null;
             ActiveWindow = null;
             SMenabled = false;
         }
@@ -819,6 +822,24 @@ namespace Pulsar4X.Client
                 {
                     CleanupManeuverNode();
                 }
+            }
+        }
+
+        /// <summary>Opens the entity context menu when requested (e.g. right-click on a body icon).</summary>
+        internal void DisplayPendingEntityContextMenu()
+        {
+            const string popupId = "##entity-map-ctx";
+            if (PendingContextMenuEntityId is int entityId)
+            {
+                ContextMenu = new EntityContextMenu(this, entityId);
+                ImGui.OpenPopup(popupId);
+                PendingContextMenuEntityId = null;
+            }
+
+            if (ImGui.BeginPopup(popupId))
+            {
+                ContextMenu?.Display();
+                ImGui.EndPopup();
             }
         }
 

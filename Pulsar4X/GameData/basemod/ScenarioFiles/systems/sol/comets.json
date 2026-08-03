@@ -5,7 +5,13 @@
       "UniqueID": "comet-halleys",
       "Name": "Halleys Comet",
       "Colonizable": false,
-      "MineralGeneration": "random",
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.9, "Accessibility": 0.95 },
+        { "Id": "hydrocarbons", "Abundance": 0.45, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.4, "Accessibility": 0.8 },
+        { "Id": "silicon", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "graphite", "Abundance": 0.15, "Accessibility": 0.35 }
+      ],
       "GeoSurveyPointsRequired": 575,
       "Info": {
         "Gravity": 0,

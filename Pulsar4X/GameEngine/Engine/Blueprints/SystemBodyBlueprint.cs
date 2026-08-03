@@ -87,5 +87,7 @@ public class SystemBodyBlueprint : Blueprint
     public AtmosphereBlueprint? Atmosphere { get; set; }
     public List<StartingMineralBlueprint>? Minerals { get; set; }
     public string? GenerateMinerals { get; set; }
+    /// <summary>Legacy JSON alias for <see cref="GenerateMinerals"/>.</summary>
+    public string? MineralGeneration { get; set; }
 
 }

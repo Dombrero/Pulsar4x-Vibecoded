@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Pulsar4X.Api;
+using Pulsar4X.Client.BodyVisuals;
 using Pulsar4X.Orbital;
 using SDL3;
 using Pulsar4X.Input;
@@ -12,12 +13,18 @@ namespace Pulsar4X.Client
         BodyKind _bodyType;
         double _bodyRadiusAU;
         float _viewRadius;
-        Random _rng;
         float _iconMinSize = 8;
         int _entityId;
         string _sysId;
         bool _surveyComplete;
         bool _infrastructureComplete;
+        IntPtr _texture = IntPtr.Zero;
+        int _texW = 256;
+        int _texH = 256;
+        bool _extremeHeatRing;
+        byte _glowR = 255;
+        byte _glowG = 160;
+        byte _glowB = 40;
 
         static readonly SDL.Color SurveyRingColor = new() { R = 64, G = 220, B = 80, A = 230 };
         static readonly SDL.Color InfrastructureRingColor = new() { R = 180, G = 90, B = 230, A = 230 };
@@ -31,29 +38,35 @@ namespace Pulsar4X.Client
             _bodyRadiusAU = bodyRadiusAU;
             _entityId = entity.Id;
             _sysId = systemId;
-            _rng = new Random(_entityId); //use entity id as a seed for psudoRandomness.
             RefreshStatusFlags(entity);
-
-            BuildShape();
-        }
-
-        void BuildShape()
-        {
-            switch (_bodyType)
-            {
-                case BodyKind.Asteroid:
-                    Asteroid();
-                    break;
-                case BodyKind.Planet:
-                    Terestrial();
-                    break;
-                default:
-                    Unknown();
-                    break;
-            }
 
             if (_bodyType == BodyKind.Moon)
                 _iconMinSize = 4;
+
+            // Shape fallback for hit-testing / if texture fails
+            short segments = 24;
+            var points = CreatePrimitiveShapes.Circle(0, 0, 100, segments);
+            Shapes.Add(new Shape
+            {
+                Color = new SDL.Color { R = 100, G = 100, B = 100, A = 255 },
+                Points = points
+            });
+        }
+
+        public void BindTexture(EntitySnapshot entity, IClientSystem system)
+        {
+            var visual = BodyVisualStateFactory.FromEntity(entity, system);
+            _extremeHeatRing = visual.ExtremeHeatRing;
+            _glowR = visual.GlowColor.R;
+            _glowG = visual.GlowColor.G;
+            _glowB = visual.GlowColor.B;
+
+            var (tex, w, h) = BodyMapTextureCache.GetOrCreate(visual);
+            if (tex == IntPtr.Zero)
+                return;
+            _texture = tex;
+            _texW = w;
+            _texH = h;
         }
 
         public bool OnPointerUp(SDL.Event sevent)
@@ -65,7 +78,10 @@ namespace Pulsar4X.Client
             if (sevent.Button.Button == 1)
                 state.EntityClicked(_entityId, _sysId, MouseButtons.Primary);
             else if (sevent.Button.Button == 3)
+            {
                 state.EntityClicked(_entityId, _sysId, MouseButtons.Alt);
+                state.PendingContextMenuEntityId = _entityId;
+            }
             return true;
         }
 
@@ -75,71 +91,14 @@ namespace Pulsar4X.Client
             return System.Numerics.Vector2.Distance(v, point.ToVector2()) <= Scale * 100;
         }
 
-        void Terestrial()
-        {
-            _iconMinSize = 8;
-            short segments = 32;
-            var points = CreatePrimitiveShapes.Circle(0, 0, 100, segments);
-
-
-            //colors picked out of my ass for a blue/green look.
-            //TODO: use minerals for this? but migth not have that info. going to have to work in with sensor stuff.
-            byte r = 0;
-            byte g = 100;
-            byte b = 100;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            Shapes.Add(new Shape() { Color = colour, Points = points });
-        }
-
-        void Asteroid()
-        {
-            _iconMinSize = 8;
-            double vertDiameter = _rng.Next(50, 100);
-            double horDiameter = _rng.Next(50, 100);
-            int segments = _rng.Next(8, 32);
-            int jagMax = _rng.Next(5, 8);
-            int jagMin = _rng.Next(4, jagMax);
-
-            var points = CreatePrimitiveShapes.CreateArc(0, 0, horDiameter, vertDiameter, 0, Math.PI * 2, segments);
-            for (int i = 0; i < segments; i = i + 2)
-            {
-                //this is not right, need to pull the points in towards the center, not just pull them left.
-                double x = points[i].X - _rng.Next(jagMin, jagMax);
-                double y = points[i].Y - _rng.Next(jagMin, jagMax);
-                points[i] = new Vector2() { X = x, Y = y };
-            }
-            //colors picked out of my ass for a brown look.
-            //TODO: use minerals for this? but migth not have that info. going to have to work in with sensor stuff.
-            byte r = 150;
-            byte g = 100;
-            byte b = 50;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            Shapes.Add(new Shape() { Color = colour, Points = points });
-        }
-
-        void Unknown()
-        {
-
-            short segments = 24;
-            var points = CreatePrimitiveShapes.Circle(0, 0, 100, segments);
-            //colors picked out of my ass .
-            //TODO: use minerals for this? but migth not have that info. going to have to work in with sensor stuff.
-            byte r = 100;
-            byte g = 100;
-            byte b = 100;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            Shapes.Add(new Shape() { Color = colour, Points = points });
-        }
-
-
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
             var entity = _state?.GameClient?.Galaxy.GetSystem(_sysId)?.GetEntity(_entityId);
             if (entity != null)
                 RefreshStatusFlags(entity);
+
+            // Texture rebinding happens in SystemMapRendering.AddIconable when the snapshot
+            // changes after a survey completes — do not compose here (UI-thread race / crash risk).
 
             _viewRadius = camera.ViewDistance(_bodyRadiusAU);
             if (_viewRadius < _iconMinSize)
@@ -151,42 +110,45 @@ namespace Pulsar4X.Client
 
         public override void Draw(IntPtr rendererPtr, Camera camera)
         {
-            if (DrawShapes == null || DrawShapes.Length == 0)
-                return;
+            float display = Math.Max(_iconMinSize * 2f, Scale * 100f * 2.2f);
+            int bodyRadius = Math.Max(2, (int)(display * 0.38f));
 
-            // Draw filled circle for non-asteroid body types
-            if (_bodyType != BodyKind.Asteroid)
+            if (_extremeHeatRing)
+                ExtremeHeatRingDrawer.Draw(rendererPtr, ViewScreenPos.X, ViewScreenPos.Y, bodyRadius, _glowR, _glowG, _glowB);
+
+            if (_texture != IntPtr.Zero)
             {
-                var shape = DrawShapes[0];
-                if (shape.Points != null && shape.Points.Length > 2)
-                {
-                    int cx = ViewScreenPos.X;
-                    int cy = ViewScreenPos.Y;
-                    int radius = (int)(Scale * 100);
+                float aspect = _texH > 0 ? (float)_texW / _texH : 1f;
+                float drawW = display;
+                float drawH = display;
+                if (aspect >= 1f)
+                    drawH = display / aspect;
+                else
+                    drawW = display * aspect;
 
-                    if (radius > 0)
-                    {
-                        // Brighter fill color derived from the body's base color, dimmed for moons
-                        float brighten = _bodyType == BodyKind.Moon ? 0.8f : 1.0f;
-                        byte fillR = (byte)Math.Min(255, (int)((shape.Color.R + 80) * brighten));
-                        byte fillG = (byte)Math.Min(255, (int)((shape.Color.G + 80) * brighten));
-                        byte fillB = (byte)Math.Min(255, (int)((shape.Color.B + 80) * brighten));
-                        SDL.SetRenderDrawColor(rendererPtr, fillR, fillG, fillB, shape.Color.A);
-                        for (int y = -radius; y <= radius; y++)
-                        {
-                            int xSpan = (int)Math.Sqrt(radius * radius - y * y);
-                            SDL.RenderLine(rendererPtr, cx - xSpan, cy + y, cx + xSpan, cy + y);
-                        }
-                    }
+                var dstRect = new SDL.FRect
+                {
+                    X = ViewScreenPos.X - drawW / 2f,
+                    Y = ViewScreenPos.Y - drawH / 2f,
+                    W = drawW,
+                    H = drawH
+                };
+                SDL.RenderTexture(rendererPtr, _texture, IntPtr.Zero, in dstRect);
+            }
+            else if (DrawShapes != null && DrawShapes.Length > 0)
+            {
+                int cx = ViewScreenPos.X;
+                int cy = ViewScreenPos.Y;
+                int radius = Math.Max(2, (int)(Scale * 100));
+                SDL.SetRenderDrawColor(rendererPtr, 80, 120, 140, 255);
+                for (int y = -radius; y <= radius; y++)
+                {
+                    int xSpan = (int)Math.Sqrt(radius * radius - y * y);
+                    SDL.RenderLine(rendererPtr, cx - xSpan, cy + y, cx + xSpan, cy + y);
                 }
             }
-            else
-            {
-                // Draw outline for asteroids
-                base.Draw(rendererPtr, camera);
-            }
 
-            DrawStatusRings(rendererPtr);
+            DrawStatusRings(rendererPtr, Math.Max(2, (int)(Scale * 100)));
         }
 
         void RefreshStatusFlags(EntitySnapshot entity)
@@ -206,22 +168,21 @@ namespace Pulsar4X.Client
             _infrastructureComplete = colony?.GetView<InfrastructureView>()?.HasInstalledInfrastructure == true;
         }
 
-        void DrawStatusRings(IntPtr rendererPtr)
+        void DrawStatusRings(IntPtr rendererPtr, int bodyRadius)
         {
             if (!_surveyComplete && !_infrastructureComplete)
                 return;
 
             int cx = ViewScreenPos.X;
             int cy = ViewScreenPos.Y;
-            int bodyRadius = Math.Max(2, (int)(Scale * 100));
+            int surveyOffset = _extremeHeatRing ? 22 : 3;
+            int infraOffset = _extremeHeatRing ? 28 : 7;
 
-            // Survey ring sits just outside the body; infrastructure ring is further out
-            // so both remain visible when a surveyed body also has infrastructure.
             if (_surveyComplete)
-                DrawThickRing(rendererPtr, cx, cy, bodyRadius + 3, SurveyRingColor);
+                DrawThickRing(rendererPtr, cx, cy, bodyRadius + surveyOffset, SurveyRingColor);
 
             if (_infrastructureComplete)
-                DrawThickRing(rendererPtr, cx, cy, bodyRadius + 7, InfrastructureRingColor);
+                DrawThickRing(rendererPtr, cx, cy, bodyRadius + infraOffset, InfrastructureRingColor);
         }
 
         static void DrawThickRing(IntPtr rendererPtr, int cx, int cy, int radius, SDL.Color color)
@@ -235,4 +196,3 @@ namespace Pulsar4X.Client
         }
     }
 }
-

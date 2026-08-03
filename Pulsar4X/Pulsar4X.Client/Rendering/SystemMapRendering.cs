@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.Concurrent;
 using Pulsar4X.Api;
+using Pulsar4X.Client.BodyVisuals;
 using Pulsar4X.Orbital;
 using SDL3;
 
@@ -68,8 +69,9 @@ namespace Pulsar4X.Client.Rendering
             _camera = _state.Camera;
             _window = window;
 
-            // Initialize ship icon texture
+            // Initialize ship + celestial body icon texture caches
             ShipIcon.InitializeTexture(window.Renderer);
+            BodyMapTextureCache.Initialize(window.Renderer);
 
             foreach (var item in TestDrawIconData.GetTestIcons())
             {
@@ -262,13 +264,20 @@ namespace Pulsar4X.Client.Rendering
 
             if (entity.GetView<StarView>() is { } star && massVolume != null)
             {
-                AddEntityIcon(entity, new StarIcon(star, massVolume, position));
+                var starIcon = new StarIcon(star, massVolume, position);
+                var system = _state.GameClient?.Galaxy.GetSystem(_systemId!);
+                if (system != null)
+                    starIcon.BindTexture(entity, system);
+                AddEntityIcon(entity, starIcon);
             }
 
             if (entity.HasView<BodyView>() && entity.Kind != BodyKind.Star && massVolume != null)
             {
                 var i = new SysBodyIcon(entity, _systemId, position, Distance.MToAU(massVolume.RadiusMetres));
                 i.AttachState(_state);
+                var system = _state.GameClient?.Galaxy.GetSystem(_systemId!);
+                if (system != null)
+                    i.BindTexture(entity, system);
 
                 var l = new EntityLabelExtCombo(_state, entity, _systemId);
                 l.Padding = 3;
@@ -313,6 +322,13 @@ namespace Pulsar4X.Client.Rendering
             _moveIcons.TryRemove(entityGuid, out _);
             _interactable.TryRemove(entityGuid, out _);
             _bodyIcons.TryRemove(entityGuid, out _);
+
+            // Dispose label textures on the UI thread before dropping references.
+            foreach (var label in _allLabels)
+            {
+                if (label.EntityId == entityGuid)
+                    label.DisposeTextures();
+            }
             _allLabels.RemoveWhere(x => x.EntityId == entityGuid);
         }
 
@@ -349,6 +365,19 @@ namespace Pulsar4X.Client.Rendering
                 {
                     if (ReferenceEquals(iconed, entity))
                         continue;
+
+                    // Survey / mineral refresh: rebind body texture in place. Full teardown
+                    // recreates labels and used to crash via off-thread SDL DestroyTexture.
+                    if (_bodyIcons.TryGetValue(entity.Id, out var bodyIcon)
+                        && bodyIcon is SysBodyIcon sysBody
+                        && entity.HasView<BodyView>()
+                        && entity.Kind != BodyKind.Star)
+                    {
+                        _iconedSnapshots[entity.Id] = entity;
+                        sysBody.BindTexture(entity, system);
+                        continue;
+                    }
+
                     RemoveIconable(entity.Id);
                 }
 

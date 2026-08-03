@@ -56,6 +56,12 @@ public sealed record MoveToBodyCommand(int TargetEntityId, int BodyId) : GameCom
 /// <summary>Warp to the body and geo-survey it.</summary>
 public sealed record GeoSurveyCommand(int TargetEntityId, int BodyId) : GameCommand(TargetEntityId);
 
+/// <summary>
+/// Space-Master cheat: instantly complete the geo survey of the body
+/// (<paramref name="TargetEntityId"/>) for all factions.
+/// </summary>
+public sealed record CompleteGeoSurveyCommand(int TargetEntityId) : GameCommand(TargetEntityId);
+
 /// <summary>Warp to the location and gravitationally survey it for jump points.</summary>
 public sealed record GravSurveyCommand(int TargetEntityId, int LocationId) : GameCommand(TargetEntityId);
 

@@ -6,7 +6,6 @@
       "Name": "Neptune",
       "Colonizable": true,
       "GeoSurveyPointsRequired": 2500,
-      "GenerateMinerals": "random",
       "Info": {
         "Gravity": 11.15,
         "Type": "ice-giant",
@@ -38,7 +37,15 @@
           { "Symbol": "HD", "Percent": 0.00019 },
           { "Symbol": "C2H6", "Percent": 0.0000015 }
         ]
-      }
+      },
+      "Minerals": [
+        { "Id": "water", "Abundance": 0.75, "Accessibility": 0.7 },
+        { "Id": "regolith", "Abundance": 0.55, "Accessibility": 0.85 },
+        { "Id": "silicon", "Abundance": 0.35, "Accessibility": 0.55 },
+        { "Id": "iron", "Abundance": 0.2, "Accessibility": 0.4 },
+        { "Id": "hydrocarbons", "Abundance": 0.15, "Accessibility": 0.3 }
+      ]
+
     }
   }
 ]
