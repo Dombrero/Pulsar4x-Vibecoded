@@ -619,7 +619,8 @@ namespace Pulsar4X.Engine.Api
                 totalCount,
                 armorThickness,
                 ship.HasDataBlob<GeoSurveyAbilityDB>(),
-                ship.HasDataBlob<JPSurveyAbilityDB>());
+                ship.HasDataBlob<JPSurveyAbilityDB>(),
+                shipInfo.Design?.UniqueID);
         }
 
         private static ThrustView? ToThrustView(Pulsar4X.Movement.NewtonThrustAbilityDB thrust, Entity ship, int factionId)

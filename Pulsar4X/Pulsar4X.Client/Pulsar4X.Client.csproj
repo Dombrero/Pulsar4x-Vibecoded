@@ -90,6 +90,7 @@
 
     <PackageReference Include="Microsoft.Extensions.Configuration.Ini" Version="7.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Pulsar4X.Api\Pulsar4X.Api.csproj" />

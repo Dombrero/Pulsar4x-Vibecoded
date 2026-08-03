@@ -282,7 +282,7 @@ namespace Pulsar4X.Client.Rendering
 
             if (entity.HasView<ShipView>() && entity.HasView<PositionView>())
             {
-                AddEntityIcon(entity, new ShipIcon(position));
+                AddEntityIcon(entity, new ShipIcon(position, entity, _state, _systemId!));
             }
 
             if (entity.HasView<ProjectileView>() && entity.HasView<PositionView>())

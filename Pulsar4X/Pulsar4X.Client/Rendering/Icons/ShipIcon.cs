@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using Pulsar4X.Api;
+using Pulsar4X.Client.ShipVisuals;
 using Pulsar4X.Orbital;
 using SDL3;
 
@@ -7,74 +9,85 @@ namespace Pulsar4X.Client
 {
     public class ShipIcon : Icon
     {
-        // Static texture for all ship icons
-        private static IntPtr _shipTexture = IntPtr.Zero;
-        private static int _textureWidth = 24;
-        private static int _textureHeight = 12;
-        private static bool _textureInitialized = false;
+        // Legacy shared fallback texture (chevron / static PNG).
+        private static IntPtr _fallbackTexture = IntPtr.Zero;
+        private static int _fallbackWidth = 24;
+        private static int _fallbackHeight = 12;
+        private static bool _fallbackInitialized;
 
+        private readonly GlobalUIState? _uiState;
+        private readonly string? _systemId;
+        private readonly int _entityId;
+        private IntPtr _shipTexture = IntPtr.Zero;
+        private int _textureWidth = 24;
+        private int _textureHeight = 12;
+        private bool _hasVelocityHeading;
 
-        /// <summary>
-        /// Initialize the ship icon texture. Call this once during startup.
-        /// </summary>
+        /// <summary>On-screen size of the generated ship sprite (pixels).</summary>
+        public float DisplaySizePx { get; set; } = 42f;
+
+        /// <summary>Initialize shared fallback texture + map visual cache. Call once at startup.</summary>
         public static void InitializeTexture(IntPtr renderer)
         {
-            if (_textureInitialized) return;
+            ShipMapTextureCache.Initialize(renderer);
+
+            if (_fallbackInitialized) return;
 
             var path = Path.Combine(PulsarMainWindow.ResourcesPath, "ship-icons", "01.png");
             if (File.Exists(path))
             {
-                _shipTexture = Image.LoadTexture(renderer, path);
-                if (_shipTexture != IntPtr.Zero)
+                _fallbackTexture = Image.LoadTexture(renderer, path);
+                if (_fallbackTexture != IntPtr.Zero)
                 {
-                    SDL.GetTextureSize(_shipTexture, out float w, out float h);
-                    _textureWidth = (int)w;
-                    _textureHeight = (int)h;
-                    _textureInitialized = true;
-#if DEBUG
-                    Console.WriteLine($"Ship icon texture loaded: {_textureWidth}x{_textureHeight}");
-#endif
+                    SDL.GetTextureSize(_fallbackTexture, out float w, out float h);
+                    _fallbackWidth = (int)w;
+                    _fallbackHeight = (int)h;
+                    _fallbackInitialized = true;
                 }
-                else
-                {
-                    Console.WriteLine($"Failed to load ship icon texture: {SDL.GetError()}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Ship icon texture not found: {path}");
             }
         }
 
         public ShipIcon(Vector3 position_m) : base(position_m)
         {
-            Front(60, 100, 0, -110);
-            Cargo(160, 160, 0, -120);
-            Wings(260, 260, 80, 50, 0, 0);
-            Reactors(100, 100, 0, 90);
-            Engines(100, 60, 0, 130);
+            BasicShape();
         }
 
-        /// <summary>Snapshot constructor: position read through the replicated galaxy; no engine
-        /// subscriptions (the icon is rebuilt when the entity's snapshot changes).</summary>
+        /// <summary>Snapshot constructor with entity context for generated visuals + heading.</summary>
+        public ShipIcon(IPosition position, EntitySnapshot entity, GlobalUIState state, string systemId)
+            : base(position)
+        {
+            _uiState = state;
+            _systemId = systemId;
+            _entityId = entity.Id;
+            BasicShape();
+            TryBindGeneratedTexture(entity);
+        }
+
+        /// <summary>Snapshot constructor without visuals (tests / legacy).</summary>
         public ShipIcon(IPosition position) : base(position)
         {
             BasicShape();
         }
 
+        private void TryBindGeneratedTexture(EntitySnapshot entity)
+        {
+            var ship = entity.GetView<ShipView>();
+            if (ship == null || _uiState == null)
+                return;
 
+            var mass = entity.GetView<MassVolumeView>();
+            var thrust = entity.GetView<ThrustView>();
+            var (tex, w, h) = ShipMapTextureCache.GetOrCreate(ship, mass, thrust);
+            if (tex == IntPtr.Zero)
+                return;
+
+            _shipTexture = tex;
+            _textureWidth = w;
+            _textureHeight = h;
+        }
 
         void BasicShape()
         {
-            //TODO break the vertical up depending on percentage of ship dedicated to each thing.
-            //Front(6, 10, 0, -11);
-            //Cargo(16, 16, 0, -12);
-            //Wings(26, 26, 8, 5, 0, 0);
-            //Reactors(10, 10, 0, 9);
-            //Engines(10, 6, 0, 13);
-
-            //For now we're just going to use a simple cheveron to represent ships, make something fancier in the future
-            //by somone who has some design mojo.
             byte r = 50;
             byte g = 50;
             byte b = 200;
@@ -90,138 +103,6 @@ namespace Pulsar4X.Client
             SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
             Shapes.Add(new Shape() { Points = points, Color = colour });
         }
-        void Front(int width, int height, int offsetX, int offsetY) //crew
-        {
-
-            var points = CreatePrimitiveShapes.CreateArc(offsetX, offsetY, width * 0.5 , height * 0.5, CreatePrimitiveShapes.QuarterCircle, CreatePrimitiveShapes.HalfCircle, 16);
-            byte r = 0;
-            byte g = 100;
-            byte b = 100;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            Shapes.Add(new Shape() { Points = points, Color = colour });
-
-        }
-
-        void Cargo(int width, int height, int offsetX, int offsetY)//and fuel
-        {
-            byte r = 0;
-            byte g = 0;
-            byte b = 200;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-
-            //TODO: change numbers depending on number of cargo containing components.
-            int numberofPodsX = 4;
-            int numberofPodsY = 2;
-
-            int podWidth = width / numberofPodsX;
-            int offsetx1 = (int)(offsetX - width * 0.5f + podWidth * 0.5);
-
-            int podHeight = height / numberofPodsY;
-            int offsety1 = (int)(offsetY + podHeight * 0.5);
-
-            for (int podset = 0; podset < numberofPodsY; podset++)
-            {
-                offsety1 += podset * podHeight;
-
-                int offsetx2 = offsetx1 - podWidth;
-
-                for (int i = 0; i < numberofPodsX; i++)
-                {
-                    offsetx2 += podWidth;
-                    Shape shape = new Shape() { Color = colour, Points = CreatePrimitiveShapes.RoundedCylinder(podWidth, height / numberofPodsY, offsetx2, offsety1) };
-                    Shapes.Add(shape);
-                }
-            }
-        }
-
-        void Wings(int width, int height, int frontWidth, int backWidth, int offsetX, int offsetY)//FTL & guns
-        {
-            byte r = 84;
-            byte g = 84;
-            byte b = 84;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-
-
-            Vector2 p0 = new Orbital.Vector2() { X = offsetX, Y = (int)(offsetY - height * 0.5) };
-            Vector2 p1 = new Vector2() { X = offsetX + frontWidth, Y = (int)(offsetY - height * 0.5) };
-            Vector2 p2 = new Vector2() { X = (int)(offsetX + width * 0.5), Y = (int)(offsetY - height * 0.3) };
-            Vector2 p3 = new Vector2() { X = (int)(offsetX + width * 0.5), Y = -(int)(offsetY - height * 0.25) };
-            Vector2 p4 = new Vector2() { X = offsetX + backWidth, Y = -(int)(offsetY - height * 0.5) };
-            Vector2 p5 = new Vector2() { X = offsetX, Y = -(int)(offsetY - height * 0.5) };
-            Vector2 p6 = new Vector2() { X = offsetX - backWidth, Y = (int)(offsetY + height * 0.5) };
-            Vector2 p7 = new Vector2() { X = (int)(offsetX + -width * 0.5), Y = (int)(offsetY + height * 0.25) };
-            Vector2 p8 = new Vector2() { X = (int)(offsetX + -width * 0.5), Y = -(int)(offsetY + height * 0.3) };
-            Vector2 p9 = new Vector2() { X = offsetX - frontWidth, Y = -(int)(offsetY + height * 0.5) };
-            Vector2 p10 = new Vector2() { X = offsetX, Y = -(int)(offsetY + height * 0.5) };
-            var shape = new Shape() { Color = colour, Points = new Orbital.Vector2[] { p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 } };
-            Shapes.Add(shape);
-
-
-        }
-        void Reactors(int width, int height, int offsetX, int offsetY)
-        {
-            byte r = 100;
-            byte g = 0;
-            byte b = 0;
-            byte a = 255;
-            SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-
-            var shape = new Shape() { Color = colour, Points = CreatePrimitiveShapes.CreateArc(offsetX, offsetY, (int)(width * 0.5), (int)(height * 0.5), 0, CreatePrimitiveShapes.PI2, 12) };
-
-            Shapes.Add(shape);
-
-        }
-        void Engines(int width, int height, int offsetX, int offsetY)
-        {
-            byte r1 = 200;
-            byte g1 = 200;
-            byte b1 = 200;
-            byte a1 = 255;
-            SDL.Color colourbox = new SDL.Color() { R = r1, G = g1, B = b1, A = a1 };
-
-            byte r2 = 100;
-            byte g2 = 150;
-            byte b2 = 0;
-            byte a2 = 255;
-            SDL.Color colourCone = new SDL.Color() { R = r2, G = g2, B = b2, A = a2 };
-
-            int thrusterCount = 3;
-            int twidth = width / thrusterCount;
-            int toffset = (int)(offsetX - width * 0.5f + twidth * 0.5);
-
-            for (int i = 0; i < thrusterCount; i++)
-            {
-                int boxHeight = height / 3;
-                int boxWidth = twidth;
-                int coneHeight = height - boxHeight;
-                Shapes.Add(new Shape() { Color = colourbox, Points = CreatePrimitiveShapes.Rectangle(toffset, (int)(offsetY + boxHeight * 0.5), boxWidth, boxHeight, CreatePrimitiveShapes.PosFrom.Center) });
-                Shapes.Add(new Shape() { Color = colourCone, Points = CreatePrimitiveShapes.CreateArc(toffset, offsetY + boxHeight + coneHeight, (int)(boxWidth * 0.5), coneHeight, CreatePrimitiveShapes.QuarterCircle, CreatePrimitiveShapes.HalfCircle, 8) });
-                toffset += twidth;
-            }
-        }
-
-        // void NewtonVectors()
-        // {
-        //     byte r = 100;
-        //     byte g = 50;
-        //     byte b = 200;
-        //     byte a = 255;
-        //     SDL.Color colour = new SDL.Color() { r = r, g = g, b = b, a = a };
-        //     var len = 0.00001 * _newtonMoveDB.OwningEntity.GetDataBlob<NewtonThrustAbilityDB>().ThrustInNewtons;
-        //     var dv = _newtonMoveDB.ManuverDeltaV;
-        //     var line = Vector3.Normalise(dv) * len ;
-        //     Vector2[] points = new Vector2[2];
-        //     points[0]= Vector2.Zero;
-        //     points[1] = new Vector2(line.X, line.Y);
-        //     var shape = new Shape() { Color = colour, Points = points };
-
-        //     Shapes.Add(shape);
-        // }
-
-
 
         public override void OnPhysicsUpdate()
         {
@@ -229,6 +110,7 @@ namespace Pulsar4X.Client
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
+            UpdateHeadingFromMotion();
 
             var mirrorMatrix = Matrix.IDMirror(true, false);
             var scaleMatrix = Matrix.IDScale(Scale, Scale);
@@ -254,37 +136,104 @@ namespace Pulsar4X.Client
             }
         }
 
+        private void UpdateHeadingFromMotion()
+        {
+            if (_uiState == null || string.IsNullOrEmpty(_systemId))
+                return;
+
+            var galaxy = _uiState.GameClient?.Galaxy;
+            var system = galaxy?.GetSystem(_systemId);
+            var entity = system?.GetEntity(_entityId);
+            if (galaxy == null || system == null || entity == null)
+                return;
+
+            DateTime now = galaxy.Time.GameDateTime;
+            Vector3 vel = Vector3.Zero;
+
+            if (entity.GetView<WarpMovingView>() is { } warp)
+            {
+                // Travel direction along the warp chord.
+                vel = new Vector3(
+                    warp.ExitPointAbsolute.X - warp.EntryPointAbsolute.X,
+                    warp.ExitPointAbsolute.Y - warp.EntryPointAbsolute.Y,
+                    0);
+                if (vel.Length() < 1e-3)
+                {
+                    var pos = entity.GetView<PositionView>();
+                    if (pos != null)
+                    {
+                        vel = new Vector3(
+                            warp.ExitPointAbsolute.X - pos.AbsolutePosition.X,
+                            warp.ExitPointAbsolute.Y - pos.AbsolutePosition.Y,
+                            0);
+                    }
+                }
+            }
+            else if (entity.GetView<NewtonMoveView>() is { } newton)
+            {
+                vel = new Vector3(newton.CurrentVectorMps.X, newton.CurrentVectorMps.Y, newton.CurrentVectorMps.Z);
+                if (vel.Length() < 1e-6)
+                    vel = entity.GetRelativeState(now).vel;
+            }
+            else
+            {
+                vel = entity.GetRelativeState(now).vel;
+            }
+
+            double speed = vel.Length();
+            if (speed > 1e-3)
+            {
+                Heading = (float)Math.Atan2(vel.Y, vel.X);
+                _hasVelocityHeading = true;
+            }
+            // else keep last heading so parked ships don't spin / snap to 0
+        }
+
         public override void Draw(IntPtr rendererPtr, Camera camera)
         {
-            if (_textureInitialized && _shipTexture != IntPtr.Zero)
+            IntPtr texture = _shipTexture != IntPtr.Zero ? _shipTexture : _fallbackTexture;
+            int texW = _shipTexture != IntPtr.Zero ? _textureWidth : _fallbackWidth;
+            int texH = _shipTexture != IntPtr.Zero ? _textureHeight : _fallbackHeight;
+
+            if (texture != IntPtr.Zero)
             {
-                // Calculate destination rectangle centered on the ship's position
+                float display = DisplaySizePx * Scale;
+                // Keep aspect ratio of the source sprite.
+                float aspect = texH > 0 ? (float)texW / texH : 1f;
+                float drawW = display;
+                float drawH = display;
+                if (aspect >= 1f)
+                    drawH = display / aspect;
+                else
+                    drawW = display * aspect;
+
                 var dstRect = new SDL.FRect
                 {
-                    X = ViewScreenPos.X - (_textureWidth * Scale) / 2f,
-                    Y = ViewScreenPos.Y - (_textureHeight * Scale) / 2f,
-                    W = _textureWidth * Scale,
-                    H = _textureHeight * Scale
+                    X = ViewScreenPos.X - drawW / 2f,
+                    Y = ViewScreenPos.Y - drawH / 2f,
+                    W = drawW,
+                    H = drawH
                 };
 
-                // Can add rotation if needed in future
-                // double angleDegrees = Angle.ToDegrees(Heading);
-                double angleDegrees = 0;
+                // Generated / PNG sprites face "nose up". Camera: +worldY → screen up.
+                // Math heading 0 = +X; SDL angle is clockwise degrees from the texture's up.
+                // Rotate by (90° − heading°) so the nose tracks flight direction.
+                double angleDegrees = _hasVelocityHeading || _shipTexture != IntPtr.Zero
+                    ? Angle.ToDegrees(Math.PI * 0.5 - Heading)
+                    : 0;
 
-                // Render the texture with rotation
                 SDL.RenderTextureRotated(
                     rendererPtr,
-                    _shipTexture,
-                    IntPtr.Zero,      // Source rect (null = entire texture)
+                    texture,
+                    IntPtr.Zero,
                     ref dstRect,
                     angleDegrees,
-                    IntPtr.Zero,      // Center point (null = center of dstRect)
+                    IntPtr.Zero,
                     SDL.FlipMode.None
                 );
             }
             else
             {
-                // Fall back to the base line drawing if texture not available
                 base.Draw(rendererPtr, camera);
             }
         }

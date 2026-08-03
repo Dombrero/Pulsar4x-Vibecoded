@@ -20,6 +20,7 @@ using Pulsar4X.Names;
 using SDL3;
 
 using Pulsar4X.Client.Host;
+using Pulsar4X.Client.ShipVisuals;
 
 namespace Pulsar4X.Client
 {
@@ -42,6 +43,8 @@ namespace Pulsar4X.Client
         List<(ComponentDesign design, int count)> SelectedComponents = new List<(ComponentDesign design, int count)>();
 
         private IntPtr _shipImgPtr;
+        private readonly ShipVisualComposer _shipVisualComposer = new();
+        private RawBmp? _shipVisualBmp;
 
         //TODO: armor, temporary, maybe density should be an "equvelent" and have a different mass? (damage calcs use density for penetration)
         List<ArmorBlueprint> _armorSelection = new List<ArmorBlueprint>();
@@ -619,12 +622,23 @@ namespace Pulsar4X.Client
 
         internal void GenImage()
         {
-            if(_profile == null)
-                throw new NullReferenceException();
+            var designName = Utils.StringFromBytes(SelectedDesignName);
+            double volume = 0;
+            foreach (var component in SelectedComponents)
+                volume += component.design.VolumePerUnit * component.count;
 
-            RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, _profile.DamageProfile, ref _shipImgPtr, SDL.PixelFormat.ARGB8888);
-            rawimagewidth = _profile.DamageProfile.Width;
-            rawimageheight = _profile.DamageProfile.Height;
+            var visualState = ShipVisualStateMapper.FromDesign(
+                designName,
+                SelectedComponents,
+                _armor,
+                _armorThickness,
+                volume);
+
+            var rgba = _shipVisualComposer.Compose(visualState);
+            _shipVisualBmp = ShipVisualRawBmp.ToRawBmp(rgba);
+            RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, _shipVisualBmp.Value, ref _shipImgPtr, SDL.PixelFormat.ARGB8888);
+            rawimagewidth = _shipVisualBmp.Value.Width;
+            rawimageheight = _shipVisualBmp.Value.Height;
             _imagecreated = true;
         }
 
@@ -776,6 +790,13 @@ namespace Pulsar4X.Client
             NewShipButton();
             ImGui.SameLine();
             ImGui.Checkbox("Show Pic", ref displayimage);
+            if (displayimage)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled("(generated visual)");
+                if (!_imagecreated && _armor != null)
+                    GenImage();
+            }
             ImGui.NewLine();
 
             var size = ImGui.GetContentRegionAvail();

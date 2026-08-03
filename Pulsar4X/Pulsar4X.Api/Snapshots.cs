@@ -220,7 +220,9 @@ public sealed record ShipView(
     /// <summary>True when this hull can contribute to a fleet geo survey.</summary>
     bool CanGeoSurvey = false,
     /// <summary>True when this hull can contribute to a fleet grav/JP survey.</summary>
-    bool CanGravSurvey = false) : IComponentView;
+    bool CanGravSurvey = false,
+    /// <summary>Stable ship-design id for client-side visuals/caching; null when unknown.</summary>
+    string? DesignId = null) : IComponentView;
 
 /// <summary>Newtonian propulsion stats; ΔV values are pre-computed server-side.</summary>
 public sealed record ThrustView(
