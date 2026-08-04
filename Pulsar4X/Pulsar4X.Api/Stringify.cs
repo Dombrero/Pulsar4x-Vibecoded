@@ -2,7 +2,7 @@ using System;
 
 namespace Pulsar4X.Api
 {
-     public static class Stringify
+    public static class Stringify
     {
 
         public static string Quantity(double number, string format = "0.###", bool fullSuffix = false)
@@ -42,9 +42,10 @@ namespace Pulsar4X.Api
             else if (absCnt > 1.0e-6)
             {
                 cnt = number * 1.0e-3;
-                stringCount = cnt.ToString(format) +(fullSuffix? " milli" : "m");
+                stringCount = cnt.ToString(format) + (fullSuffix ? " milli" : "m");
             }
-            else {
+            else
+            {
                 stringCount = number.ToString(format);
             }
 
@@ -207,7 +208,7 @@ namespace Pulsar4X.Api
                 volume_m = volume_m * 1.0e-15;
                 stringVolume = volume_m.ToString(format) + " Pm^3";
             }
-            else if(volume_m > 1.0e12)
+            else if (volume_m > 1.0e12)
             {
                 volume_m = volume_m * 1.0e-12;
                 stringVolume = volume_m.ToString(format) + " Tm^3";
@@ -227,7 +228,8 @@ namespace Pulsar4X.Api
                 volume_m = volume_m * 1.0e-3;
                 stringVolume = volume_m.ToString(format) + " Km^3";
             }
-            else {
+            else
+            {
                 stringVolume = volume_m.ToString(format) + " m^3";
             }
 
@@ -248,7 +250,7 @@ namespace Pulsar4X.Api
                 area_m2 = area_m2 * 1.0e-15;
                 stringArea = area_m2.ToString(format) + " Pm^2";
             }
-            else if(area_m2 > 1.0e12)
+            else if (area_m2 > 1.0e12)
             {
                 area_m2 = area_m2 * 1.0e-12;
                 stringArea = area_m2.ToString(format) + " Tm^2";
@@ -268,7 +270,8 @@ namespace Pulsar4X.Api
                 area_m2 = area_m2 * 1.0e-3;
                 stringArea = area_m2.ToString(format) + " Km^2";
             }
-            else {
+            else
+            {
                 stringArea = area_m2.ToString(format) + " m^2";
             }
 
@@ -289,7 +292,7 @@ namespace Pulsar4X.Api
                 volLtr *= 1.0e-15;
                 stringVolume = volLtr.ToString(format) + (fullSuffix ? " petalitre" : "PL");
             }
-            else if(volLtr > 1.0e12)
+            else if (volLtr > 1.0e12)
             {
                 volLtr *= 1.0e-12;
                 stringVolume = volLtr.ToString(format) + (fullSuffix ? " teralitre" : "TL");
@@ -309,14 +312,15 @@ namespace Pulsar4X.Api
                 volLtr *= 1.0e-3;
                 stringVolume = volLtr.ToString(format) + (fullSuffix ? " kilolitre" : "KL");
             }
-            else {
+            else
+            {
                 stringVolume = volLtr.ToString(format) + " Ltr";
             }
 
             return stringVolume;
         }
 
-        public static string Distance(double length_m,  string format = "#,0.###")
+        public static string Distance(double length_m, string format = "#,0.###")
         {
 
             string stringDistance = "0 m";
@@ -350,7 +354,7 @@ namespace Pulsar4X.Api
             return stringDistance;
         }
 
-        public static string DistanceSmall(double length_nm,  string format = "0.###")
+        public static string DistanceSmall(double length_nm, string format = "0.###")
         {
 
             string stringDistance = "0 m";

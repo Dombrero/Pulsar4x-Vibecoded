@@ -10,8 +10,8 @@ namespace Pulsar4X.Client
     public class Matrix
     {
         double[] X = new double[3] { 1, 0, 0 };
-        double[] Y = new double[3] { 0, 1, 0};
-        double[] Z = new double[3] {0, 0, 1};
+        double[] Y = new double[3] { 0, 1, 0 };
+        double[] Z = new double[3] { 0, 0, 1 };
 
         public static Matrix IDScale(double scaleX, double scaleY)
         {
@@ -19,7 +19,7 @@ namespace Pulsar4X.Client
             {
                 X = new double[3] { scaleX, 0, 0 },
                 Y = new double[3] { 0, scaleY, 0 },
-                Z = new double[3] {0, 0, 1}
+                Z = new double[3] { 0, 0, 1 }
             };
             return matrix;
         }
@@ -28,9 +28,9 @@ namespace Pulsar4X.Client
         {
             Matrix matrix = new Matrix()
             {
-                X = new double[3] { 1, 0, 0},
+                X = new double[3] { 1, 0, 0 },
                 Y = new double[3] { 0, 1, 0 },
-                Z = new double[3] {translateX, tranlsateY, 1}
+                Z = new double[3] { translateX, tranlsateY, 1 }
             };
             return matrix;
 
@@ -54,7 +54,7 @@ namespace Pulsar4X.Client
             {
                 X = new double[3] { Math.Cos(radians), -Math.Sin(radians), 0 },
                 Y = new double[3] { Math.Sin(radians), Math.Cos(radians), 0 },
-                Z = new double[3] {0, 0, 1}
+                Z = new double[3] { 0, 0, 1 }
             };
             return matrix;
         }
@@ -65,7 +65,7 @@ namespace Pulsar4X.Client
             {
                 X = new double[3] { 0, -1, 0 },
                 Y = new double[3] { 1, 0, 0 },
-                Z = new double[3] {0, 0, 1},
+                Z = new double[3] { 0, 0, 1 },
             };
             return matrix;
         }
@@ -76,7 +76,7 @@ namespace Pulsar4X.Client
             {
                 X = new double[3] { -1, 0, 0 },
                 Y = new double[3] { 0, -1, 0 },
-                Z = new double[3] {0, 0, 1},
+                Z = new double[3] { 0, 0, 1 },
             };
             return matrix;
         }
@@ -87,7 +87,7 @@ namespace Pulsar4X.Client
             {
                 X = new double[3] { 0, 1, 0 },
                 Y = new double[3] { -1, 0, 0 },
-                Z = new double[3] {0, 0, 1},
+                Z = new double[3] { 0, 0, 1 },
             };
             return matrix;
         }

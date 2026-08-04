@@ -24,9 +24,9 @@ namespace Pulsar4X.Ships
         public ConstructableGuiHints GuiHints { get; } = ConstructableGuiHints.CanBeLaunched;
         public int ID { get; private set; } = Game.GetEntityID();
         public string UniqueID { get; private set; } = Guid.NewGuid().ToString();
-        public string Name { get; set; }
-        public string CargoTypeID { get; }
-        public int DesignVersion { get; set; }= 0;
+        public string? Name { get; set; }
+        public string CargoTypeID { get; internal set; } = string.Empty;
+        public int DesignVersion { get; set; } = 0;
         public bool IsObsolete { get; set; } = false;
         public bool IsValid { get; set; } = true; // Used by ship designer & production
         public long MassPerUnit { get; private set; }
@@ -46,7 +46,7 @@ namespace Pulsar4X.Ships
         /// (bridge,1), (fueltank,2), (cargo,1)(fueltank,1)(engine,3) would have a bridge at teh front,
         /// then two fueltanks behind, one cargo, another single fueltank, then finaly three engines.
         /// </summary>
-        public List<(ComponentDesign design, int count)> Components;
+        public List<(ComponentDesign design, int count)> Components = new();
         public (ArmorBlueprint type, float thickness) Armor;
         public Dictionary<string, long> ResourceCosts { get; internal set; } = new Dictionary<string, long>();
         public Dictionary<string, long> MineralCosts = new Dictionary<string, long>();
@@ -68,7 +68,7 @@ namespace Pulsar4X.Ships
             batchJob.ResourcesRequiredRemaining = new Dictionary<string, long>(designInfo.ResourceCosts);
             batchJob.ProductionPointsLeft = designInfo.IndustryPointCosts;
 
-            var shipName = NameFactory.GetShipName(industryEntity.Manager.Game);
+            var shipName = NameFactory.GetShipName(industryEntity.AttachedManager.Game);
             DebugTraceLog.Info("Production",
                 $"Ship assembly complete: '{shipName}' design={designInfo.UniqueID} ({designInfo.Name}) batch {batchJob.NumberCompleted}/{batchJob.NumberOrdered} on colony#{industryEntity.Id}",
                 industryEntity.StarSysDateTime);
@@ -98,7 +98,7 @@ namespace Pulsar4X.Ships
         }
 
         public int CreditCost;
-        public EntityDamageProfileDB DamageProfileDB;
+        public EntityDamageProfileDB? DamageProfileDB;
 
         [JsonConstructor]
         internal ShipDesign()
@@ -107,7 +107,7 @@ namespace Pulsar4X.Ships
 
         public ShipDesign(FactionInfoDB faction, string name, List<(ComponentDesign design, int count)> components, (ArmorBlueprint armorType, float thickness) armor, string? id = null)
         {
-            if(id != null) UniqueID = id;
+            if (id != null) UniqueID = id;
             _factionId = faction.OwningEntity.Id;
             Name = name;
             Components = components;
@@ -182,7 +182,7 @@ namespace Pulsar4X.Ships
                 var r1 = v1.y; //radius of top
                 var r2 = v2.y; //radius of bottom
                 var h = v2.x - v1.x; //height
-                var c1 = 2* Math.PI * r1; //circumference of top
+                var c1 = 2 * Math.PI * r1; //circumference of top
                 var c2 = 2 * Math.PI * r2; //circumference of bottom
                 var sl = Math.Sqrt(h * h + (r1 - r2) * (r1 - r2)); //slope of side
 
@@ -192,6 +192,8 @@ namespace Pulsar4X.Ships
             }
 
             var aresource = cargoLibrary.GetAny(armor.armorType.ResourceID);
+            if (aresource is null)
+                return 0;
             var amass = aresource.MassPerUnit;
             var avol = aresource.VolumePerUnit;
             var aden = amass / avol;
@@ -210,7 +212,7 @@ namespace Pulsar4X.Ships
             where T : IComponentDesignAttribute
         {
             bool hasComponents = false;
-             components = new ();
+            components = new();
             foreach (var component in Components)
             {
                 if (component.design.HasAttribute<T>())

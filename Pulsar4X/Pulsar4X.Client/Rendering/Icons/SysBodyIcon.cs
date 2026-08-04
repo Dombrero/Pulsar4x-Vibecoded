@@ -87,7 +87,7 @@ namespace Pulsar4X.Client
 
         public bool Contains(System.Drawing.PointF point)
         {
-            System.Numerics.Vector2 v = new (ViewScreenPos.X, ViewScreenPos.Y);
+            System.Numerics.Vector2 v = new(ViewScreenPos.X, ViewScreenPos.Y);
             return System.Numerics.Vector2.Distance(v, point.ToVector2()) <= Scale * 100;
         }
 

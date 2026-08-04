@@ -15,7 +15,7 @@ namespace Pulsar4X.Fleets
         public bool InheritOrders { get; internal set; } = true;
 
         [JsonProperty]
-        public SafeList<ConditionalOrder> StandingOrders { get; internal set; } = new ();
+        public SafeList<ConditionalOrder> StandingOrders { get; internal set; } = new();
 
         /// <summary>
         /// Index into <see cref="StandingOrders"/> for the mission the fleet is currently committed to.
@@ -38,7 +38,7 @@ namespace Pulsar4X.Fleets
         [JsonProperty]
         public string? StandingStatusMessage { get; set; }
 
-        public FleetDB() : base(null) {}
+        public FleetDB() : base(null) { }
 
         public override object Clone()
         {

@@ -14,7 +14,7 @@ namespace Pulsar4X.Datablobs
     {
 
         [JsonProperty]
-        public string SystemGuid;
+        public string? SystemGuid;
 
         /// <summary>
         /// The RelativePosition as a Vec3, in m.
@@ -48,7 +48,6 @@ namespace Pulsar4X.Datablobs
 
         [JsonProperty]
         private Vector3 _positionInMeters;
-
         /// <summary>
         /// Get or Set the position relative to the parent Entity's abolutePositon
         /// </summary>
@@ -100,7 +99,7 @@ namespace Pulsar4X.Datablobs
 
         public PositionDB(Vector3 relativePos_m, Entity SOIParent) : base(SOIParent)
         {
-            SystemGuid = SOIParent.Manager.ManagerID;
+            SystemGuid = SOIParent.AttachedManager.ManagerID;
             RelativePosition = relativePos_m;
         }
 

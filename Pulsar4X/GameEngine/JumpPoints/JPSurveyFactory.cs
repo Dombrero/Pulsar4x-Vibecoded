@@ -14,7 +14,7 @@ namespace Pulsar4X.JumpPoints
     {
         internal static void GenerateJPSurveyPoints(StarSystem system, Dictionary<double, int>? ringSettings = null)
         {
-            if(ringSettings == null)
+            if (ringSettings == null)
             {
                 ringSettings = new Dictionary<double, int>
                 {
@@ -40,7 +40,7 @@ namespace Pulsar4X.JumpPoints
 
         public static List<ProtoEntity> GenerateSurveyRing(double distance, int numToGenerate, int startingNumber = 0)
         {
-            double degreeOffsetPerPoint = 2*Math.PI / numToGenerate;
+            double degreeOffsetPerPoint = 2 * Math.PI / numToGenerate;
 
             var surveyRingList = new List<ProtoEntity>(numToGenerate);
 

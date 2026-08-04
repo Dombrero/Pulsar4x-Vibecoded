@@ -25,7 +25,6 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DefineConstants>DEBUG</DefineConstants>
-    <NoWarn>0414;0649;0169</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Linux_x64' ">
     <IntermediateOutputPath>obj\Linux_x64\Release</IntermediateOutputPath>

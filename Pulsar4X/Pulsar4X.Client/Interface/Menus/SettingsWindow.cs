@@ -9,7 +9,6 @@ namespace Pulsar4X.Client
 {
     public class SettingsWindow : UniquePulsarGuiWindow<SettingsWindow>
     {
-        ImGuiTreeNodeFlags _xpanderFlags = ImGuiTreeNodeFlags.CollapsingHeader;
         List<List<UserOrbitSettings>> _userOrbitSettingsMtx;
         //UserOrbitSettings _userOrbitSettings;
         private bool _showSizesDemo = false;
@@ -37,7 +36,7 @@ namespace Pulsar4X.Client
         }
         internal static SettingsWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<SettingsWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<SettingsWindow>(out var window))
             {
                 return window;
             }
@@ -101,21 +100,21 @@ namespace Pulsar4X.Client
                     }
 
                     ImGui.Separator();
-                    
+
                     if (ImGui.Button("Apply Settings"))
                     {
                         ApplySettings();
                     }
-                    
+
                     ImGui.SameLine();
-                    
+
                     if (ImGui.Button("Save Settings"))
                     {
                         SaveSettings();
                     }
-                    
+
                     ImGui.SameLine();
-                    
+
                     if (ImGui.Button("Reset to Defaults"))
                     {
                         ResetToDefaults();
@@ -132,7 +131,7 @@ namespace Pulsar4X.Client
             ImGui.Separator();
 
             var settings = _uiState.GameSettings;
-            
+
             // Debug info
             var currentWindowSize = _uiState.ViewPort.Size;
             ImGui.Text($"Current Window Size: {(int)currentWindowSize.Width}x{(int)currentWindowSize.Height}");
@@ -140,7 +139,7 @@ namespace Pulsar4X.Client
                         $"{settings.WindowWidth}x{settings.WindowHeight}" :
                         "Automatic"));
             ImGui.Separator();
-            
+
             // Display Mode
             ImGui.Text("Display Mode:");
             int displayModeIndex = (int)settings.DisplayMode;
@@ -295,12 +294,12 @@ namespace Pulsar4X.Client
             ImGui.Checkbox("DemoWindow", ref _uiState.ShowDemoWindow);
 
             ImGui.Checkbox("Show Sizes Demo", ref _showSizesDemo);
-            if(_showSizesDemo)
+            if (_showSizesDemo)
             {
                 SizesDemo.Display();
             }
 
-            if(ImGui.Checkbox("Show Selector", ref _showSelectorWindow))
+            if (ImGui.Checkbox("Show Selector", ref _showSelectorWindow))
             {
                 Selector.GetInstance().SetActive(_showSelectorWindow);
             }
@@ -370,7 +369,7 @@ namespace Pulsar4X.Client
                     float _nameZoomLevel = _uiState.DrawNameZoomLvl[otype];
                     ImGui.SliderFloat("Draw Names at Zoom: ", ref _nameZoomLevel, 0.01f, 10000f);
                     _uiState.DrawNameZoomLvl[otype] = _nameZoomLevel;
-                    
+
                     for (int j = 0; j < Utils.EnumEntries<UserOrbitSettings.OrbitTrajectoryType>(); j++)
                     {
                         UserOrbitSettings.OrbitTrajectoryType trtype = (UserOrbitSettings.OrbitTrajectoryType)j;
@@ -401,7 +400,7 @@ namespace Pulsar4X.Client
                                 _userOrbitSettings.Grn = Helpers.Color(_colour.Y);
                                 _userOrbitSettings.Blu = Helpers.Color(_colour.Z);
                             }
-                            
+
                             if (ImGui.SliderInt("Max Alpha ##" + i + j, ref _maxAlpha, _minAlpha, 255, ""))
                             {
                                 _userOrbitSettings.MaxAlpha = (byte)_maxAlpha;
@@ -420,7 +419,7 @@ namespace Pulsar4X.Client
                 }
             }
 
-            if(ImGui.Button("Save Map Changes"))
+            if (ImGui.Button("Save Map Changes"))
             {
                 ((PulsarMainWindow)_uiState.ViewPort).SaveOrbitSettings();
             }

@@ -49,18 +49,21 @@ namespace Pulsar4X.Extensions
         /// <param name="entity"></param>
         /// <param name="positionDB">provide this to save looking it up</param>
         /// <returns></returns>
-        public static Entity? GetSOIParentEntity(this Entity entity, PositionDB? positionDB = null)
+        public static Entity GetSOIParentEntity(this Entity entity, PositionDB? positionDB = null)
         {
-            if(positionDB == null)
-                return entity.TryGetDataBlob<PositionDB>(out positionDB) ? positionDB.Parent : null;
+            if (positionDB == null)
+            {
+                if (!entity.TryGetDataBlob<PositionDB>(out positionDB))
+                    return Entity.InvalidEntity;
+            }
 
-            return positionDB.Parent;
+            return positionDB.Parent ?? Entity.InvalidEntity;
         }
 
 
         public static double GetSOI_m(this Entity entity)
         {
-            if(entity.TryGetDataBlob<OrbitDB>(out var orbitDB) && orbitDB.Parent != null) //if we're not the parent star
+            if (entity.TryGetDataBlob<OrbitDB>(out var orbitDB) && orbitDB.Parent != null) //if we're not the parent star
             {
                 var semiMajAxis = orbitDB.SemiMajorAxis;
 
@@ -215,13 +218,13 @@ namespace Pulsar4X.Extensions
         /// <returns>true and the colony ID or false and -1</returns>
         public static (bool, int) IsOrHasColony(this Entity entity)
         {
-            if(entity.HasDataBlob<ColonyInfoDB>()) return (true, entity.Id);
+            if (entity.HasDataBlob<ColonyInfoDB>()) return (true, entity.Id);
 
-            if(entity.TryGetDataBlob<PositionDB>(out var positionDB))
+            if (entity.TryGetDataBlob<PositionDB>(out var positionDB))
             {
-                foreach(var child in positionDB.Children)
+                foreach (var child in positionDB.Children)
                 {
-                    if(child.HasDataBlob<ColonyInfoDB>())
+                    if (child.HasDataBlob<ColonyInfoDB>())
                         return (true, child.Id);
                 }
             }
@@ -236,13 +239,13 @@ namespace Pulsar4X.Extensions
         /// <returns>True if itself or any child entities in a fleet have the ability to conduct geo-surveys</returns>
         public static bool HasGeoSurveyAbility(this Entity entity)
         {
-            if(entity.HasDataBlob<GeoSurveyAbilityDB>()) return true;
+            if (entity.HasDataBlob<GeoSurveyAbilityDB>()) return true;
 
-            if(entity.TryGetDataBlob<FleetDB>(out var fleetDB))
+            if (entity.TryGetDataBlob<FleetDB>(out var fleetDB))
             {
-                foreach(var child in fleetDB.Children)
+                foreach (var child in fleetDB.Children)
                 {
-                    if(child.HasGeoSurveyAbility())
+                    if (child.HasGeoSurveyAbility())
                         return true;
                 }
             }
@@ -252,13 +255,13 @@ namespace Pulsar4X.Extensions
 
         public static bool HasJPSurveyAbililty(this Entity entity)
         {
-            if(entity.HasDataBlob<JPSurveyAbilityDB>()) return true;
+            if (entity.HasDataBlob<JPSurveyAbilityDB>()) return true;
 
-            if(entity.TryGetDataBlob<FleetDB>(out var fleetDB))
+            if (entity.TryGetDataBlob<FleetDB>(out var fleetDB))
             {
-                foreach(var child in fleetDB.Children)
+                foreach (var child in fleetDB.Children)
                 {
-                    if(child.HasJPSurveyAbililty())
+                    if (child.HasJPSurveyAbililty())
                         return true;
                 }
             }
@@ -268,7 +271,7 @@ namespace Pulsar4X.Extensions
 
         public static CargoDefinitionsLibrary? GetFactionCargoDefinitions(this Entity entity)
         {
-            if(entity.GetFactionOwner.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
+            if (entity.GetFactionOwner.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
             {
                 return factionInfoDB.Data.CargoGoods;
             }

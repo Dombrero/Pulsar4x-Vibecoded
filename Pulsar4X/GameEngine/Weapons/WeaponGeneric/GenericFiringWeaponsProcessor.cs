@@ -14,14 +14,14 @@ public class GenericFiringWeaponsProcessor : IHotloopProcessor
 
     public void ProcessEntity(Entity entity, int deltaSeconds)
     {
-        if(entity.TryGetDataBlob<GenericFiringWeaponsDB>(out var db))
+        if (entity.TryGetDataBlob<GenericFiringWeaponsDB>(out var db))
             UpdateWeapons(db);
     }
 
     public int ProcessManager(EntityManager manager, int deltaSeconds)
     {
         var list = manager.GetAllDataBlobsOfType<GenericFiringWeaponsDB>();
-        foreach(GenericFiringWeaponsDB db in list)
+        foreach (GenericFiringWeaponsDB db in list)
             UpdateWeapons(db);
         return list.Count;
     }
@@ -32,11 +32,11 @@ public class GenericFiringWeaponsProcessor : IHotloopProcessor
         for (int i = 0; i < db.WpnIDs.Length; i++)
         {
             int shots = (int)(db.InternalMagQty[i] / db.AmountPerShot[i]);
-            if (shots >= db.MinShotsPerfire[i] && db.OwningEntity != null)
+            if (shots >= db.MinShotsPerfire[i] && db.OwningEntity.IsValid)
             {
                 db.ShotsFiredThisTick[i] = shots;
                 var tgt = db.FireControlStates[i].Target;
-                if(tgt.IsValid)
+                if (tgt.IsValid)
                 {
                     db.FireInstructions[i].FireWeapon(db.OwningEntity, tgt, shots);
                     db.InternalMagQty[i] -= shots * db.AmountPerShot[i];
@@ -51,7 +51,7 @@ public class GenericFiringWeaponsProcessor : IHotloopProcessor
         }
 
         //reload all internal magazines.
-        for (int i = 0; i < db.WpnIDs.Length ; i++)
+        for (int i = 0; i < db.WpnIDs.Length; i++)
         {
             var tickReloadAmount = db.ReloadAmountsPerSec[i];
             var magQty = Math.Max(db.InternalMagQty[i] + tickReloadAmount, db.InternalMagSizes[i]);
@@ -68,12 +68,12 @@ public class GenericFiringWeaponsProcessor : IHotloopProcessor
     /// <param name="fireControlAbilityStates"></param>
     private void ValidateTargetExists(GenericFiringWeaponsDB genericFiringWeaponsDB, FireControlAbilityState[] fireControlAbilityStates)
     {
-        for(int i  = 0; i < fireControlAbilityStates.Length; i++)
+        for (int i = 0; i < fireControlAbilityStates.Length; i++)
         {
-            if(!fireControlAbilityStates[i].Target.IsValid)
+            if (!fireControlAbilityStates[i].Target.IsValid)
             {
                 SetOpenFireControlOrder.CreateCmd(
-                    genericFiringWeaponsDB.OwningEntity.Manager.Game,
+                    genericFiringWeaponsDB.OwningEntity.AttachedManager.Game,
                     genericFiringWeaponsDB.OwningEntity.FactionOwnerID,
                     genericFiringWeaponsDB.OwningEntity.Id,
                     fireControlAbilityStates[i].ID,

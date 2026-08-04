@@ -18,7 +18,7 @@ public static class BodyVisualStateFactory
         if (entity.GetView<StarView>() is { } star)
         {
             string? starName = entity.GetView<NameView>()?.Name;
-            if (SolBodyPresets.TryGet(starName, out var solStar))
+            if (SolBodyPresets.TryGet(starName, out var solStar) && solStar is not null)
                 return solStar;
             return FromStar(entity, star);
         }
@@ -405,51 +405,116 @@ public static class BodyVisualStateFactory
     {
         BodyVisualType.Gas => new BodyVisualState
         {
-            Type = type, Size = 120, Water = 0, Clouds = 25, Atmo = 80, Craters = 0, Rings = 68,
-            Primary = BodyRgb.FromHex("#8066a2"), Secondary = BodyRgb.FromHex("#d4a879"),
-            AtmoColor = BodyRgb.FromHex("#b9a4ff"), GlowColor = BodyRgb.FromHex("#ffd54a")
+            Type = type,
+            Size = 120,
+            Water = 0,
+            Clouds = 25,
+            Atmo = 80,
+            Craters = 0,
+            Rings = 68,
+            Primary = BodyRgb.FromHex("#8066a2"),
+            Secondary = BodyRgb.FromHex("#d4a879"),
+            AtmoColor = BodyRgb.FromHex("#b9a4ff"),
+            GlowColor = BodyRgb.FromHex("#ffd54a")
         },
         BodyVisualType.Ice => new BodyVisualState
         {
-            Type = type, Size = 95, Water = 70, Clouds = 40, Atmo = 45, Craters = 26, Rings = 20,
-            Primary = BodyRgb.FromHex("#4d8eae"), Secondary = BodyRgb.FromHex("#d8f3ff"),
-            AtmoColor = BodyRgb.FromHex("#9eeaff"), GlowColor = BodyRgb.FromHex("#dff7ff")
+            Type = type,
+            Size = 95,
+            Water = 70,
+            Clouds = 40,
+            Atmo = 45,
+            Craters = 26,
+            Rings = 20,
+            Primary = BodyRgb.FromHex("#4d8eae"),
+            Secondary = BodyRgb.FromHex("#d8f3ff"),
+            AtmoColor = BodyRgb.FromHex("#9eeaff"),
+            GlowColor = BodyRgb.FromHex("#dff7ff")
         },
         BodyVisualType.Lava => new BodyVisualState
         {
-            Type = type, Size = 95, Water = 0, Clouds = 5, Atmo = 24, Craters = 42, Rings = 0, Anomalies = 12,
-            Primary = BodyRgb.FromHex("#651712"), Secondary = BodyRgb.FromHex("#d94b17"),
-            AtmoColor = BodyRgb.FromHex("#ff7b31"), GlowColor = BodyRgb.FromHex("#ffd54a")
+            Type = type,
+            Size = 95,
+            Water = 0,
+            Clouds = 5,
+            Atmo = 24,
+            Craters = 42,
+            Rings = 0,
+            Anomalies = 12,
+            Primary = BodyRgb.FromHex("#651712"),
+            Secondary = BodyRgb.FromHex("#d94b17"),
+            AtmoColor = BodyRgb.FromHex("#ff7b31"),
+            GlowColor = BodyRgb.FromHex("#ffd54a")
         },
         BodyVisualType.Moon => new BodyVisualState
         {
-            Type = type, Size = 70, Water = 0, Clouds = 0, Atmo = 5, Craters = 72, Rings = 0,
-            Primary = BodyRgb.FromHex("#8a8e96"), Secondary = BodyRgb.FromHex("#c5c8ce"),
-            AtmoColor = BodyRgb.FromHex("#aab0b8"), GlowColor = BodyRgb.FromHex("#ddd")
+            Type = type,
+            Size = 70,
+            Water = 0,
+            Clouds = 0,
+            Atmo = 5,
+            Craters = 72,
+            Rings = 0,
+            Primary = BodyRgb.FromHex("#8a8e96"),
+            Secondary = BodyRgb.FromHex("#c5c8ce"),
+            AtmoColor = BodyRgb.FromHex("#aab0b8"),
+            GlowColor = BodyRgb.FromHex("#ddd")
         },
         BodyVisualType.Asteroid => new BodyVisualState
         {
-            Type = type, Size = 55, Water = 0, Clouds = 0, Atmo = 0, Craters = 72, Rings = 0,
-            Primary = BodyRgb.FromHex("#565c65"), Secondary = BodyRgb.FromHex("#9aa1aa"),
-            AtmoColor = BodyRgb.FromHex("#8899aa"), GlowColor = BodyRgb.FromHex("#ccc")
+            Type = type,
+            Size = 55,
+            Water = 0,
+            Clouds = 0,
+            Atmo = 0,
+            Craters = 72,
+            Rings = 0,
+            Primary = BodyRgb.FromHex("#565c65"),
+            Secondary = BodyRgb.FromHex("#9aa1aa"),
+            AtmoColor = BodyRgb.FromHex("#8899aa"),
+            GlowColor = BodyRgb.FromHex("#ccc")
         },
         BodyVisualType.Comet => new BodyVisualState
         {
-            Type = type, Size = 50, Water = 30, Clouds = 0, Atmo = 20, Craters = 40, Rings = 0,
-            Primary = BodyRgb.FromHex("#6a7380"), Secondary = BodyRgb.FromHex("#cfe6f5"),
-            AtmoColor = BodyRgb.FromHex("#50b4ff"), GlowColor = BodyRgb.FromHex("#a0e0ff")
+            Type = type,
+            Size = 50,
+            Water = 30,
+            Clouds = 0,
+            Atmo = 20,
+            Craters = 40,
+            Rings = 0,
+            Primary = BodyRgb.FromHex("#6a7380"),
+            Secondary = BodyRgb.FromHex("#cfe6f5"),
+            AtmoColor = BodyRgb.FromHex("#50b4ff"),
+            GlowColor = BodyRgb.FromHex("#a0e0ff")
         },
         BodyVisualType.Toxic => new BodyVisualState
         {
-            Type = type, Size = 95, Water = 10, Clouds = 60, Atmo = 90, Craters = 15, Rings = 0,
-            Primary = BodyRgb.FromHex("#4a6b2f"), Secondary = BodyRgb.FromHex("#9acd32"),
-            AtmoColor = BodyRgb.FromHex("#b4ff68"), GlowColor = BodyRgb.FromHex("#d4ff8a")
+            Type = type,
+            Size = 95,
+            Water = 10,
+            Clouds = 60,
+            Atmo = 90,
+            Craters = 15,
+            Rings = 0,
+            Primary = BodyRgb.FromHex("#4a6b2f"),
+            Secondary = BodyRgb.FromHex("#9acd32"),
+            AtmoColor = BodyRgb.FromHex("#b4ff68"),
+            GlowColor = BodyRgb.FromHex("#d4ff8a")
         },
         _ => new BodyVisualState // Terrestrial / Earth-like default
         {
-            Type = BodyVisualType.Terrestrial, Size = 95, Water = 60, Clouds = 52, Atmo = 72, Craters = 8, Rings = 0,
-            Primary = BodyRgb.FromHex("#327da6"), Secondary = BodyRgb.FromHex("#74c6a4"),
-            AtmoColor = BodyRgb.FromHex("#68d8ff"), GlowColor = BodyRgb.FromHex("#ffd54a")
+            Type = BodyVisualType.Terrestrial,
+            Size = 95,
+            Water = 60,
+            Clouds = 52,
+            Atmo = 72,
+            Craters = 8,
+            Rings = 0,
+            Primary = BodyRgb.FromHex("#327da6"),
+            Secondary = BodyRgb.FromHex("#74c6a4"),
+            AtmoColor = BodyRgb.FromHex("#68d8ff"),
+            GlowColor = BodyRgb.FromHex("#ffd54a")
         }
     };
 

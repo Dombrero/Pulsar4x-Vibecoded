@@ -21,7 +21,7 @@ namespace Pulsar4X.Technology
         }
 
         [JsonProperty]
-        private string _bonusCategory;
+        private string? _bonusCategory;
         public string BonusCategory
         {
             get { return _bonusCategory; }
@@ -62,7 +62,7 @@ namespace Pulsar4X.Technology
             componentInstance.SpawnedEntityId = entity.Id;
 
             // Add the new entity to the system
-            parentEntity.Manager.AddEntity(entity);
+            parentEntity.AttachedManager.AddEntity(entity);
 
             // Setup the ResearcherDB
             var researcherDB = new ResearcherDB(componentInstance.Design)
@@ -73,7 +73,7 @@ namespace Pulsar4X.Technology
             };
 
             // By default the bonus category gets a 10% bonus
-            if(!string.IsNullOrEmpty(_bonusCategory))
+            if (!string.IsNullOrEmpty(_bonusCategory))
                 researcherDB.BonusCategories.Add(_bonusCategory, 0.1);
 
             // Finally add the db to the entity
@@ -88,9 +88,9 @@ namespace Pulsar4X.Technology
         public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
         {
             // Try to remove the entity
-            if(parentEntity.Manager.TryGetEntityById(componentInstance.SpawnedEntityId, out var entity))
+            if (parentEntity.AttachedManager.TryGetEntityById(componentInstance.SpawnedEntityId, out var entity))
             {
-                parentEntity.Manager.TagEntityForRemoval(entity);
+                parentEntity.AttachedManager.TagEntityForRemoval(entity);
             }
         }
 

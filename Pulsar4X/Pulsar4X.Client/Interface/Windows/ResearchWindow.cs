@@ -11,7 +11,7 @@ namespace Pulsar4X.Client
 {
     public class ResearchWindow : UniquePulsarGuiWindow<ResearchWindow>
     {
-        private readonly Vector2 invisButtonSize = new (15, 15);
+        private readonly Vector2 invisButtonSize = new(15, 15);
 
         // The lab is selected by entity id and re-resolved each frame: labs are entities in the
         // active system's snapshot, which is replaced wholesale by server pushes.
@@ -24,8 +24,8 @@ namespace Pulsar4X.Client
         private ResearchSnapshot? _research;
         private string[] _categoryNames = Array.Empty<string>();
         private string[] _categoryIds = Array.Empty<string>();
-        private Dictionary<string, TechSnapshot> _techsById = new ();
-        private List<TechSnapshot> _researchableTechs = new ();
+        private Dictionary<string, TechSnapshot> _techsById = new();
+        private List<TechSnapshot> _researchableTechs = new();
 
         private ResearchWindow()
         {
@@ -33,7 +33,7 @@ namespace Pulsar4X.Client
 
         internal static ResearchWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<ResearchWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<ResearchWindow>(out var window))
             {
                 return window;
             }
@@ -76,7 +76,7 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive)
+            if (!IsActive)
                 return;
 
             var galaxy = _uiState.GameClient?.Galaxy;
@@ -84,7 +84,7 @@ namespace Pulsar4X.Client
 
             if (Window.Begin("Research and Development", ref IsActive, _flags))
             {
-                if(galaxy != null && research != null)
+                if (galaxy != null && research != null)
                 {
                     if (!ReferenceEquals(research, _research))
                         RefreshDerivedData(research);
@@ -99,7 +99,7 @@ namespace Pulsar4X.Client
                     // Keep the selection valid, defaulting to the first lab so the
                     // window is immediately usable without an extra click.
                     EntitySnapshot? selectedLab = null;
-                    if(labs.Count > 0)
+                    if (labs.Count > 0)
                     {
                         selectedLab = labs.FirstOrDefault(l => l.Id == _selectedLabId) ?? labs[0];
                     }
@@ -109,7 +109,7 @@ namespace Pulsar4X.Client
                     var labListSize = new Vector2(Styles.LeftColumnWidthLg, windowContentSize.Y);
                     var detailSize = new Vector2(windowContentSize.X - Styles.LeftColumnWidthLg - 8, windowContentSize.Y);
 
-                    if(ImGui.BeginChild("LabList", labListSize, ImGuiChildFlags.Borders))
+                    if (ImGui.BeginChild("LabList", labListSize, ImGuiChildFlags.Borders))
                     {
                         DisplayHelpers.Header("Research Labs", "Select a lab to manage its research queue");
                         DisplayLabList(labs);
@@ -118,9 +118,9 @@ namespace Pulsar4X.Client
                     TutorialHighlight.ReportItem(TutorialHighlightRegion.ResearchLabList);
 
                     ImGui.SameLine();
-                    if(ImGui.BeginChild("LabDetail", detailSize, ImGuiChildFlags.Borders))
+                    if (ImGui.BeginChild("LabDetail", detailSize, ImGuiChildFlags.Borders))
                     {
-                        if(selectedLab != null)
+                        if (selectedLab != null)
                             DisplayLabDetail(selectedLab, research);
                         else
                             ImGui.TextColored(Styles.DescriptiveColor, "No research labs in this system.");
@@ -135,19 +135,19 @@ namespace Pulsar4X.Client
 
         private void DisplayLabList(List<EntitySnapshot> labs)
         {
-            foreach(var lab in labs)
+            foreach (var lab in labs)
             {
                 var researcher = lab.GetView<ResearcherView>();
-                if(researcher == null)
+                if (researcher == null)
                     continue;
 
                 ImGui.PushID(lab.Id);
 
-                if(ImGui.Selectable(researcher.DesignName + $"###{lab.Id}", _selectedLabId == lab.Id))
+                if (ImGui.Selectable(researcher.DesignName + $"###{lab.Id}", _selectedLabId == lab.Id))
                 {
                     _selectedLabId = lab.Id;
                 }
-                if(ImGui.IsItemHovered() && researcher.DesignTemplateName.Length > 0)
+                if (ImGui.IsItemHovered() && researcher.DesignTemplateName.Length > 0)
                 {
                     DisplayHelpers.DescriptiveTooltip(
                         researcher.DesignName,
@@ -158,7 +158,7 @@ namespace Pulsar4X.Client
                 ImGui.TextColored(Styles.DescriptiveColor, researcher.LocationName.Length > 0 ? researcher.LocationName : "Unknown");
 
                 var currentTechId = researcher.TechQueue.FirstOrDefault();
-                if(currentTechId != null && _techsById.TryGetValue(currentTechId, out var tech) && tech.IsResearchable)
+                if (currentTechId != null && _techsById.TryGetValue(currentTechId, out var tech) && tech.IsResearchable)
                 {
                     float frac = (float)tech.ResearchProgress / tech.ResearchCost;
                     ImGui.ProgressBar(frac, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight()), tech.Name);
@@ -177,13 +177,13 @@ namespace Pulsar4X.Client
         private void DisplayLabDetail(EntitySnapshot lab, ResearchSnapshot research)
         {
             var researcher = lab.GetView<ResearcherView>();
-            if(researcher == null)
+            if (researcher == null)
                 return;
 
             DisplayHelpers.Header(researcher.DesignName);
 
             // Lab stats in an aligned label/value grid, two pairs per row
-            if(ImGui.BeginTable("LabSummary", 4, ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("LabSummary", 4, ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("", ImGuiTableColumnFlags.None, 0.13f);
                 ImGui.TableSetupColumn("", ImGuiTableColumnFlags.None, 0.37f);
@@ -202,12 +202,12 @@ namespace Pulsar4X.Client
                 ImGui.TextColored(Styles.DescriptiveColor, "Scientist");
                 ImGui.TableNextColumn();
                 var nameDisplay = researcher.ScientistName ?? "Assign Scientist###assignbtn" + lab.Id;
-                if(ImGui.Button(nameDisplay))
+                if (ImGui.Button(nameDisplay))
                 {
                     _showAssignmentModal = lab.Id;
                 }
 
-                if(_showAssignmentModal > 0 && _showAssignmentModal == lab.Id)
+                if (_showAssignmentModal > 0 && _showAssignmentModal == lab.Id)
                 {
                     ResultModal.GetInstance().DisplayCustomButtons(
                         "Assign Scientist",
@@ -243,14 +243,15 @@ namespace Pulsar4X.Client
                 ImGui.TextColored(Styles.DescriptiveColor, "Cost per Day");
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(researcher.CostPerDay.Value.ToString("C0", CultureInfo.CurrentCulture));
-                if(ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered())
                 {
                     DisplayHelpers.DescriptiveTooltip(
                         "Cost per Day",
                         "",
                         $"{researcher.CostPerDay.BaseValue.ToString("C0", CultureInfo.CurrentCulture)} Base Value",
-                        delegate {
-                            foreach(var modifier in researcher.CostPerDay.Modifiers)
+                        delegate
+                        {
+                            foreach (var modifier in researcher.CostPerDay.Modifiers)
                             {
                                 ImGui.TextUnformatted($"{modifier.Delta.ToString("C0", CultureInfo.CurrentCulture)} {modifier.Name}");
                             }
@@ -261,14 +262,15 @@ namespace Pulsar4X.Client
                 ImGui.TextColored(Styles.DescriptiveColor, "Progress per Day");
                 ImGui.TableNextColumn();
                 ImGui.Text(researcher.PointsPerDay.Value.ToString());
-                if(ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered())
                 {
                     DisplayHelpers.DescriptiveTooltip(
                         "Progress per Day",
                         "",
                         $"{researcher.PointsPerDay.BaseValue} Base Value",
-                        delegate {
-                            foreach(var modifier in researcher.PointsPerDay.Modifiers)
+                        delegate
+                        {
+                            foreach (var modifier in researcher.PointsPerDay.Modifiers)
                             {
                                 ImGui.TextUnformatted($"{modifier.Delta} {modifier.Name}");
                             }
@@ -291,7 +293,7 @@ namespace Pulsar4X.Client
                     _ => ""
                 };
                 ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
-                if(ImGui.SliderInt($"###{lab.Id}-funding", ref funding, 0, 5, label))
+                if (ImGui.SliderInt($"###{lab.Id}-funding", ref funding, 0, 5, label))
                 {
                     SubmitCommand(new SetResearchFundingCommand(lab.Id, funding));
                 }
@@ -305,7 +307,7 @@ namespace Pulsar4X.Client
             ImGui.Spacing();
             var currentTechId = researcher.TechQueue.FirstOrDefault();
             var barSize = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight() + 10);
-            if(currentTechId != null && _techsById.TryGetValue(currentTechId, out var currentTech) && currentTech.IsResearchable)
+            if (currentTechId != null && _techsById.TryGetValue(currentTechId, out var currentTech) && currentTech.IsResearchable)
             {
                 float frac = (float)currentTech.ResearchProgress / currentTech.ResearchCost;
                 ImGui.ProgressBar(frac, barSize, $"{currentTech.Name}  {currentTech.ResearchProgress}/{currentTech.ResearchCost}  ({frac:P0})");
@@ -321,7 +323,7 @@ namespace Pulsar4X.Client
             var queueSize = new Vector2(contentSize.X - Styles.LeftColumnWidthLg - 8, contentSize.Y);
             var techsSize = new Vector2(Styles.LeftColumnWidthLg, contentSize.Y);
 
-            if(ImGui.BeginChild("TechQueue", queueSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("TechQueue", queueSize, ImGuiChildFlags.Borders))
             {
                 DisplayHelpers.Header("Tech Queue");
                 DisplayQueue(lab.Id, researcher);
@@ -330,13 +332,13 @@ namespace Pulsar4X.Client
             TutorialHighlight.ReportItem(TutorialHighlightRegion.ResearchTechQueue);
 
             ImGui.SameLine();
-            if(ImGui.BeginChild("AvailableTechs", techsSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("AvailableTechs", techsSize, ImGuiChildFlags.Borders))
             {
                 DisplayHelpers.Header("Available Techs", "Double click a tech to add it to this lab's queue");
 
                 var availableSize = ImGui.GetContentRegionAvail();
                 ImGui.SetNextItemWidth(availableSize.X);
-                if(ImGui.Combo("###template-filter", ref selectCategoryFilterIndex, _categoryNames, _categoryNames.Length))
+                if (ImGui.Combo("###template-filter", ref selectCategoryFilterIndex, _categoryNames, _categoryNames.Length))
                 {
                     RefreshTechs();
                 }
@@ -348,13 +350,13 @@ namespace Pulsar4X.Client
 
         private void DisplayQueue(int labId, ResearcherView researcher)
         {
-            if(researcher.TechQueue.Count == 0)
+            if (researcher.TechQueue.Count == 0)
             {
                 ImGui.TextColored(Styles.DescriptiveColor, "Queue is empty. Double click a tech on the right to add it.");
                 return;
             }
 
-            if(ImGui.BeginTable("TechQueue", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("TechQueue", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.None, 0.05f);
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.5f);
@@ -362,9 +364,9 @@ namespace Pulsar4X.Client
                 ImGui.TableHeadersRow();
 
                 int index = 0;
-                foreach(var techId in researcher.TechQueue)
+                foreach (var techId in researcher.TechQueue)
                 {
-                    if(!_techsById.TryGetValue(techId, out var tech))
+                    if (!_techsById.TryGetValue(techId, out var tech))
                         continue;
 
                     ImGui.TableNextColumn();
@@ -383,7 +385,7 @@ namespace Pulsar4X.Client
 
         private void DisplayTechs(int labId)
         {
-            if(ImGui.BeginTable("ResearchableTechs", 1, ImGuiTableFlags.BordersInnerV))
+            if (ImGui.BeginTable("ResearchableTechs", 1, ImGuiTableFlags.BordersInnerV))
             {
                 for (int i = 0; i < _researchableTechs.Count; i++)
                 {
@@ -400,15 +402,15 @@ namespace Pulsar4X.Client
                         if (ImGui.IsItemHovered())
                         {
                             string metaInfo = "";
-                            if(tech.NextLevelUnlocks.Count > 0)
+                            if (tech.NextLevelUnlocks.Count > 0)
                             {
                                 metaInfo += "Unlocks:\n";
-                                foreach(var unlockName in tech.NextLevelUnlocks)
+                                foreach (var unlockName in tech.NextLevelUnlocks)
                                 {
                                     metaInfo += unlockName + "\n";
                                 }
                             }
-                            if(tech.MaxLevel > 1)
+                            if (tech.MaxLevel > 1)
                             {
                                 metaInfo += "\nMaximum: " + tech.MaxLevelName;
                             }
@@ -439,7 +441,7 @@ namespace Pulsar4X.Client
 
             if (i > 0)
             {
-                if(ImGui.SmallButton("^" + "##" + i))
+                if (ImGui.SmallButton("^" + "##" + i))
                 {
                     SubmitCommand(new MoveTechInQueueCommand(labId, techID, MoveUp: true));
                 }
@@ -452,7 +454,7 @@ namespace Pulsar4X.Client
 
             if (i < researcher.TechQueue.Count - 1)
             {
-                if(ImGui.SmallButton("v" + "##" + i))
+                if (ImGui.SmallButton("v" + "##" + i))
                 {
                     SubmitCommand(new MoveTechInQueueCommand(labId, techID, MoveUp: false));
                 }

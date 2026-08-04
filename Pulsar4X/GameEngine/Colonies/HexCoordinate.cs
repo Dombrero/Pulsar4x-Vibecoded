@@ -57,7 +57,7 @@ namespace Pulsar4X.Colonies
             return Q == other.Q && R == other.R;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is HexCoordinate other && Equals(other);
         }

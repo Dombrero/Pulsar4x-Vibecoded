@@ -24,11 +24,13 @@ namespace Pulsar4X.Client
         }
 
 
-        private DistanceRuler() {
+        private DistanceRuler()
+        {
             //_flags = ImGuiWindowFlags.NoCollapse;
 
             var mainWin = (PulsarMainWindow)_uiState.ViewPort;
-            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) =>
+            {
                 if (_uiState.LoadedWindows.ContainsKey(typeof(DistanceRuler)) &&
                         e.Button.Button == 1 &&
                         _measuring)
@@ -50,8 +52,9 @@ namespace Pulsar4X.Client
             };
         }
 
-        internal static DistanceRuler GetInstance() {
-            if(_uiState.TryGetUniqueWindow<DistanceRuler>(out var window))
+        internal static DistanceRuler GetInstance()
+        {
+            if (_uiState.TryGetUniqueWindow<DistanceRuler>(out var window))
             {
                 return window;
             }
@@ -67,7 +70,7 @@ namespace Pulsar4X.Client
                 return;
             }
 
-            if(Window.Begin("Map Scale", ref IsActive, _flags))//Lets the user close the ruler
+            if (Window.Begin("Map Scale", ref IsActive, _flags))//Lets the user close the ruler
             {
                 //displays the size in meters of the current screen area account for zoom and window dimensions
                 var windowCornerInWorldCoordinate = _uiState.Camera.WorldCoordinate_m(
@@ -75,8 +78,8 @@ namespace Pulsar4X.Client
                         _uiState.ViewPort.Size.Height);
 
                 ImGui.Text("Current screen is:");
-                ImGui.Text(Stringify.Distance(((windowCornerInWorldCoordinate.X - _uiState.Camera.CameraWorldPosition.X)*2))+" wide.");
-                ImGui.Text(Stringify.Distance((-(windowCornerInWorldCoordinate.Y - _uiState.Camera.CameraWorldPosition.Y)*2))+" tall.");
+                ImGui.Text(Stringify.Distance(((windowCornerInWorldCoordinate.X - _uiState.Camera.CameraWorldPosition.X) * 2)) + " wide.");
+                ImGui.Text(Stringify.Distance((-(windowCornerInWorldCoordinate.Y - _uiState.Camera.CameraWorldPosition.Y) * 2)) + " tall.");
                 //ImGui.Text((_uiState.Camera.WorldCoordinate_m((int)_uiState.Camera.ViewPortSize.X, (int)_uiState.Camera.ViewPortSize.Y).X - _uiState.Camera.CameraWorldPosition_m.X).ToString());
                 var mpp = _uiState.Camera.WorldDistance_m(1);
                 /* I can't math. why can't I math?
@@ -101,13 +104,16 @@ namespace Pulsar4X.Client
                 //if the first click has already been done, then start showing distance and draw line between first click and the latest mouse position
                 else if (_firstClickDone)
                 {
-                    if(_zoomLevelAtFirstClick != _uiState.Camera.ZoomLevel){
+                    if (_zoomLevelAtFirstClick != _uiState.Camera.ZoomLevel)
+                    {
                         _stopMeasuring();
-                    }else{
+                    }
+                    else
+                    {
                         Orbital.Vector3 lastMousePos = _uiState.Camera.MouseWorldCoordinate_m();
                         System.Numerics.Vector2 lastMousePosInViewCoord = ImGui.GetMousePos();
 
-                        SDL.SetRenderDrawColor(_uiState.SDLRendererPtr, 255,255,255,255);
+                        SDL.SetRenderDrawColor(_uiState.SDLRendererPtr, 255, 255, 255, 255);
                         SDL.RenderLine(_uiState.SDLRendererPtr, (int)_firstClickInViewCoord.X, (int)_firstClickInViewCoord.Y, (int)lastMousePosInViewCoord.X, (int)lastMousePosInViewCoord.Y);
                         double metricDistance = Math.Sqrt(Math.Pow(_firstClick.X - lastMousePos.X, 2) + Math.Pow(_firstClick.Y - lastMousePos.Y, 2));
                         double lightseconds = metricDistance / 299792458;

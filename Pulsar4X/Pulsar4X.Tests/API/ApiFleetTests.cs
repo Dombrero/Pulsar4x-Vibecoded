@@ -151,7 +151,7 @@ namespace Pulsar4X.Tests
             {
                 new NameDB("Test Courier", session.FactionId, "Test Courier"),
             });
-            Assert.That(faction.TryGetDataBlob<FleetDB>(out var factionFleet), Is.True);
+            Assert.That(faction!.TryGetDataBlob<FleetDB>(out var factionFleet), Is.True);
             factionFleet!.AddChild(ship);
 
             _server.SubmitCommand(session, new CreateFleetCommand(session.FactionId, _game.Systems[0].ID));
@@ -208,7 +208,7 @@ namespace Pulsar4X.Tests
             using (_server.Subscribe(session, received.Add))
             {
                 received.Clear();
-                FleetHierarchy.AttachUnattachedShip(faction, ship);
+                FleetHierarchy.AttachUnattachedShip(faction!, ship);
 
                 // Publish is async; allow the FleetReorganized → FleetsChanged bridge to land.
                 await Task.Delay(50);

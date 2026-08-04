@@ -77,7 +77,7 @@ namespace Pulsar4X.Client
         // use type PinCameraBlankMenuHelper to pin camara, should use checkIfCanOpenWindow with type before trying to open a given window
         //type parameter is the type of window opened, first parameter indicates wether the window should be opened, second parameter is EntityState for the entity using the window
         //(or window using the entity?) third is the GlobalUIState and fourth indicates wether this function should manage closing preopened pop-ups(mostly utility for EntityContextMenu class[should be set to true when this is used in it])
-        internal static void OpenUIWindow(Type T, EntityState _entityState , GlobalUIState _state , bool open = true, bool managesUIPopUps = false)
+        internal static void OpenUIWindow(Type T, EntityState _entityState, GlobalUIState _state, bool open = true, bool managesUIPopUps = false)
         {
             if (open)
             {

@@ -28,7 +28,7 @@ namespace Pulsar4X.Energy
             var colony = recharge.ColonyEntity;
             if (colony == null || !colony.IsValid)
             {
-                if (entity.Manager.TryGetEntityById(recharge.ColonyEntityId, out var resolved))
+                if (entity.AttachedManager.TryGetEntityById(recharge.ColonyEntityId, out var resolved))
                 {
                     colony = resolved;
                     recharge.ColonyEntity = resolved;

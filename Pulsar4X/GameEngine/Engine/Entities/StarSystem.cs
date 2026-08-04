@@ -50,8 +50,7 @@ namespace Pulsar4X.Engine
 
         [PublicAPI]
         [JsonProperty]
-        public NameDB NameDB { get; set; }
-
+        public NameDB? NameDB { get; set; }
         //[PublicAPI]
         //public EntityManager SystemManager { get { return this; } }
 
@@ -109,7 +108,7 @@ namespace Pulsar4X.Engine
 
         // }
 
-        [Obsolete("Avoid setting the state directly. Use external observers.")]
+        /// <summary>Prefer external observers over direct state changes in production code.</summary>
         public void SetActivityState(SystemActivityState newState) => SetActivityStateInternal(newState);
 
         internal void SetActivityStateInternal(SystemActivityState newState)

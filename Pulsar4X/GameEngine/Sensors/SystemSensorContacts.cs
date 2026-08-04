@@ -17,7 +17,7 @@ namespace Pulsar4X.Engine.Sensors
         public int FactionId;
 
         [JsonProperty]
-        Dictionary<int, SensorContact> _sensorContactsByEntityId = new ();
+        Dictionary<int, SensorContact> _sensorContactsByEntityId = new();
 
         [JsonProperty]
         public XThreadData<Message> Changes = new XThreadData<Message>();
@@ -42,7 +42,7 @@ namespace Pulsar4X.Engine.Sensors
 
         public bool TryGetSensorContact(int entityId, out SensorContact? sensorContact)
         {
-            if(_sensorContactsByEntityId.ContainsKey(entityId))
+            if (_sensorContactsByEntityId.ContainsKey(entityId))
             {
                 sensorContact = _sensorContactsByEntityId[entityId];
                 return true;

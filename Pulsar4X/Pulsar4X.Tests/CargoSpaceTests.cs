@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Pulsar4X.Modding;
@@ -11,22 +11,23 @@ namespace Pulsar4X.Tests
     [TestFixture, Description("Cargo Space Tests")]
     class CargoSpaceTests
     {
-        private Game _game;
-        private EntityManager _entityManager;
+        private Game _game = null;
+        private EntityManager _entityManager = null;
 
         [SetUp]
         public void Init()
         {
-             var _modLoader = new ModLoader();
+            var _modLoader = new ModLoader();
             var _modDataStore = new ModDataStore();
 
             _modLoader.LoadModManifest("Data/basemod/modInfo.json", _modDataStore);
 
-            var _settings = new NewGameSettings() {
+            var _settings = new NewGameSettings()
+            {
                 MaxSystems = 10
             };
 
-            _game  = new Game(_settings, _modDataStore);
+            _game = new Game(_settings, _modDataStore);
 
             _entityManager = new EntityManager();
             _entityManager.Initialize(_game);
@@ -46,7 +47,7 @@ namespace Pulsar4X.Tests
             var mineralCargoTypeId = Guid.NewGuid().ToString();
 
             var otherJunk = new List<ICargoable>();
-            var otherCargoTypeId = Guid.NewGuid().ToString();;
+            var otherCargoTypeId = Guid.NewGuid().ToString(); ;
 
             var theDice = new Random();
 
@@ -217,8 +218,8 @@ namespace Pulsar4X.Tests
             var storedCookieVolume = cookiePile.GetVolumeStored(cookies, true);
 
 
-            Assert.AreEqual( 99, added);
-            Assert.AreEqual( 99, storedCookies);
+            Assert.AreEqual(99, added);
+            Assert.AreEqual(99, storedCookies);
             Assert.AreEqual(99, storedCookieMass);
             Assert.AreEqual(99, storedCookieVolume);
 
@@ -227,7 +228,7 @@ namespace Pulsar4X.Tests
             var storedCookieMass2 = cookiePile.GetMassStored(cookies, true);
             var storedCookieVolume2 = cookiePile.GetVolumeStored(cookies, true);
             Assert.AreEqual(1, addMore);
-            Assert.AreEqual( 100, storedCookies2);
+            Assert.AreEqual(100, storedCookies2);
             Assert.AreEqual(100, storedCookieMass2);
             Assert.AreEqual(100, storedCookieVolume2);
 
@@ -269,12 +270,9 @@ namespace Pulsar4X.Tests
     public class JustSomeCargoThing : ICargoable
     {
         public int ID { get; set; }
-        public string UniqueID { get; set; }
-
-        public string Name { get; set; }
-
-        public string CargoTypeID { get; set; }
-
+        public string UniqueID { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string CargoTypeID { get; set; } = "";
         public long MassPerUnit { get; set; }
         public double VolumePerUnit { get; }
         public double Density { get; set; }

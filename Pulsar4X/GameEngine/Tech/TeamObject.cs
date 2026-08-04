@@ -10,14 +10,13 @@ namespace Pulsar4X.Technology
     {
         public int ID { get; private set; } = Game.GetEntityID();
         public TeamTypes TeamType { get; protected set; }
-        public string LeaderName;
+        public string? LeaderName;
         public int Age;
 
         [JsonProperty]
         private int _teamSize;
         [JsonProperty]
         private object? _teamTask;
-
         /// <summary>
         /// Determines how many Labs this team can manage
         /// </summary>
@@ -53,7 +52,7 @@ namespace Pulsar4X.Technology
             TeamTask = teamsdb.TeamTask;
         }
 
-        public  object Clone()
+        public object Clone()
         {
             return new TeamObject(this);
         }

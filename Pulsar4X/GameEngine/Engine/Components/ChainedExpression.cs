@@ -8,14 +8,13 @@ namespace Pulsar4X.Components
 {
     public class ChainedExpression
     {
-        private FactionDataStore _factionDataStore;
-        private FactionTechDB _factionTechDB;
-        private ComponentDesigner _designer;
-        private ComponentDesignProperty _designProperty;
-        private Expression _expression;
-
+        private FactionDataStore? _factionDataStore;
+        private FactionTechDB? _factionTechDB;
+        private ComponentDesigner? _designer;
+        private ComponentDesignProperty? _designProperty;
+        private Expression? _expression;
         // ReSharper disable once NotAccessedField.Local (Used for debuging puroposes. though maybe it could be public and shown in the UI?)
-        internal string RawExpressionString;
+        internal string? RawExpressionString;
 
         //this bool is used for tempory created ChainedExpressions that will not have dependants or be dependant. if these are alowed to be dependants they tend to change a dependee's dependant list while itterating.
         private bool _isDependant = true;
@@ -24,8 +23,7 @@ namespace Pulsar4X.Components
         /// <summary>
         /// returns Result as an object. consider using IntResult or DResult
         /// </summary>
-        public object Result { get; private set; }
-
+        public object? Result { get; set; }
         /// <summary>
         /// This should probilby be avoided, but can be usefull for another formula reading this one, doing another calc, then setting this result again.
         /// Note that doing so will not recalc other dependants.
@@ -45,7 +43,7 @@ namespace Pulsar4X.Components
                 {
                     case null:
                         Evaluate();
-                        if(Result is null)
+                        if (Result is null)
                             throw new Exception("Result type is unexpectedly null");
                         else
                             return IntResult;
@@ -107,7 +105,7 @@ namespace Pulsar4X.Components
                 {
                     case null:
                         Evaluate();
-                        if(Result is null)
+                        if (Result is null)
                             throw new Exception("Result type is unexpectedly null");
                         else
                             return DResult;
@@ -127,19 +125,20 @@ namespace Pulsar4X.Components
 
         public bool BoolResult
         {
-            get{
+            get
+            {
                 switch (Result)
                 {
-                 case null:
-                     Evaluate();
-                     if(Result is null)
-                        throw new Exception("Result type is unexpectedly null");
-                     else
-                         return BoolResult;
-                 case bool val:
-                     return val;
-                 default:
-                     throw new Exception("Unexpected Result data Type " + Result.GetType() + " is not a boolian value");
+                    case null:
+                        Evaluate();
+                        if (Result is null)
+                            throw new Exception("Result type is unexpectedly null");
+                        else
+                            return BoolResult;
+                    case bool val:
+                        return val;
+                    default:
+                        throw new Exception("Unexpected Result data Type " + Result.GetType() + " is not a boolian value");
 
                 }
             }
@@ -147,12 +146,13 @@ namespace Pulsar4X.Components
 
         public string StrResult
         {
-            get{
+            get
+            {
                 switch (Result)
                 {
                     case null:
                         Evaluate();
-                        if(Result is null)
+                        if (Result is null)
                             throw new Exception("Result type is unexpectedly null");
                         else
                             return StrResult;
@@ -468,6 +468,9 @@ namespace Pulsar4X.Components
 
                     Type enumDictType = typeof(Dictionary<,>).MakeGenericType(typeof(string), type);
                     dynamic? enumConstants = Activator.CreateInstance(enumDictType);
+                    if (enumConstants is null || dict is null)
+                        throw new InvalidOperationException("Failed to create enum dictionary for expression evaluation.");
+
                     foreach (dynamic value in Enum.GetValues(type))
                     {
                         enumConstants.Add(Enum.GetName(type, value), value);
@@ -512,7 +515,7 @@ namespace Pulsar4X.Components
                 //TODO document blobs and what args they take!!
                 case "AtbConstrArgs":
                     if (_designProperty.AttributeType == null)
-                        throw new Exception( _designProperty.Name +" does not have a type defined! define an AttributeType for this Attribute!");
+                        throw new Exception(_designProperty.Name + " does not have a type defined! define an AttributeType for this Attribute!");
                     //_designAbility.AtbConstrArgs = new List<double>();
                     List<object> argList = new List<object>();
                     foreach (var argParam in args.Parameters)
@@ -528,6 +531,8 @@ namespace Pulsar4X.Components
                     break;
                 case "ExhaustVelocityLookup":
                     var cargo = (ProcessedMaterialBlueprint?)_factionDataStore.CargoGoods.GetAny((string)args.EvaluateParameters()[0]);
+                    if (cargo is null)
+                        throw new InvalidOperationException("Cargo type not found for ExhaustVelocityLookup.");
                     Expression dataExpression = new Expression(cargo.Formulas["ExhaustVelocity"]);
                     args.Result = dataExpression.Evaluate();
                     break;

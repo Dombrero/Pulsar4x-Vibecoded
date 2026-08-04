@@ -181,7 +181,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, mars);
-            fleet.Manager.Game.OrderHandler.HandleOrder(survey);
+            _game.OrderHandler.HandleOrder(survey);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);
@@ -249,7 +249,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, mars);
-            fleet.Manager.Game.OrderHandler.HandleOrder(survey);
+            _game.OrderHandler.HandleOrder(survey);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);

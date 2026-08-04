@@ -11,14 +11,14 @@ namespace Pulsar4X.Industry
     {
         public class ProductionLine
         {
-            public string Name;
+            public string? Name;
             public double MaxVolume;
-            public Dictionary<string, int> IndustryTypeRates = new ();
-            public List<IndustryJob> Jobs = new ();
+            public Dictionary<string, int> IndustryTypeRates = new();
+            public List<IndustryJob> Jobs = new();
         }
 
         [JsonProperty]
-        public Dictionary<string, ProductionLine> ProductionLines { get; } = new ();
+        public Dictionary<string, ProductionLine> ProductionLines { get; } = new();
 
         [JsonConstructor]
         private IndustryAbilityDB()

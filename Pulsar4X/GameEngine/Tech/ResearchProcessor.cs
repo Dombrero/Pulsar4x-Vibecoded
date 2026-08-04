@@ -21,7 +21,7 @@ namespace Pulsar4X.Technology
 
         public Type GetParameterType => typeof(ResearcherDB);
 
-        private Game _game;
+        private Game? _game;
 
         public void Init(Game game)
         {
@@ -42,7 +42,7 @@ namespace Pulsar4X.Technology
         public int ProcessManager(EntityManager manager, int deltaSeconds)
         {
             var entitysWithResearch = manager.GetAllEntitiesWithDataBlob<ResearcherDB>();
-            foreach(var entity in entitysWithResearch)
+            foreach (var entity in entitysWithResearch)
             {
                 ProcessEntity(entity, deltaSeconds);
             }
@@ -58,26 +58,26 @@ namespace Pulsar4X.Technology
         /// <param name="factionTechs"></param>
         internal void DoResearch(Entity entity)
         {
-            Entity faction = entity.Manager.Game.Factions[entity.FactionOwnerID];
+            Entity faction = entity.AttachedManager.Game.Factions[entity.FactionOwnerID];
 
-            if(!faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
+            if (!faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
                 return;
 
             FactionDataStore factionDataStore = factionInfoDB.Data;
 
             // If unable to get the db return
-            if(!entity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+            if (!entity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
                 return;
 
             // Check if queue is empty
-            if(!researcherDB.TechQueue.TryPeek(out var techId))
+            if (!researcherDB.TechQueue.TryPeek(out var techId))
                 return;
 
             // Get the tech that is being researched
             var tech = factionDataStore.Techs[techId];
 
             // Make sure that the tech is researchable
-            if(!factionDataStore.IsResearchable(tech.UniqueID))
+            if (!factionDataStore.IsResearchable(tech.UniqueID))
             {
                 // If it isn't, dequeue the tech and return
                 researcherDB.TechQueue.TryDequeue(out var result);
@@ -89,20 +89,20 @@ namespace Pulsar4X.Technology
             var pointsToAdd = researcherDB.PointsPerDay.GetValue();
 
             // Make sure the calculated total is > 0
-            if(pointsToAdd <= 0)
+            if (pointsToAdd <= 0)
                 return;
 
             var cost = researcherDB.CostPerDay.GetValue();
 
             // Check to make sure the cost can be paid
-            if(factionInfoDB.Money.GetCurrentFunds() < cost)
+            if (factionInfoDB.Money.GetCurrentFunds() < cost)
                 return;
 
             // Pay the costs
             factionInfoDB.Money.AddExpense(
-                entity.Manager.StarSysDateTime,
+                entity.AttachedManager.StarSysDateTime,
                 TransactionCategory.Research,
-                $"Payment to run research lab on {entity.Manager.StarSysDateTime.ToShortDateString()}",
+                $"Payment to run research lab on {entity.AttachedManager.StarSysDateTime.ToShortDateString()}",
                 cost);
 
             // Apply the research points
@@ -113,7 +113,7 @@ namespace Pulsar4X.Technology
             if (tech.Level > currentLvl)
             {
                 // Remove the current tech from the queue
-                if(!researcherDB.TechQueue.TryDequeue(out var result))
+                if (!researcherDB.TechQueue.TryDequeue(out var result))
                     throw new Exception("Unable to dequeue from tech queue");
 
                 if (tech.Faction != null && tech.Design != null && tech.Faction.TryGetDataBlob<FactionInfoDB>(out var factionInfo))
@@ -131,7 +131,7 @@ namespace Pulsar4X.Technology
                         entity.StarSysDateTime,
                         $"{tech.Name} research completed!",
                         entity.FactionOwnerID,
-                        entity.Manager.ManagerID,
+                        entity.AttachedManager.ManagerID,
                         entity.Id));
 
                 PublishQueueChanged(entity);
@@ -142,10 +142,10 @@ namespace Pulsar4X.Technology
         // explicitly for any observers (e.g. the API layer).
         private static void PublishQueueChanged(Entity lab)
         {
-            MessagePublisher.Instance.Publish(Message.Create(
+            _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.EntityChanged,
                 entityId: lab.Id,
-                systemId: lab.Manager.ManagerID,
+                systemId: lab.AttachedManager.ManagerID,
                 factionId: lab.FactionOwnerID));
         }
 
@@ -154,32 +154,32 @@ namespace Pulsar4X.Technology
             // Recalculate the stats of the researchDB
             var system = _game.Systems.Find(s => s.ManagerID.Equals(e.SystemId));
 
-            if(system == null)
+            if (system == null)
                 return;
 
-            if(e.EntityId == null || e.FactionId == null)
+            if (e.EntityId == null || e.FactionId == null)
                 return;
 
-            if(!system.TryGetEntityById((int)e.EntityId, out var labEntity))
+            if (!system.TryGetEntityById((int)e.EntityId, out var labEntity))
                 return;
 
-            if(!labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+            if (!labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
                 return;
 
             // Try to find the tech at the front of the queue
             Tech? tech = null;
-            if(researcherDB.TechQueue.TryPeek(out var techId))
+            if (researcherDB.TechQueue.TryPeek(out var techId))
             {
-                if(_game.Factions[(int)e.FactionId].TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
+                if (_game.Factions[(int)e.FactionId].TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
                 {
                     tech = factionInfoDB.Data.Techs[techId];
                 }
             }
 
             Entity? scientist = null;
-            if(researcherDB.ScientistId >= 0)
+            if (researcherDB.ScientistId >= 0)
             {
-                if(system.TryGetGlobalEntityById(researcherDB.ScientistId, out var scientistEntity))
+                if (system.TryGetGlobalEntityById(researcherDB.ScientistId, out var scientistEntity))
                 {
                     scientist = scientistEntity;
                 }
@@ -200,7 +200,7 @@ namespace Pulsar4X.Technology
 
             decimal fundingModifier = GetFundingCostModifier(researcherDB.FundingLevel);
 
-            if(fundingModifier != 1)
+            if (fundingModifier != 1)
             {
                 // Add new modifier
                 researcherDB.CostPerDay.AddModifier(
@@ -254,7 +254,7 @@ namespace Pulsar4X.Technology
             // Add new modifier
             int fundingMultiplier = GetFundingPointModifier(researcherDB.FundingLevel);
 
-            if(fundingMultiplier != 1)
+            if (fundingMultiplier != 1)
             {
                 researcherDB.PointsPerDay.AddModifier(
                     new Modifier<int>(
@@ -267,20 +267,20 @@ namespace Pulsar4X.Technology
                 );
             }
 
-            if(currentTech != null)
+            if (currentTech != null)
             {
                 // Apply any category bonuses
-                foreach(var (category, bonus) in researcherDB.BonusCategories)
+                foreach (var (category, bonus) in researcherDB.BonusCategories)
                 {
                     // Make sure the categories match
-                    if(!currentTech.Category.Equals(category))
+                    if (!currentTech.Category.Equals(category))
                         continue;
 
                     // Add in the modifier as a percentage increase
                     researcherDB.PointsPerDay.AddModifier(
                         new Modifier<int>(
                             category,
-                            $"{bonus * 100}% {researcherDB.OwningEntity.Manager.Game.StartingGameData.TechCategories[category].Name} Category Bonus",
+                            $"{bonus * 100}% {researcherDB.OwningEntity.AttachedManager.Game.StartingGameData.TechCategories[category].Name} Category Bonus",
                             (int)(bonus * 100),
                             (current, multiplier) => current + (current * multiplier / 100),
                             2.0f
@@ -289,20 +289,20 @@ namespace Pulsar4X.Technology
                 }
             }
 
-            if(scientist != null && currentTech != null)
+            if (scientist != null && currentTech != null)
             {
                 // Apply any scientist bonuses
-                if(scientist.TryGetDataBlob<BonusesDB>(out var bonusesDB))
+                if (scientist.TryGetDataBlob<BonusesDB>(out var bonusesDB))
                 {
                     var name = scientist.TryGetDataBlob<NameDB>(out var nameDB) ? nameDB.DefaultName : "Unknown Scientist";
 
-                    foreach(var bonus in bonusesDB.Bonuses)
+                    foreach (var bonus in bonusesDB.Bonuses)
                     {
                         // Make sure the categories match
-                        if(!currentTech.Category.Equals(bonus.FilterId))
+                        if (!currentTech.Category.Equals(bonus.FilterId))
                             continue;
 
-                        if(bonus.Type == BonusType.Number)
+                        if (bonus.Type == BonusType.Number)
                         {
                             // Add in the modifier as a flat increase
                             researcherDB.PointsPerDay.AddModifier(
@@ -315,7 +315,7 @@ namespace Pulsar4X.Technology
                                 )
                             );
                         }
-                        else if(bonus.Type == BonusType.Perentage)
+                        else if (bonus.Type == BonusType.Perentage)
                         {
                             // Add in the modifier as a percentage increase
                             researcherDB.PointsPerDay.AddModifier(

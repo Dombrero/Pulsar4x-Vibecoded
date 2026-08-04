@@ -22,11 +22,14 @@ namespace Pulsar4X.Client
         /// <summary>
         /// Window title
         /// </summary>
-        public string Title {
-            get {
+        public string Title
+        {
+            get
+            {
                 return SDL.GetWindowTitle(Window);
             }
-            set {
+            set
+            {
                 SDL.SetWindowTitle(Window, value);
             }
         }
@@ -34,12 +37,15 @@ namespace Pulsar4X.Client
         /// <summary>
         /// X coordinate of the window screen position
         /// </summary>
-        public int X {
-            get {
+        public int X
+        {
+            get
+            {
                 SDL.GetWindowPosition(Window, out int x, out _);
                 return x;
             }
-            set {
+            set
+            {
                 SDL.GetWindowPosition(Window, out _, out int y);
                 SDL.SetWindowPosition(Window, value, y);
             }
@@ -48,12 +54,15 @@ namespace Pulsar4X.Client
         /// <summary>
         /// Y coordinate of the window screen position
         /// </summary>
-        public int Y {
-            get {
+        public int Y
+        {
+            get
+            {
                 SDL.GetWindowPosition(Window, out _, out int y);
                 return y;
             }
-            set {
+            set
+            {
                 SDL.GetWindowPosition(Window, out int x, out _);
                 SDL.SetWindowPosition(Window, x, value);
             }
@@ -62,12 +71,15 @@ namespace Pulsar4X.Client
         /// <summary>
         /// Width of the window
         /// </summary>
-        public int Width {
-            get {
+        public int Width
+        {
+            get
+            {
                 SDL.GetWindowSize(Window, out int x, out _);
                 return x;
             }
-            set {
+            set
+            {
                 SDL.GetWindowSize(Window, out _, out int y);
                 SDL.SetWindowSize(Window, value, y);
             }
@@ -76,12 +88,15 @@ namespace Pulsar4X.Client
         /// <summary>
         /// Height of the window
         /// </summary>
-        public int Height {
-            get {
+        public int Height
+        {
+            get
+            {
                 SDL.GetWindowSize(Window, out _, out int y);
                 return y;
             }
-            set {
+            set
+            {
                 SDL.GetWindowSize(Window, out int x, out _);
                 SDL.SetWindowSize(Window, x, value);
             }
@@ -100,9 +115,9 @@ namespace Pulsar4X.Client
             }
         }
 
-        public SDL.WindowFlags Flags => (SDL.WindowFlags) SDL.GetWindowFlags(Window);
+        public SDL.WindowFlags Flags => (SDL.WindowFlags)SDL.GetWindowFlags(Window);
         public bool IsAlive { get; set; } = false;
-        
+
         protected bool _ctrlPressed = false;
         public bool IsCtrlPressed => _ctrlPressed;
 
@@ -119,7 +134,7 @@ namespace Pulsar4X.Client
                 throw new Exception("SDL TTF init failed");
 
             // Create window & renderer
-            if(!SDL.CreateWindowAndRenderer(title, width, height, flags, out Window, out Renderer))
+            if (!SDL.CreateWindowAndRenderer(title, width, height, flags, out Window, out Renderer))
                 throw new Exception($"SDL_CreateWindowAndRenderer failed: {SDL.GetError()}");
 
             // Create ImGui context
@@ -127,8 +142,8 @@ namespace Pulsar4X.Client
             ImGui.SetCurrentContext(ImGuiContext);
 
             // Init platform and imgui renderer
-            PlatformBackend = new (Window, Renderer);
-            ImGuiRenderer = new (Renderer);
+            PlatformBackend = new(Window, Renderer);
+            ImGuiRenderer = new(Renderer);
 
             // Setup screen clip rect
             SetupScreenClipRect();
@@ -158,8 +173,8 @@ namespace Pulsar4X.Client
             ImGui.GetIO().ConfigErrorRecoveryEnableAssert = false;
             ImGui.GetIO().ConfigErrorRecoveryEnableTooltip = true;
             ImGui.GetIO().ConfigErrorRecoveryEnableDebugLog = true;
-            
-            while(IsAlive)
+
+            while (IsAlive)
             {
                 ImGui.GetIO().DeltaTime = (float)(timer.Elapsed - time).TotalSeconds;
                 time = timer.Elapsed;
@@ -168,7 +183,7 @@ namespace Pulsar4X.Client
 
                 // Is alive is set to false on poll events if the window closes or the user exits
                 // so we should force exit here
-                if(!IsAlive)
+                if (!IsAlive)
                     return;
 
                 Update();
@@ -183,20 +198,20 @@ namespace Pulsar4X.Client
 
         public virtual void PollEvents()
         {
-            if(ImGui.GetIO().WantTextInput && !SDL.TextInputActive(Window))
+            if (ImGui.GetIO().WantTextInput && !SDL.TextInputActive(Window))
                 SDL.StartTextInput(Window);
-            else if(!ImGui.GetIO().WantTextInput && SDL.TextInputActive(Window))
+            else if (!ImGui.GetIO().WantTextInput && SDL.TextInputActive(Window))
                 SDL.StopTextInput(Window);
 
             // Update Ctrl key state
             var keyMods = SDL.GetModState();
             _ctrlPressed = keyMods.HasFlag(SDL.Keymod.LCtrl) || keyMods.HasFlag(SDL.Keymod.RCtrl);
 
-            while(SDL.PollEvent(out var ev))
+            while (SDL.PollEvent(out var ev))
             {
                 PlatformBackend.ProcessEvent(ev);
 
-                switch((SDL.EventType)ev.Type)
+                switch ((SDL.EventType)ev.Type)
                 {
                     case SDL.EventType.WindowCloseRequested:
                     case SDL.EventType.Quit:
@@ -211,9 +226,9 @@ namespace Pulsar4X.Client
             }
         }
 
-        public virtual void HandleEvent(SDL.Event ev) {}
+        public virtual void HandleEvent(SDL.Event ev) { }
 
-        public virtual void Update() {}
+        public virtual void Update() { }
 
         public virtual void BeginFrame()
         {
@@ -228,7 +243,7 @@ namespace Pulsar4X.Client
             // Reset the clip rect to the screen size
             SDL.SetRenderClipRect(Renderer, _screenClipRect);
         }
-        public virtual void Render() {}
+        public virtual void Render() { }
         public virtual void EndFrame()
         {
             // Finish ImGui frame
@@ -242,9 +257,9 @@ namespace Pulsar4X.Client
             SDL.RenderPresent(Renderer);
         }
 
-        public virtual void PostFrameUpdate() {}
+        public virtual void PostFrameUpdate() { }
 
-        public virtual void Exit() {}
+        public virtual void Exit() { }
 
         public void SetRenderDrawColor(byte r, byte g, byte b, byte a)
         {
@@ -303,7 +318,7 @@ namespace Pulsar4X.Client
         public void SetRenderState(RenderState renderState)
         {
             SDL.SetRenderDrawBlendMode(Renderer, renderState.BlendMode);
-            SDL.SetRenderDrawColor(Renderer, renderState.Red, renderState.Green, renderState.Blue,  renderState.Alpha);
+            SDL.SetRenderDrawColor(Renderer, renderState.Red, renderState.Green, renderState.Blue, renderState.Alpha);
         }
 
         public void SetBlendMode(SDL.BlendMode mode) => SDL.SetRenderDrawBlendMode(Renderer, mode);

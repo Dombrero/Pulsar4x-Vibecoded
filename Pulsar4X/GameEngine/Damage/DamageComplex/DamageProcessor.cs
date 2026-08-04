@@ -28,12 +28,12 @@ namespace Pulsar4X.Damage
         public static void OnTakingDamage(Entity damageableEntity, DamageFragment damageFragment)
         {
 
-            if(!damageableEntity.TryGetDataBlob<EntityDamageProfileDB>(out var entityDamageProfileDB))
+            if (!damageableEntity.TryGetDataBlob<EntityDamageProfileDB>(out var entityDamageProfileDB))
             {
                 //I think currently most damageable entites should already have this,
                 //need to consider whether an undamaged entity needs this or if we should create it if and when it gets damaged.
 
-                if(damageableEntity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB))
+                if (damageableEntity.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB))
                 {
                     entityDamageProfileDB = new EntityDamageProfileDB(shipInfoDB.Design);
                     damageableEntity.SetDataBlob(entityDamageProfileDB);
@@ -41,7 +41,7 @@ namespace Pulsar4X.Damage
                 //return;
             }
 
-            if(entityDamageProfileDB == null) return;
+            if (entityDamageProfileDB == null) return;
 
             var damages = DamageTools.DealDamageEnergyBeamSim(entityDamageProfileDB, damageFragment);
 
@@ -50,7 +50,7 @@ namespace Pulsar4X.Damage
                 entityDamageProfileDB.ComponentLookupTable[damage.id].HealthPercent -= damage.damageAmount;
             }
 
-            if(damageableEntity.TryGetDataBlob<ComponentInstancesDB>(out var damagedComponentInstancesDB))
+            if (damageableEntity.TryGetDataBlob<ComponentInstancesDB>(out var damagedComponentInstancesDB))
             {
 
             }
@@ -69,7 +69,7 @@ namespace Pulsar4X.Damage
                 //do shield damage
                 //do armor damage
                 //for components:
-                Game game = damageableEntity.Manager.Game;
+                Game game = damageableEntity.AttachedManager.Game;
                 PositionDB ShipPosition = damageableEntity.GetDataBlob<PositionDB>();
 
                 StarSystem mySystem;
@@ -102,7 +102,7 @@ namespace Pulsar4X.Damage
             {
                 //Think about how to unify this one and shipInfoDB if possible.
                 //do Terraforming/Infra/Pop damage
-                Game game = damageableEntity.Manager.Game;
+                Game game = damageableEntity.AttachedManager.Game;
 
                 ColonyInfoDB ColIDB = damageableEntity.GetDataBlob<ColonyInfoDB>();
                 SystemBodyInfoDB SysInfoDB = ColIDB.PlanetEntity.GetDataBlob<SystemBodyInfoDB>();
@@ -194,7 +194,7 @@ namespace Pulsar4X.Damage
 
             //Destroy the ship.
 
-            DestroyedShip.Manager.TagEntityForRemoval(DestroyedShip);
+            DestroyedShip.AttachedManager.TagEntityForRemoval(DestroyedShip);
 
         }
 
@@ -204,7 +204,7 @@ namespace Pulsar4X.Damage
         /// <param name="Asteroid"></param>
         internal static void SpawnSubAsteroids(Entity Asteroid, DateTime atDateTime)
         {
-            Game game = Asteroid.Manager.Game;
+            Game game = Asteroid.AttachedManager.Game;
             MassVolumeDB ADB = Asteroid.GetDataBlob<MassVolumeDB>();
 
             //const double massDefault = 1.5e+12; //150 B tonnes?
@@ -218,7 +218,7 @@ namespace Pulsar4X.Damage
                 OrbitDB origOrbit = Asteroid.GetDataBlob<OrbitDB>();
                 PositionDB pDB = Asteroid.GetDataBlob<PositionDB>();
 
-                EntityManager mySystem = Asteroid.Manager;
+                EntityManager mySystem = Asteroid.AttachedManager;
 
 
                 var origVel = origOrbit.AbsoluteOrbitalVector_m(atDateTime);
@@ -226,9 +226,9 @@ namespace Pulsar4X.Damage
                 //public static Entity CreateAsteroid(StarSystem starSys, Entity target, DateTime collisionDate, double asteroidMass = -1.0)
                 //I need the target entity, the collisionDate, and the starSystem. I may have starsystem from guid.
                 //Ok so this should create the asteroid without having to add the new asteroids to a list. as that is done in the factory.
-                Entity newAsteroid1 = AsteroidFactory.CreateAsteroid4(pDB.AbsolutePosition, origOrbit, atDateTime,mySystem.RNG, newMass);
+                Entity newAsteroid1 = AsteroidFactory.CreateAsteroid4(pDB.AbsolutePosition, origOrbit, atDateTime, mySystem.RNG, newMass);
                 //var newOrbit = OrbitDB.FromVector(origOrbit.Parent, )
-                Entity newAsteroid2 = AsteroidFactory.CreateAsteroid4(pDB.AbsolutePosition, origOrbit, atDateTime,mySystem.RNG, newMass);
+                Entity newAsteroid2 = AsteroidFactory.CreateAsteroid4(pDB.AbsolutePosition, origOrbit, atDateTime, mySystem.RNG, newMass);
 
                 mySystem.TagEntityForRemoval(Asteroid);
 
@@ -239,7 +239,7 @@ namespace Pulsar4X.Damage
                 //delete the existing asteroid.
                 PositionDB pDB = Asteroid.GetDataBlob<PositionDB>();
 
-                Asteroid.Manager.TagEntityForRemoval(Asteroid);
+                Asteroid.AttachedManager.TagEntityForRemoval(Asteroid);
             }
         }
     }

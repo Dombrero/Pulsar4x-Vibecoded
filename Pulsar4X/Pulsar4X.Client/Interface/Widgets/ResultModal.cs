@@ -7,8 +7,6 @@ public class ResultModal : UniquePulsarGuiWindow<ResultModal>
 {
     private byte[]? _inputBuffer = null;
     uint _bufferMaxSize = 64;
-    private Action<Action<string>>? _customRenderer = null;
-
     internal ResultModal()
     {
         Array.Resize(ref _inputBuffer, checked((int)_bufferMaxSize)); //Resize the text buffer
@@ -17,7 +15,7 @@ public class ResultModal : UniquePulsarGuiWindow<ResultModal>
 
     internal static ResultModal GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<ResultModal>(out var window))
+        if (_uiState.TryGetUniqueWindow<ResultModal>(out var window))
         {
             return window;
         }
@@ -27,7 +25,7 @@ public class ResultModal : UniquePulsarGuiWindow<ResultModal>
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
     }
 
     // Generic modal with custom renderer
@@ -35,7 +33,7 @@ public class ResultModal : UniquePulsarGuiWindow<ResultModal>
     {
         string fullTitle = title + $"###{title}-display-modal";
 
-        if(!IsActive)
+        if (!IsActive)
         {
             ImGui.OpenPopup(fullTitle);
             IsActive = true;
@@ -74,7 +72,7 @@ public class ResultModal : UniquePulsarGuiWindow<ResultModal>
     {
         string fullTitle = title + $"###{title}-display-modal";
 
-        if(!IsActive)
+        if (!IsActive)
         {
             ImGui.OpenPopup(fullTitle);
             IsActive = true;

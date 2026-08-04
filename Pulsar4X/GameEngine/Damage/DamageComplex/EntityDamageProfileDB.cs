@@ -22,7 +22,7 @@ namespace Pulsar4X.Damage
         /// this is the same list as the ship design's List<(ComponentDesign design, int count)> Components
         /// except we're only storing the guid here.
         /// </summary>
-        public List<(string id, int count)> PlacementOrder;
+        public List<(string id, int count)> PlacementOrder = new();
 
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace Pulsar4X.Damage
                 var area = Math.Cbrt(volm3);
                 var len = Math.Sqrt(area * componenttype.component.AspectRatio);
                 var wid = area / len;
-                ArmorVertex.Add(((int)len,(int)(wid * (componenttype.count) * 0.5)));
+                ArmorVertex.Add(((int)len, (int)(wid * (componenttype.count) * 0.5)));
 
 
                 RawBmp compBmp = ComponentPlacement.CreateComponentByteArray(componenttype.component);
@@ -102,7 +102,7 @@ namespace Pulsar4X.Damage
         {
             var pfl = new EntityDamageProfileDB();
             int segments = 8;
-            double avgAngle = Math.PI  / segments;
+            double avgAngle = Math.PI / segments;
             double angle = Math.PI;
             int size = (int)avgRadius * 2;
             var dmgProfile = new RawBmp(size, size);
@@ -147,7 +147,7 @@ namespace Pulsar4X.Damage
             byte a = byte.MaxValue;
 
             //fill an array with the same colour for buffer.blockcopy.
-            byte[] px = new byte[4]{r,g,b,a};
+            byte[] px = new byte[4] { r, g, b, a };
             byte[] pxarray = new byte[dmgProfile.Width * 4];
             for (int i = 0; i < dmgProfile.Width; i++)
             {
@@ -162,10 +162,10 @@ namespace Pulsar4X.Damage
             {
                 int ypos = i;
 
-                while (indexl < lineL.Count -1  && lineL[indexl].y == ypos)
+                while (indexl < lineL.Count - 1 && lineL[indexl].y == ypos)
                     indexl++;
 
-                while (indexr < lineR.Count -1 && lineR[indexr].y == ypos)
+                while (indexr < lineR.Count - 1 && lineR[indexr].y == ypos)
                     indexr++;
 
 
@@ -178,7 +178,7 @@ namespace Pulsar4X.Damage
 
 
                 //below is a slower but easier to write way of filling the wanted line with colour.
-                for (int j = 0; j <  width; j++)
+                for (int j = 0; j < width; j++)
                 {
                     int xpos = leftx + j;
                     dmgProfile.SetPixel(xpos, ypos, r, g, b, a);
@@ -191,48 +191,52 @@ namespace Pulsar4X.Damage
             return pfl;
         }
 
-        private static void BresenhamPoints((int x, int y) start,(int x, int y) end, ref List<(int x, int y)> list)
+        private static void BresenhamPoints((int x, int y) start, (int x, int y) end, ref List<(int x, int y)> list)
         {
             int x = start.x;
             int y = start.y;
             int x2 = end.x;
             int y2 = end.y;
 
-            int w = x2 - x ;
-            int h = y2 - y ;
-            int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0 ;
-            if (w<0) dx1 = -1 ; else if (w>0) dx1 = 1 ;
-            if (h<0) dy1 = -1 ; else if (h>0) dy1 = 1 ;
-            if (w<0) dx2 = -1 ; else if (w>0) dx2 = 1 ;
-            int longest = Math.Abs(w) ;
-            int shortest = Math.Abs(h) ;
-            if (!(longest>shortest))
+            int w = x2 - x;
+            int h = y2 - y;
+            int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+            if (w < 0) dx1 = -1; else if (w > 0) dx1 = 1;
+            if (h < 0) dy1 = -1; else if (h > 0) dy1 = 1;
+            if (w < 0) dx2 = -1; else if (w > 0) dx2 = 1;
+            int longest = Math.Abs(w);
+            int shortest = Math.Abs(h);
+            if (!(longest > shortest))
             {
-                longest = Math.Abs(h) ;
-                shortest = Math.Abs(w) ;
-                if (h<0)
-                    dy2 = -1 ;
-                else if (h>0)
-                    dy2 = 1 ;
-                dx2 = 0 ;
+                longest = Math.Abs(h);
+                shortest = Math.Abs(w);
+                if (h < 0)
+                    dy2 = -1;
+                else if (h > 0)
+                    dy2 = 1;
+                dx2 = 0;
             }
-            int numerator = longest >> 1 ;
-            for (int i=0;i<=longest;i++) {
-                list.Add((x,y));
-                numerator += shortest ;
-                if (!(numerator<longest)) {
-                    numerator -= longest ;
-                    x += dx1 ;
-                    y += dy1 ;
-                } else {
-                    x += dx2 ;
-                    y += dy2 ;
+            int numerator = longest >> 1;
+            for (int i = 0; i <= longest; i++)
+            {
+                list.Add((x, y));
+                numerator += shortest;
+                if (!(numerator < longest))
+                {
+                    numerator -= longest;
+                    x += dx1;
+                    y += dy1;
+                }
+                else
+                {
+                    x += dx2;
+                    y += dy2;
                 }
             }
         }
 
 
-        public EntityDamageProfileDB(EntityDamageProfileDB db )
+        public EntityDamageProfileDB(EntityDamageProfileDB db)
         {
             Armor = db.Armor;
             ArmorVertex = db.ArmorVertex;

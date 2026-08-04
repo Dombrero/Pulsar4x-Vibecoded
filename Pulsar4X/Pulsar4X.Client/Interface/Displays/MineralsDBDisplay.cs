@@ -10,14 +10,14 @@ namespace Pulsar4X.Client
         /// (amounts arrive pre-masked/obscured from the server).</summary>
         public static void Display(this Pulsar4X.Api.MineralDepositsView deposits, int entityId)
         {
-            if(ImGui.BeginTable("###MineralTable" + entityId, 3, ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.RowBg))
+            if (ImGui.BeginTable("###MineralTable" + entityId, 3, ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.RowBg))
             {
                 ImGui.TableSetupColumn("Name");
                 ImGui.TableSetupColumn("Amount");
                 ImGui.TableSetupColumn("Accessibility");
                 ImGui.TableHeadersRow();
 
-                foreach(var deposit in deposits.Deposits)
+                foreach (var deposit in deposits.Deposits)
                 {
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();

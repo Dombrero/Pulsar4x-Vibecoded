@@ -14,6 +14,6 @@ namespace Pulsar4X.Orbital
 
         public Vector3 PositionInMetres { get; set; }
 
-        public EntityBase Parent { get; set; }
+        public EntityBase? Parent { get; set; }
     }
 }

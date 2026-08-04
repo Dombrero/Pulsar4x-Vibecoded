@@ -39,7 +39,7 @@ namespace Pulsar4X.Engine.Orders
         public OrderSource Source { get; set; } = OrderSource.Issued;
 
         public virtual void UpdateDetailString()
-        {}
+        { }
 
         [JsonProperty]
         /// <summary>
@@ -59,7 +59,7 @@ namespace Pulsar4X.Engine.Orders
         /// Gets or sets the datetime this command was created by the player/client.
         /// </summary>
         /// <value>The created date.</value>
-        public DateTime CreatedDate{ get; set; }
+        public DateTime CreatedDate { get; set; }
 
         /// <summary>
         /// This sets the datetime that the order should be actioned on (ie delayed from creation)
@@ -96,7 +96,7 @@ namespace Pulsar4X.Engine.Orders
         internal abstract bool IsFinished();
         [JsonProperty]
         protected bool _isFinished = false;
-        public bool GetIsFinished { get { return _isFinished; }}
+        public bool GetIsFinished { get { return _isFinished; } }
 
         public abstract EntityCommand Clone();
 
@@ -115,12 +115,12 @@ namespace Pulsar4X.Engine.Orders
     {
         public static bool IsCommandValid(EntityManager globalManager, int factionId, int targetEntityId, out Entity factionEntity, out Entity targetEntity)
         {
-            if(globalManager.TryGetGlobalEntityById(targetEntityId, out targetEntity))
+            if (globalManager.TryGetGlobalEntityById(targetEntityId, out targetEntity))
             {
-                if(globalManager.Game.Factions.ContainsKey(factionId))
+                if (globalManager.Game.Factions.ContainsKey(factionId))
                 {
                     factionEntity = globalManager.Game.Factions[factionId];
-                    if(targetEntity.FactionOwnerID == factionEntity.Id)
+                    if (targetEntity.FactionOwnerID == factionEntity.Id)
                         return true;
                 }
             }
@@ -133,8 +133,8 @@ namespace Pulsar4X.Engine.Orders
     {
         internal int FactionId;
         internal int EntityId;
-        public IOrderHandler Handler;
-        private ManagerSubPulse _subPulse;
+        public IOrderHandler? Handler;
+        private ManagerSubPulse? _subPulse;
         internal DateTime GetSystemDatetime { get { return _subPulse.StarSysDateTime; } }
 
         internal CommandReferences(int faction, int entity, IOrderHandler handler, ManagerSubPulse subPulse)
@@ -147,14 +147,14 @@ namespace Pulsar4X.Engine.Orders
 
         public static CommandReferences CreateForEntity(Game game, Entity entity)
         {
-            return new CommandReferences(entity.FactionOwnerID, entity.Id, game.OrderHandler, entity.Manager.ManagerSubpulses);
+            return new CommandReferences(entity.FactionOwnerID, entity.Id, game.OrderHandler, entity.AttachedManager.ManagerSubpulses);
         }
 
         public static CommandReferences CreateForEntity(Game game, int entityId)
         {
             Entity entity;
             if (game.GlobalManager.TryGetEntityById(entityId, out entity))
-                return new CommandReferences(entity.FactionOwnerID, entityId, game.OrderHandler, entity.Manager.ManagerSubpulses);
+                return new CommandReferences(entity.FactionOwnerID, entityId, game.OrderHandler, entity.AttachedManager.ManagerSubpulses);
             else
                 throw new Exception("Entity Not Found");
         }

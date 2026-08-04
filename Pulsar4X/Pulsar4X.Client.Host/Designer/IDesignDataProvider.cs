@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Pulsar4X.Factions;
 
 namespace Pulsar4X.Client;
@@ -12,5 +13,5 @@ namespace Pulsar4X.Client;
 /// </summary>
 public interface IDesignDataProvider
 {
-    bool TryGetDesignData(out FactionInfoDB info, out FactionTechDB techs);
+    bool TryGetDesignData([NotNullWhen(true)] out FactionInfoDB? info, [NotNullWhen(true)] out FactionTechDB? techs);
 }

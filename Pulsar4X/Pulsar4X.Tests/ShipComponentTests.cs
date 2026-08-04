@@ -1,4 +1,4 @@
-﻿/* Very old test. Needs updated for both StaticData nad ComponentTemplates
+/* Very old test. Needs updated for both StaticData nad ComponentTemplates
 
 using NUnit.Framework;
 using Pulsar4X.Datablobs;
@@ -13,12 +13,12 @@ namespace Pulsar4X.Tests
     [Description("Component Tests")]
     internal class ComponentTests
     {
-        private Game _game;
-        private Entity _faction;
+        private Game _game = null;
+        private Entity _faction = Entity.InvalidEntity;
         private StarSystem _starSystem;
         //private Entity _shipClass;
-        // private Entity _ship;
-        // private Entity _engineComponent;
+        // private Entity _ship = Entity.InvalidEntity;
+        // private Entity _engineComponent = Entity.InvalidEntity;
         [SetUp]
         public void Init()
         {

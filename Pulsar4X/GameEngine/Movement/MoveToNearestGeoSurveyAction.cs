@@ -25,7 +25,7 @@ namespace Pulsar4X.Movement
 
         public override bool IsBlocking => true;
 
-        private Entity _entityCommanding = null!;
+        private Entity _entityCommanding = Entity.InvalidEntity;
         private GeoSurveyOrder? _survey;
         private bool _noTargets;
 
@@ -90,7 +90,7 @@ namespace Pulsar4X.Movement
                 return null;
             if (_entityCommanding.Manager == null)
                 return null;
-            if (!_entityCommanding.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship))
+            if (!_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship))
                 return null;
             if (!flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
                 return null;
@@ -98,7 +98,7 @@ namespace Pulsar4X.Movement
             Entity? closest = null;
             double closestDistance = double.MaxValue;
 
-            foreach (var body in _entityCommanding.Manager.GetAllEntitiesWithDataBlob<GeoSurveyableDB>())
+            foreach (var body in _entityCommanding.AttachedManager.GetAllEntitiesWithDataBlob<GeoSurveyableDB>())
             {
                 if (!GeoSurveyTargets.IsEligible(body, RequestingFactionGuid))
                     continue;

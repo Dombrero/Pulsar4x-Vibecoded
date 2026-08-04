@@ -36,7 +36,8 @@ namespace Pulsar4X.Tests
 
             var design = (ShipDesign)factionInfo.IndustryDesigns["default-ship-design-surveyor"];
             TestContext.WriteLine($"Components={design.Components?.Count}, DamageProfile={(design.DamageProfileDB != null)}, Mass={design.MassPerUnit}");
-            foreach (var c in design.Components)
+            Assert.That(design.Components, Is.Not.Null);
+            foreach (var c in design.Components!)
                 TestContext.WriteLine($"  {c.count}x {(c.design?.Name ?? "NULL")} attrs={c.design?.AttributesByType?.Count}");
 
             var colony = factionInfo.Colonies.First();

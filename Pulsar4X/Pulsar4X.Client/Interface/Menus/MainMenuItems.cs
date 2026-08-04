@@ -14,10 +14,10 @@ namespace Pulsar4X.Client
         bool _saveGame = false;
         System.Numerics.Vector2 _buttonSize = new System.Numerics.Vector2(400, 24);
         new ImGuiWindowFlags _flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar;
-        private MainMenuItems(){}
+        private MainMenuItems() { }
         internal static MainMenuItems GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<MainMenuItems>(out var window))
+            if (_uiState.TryGetUniqueWindow<MainMenuItems>(out var window))
             {
                 return window;
             }
@@ -28,7 +28,7 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive) return;
+            if (!IsActive) return;
 
             System.Numerics.Vector2 size = new System.Numerics.Vector2(412, 300);
             System.Numerics.Vector2 pos = new System.Numerics.Vector2(
@@ -51,8 +51,8 @@ namespace Pulsar4X.Client
                 }
                 if (ImGui.Button("Quickstart", _buttonSize))
                 {
-                    NewGameMenu.QuickstartGame();
-                    this.IsActive = false;
+                    if (NewGameMenu.TryQuickstartGame())
+                        this.IsActive = false;
                 }
                 if (_uiState.IsGameLoaded)
                 {
@@ -79,8 +79,8 @@ namespace Pulsar4X.Client
                         SettingsWindow.GetInstance().ToggleActive();
                         this.SetActive(false);
                     }
-                    
-                    if(ImGui.Button("Preferences", _buttonSize))
+
+                    if (ImGui.Button("Preferences", _buttonSize))
                     {
                         SystemViewPreferences.GetInstance().ToggleActive();
                         this.SetActive(false);
@@ -100,23 +100,23 @@ namespace Pulsar4X.Client
                 }
 
                 var disabled = !DoAnySavesExist();
-                if(disabled)
+                if (disabled)
                     ImGui.BeginDisabled();
                 if (ImGui.Button("Resume Last Save", _buttonSize))
                 {
                     LoadGame.GetInstance().LoadLatest();
                     SetActive(false);
                 }
-                if(disabled)
+                if (disabled)
                     ImGui.EndDisabled();
                 if (ImGui.Button("Load Game...", _buttonSize))
                 {
                     LoadGame.GetInstance().ToggleActive();
                     SetActive(false);
                 }
-                
 
-                if(ImageButton.Begin(_uiState.Img_Discord(), "Discord", new Vector2(16, 12), _buttonSize))
+
+                if (ImageButton.Begin(_uiState.Img_Discord(), "Discord", new Vector2(16, 12), _buttonSize))
                 {
                     try
                     {
@@ -134,7 +134,7 @@ namespace Pulsar4X.Client
                     }
                 }
 
-                if(ImGui.Button("Exit to Desktop", _buttonSize))
+                if (ImGui.Button("Exit to Desktop", _buttonSize))
                 {
                     _uiState.ViewPort.IsAlive = false;
                 }
@@ -148,7 +148,7 @@ namespace Pulsar4X.Client
         {
             var appDataDirectory = PulsarMainWindow.GetAppDataPath();
 
-            if(string.IsNullOrEmpty(appDataDirectory))
+            if (string.IsNullOrEmpty(appDataDirectory))
             {
                 return false;
             }

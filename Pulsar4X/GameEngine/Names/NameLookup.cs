@@ -8,7 +8,7 @@ namespace Pulsar4X.Names
     public static class NameLookup
     {
 
-        internal static bool TryGetFirstEntityWithName(EntityManager manager, string name, out Entity entity)
+        internal static bool TryGetFirstEntityWithName(EntityManager manager, string name, [NotNullWhen(true)] out Entity? entity)
         {
             List<Entity> list = manager.GetAllEntitiesWithDataBlob<NameDB>();
             return TryGetFirstEntityWithName(list, name, out entity);

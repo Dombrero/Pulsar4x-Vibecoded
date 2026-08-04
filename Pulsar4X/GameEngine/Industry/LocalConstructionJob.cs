@@ -10,8 +10,7 @@ public class LocalConstructionJob
     /// <summary>
     /// The component design being constructed
     /// </summary>
-    public ComponentDesign Design { get; set; }
-
+    public ComponentDesign? Design { get; set; }
     /// <summary>
     /// Construction points already applied to the current item
     /// </summary>

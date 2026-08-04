@@ -128,8 +128,8 @@ namespace Pulsar4X.Client
                 for (int i2 = 0; i2 < shape.Points.Length; i2++)
                 {
                     var tranlsatedPoint = shipMatrix.TransformD(shape.Points[i2].X, shape.Points[i2].Y);
-                    int x = (int)(ViewScreenPos.X + tranlsatedPoint.X );
-                    int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y );
+                    int x = (int)(ViewScreenPos.X + tranlsatedPoint.X);
+                    int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y);
                     drawPoints[i2] = new Vector2() { X = x, Y = y };
                 }
                 DrawShapes[i] = new Shape() { Points = drawPoints, Color = shape.Color };
@@ -226,7 +226,7 @@ namespace Pulsar4X.Client
                     rendererPtr,
                     texture,
                     IntPtr.Zero,
-                    ref dstRect,
+                    in dstRect,
                     angleDegrees,
                     IntPtr.Zero,
                     SDL.FlipMode.None
@@ -241,7 +241,7 @@ namespace Pulsar4X.Client
 
     public class ProjectileIcon : Icon
     {
-        private Shape _flame = null!;
+        private Shape _flame;
 
         public ProjectileIcon(Vector3 position_m) : base(position_m)
         {
@@ -273,7 +273,7 @@ namespace Pulsar4X.Client
             };
 
             SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            Shapes.Add(new Shape() {Points = points, Color = colour});
+            Shapes.Add(new Shape() { Points = points, Color = colour });
         }
 
         void NewtonFlame()
@@ -291,7 +291,7 @@ namespace Pulsar4X.Client
             };
 
             SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
-            _flame = new Shape() {Points = points, Color = colour};
+            _flame = new Shape() { Points = points, Color = colour };
         }
 
         public override void OnPhysicsUpdate()
@@ -317,8 +317,8 @@ namespace Pulsar4X.Client
                 for (int i2 = 0; i2 < shape.Points.Length; i2++)
                 {
                     var tranlsatedPoint = shipMatrix.TransformD(shape.Points[i2].X, shape.Points[i2].Y);
-                    int x = (int)(ViewScreenPos.X + tranlsatedPoint.X );
-                    int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y );
+                    int x = (int)(ViewScreenPos.X + tranlsatedPoint.X);
+                    int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y);
                     drawPoints[i2] = new Vector2() { X = x, Y = y };
                 }
                 DrawShapes[i] = new Shape() { Points = drawPoints, Color = shape.Color };
@@ -361,8 +361,8 @@ namespace Pulsar4X.Client
             DrawShapes = new Shape[1];
             var s1 = new Shape();
             s1.Points = new Vector2[2];
-            s1.Points[0] = new Vector2() {X = p0.X, Y = p0.Y};
-            s1.Points[1] = new Vector2() {X = p1.X, Y = p1.Y};
+            s1.Points[0] = new Vector2() { X = p0.X, Y = p0.Y };
+            s1.Points[1] = new Vector2() { X = p1.X, Y = p1.Y };
             var clr = new SDL.Color()
             {
                 R = 200,

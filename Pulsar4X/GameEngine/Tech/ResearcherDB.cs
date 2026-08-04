@@ -13,14 +13,14 @@ public class ResearcherDB : BaseDataBlob
     /// The amount of points per day the researcher outputs
     /// </summary>
     [JsonProperty]
-    public ModifiableValue<int> PointsPerDay { get; internal set; } = new (0);
+    public ModifiableValue<int> PointsPerDay { get; internal set; } = new(0);
 
     /// <summary>
     /// key = category Id
     /// value = percentage bonus to the category (0-1 range IE: 0.1 is a 10 percent bonus)
     /// </summary>
     [JsonProperty]
-    public Dictionary<string, double> BonusCategories { get; internal set; } = new ();
+    public Dictionary<string, double> BonusCategories { get; internal set; } = new();
 
     /// <summary>
     /// The *base* cost per day to operate the researcher
@@ -62,14 +62,13 @@ public class ResearcherDB : BaseDataBlob
     /// The Id of the tech this researcher is researching
     /// </summary>
     [JsonProperty]
-    public ReorderableSafeQueue<string> TechQueue { get; private set; } = new ();
+    public ReorderableSafeQueue<string> TechQueue { get; private set; } = new();
 
     /// <summary>
     /// Needed for the UI
     /// </summary>
     [JsonProperty]
-    public IConstructableDesign Design { get; internal set; }
-
+    public IConstructableDesign? Design { get; internal set; }
     public ResearcherDB(IConstructableDesign design)
     {
         Design = design;

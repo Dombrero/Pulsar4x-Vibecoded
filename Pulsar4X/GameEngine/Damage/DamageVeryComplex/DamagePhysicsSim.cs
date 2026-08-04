@@ -10,13 +10,14 @@ namespace GameEngine.Damage;
 public static class DamagePhysicsSim
 {
     public static int runCount = 0;
-    public static float CalculateTickLength(DamageMap map)
-    {
-        double mag = 0;
-        PhysicalParticle fastPart = KineticMath.GetFastestPart(map);
-        return (float)Math.Min(0.1f, map.ParticlesPerMeter / fastPart.Velocity.Length());
-    }
-    
+        public static float CalculateTickLength(DamageMap map)
+        {
+            PhysicalParticle? fastPart = KineticMath.GetFastestPart(map);
+            if (fastPart is null || fastPart.Velocity.Length() <= 0)
+                return 0.1f;
+            return (float)Math.Min(0.1f, map.ParticlesPerMeter / fastPart.Velocity.Length());
+        }
+
     public static void PhysicsLoop(DamageMap damageMap)
     {
         runCount++;
@@ -29,7 +30,7 @@ public static class DamagePhysicsSim
         {
             damageMap.BeamPoints = PhotonMath.BeamProcessing(damageMap, timeStep);
         }
-        
+
         // Collect all non-null and moving particles into a list
         for (int index = 0; index < damageMap.PMap.Length; index++)
         {
@@ -39,8 +40,8 @@ public static class DamagePhysicsSim
                 movingParticles.Add((particle));
             }
         }
-        
-        if(damageMap.ParticlesPerMeter < damageMap.PhysicsScale)
+
+        if (damageMap.ParticlesPerMeter < damageMap.PhysicsScale)
         {
             foreach (var particle in movingParticles)
             {
@@ -56,7 +57,7 @@ public static class DamagePhysicsSim
             }
             return;
         }
-        
+
         // Update positions of all moving particles
         foreach (var particle in movingParticles)
         {
@@ -69,12 +70,12 @@ public static class DamagePhysicsSim
         {
             KineticMath.DetectCollision(particle, damageMap, collisions);
         }
-        
+
         foreach (var partPair in collisions)
         {
             KineticMath.ResolveCollision(partPair.Item1, partPair.Item2, damageMap);
         }
-        
+
         foreach (var bp in damageMap.BeamPoints)
         {
             if (bp.AbsorbPercentage > 0.0f)
@@ -83,31 +84,31 @@ public static class DamagePhysicsSim
                 PhotonMath.ApplyTemperatureChanges(damageMap, timeStep);
             }
         }
-        
+
         List<PhysicalParticle> flatList = collisions.SelectMany(t => new[] { t.Item1, t.Item2 }).ToList();
         HandleOutOfBounds(damageMap, ref flatList);
-  
+
         var mergedList = movingParticles.Union(flatList).ToList();
         foreach (var particle in mergedList)
         {
             UpdateParticleInMap(particle, damageMap);
         }
-        
+
         foreach (var particle in movingParticles)
         {
             KineticMath.ReAssessDetachmentWithNeighbors(damageMap, particle, 0.1f);
         }
-        
+
         PressureMath.UpdatePressureMap(damageMap);
-        
+
         TempratureMath.TransferHeat(damageMap, timeStep);
-        
+
         damageMap.RunTime += TimeSpan.FromSeconds(timeStep);
-        
-        DamageMapHelpers.FindBadData(damageMap);    
+
+        DamageMapHelpers.FindBadData(damageMap);
     }
-    
-    
+
+
     public static void HandleOutOfBounds(DamageMap damageMap, ref List<PhysicalParticle> particlesToCheck)
     {
         for (int index = 0; index < particlesToCheck.Count; index++)
@@ -137,15 +138,15 @@ public static class DamagePhysicsSim
             }
         }
     }
-    
-    
+
+
     public static void UpdateComponetHealth(DamageMap map, ComponentInstancesDB instanceDB)
     {
         foreach (var component in map.componentData)
         {
             string instanceID = component.Key;
-            ((int X,int Y) position, (int X,int Y) size, int totalParticles) = component.Value;
-                  
+            ((int X, int Y) position, (int X, int Y) size, int totalParticles) = component.Value;
+
             int undamagedParts = 0;
 
             // Count how many particles are destroyed or missing
@@ -155,7 +156,7 @@ public static class DamagePhysicsSim
                 {
                     int index = map.GetIndex(x, y);
                     var particle = map.PMap[index];
-                    if(particle is null)
+                    if (particle is null)
                         continue;
                     if (particle.compID == map.compIDMap[index])
                     {
@@ -168,14 +169,14 @@ public static class DamagePhysicsSim
             }
 
             int destroyedParticles = totalParticles - undamagedParts;
-            
+
             // Calculate new damage based on the number of destroyed or missing particles
-            float percentHealth = (float)undamagedParts / totalParticles; 
+            float percentHealth = (float)undamagedParts / totalParticles;
             // Update the damage in componentInatance
             instanceDB.AllComponents[instanceID].HealthPercent = percentHealth;
         }
     }
-    
+
     public static void UpdateParticlePosition(PhysicalParticle particle, int scale, float timeStep)
     {
         Vector2 movement = particle.Velocity * timeStep;
@@ -190,24 +191,24 @@ public static class DamagePhysicsSim
         return x < 0 || y < 0 ||
                x >= damageMap.Width || y >= damageMap.Height;
     }
-    
+
     // Helper method to update particle in map after position change
     private static void UpdateParticleInMap(PhysicalParticle particle, DamageMap map)
     {
         int newX = (int)Math.Round(particle.Position.X);
         int newY = (int)Math.Round(particle.Position.Y);
-        int newIndex = map.GetIndex(newX, newY); 
+        int newIndex = map.GetIndex(newX, newY);
         int oldIndex = particle.mapIndex;
         if (newIndex != oldIndex && newIndex >= 0 && newIndex < map.PMap.Length)
         {
-            if(map.PMap[newIndex] == null)
+            if (map.PMap[newIndex] == null)
             {
                 map.PMap[oldIndex] = null;
                 map.PMap[newIndex] = particle;
             }
         }
     }
-    
+
     public static double CalculateTotalEnergy(DamageMap damageMap)
     {
         double totalEnergy = 0;
@@ -219,7 +220,7 @@ public static class DamagePhysicsSim
             {
                 // Kinetic Energy: 0.5 * mass * velocity^2
                 double kineticEnergy = 0.5 * particle.Mass * Math.Pow(particle.Velocity.Length(), 2);
-            
+
                 // Thermal Energy: Mass * Specific Heat Capacity * Temperature
                 double thermalEnergy = particle.Mass * particle.MatType.ThermalCapacity * particle.Temperature;
 

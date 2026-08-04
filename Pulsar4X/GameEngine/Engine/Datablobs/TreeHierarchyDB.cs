@@ -20,8 +20,7 @@ namespace Pulsar4X.Datablobs
     /// </remarks>
     public abstract class TreeHierarchyDB : BaseDataBlob
     {
-        [PublicAPI]
-        public override Entity? OwningEntity
+        public override Entity OwningEntity
         {
             get { return _owningEntity_; }
             internal set
@@ -29,7 +28,7 @@ namespace Pulsar4X.Datablobs
                 ParentDB?.RemoveChild(_owningEntity_);
                 _owningEntity_ = value;
 
-                if (OwningEntity != Entity.InvalidEntity && value != null)
+                if (value.IsValid)
                 {
                     ParentDB?.AddChild(value);
                 }
@@ -37,7 +36,7 @@ namespace Pulsar4X.Datablobs
         }
 
         [JsonProperty]
-        protected Entity _owningEntity_;
+        protected Entity _owningEntity_ = null!;
 
         /// <summary>
         /// Parent node to this node.
@@ -50,7 +49,7 @@ namespace Pulsar4X.Datablobs
             get { return _parent; }
             private set
             {
-                if(this.OwningEntity != null && value == this.OwningEntity)
+                if (_owningEntity_ is { IsValid: true } && value == _owningEntity_)
                     throw new ArgumentException("Cannot set the parent entity equal to self");
 
                 _parent = value;
@@ -87,7 +86,7 @@ namespace Pulsar4X.Datablobs
         /// </example>
         [NotNull]
         [PublicAPI]
-        public Entity Root => ParentDB?.Root ?? ((OwningEntity == null) ? Entity.InvalidEntity : OwningEntity);
+        public Entity Root => ParentDB?.Root ?? (_owningEntity_ is { IsValid: true } ? _owningEntity_ : Entity.InvalidEntity);
 
         /// <summary>
         /// Same type DataBlob of my root node.
@@ -103,8 +102,7 @@ namespace Pulsar4X.Datablobs
         [PublicAPI]
         public SafeList<Entity> Children => _children;
         [JsonProperty]
-        private readonly SafeList<Entity> _children;
-
+        private readonly SafeList<Entity> _children = new();
         /// <summary>
         /// All node nodeDB's to this node.
         /// </summary>
@@ -119,7 +117,6 @@ namespace Pulsar4X.Datablobs
         protected TreeHierarchyDB(Entity? parent)
         {
             Parent = parent;
-            _children = new SafeList<Entity>();
         }
 
         /// <summary>
@@ -140,7 +137,7 @@ namespace Pulsar4X.Datablobs
 
         internal void AddChild(Entity? child)
         {
-            if(child == null) return;
+            if (child is not { IsValid: true }) return;
             if (Children.Contains(child))
             {
                 return;
@@ -151,7 +148,7 @@ namespace Pulsar4X.Datablobs
 
         internal void RemoveChild(Entity? child)
         {
-            if(child != null)
+            if (child != null)
                 Children.Remove(child);
         }
 
@@ -171,17 +168,17 @@ namespace Pulsar4X.Datablobs
 
         public TreeHierarchyDB? TryGetChild<T>(Entity entity) where T : TreeHierarchyDB
         {
-            if(Children.Contains(entity))
+            if (Children.Contains(entity))
                 return this;
 
             else
             {
-                foreach(var child in Children)
+                foreach (var child in Children)
                 {
-                    if(child.TryGetDataBlob<T>(out var fleetDB))
+                    if (child.TryGetDataBlob<T>(out var fleetDB))
                     {
                         var childDB = fleetDB.TryGetChild<T>(entity);
-                        if(childDB != null) return childDB;
+                        if (childDB != null) return childDB;
                     }
                 }
             }
@@ -191,13 +188,13 @@ namespace Pulsar4X.Datablobs
 
         internal override void OnRemovedFromEntity()
         {
-            if(Parent != null)
-                ParentDB.RemoveChild(OwningEntity);
+            if (Parent != null)
+                ParentDB?.RemoveChild(OwningEntity);
 
             Parent = null;
-            foreach(var child in Children)
+            foreach (var child in Children)
             {
-                if(child.IsValid && child.TryGetDataBlob(this.GetType(), out var childDB))
+                if (child.IsValid && child.TryGetDataBlob(this.GetType(), out var childDB))
                 {
                     ((TreeHierarchyDB)childDB).SetParent(null);
                 }

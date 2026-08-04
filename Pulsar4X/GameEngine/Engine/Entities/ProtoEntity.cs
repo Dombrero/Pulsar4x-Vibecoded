@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Pulsar4X.Datablobs;
 
@@ -25,11 +26,13 @@ public class ProtoEntity : IHasDataBlobs
         SetDataBlob((BaseDataBlob)dataBlob);
     }
 
+    public T GetRequiredDataBlob<T>() where T : BaseDataBlob => GetDataBlob<T>();
+
     public T GetDataBlob<T>() where T : BaseDataBlob
     {
         var type = typeof(T);
 
-        return (T)DataBlobs.First(db => db.GetType() == type);
+        return (T)DataBlobs.First(db => db.GetType() == type)!;
     }
 
     public void SetDataBlob(BaseDataBlob dataBlob)
@@ -38,7 +41,7 @@ public class ProtoEntity : IHasDataBlobs
         if (DataBlobTypes.Contains(dbType))
         {
             var item = DataBlobs.Find(db => db.GetType() == dbType);
-            if(item != null)
+            if (item != null)
                 DataBlobs.Remove(item);
         }
 
@@ -50,7 +53,7 @@ public class ProtoEntity : IHasDataBlobs
     {
         var type = typeof(T);
 
-        if(DataBlobs.Any(db => db.GetType() == type))
+        if (DataBlobs.Any(db => db.GetType() == type))
         {
             value = GetDataBlob<T>();
             return true;

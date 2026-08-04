@@ -11,13 +11,13 @@ namespace Pulsar4X.Components
     public abstract class ComponentTreeHeirarchyAbilityState : ComponentAbilityState
     {
         [JsonProperty]
-        public ComponentTreeHeirarchyAbilityState ParentState { get; private set; }
+        public ComponentTreeHeirarchyAbilityState? ParentState { get; set; }
         [JsonProperty]
         public List<ComponentTreeHeirarchyAbilityState> ChildrenStates { get; private set; } = new List<ComponentTreeHeirarchyAbilityState>();
 
 
         [JsonConstructor]
-        protected ComponentTreeHeirarchyAbilityState(){}
+        protected ComponentTreeHeirarchyAbilityState() { }
 
         public ComponentTreeHeirarchyAbilityState(ComponentInstance componentInstance) : base(componentInstance)
         {
@@ -36,7 +36,7 @@ namespace Pulsar4X.Components
             }
 
             ParentState = newParent;
-            if(ParentState != null)
+            if (ParentState != null)
                 ParentState.ChildrenStates.Add(this);
         }
 
@@ -65,10 +65,9 @@ namespace Pulsar4X.Components
          /// <summary>
          ///some ideas, implement if actualy needed
         /// </summary>
-        public BaseDataBlob ThisRelatedDatablob;
+        public BaseDataBlob? ThisRelatedDatablob;
 
-        public InstancesDB ThisEntitesInstancesDB;
-
+        public InstancesDB? ThisEntitesInstancesDB;
         (call this from Set Parent, virtual would be empty, inherited classes would have something below eg)
         protected virtual void FilterParents(ComponentTreeHeirarchyAbilityState parentToSet)
         {
@@ -152,7 +151,7 @@ namespace Pulsar4X.Components
 
         public List<ComponentTreeHeirarchyAbilityState> GetSiblings()
         {
-            return ParentState.ChildrenStates;
+            return ParentState?.ChildrenStates ?? new List<ComponentTreeHeirarchyAbilityState>();
         }
 
         public ComponentInstance[] GetChildrenInstances()

@@ -155,7 +155,7 @@ public class ManuverNode
     /// <param name="radial"></param>
     /// <param name="normal"></param>
     /// <param name="time"></param>
-    public void ManipulateNode(double prograde, double radial, double normal,  double time = 0)
+    public void ManipulateNode(double prograde, double radial, double normal, double time = 0)
     {
         Prograde += prograde;
         Radial += radial;
@@ -226,7 +226,7 @@ public class ManuverNode
     /// <param name="radial"></param>
     /// <param name="normal"></param>
     /// <param name="time"></param>
-    public void SetNode(double prograde, double radial, double normal,  DateTime time)
+    public void SetNode(double prograde, double radial, double normal, DateTime time)
     {
         Prograde = prograde;
         Radial = radial;
@@ -712,8 +712,8 @@ public class ManuverSequence
 
     class zeroPosition : IPosition
     {
-        public Orbital.Vector3 AbsolutePosition { get {return Orbital.Vector3.Zero;} }
-        public Orbital.Vector3 RelativePosition { get {return Orbital.Vector3.Zero;} }
+        public Orbital.Vector3 AbsolutePosition { get { return Orbital.Vector3.Zero; } }
+        public Orbital.Vector3 RelativePosition { get { return Orbital.Vector3.Zero; } }
     }
 
     public List<ManuverNode> ManuverNodes = new List<ManuverNode>();

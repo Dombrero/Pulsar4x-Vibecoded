@@ -32,8 +32,8 @@ namespace Pulsar4X.Client
         DateTime _departureDateTime;
 
         private (Vector3 pos, Vector3 vel) _departureState;
-        double _departureOrbitalSpeed_m { get { return _departureState.vel.Length(); }}
-        double _departureProgradeAngle {get{return Math.Atan2(_departureState.vel.Y, _departureState.vel.X);}}
+        double _departureOrbitalSpeed_m { get { return _departureState.vel.Length(); } }
+        double _departureProgradeAngle { get { return Math.Atan2(_departureState.vel.Y, _departureState.vel.X); } }
 
         double _massOrderingEntity = double.NaN;
         double _massTargetBody = double.NaN;
@@ -48,9 +48,9 @@ namespace Pulsar4X.Client
 
         WarpMoveOrderWidget? _moveWidget;
 
-        enum States: byte { NeedsEntity, NeedsTarget, NeedsInsertionPoint, NeedsActioning }
+        enum States : byte { NeedsEntity, NeedsTarget, NeedsInsertionPoint, NeedsActioning }
         States CurrentState;
-        enum Events: byte { SelectedEntity, SelectedPosition, ClickedAction, AltClicked}
+        enum Events : byte { SelectedEntity, SelectedPosition, ClickedAction, AltClicked }
         Action[,] fsm;
 
         private (Vector3 position, DateTime eti) _targetIntercept;
@@ -60,10 +60,10 @@ namespace Pulsar4X.Client
         Vector3 _endpointInitalVelocity_m = Vector3.NaN;
         Vector3 _endpointTargetVelocity_m = Vector3.NaN;
 
-        double _endpointInitalSpeed_m {get{return _endpointInitalVelocity_m.Length();}}
-        double _endpointTargetSpeed_m {get{return _endpointTargetVelocity_m.Length();}}
+        double _endpointInitalSpeed_m { get { return _endpointInitalVelocity_m.Length(); } }
+        double _endpointTargetSpeed_m { get { return _endpointTargetVelocity_m.Length(); } }
 
-        double _endpointInitalAngle {get{return Math.Atan2(_endpointInitalVelocity_m.Y, _endpointInitalVelocity_m.X);}}
+        double _endpointInitalAngle { get { return Math.Atan2(_endpointInitalVelocity_m.Y, _endpointInitalVelocity_m.X); } }
         private KeplerElements _endpointInitialOrbit { get; set; }
         private KeplerElements _endpointTargetOrbit { get; set; }
 
@@ -94,7 +94,8 @@ namespace Pulsar4X.Client
             };
 
             var mainWin = (PulsarMainWindow)_uiState.ViewPort;
-            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) =>
+            {
                 if (e.Button.Button == 1)
                     fsm[(byte)CurrentState, (byte)Events.SelectedPosition].Invoke();
                 else if (e.Button.Button == 3)
@@ -114,14 +115,14 @@ namespace Pulsar4X.Client
 
         internal static WarpOrderWindow GetInstance(EntityState entity, bool SMMode = false)
         {
-            if(!_uiState.TryGetUniqueWindow<WarpOrderWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<WarpOrderWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new WarpOrderWindow(entity.Id, entity.StarSystemId!));
                 return window;  // Entity is set from ctor.
             }
 
             // TODO: Probably needs more testing.
-            if(window._entityId != entity.Id)
+            if (window._entityId != entity.Id)
             {
                 window.SetEntity(entity.Id, entity.StarSystemId!);
             }
@@ -248,11 +249,11 @@ namespace Pulsar4X.Client
             _endpointInitalOrbitWidget = new OrbitOrderIcon(orbitTargetPosition, widgetSoi, _targetRadius_m);
             _endpointInitalOrbitWidget.Red = 100;
             if (_uiState.SelectedSysMapRender != null)
-                _uiState.SelectedSysMapRender.UIWidgets[nameof(_endpointInitalOrbitWidget)+"initOrbit"] = _endpointInitalOrbitWidget;
+                _uiState.SelectedSysMapRender.UIWidgets[nameof(_endpointInitalOrbitWidget) + "initOrbit"] = _endpointInitalOrbitWidget;
 
             _endpointTargetOrbitWidget = new OrbitOrderIcon(orbitTargetPosition, widgetSoi, _targetRadius_m);
             if (_uiState.SelectedSysMapRender != null)
-                _uiState.SelectedSysMapRender.UIWidgets[nameof(_endpointTargetOrbitWidget)+"tgtOrbit"] = _endpointTargetOrbitWidget;
+                _uiState.SelectedSysMapRender.UIWidgets[nameof(_endpointTargetOrbitWidget) + "tgtOrbit"] = _endpointTargetOrbitWidget;
 
             _moveWidget?.SetArrivalTarget(orbitTarget.Id);
             InitialPlacement();
@@ -261,7 +262,8 @@ namespace Pulsar4X.Client
             _tooltipText = "Select Insertion Point";
             CurrentState = States.NeedsInsertionPoint;
         }
-        void InsertionPntSelected() {
+        void InsertionPntSelected()
+        {
             _moveWidget?.SetArrivalPosition(_endpointInsertionPoint_m);
             _tooltipText = "Action to give order";
             CurrentState = States.NeedsActioning;
@@ -423,12 +425,12 @@ namespace Pulsar4X.Client
                 {
 
                     ImGui.Text("InsertionSpeed: ");
-                    ImGui.Text("Initial: "+Stringify.Distance(_endpointInitalSpeed_m) + "/s");
+                    ImGui.Text("Initial: " + Stringify.Distance(_endpointInitalSpeed_m) + "/s");
                     ImGui.Text("Target: " + Stringify.Distance(_endpointTargetSpeed_m) + "/s");
 
                     ImGui.Text("Eccentricity: ");
-                    ImGui.Text("Initial: "+Stringify.Quantity(_endpointInitialOrbit.Eccentricity));
-                    ImGui.Text("Target: "+Stringify.Quantity(_endpointTargetOrbit.Eccentricity));
+                    ImGui.Text("Initial: " + Stringify.Quantity(_endpointInitialOrbit.Eccentricity));
+                    ImGui.Text("Target: " + Stringify.Quantity(_endpointTargetOrbit.Eccentricity));
 
 
                     ImGui.Text("Apoapsis: ");
@@ -440,20 +442,20 @@ namespace Pulsar4X.Client
                     ImGui.Text(Stringify.Distance(_endpointTargetOrbit.Periapsis) + " (Alt: " + Stringify.Distance(_peAlt) + ")");
 
                     ImGui.Text("DepartureSpeed: ");
-                    ImGui.Text( Stringify.Distance( _departureOrbitalSpeed_m) + "/s");
+                    ImGui.Text(Stringify.Distance(_departureOrbitalSpeed_m) + "/s");
 
                     ImGui.Text("Departure Vector: ");
-                    ImGui.Text("X: " + Stringify.Distance(_departureState.vel.X)+ "/s");
-                    ImGui.Text("Y: " + Stringify.Distance(_departureState.vel.Y)+ "/s");
+                    ImGui.Text("X: " + Stringify.Distance(_departureState.vel.X) + "/s");
+                    ImGui.Text("Y: " + Stringify.Distance(_departureState.vel.Y) + "/s");
 
                     ImGui.Text("Departure Angle: ");
                     ImGui.SameLine();
                     ImGui.Text(_departureProgradeAngle.ToString("g3") + " radians or " + Angle.ToDegrees(_departureProgradeAngle).ToString("F") + " deg ");
 
                     ImGui.Text("Insertion Vector: ");
-                    ImGui.Text("X: " + Stringify.Distance(_endpointInitalVelocity_m.X)+ "/s");
-                    ImGui.Text("Y: " + Stringify.Distance(_endpointInitalVelocity_m.Y)+ "/s");
-                    ImGui.Text("Z: " + Stringify.Distance(_endpointInitalVelocity_m.Z)+ "/s");
+                    ImGui.Text("X: " + Stringify.Distance(_endpointInitalVelocity_m.X) + "/s");
+                    ImGui.Text("Y: " + Stringify.Distance(_endpointInitalVelocity_m.Y) + "/s");
+                    ImGui.Text("Z: " + Stringify.Distance(_endpointInitalVelocity_m.Z) + "/s");
 
                     ImGui.Text("Insertion RelativePosition: ");
                     ImGui.Text("X: " + Stringify.Distance(_endpointInsertionPoint_m.X));
@@ -521,7 +523,7 @@ namespace Pulsar4X.Client
             _perpVec = Vector3.Normalise(new Vector3(_departureState.vel.Y * -1, _departureState.vel.X, 0));
             var rangeToTarget = (_targetIntercept.position - _departureState.pos).Length();
             var rangeToVec = (_targetIntercept.position - (_departureState.pos + _perpVec)).Length();
-            if(rangeToTarget > rangeToVec)
+            if (rangeToTarget > rangeToVec)
                 _perpVec = new Vector3(_perpVec.X * -1, _perpVec.Y * -1, 0);
         }
 
@@ -579,7 +581,7 @@ namespace Pulsar4X.Client
                 return;
             ImGuiIOPtr io = ImGui.GetIO();
 
-            if (button == MouseButtons.Primary && !io.KeyShift )
+            if (button == MouseButtons.Primary && !io.KeyShift)
             {
                 // Quick path: estimate the ΔV the default low-orbit insertion would cost; if the
                 // ship can afford it, send the order (the server computes the actual orbit).
@@ -595,7 +597,7 @@ namespace Pulsar4X.Client
                 }
 
             }
-            else if(button == MouseButtons.Primary && io.KeyShift)
+            else if (button == MouseButtons.Primary && io.KeyShift)
             {
                 fsm[(byte)CurrentState, (byte)Events.SelectedEntity].Invoke();
             }
@@ -665,12 +667,12 @@ namespace Pulsar4X.Client
             _orbitTargetId = null;
             if (_endpointInitalOrbitWidget != null)
             {
-                _uiState.SelectedSysMapRender?.UIWidgets.Remove(nameof(_endpointInitalOrbitWidget)+"initOrbit");
+                _uiState.SelectedSysMapRender?.UIWidgets.Remove(nameof(_endpointInitalOrbitWidget) + "initOrbit");
                 _endpointInitalOrbitWidget = null;
             }
             if (_endpointTargetOrbitWidget != null)
             {
-                _uiState.SelectedSysMapRender?.UIWidgets.Remove(nameof(_endpointTargetOrbitWidget)+"tgtOrbit");
+                _uiState.SelectedSysMapRender?.UIWidgets.Remove(nameof(_endpointTargetOrbitWidget) + "tgtOrbit");
                 _endpointTargetOrbitWidget = null;
             }
             if (_moveWidget != null)

@@ -11,16 +11,16 @@ public class PerformanceStopwatch
     Stopwatch _stopwatch = new Stopwatch();
     Stopwatch _fullIntervalStopwatch = new Stopwatch();
     Stopwatch _subIntervalStopwatch = new Stopwatch();
-    string _currentId;
-    SafeList<PerformanceData> _history = new ();
+    string? _currentId;
+    SafeList<PerformanceData> _history = new();
     PerformanceData _currentData = new PerformanceData();
     private readonly object _lock = new object();
 
     public struct PerformanceData
     {
         public double FullIntervalTime = 0;
-        public SafeList<double> PartialIntervalTimes = new ();
-        public SafeDictionary<string, (List<double> times, double sum)> TimesById = new ();
+        public SafeList<double> PartialIntervalTimes = new();
+        public SafeDictionary<string, (List<double> times, double sum)> TimesById = new();
 
         public PerformanceData()
         {
@@ -40,7 +40,7 @@ public class PerformanceStopwatch
 
         lock (_lock)
         {
-            if(!_currentData.TimesById.ContainsKey(id))
+            if (!_currentData.TimesById.ContainsKey(id))
             {
                 var newList = new List<double> { elapsed };
                 _currentData.TimesById.Add(id, (newList, elapsed));

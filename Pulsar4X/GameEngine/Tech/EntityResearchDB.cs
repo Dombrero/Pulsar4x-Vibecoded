@@ -4,7 +4,7 @@ using Pulsar4X.Datablobs;
 
 namespace Pulsar4X.Technology
 {
-    public class  EntityResearchDB : BaseDataBlob, IAbilityDescription
+    public class EntityResearchDB : BaseDataBlob, IAbilityDescription
     {
         public Dictionary<ComponentInstance, int> Labs = new Dictionary<ComponentInstance, int>();
         public EntityResearchDB()

@@ -5,19 +5,19 @@ namespace Pulsar4X.Blueprints
 {
     public class ProcessedMaterialBlueprint : Blueprint
     {
-        public string Name { get; set; }
-        public Dictionary<string, string> Formulas { get; set;}
-        public Dictionary<string, long> ResourceCosts { get; set; }
+        public string? Name { get; set; }
+        public Dictionary<string, string> Formulas { get; set; } = new();
+        public Dictionary<string, long> ResourceCosts { get; set; } = new();
         public long IndustryPointCosts { get; set; }
-        public string IndustryTypeID { get; set; }
-        public string Description { get; set; }
+        public string? IndustryTypeID { get; set; }
+        public string? Description { get; set; }
         public ConstructableGuiHints GuiHints { get; set; }
-        public ushort WealthCost { get; set;}
+        public ushort WealthCost { get; set; }
         public ushort OutputAmount { get; set; }
-        public string CargoTypeID { get; set; }
+        public string? CargoTypeID { get; set; }
         public long MassPerUnit { get; set; }
         public double VolumePerUnit { get; set; }
-        
-        public string PartMatUniqueID { get; set; }
+
+        public string? PartMatUniqueID { get; set; }
     }
 }

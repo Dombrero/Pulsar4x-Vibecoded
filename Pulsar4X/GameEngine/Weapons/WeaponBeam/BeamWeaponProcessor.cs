@@ -16,7 +16,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
 
     public void ProcessEntity(Entity entity, int deltaSeconds)
     {
-        if(entity.IsValid)
+        if (entity.IsValid)
             UpdateBeam(entity.GetDataBlob<BeamInfoDB>(), deltaSeconds);
     }
 
@@ -25,7 +25,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
         var dbs = manager.GetAllDataBlobsOfType<BeamInfoDB>();
         foreach (BeamInfoDB db in dbs)
         {
-            if(db.OwningEntity.IsValid)
+            if (db.OwningEntity.IsValid)
                 UpdateBeam(db, deltaSeconds);
         }
 
@@ -40,7 +40,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
 
     public static void UpdateBeam(BeamInfoDB beamInfo, int seconds)
     {
-        if(!beamInfo.TargetEntity.IsValid)
+        if (!beamInfo.TargetEntity.IsValid)
         {
             // FIXME: beam should probably continue on for a bit and dissipate instead of abrupting removing itself from the game
             beamInfo.OwningEntity.Destroy();
@@ -51,7 +51,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
         var state = (beamInfo.PosDB.AbsolutePosition, beamInfo.VelocityVector);
         (Vector3 pos, double seconds) futurePosTime;
 
-        switch(beamInfo.BeamState)
+        switch (beamInfo.BeamState)
         {
             case BeamInfoDB.BeamStates.Fired:
 
@@ -69,7 +69,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
                     futurePosTime = WeaponUtils.PredictTargetPositionAndTime(timeToTarget, nowTime, beamInfo.TargetEntity);
                     beamInfo.HitsTarget = CalculateHit(beamInfo, futurePosTime);
 
-                    if(beamInfo.HitsTarget)
+                    if (beamInfo.HitsTarget)
                     {
                         beamInfo.BeamState = BeamInfoDB.BeamStates.AtTarget;
                         beamInfo.Positions.Item1 = beamInfo.Positions.Item2;
@@ -88,15 +88,15 @@ public class BeamWeaponProcessor : IHotloopProcessor
                 }
                 break;
             case BeamInfoDB.BeamStates.AtTarget:
-                    futurePosTime = WeaponUtils.PredictTargetPositionAndTime(0.0, nowTime, beamInfo.TargetEntity);
-                    OnHit(beamInfo, state, nowTime, futurePosTime);
+                futurePosTime = WeaponUtils.PredictTargetPositionAndTime(0.0, nowTime, beamInfo.TargetEntity);
+                OnHit(beamInfo, state, nowTime, futurePosTime);
                 break;
             case BeamInfoDB.BeamStates.MissedTarget:
                 UpdatePhysics(beamInfo, seconds);
 
                 beamInfo.Energy = Math.Max(0, beamInfo.Energy - beamInfo.StartingEnergy * 0.1);
 
-                if(beamInfo.Energy == 0)
+                if (beamInfo.Energy == 0)
                 {
                     // Remove the beam when out of energy
                     beamInfo.OwningEntity.Destroy();
@@ -109,7 +109,11 @@ public class BeamWeaponProcessor : IHotloopProcessor
     {
         // FIXME: fix the base 95% chance to hit
         var tohit = WeaponUtils.ToHitChance(beamInfo.LaunchPosition, futurePosTime.pos, beamInfo.VelocityVector.Length(), 0.95);
-        return (beamInfo.OwningEntity.Manager as StarSystem).RNGNextBool(tohit);
+        if (!beamInfo.OwningEntity.IsValid)
+            return false;
+        if (beamInfo.OwningEntity.AttachedManager is not StarSystem starSystem)
+            return false;
+        return starSystem.RNGNextBool(tohit);
     }
 
     private static void OnHit(BeamInfoDB beamInfo, (Vector3 AbsolutePosition, Vector3 VelocityVector) state, DateTime nowTime, (Vector3 pos, double seconds) futurePosTime)
@@ -133,7 +137,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
 
         var damageResult = SimpleDamage.OnTakingDamage(beamInfo.TargetEntity, 100, 500);
 
-        if(damageResult.Destroyed)
+        if (damageResult.Destroyed)
         {
             // Target was destroyed
             EventManager.Instance.Publish(
@@ -142,7 +146,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
                     nowTime,
                     "Target has been destroyed",
                     beamInfo.OwningEntity.FactionOwnerID,
-                    beamInfo.OwningEntity.Manager.ManagerID,
+                    beamInfo.OwningEntity.AttachedManager.ManagerID,
                     beamInfo.TargetEntity.Id,
                     new List<int>()
                     {
@@ -150,7 +154,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
                         beamInfo.TargetEntity.FactionOwnerID
                     }));
         }
-        else if(damageResult.Damage > 0)
+        else if (damageResult.Damage > 0)
         {
             // Target took damage
             EventManager.Instance.Publish(
@@ -159,7 +163,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
                     nowTime,
                     $"Target hit for {damageResult.Damage} damage",
                     beamInfo.OwningEntity.FactionOwnerID,
-                    beamInfo.OwningEntity.Manager.ManagerID,
+                    beamInfo.OwningEntity.AttachedManager.ManagerID,
                     beamInfo.TargetEntity.Id,
                     new List<int>()
                     {
@@ -180,7 +184,7 @@ public class BeamWeaponProcessor : IHotloopProcessor
                 nowTime,
                 $"Missed target",
                 beamInfoDB.OwningEntity.FactionOwnerID,
-                beamInfoDB.OwningEntity.Manager.ManagerID,
+                beamInfoDB.OwningEntity.AttachedManager.ManagerID,
                 beamInfoDB.TargetEntity.Id,
                 new List<int>()
                 {
@@ -200,10 +204,10 @@ public class BeamWeaponProcessor : IHotloopProcessor
     {
         var nowTime = launchingEntity.StarSysDateTime;
         var ourAbsPos = launchingEntity.GetDataBlob<PositionDB>().AbsolutePosition;
-        var targetFuturePosTime =WeaponUtils.PredictTargetPositionAndTime(ourAbsPos, nowTime, targetEntity, beamVelocity);
+        var targetFuturePosTime = WeaponUtils.PredictTargetPositionAndTime(ourAbsPos, nowTime, targetEntity, beamVelocity);
 
         var normVector = Vector3.Normalise(targetFuturePosTime.pos - ourAbsPos);
-        var absVector =  normVector * beamVelocity;
+        var absVector = normVector * beamVelocity;
         var startPos = (PositionDB)launchingEntity.GetDataBlob<PositionDB>().Clone();
         var beamlenInMeters = beamLenInSeconds * UniversalConstants.Units.SpeedOfLightInMetresPerSecond;
 
@@ -225,6 +229,6 @@ public class BeamWeaponProcessor : IHotloopProcessor
         var newbeam = Entity.Create(launchingEntity.FactionOwnerID);
 
         // Add the beam to the game
-        launchingEntity.Manager.AddEntity(newbeam, dataBlobs);
+        launchingEntity.AttachedManager.AddEntity(newbeam, dataBlobs);
     }
 }

@@ -19,7 +19,7 @@ public enum AdminLevel
     Empire
 }
 
-public class AdminSpaceAtb  : IComponentDesignAttribute
+public class AdminSpaceAtb : IComponentDesignAttribute
 {
     public AdminLevel AdminLevel { get; set; }
     public int ConsoleSpace { get; set; }

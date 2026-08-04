@@ -20,7 +20,7 @@ namespace Pulsar4X.Galaxy
         /// Mass in Kg of this entity including all cargo and fuel
         /// </summary>
         [JsonProperty]
-        public double MassTotal {get; private set;}
+        public double MassTotal { get; private set; }
 
         /// <summary>
         /// Volume_km3 of this entity in Km^3.
@@ -33,7 +33,8 @@ namespace Pulsar4X.Galaxy
         /// </summary>
         /// <value>The volume m^3.</value>
         [JsonIgnore]
-        public double Volume_m3 {
+        public double Volume_m3
+        {
             get { return Volume_km3 * 1e9; }
             set { Volume_km3 = value / 1e9; }
         }
@@ -44,7 +45,7 @@ namespace Pulsar4X.Galaxy
         [JsonProperty]
         public double DensityDry_gcm
         {
-            get { return DensityDry_kgm * 1000;}
+            get { return DensityDry_kgm * 1000; }
             internal set { DensityDry_kgm = value * 0.001; }
         }
 
@@ -89,7 +90,7 @@ namespace Pulsar4X.Galaxy
         /// <returns></returns>
         public static MassVolumeDB NewFromMassAndRadius_AU(double mass, double radius_au)
         {
-            var mvDB = new MassVolumeDB {MassDry = mass, RadiusInAU = radius_au, Volume_km3 = CalculateVolume_Km3(radius_au)};
+            var mvDB = new MassVolumeDB { MassDry = mass, RadiusInAU = radius_au, Volume_km3 = CalculateVolume_Km3(radius_au) };
             mvDB.DensityDry_gcm = CalculateDensity(mass, mvDB.Volume_m3);
             mvDB.MassTotal = mass;
             return mvDB;
@@ -103,7 +104,7 @@ namespace Pulsar4X.Galaxy
         /// <returns></returns>
         public static MassVolumeDB NewFromMassAndRadius_m(double mass, double radius_m)
         {
-            var mvDB = new MassVolumeDB {MassDry = mass, RadiusInM = radius_m, Volume_m3 = CalculateVolume_m3(radius_m)};
+            var mvDB = new MassVolumeDB { MassDry = mass, RadiusInM = radius_m, Volume_m3 = CalculateVolume_m3(radius_m) };
             mvDB.DensityDry_gcm = CalculateDensity(mass, mvDB.Volume_m3);
             mvDB.MassTotal = mass;
             return mvDB;
@@ -117,7 +118,7 @@ namespace Pulsar4X.Galaxy
         /// <returns></returns>
         public static MassVolumeDB NewFromMassAndDensity(double mass, double density)
         {
-            var mvDB = new MassVolumeDB {MassDry = mass, DensityDry_gcm = density, Volume_km3 = MassVolumeProcessor.CalculateVolume_Km3_FromMassAndDesity(mass, density), RadiusInAU = CalculateRadius_Au(mass, density)};
+            var mvDB = new MassVolumeDB { MassDry = mass, DensityDry_gcm = density, Volume_km3 = MassVolumeProcessor.CalculateVolume_Km3_FromMassAndDesity(mass, density), RadiusInAU = CalculateRadius_Au(mass, density) };
             mvDB.MassTotal = mass;
             return mvDB;
         }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -18,47 +18,42 @@ using Pulsar4X.Client.Host;
 
 namespace Pulsar4X.Client
 {
-    
+
     public class SensorDraw : UniquePulsarGuiWindow<SensorDraw>
     {
         private EntityState? _selectedEntitySate;
         private Entity? _selectedEntity => _selectedEntitySate?.GetEntity();
         private SystemState? _selectedStarSysState;
 
-        private SensorAbilityDB _sensorAbilityDB;
-
-        
+        private SensorAbilityDB? _sensorAbilityDB;
         #region targetVariables
         private Entity[]? _potentialTargetEntities;
         private string[]? _potentialTargetNames;
         private int _targetIndex = -1;
 
         private SensorProfileDB? _emitSensorProfile;
-        private SensorReturnValues[]? _targetDetectionQuality;
 
-        List<EMData> _emitted = new ();
+        List<EMData> _emitted = new();
         private (int type, int index) _highlightIndex = (-1, -1);
-        List<EMData> _reflected = new ();
+        List<EMData> _reflected = new();
         double _distance = 1.0;
         double _attenuationFactor = 1.0;
-        
+
         #endregion
 
         #region drawData
         private double _lowestWave = 0;
         private double _highestWave = 0;
-        private float _xscale = 1.0f;
-        
+
         private double _highestMagnitude = 0;
         private double _lowestMagnitude = 0;
-        private float _yscale = 1.0f;
-        
+
         uint _canvasBorderColour = ImGui.ColorConvertFloat4ToU32(new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
         uint _reflectedColour = ImGui.ColorConvertFloat4ToU32(new Vector4(0.0f, 1.0f, 0.0f, 1.0f));
         uint _emittedColour = ImGui.ColorConvertFloat4ToU32(new Vector4(0.0f, 0.0f, 1.0f, 1.0f));
         uint _highlightColour = ImGui.ColorConvertFloat4ToU32(new Vector4(0.0f, 1.0f, 1.0f, 0.3f));
         uint _receverColour = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.0f, 0.5f, 1.0f));
-        
+
         private System.Numerics.Vector2 _canvasPos;
         private System.Numerics.Vector2 _canvasSize;
         private System.Numerics.Vector2 _canvasEndPos;
@@ -67,25 +62,24 @@ namespace Pulsar4X.Client
         private System.Numerics.Vector2 wavP0;
         private System.Numerics.Vector2 wavP1;
         private System.Numerics.Vector2 wavP2;
-
         private bool _logScale = true;
         private bool _atRange = true;
         #endregion
-        
-        
+
+
         internal static SensorDraw GetInstance()
         {
-            if(!_uiState.TryGetUniqueWindow<SensorDraw>(out var window))
+            if (!_uiState.TryGetUniqueWindow<SensorDraw>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new SensorDraw());
             }
 
-            if(_uiState.LastClickedEntity?.GetEntity() != null)
+            if (_uiState.LastClickedEntity?.GetEntity() != null)
             {
                 window._selectedEntitySate = _uiState.LastClickedEntity;
             }
 
-            if(_uiState.IsGameLoaded && !string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
+            if (_uiState.IsGameLoaded && !string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
             {
                 // TODO: Stop depending on GameLifecycle singleton.
                 window._selectedStarSysState = GameLifecycle.Instance?.SelectedSystemState;
@@ -103,13 +97,13 @@ namespace Pulsar4X.Client
         }
         internal override void Display()
         {
-            if(!IsActive || _selectedEntitySate == null || _selectedEntity == null)
+            if (!IsActive || _selectedEntitySate == null || _selectedEntity == null)
                 return;
             ImGui.SetNextWindowSize(new System.Numerics.Vector2(1500, 800));
 
             if (Window.Begin("Sensor Display: " + _selectedEntitySate.Name, ref IsActive))
             {
-                
+
                 ImGui.Columns(2);
                 ImGui.SetColumnWidth(0, 300);
                 if (_potentialTargetNames != null
@@ -123,9 +117,9 @@ namespace Pulsar4X.Client
                 {
                     SetBoundsData();
                 }
-                
-                
-                if (_sensorAbilityDB != null)
+
+
+                if (_sensorAbilityDB != null && _selectedEntity != null && _selectedStarSysState != null)
                 {
                     if (ImGui.Button("Scan"))
                     {
@@ -162,7 +156,7 @@ namespace Pulsar4X.Client
                     }
                     BorderGroup.End();
                 }
-                
+
                 if (_emitSensorProfile != null)
                 {
                     var emitted = _emitSensorProfile.EmittedEMSpectra;
@@ -188,7 +182,7 @@ namespace Pulsar4X.Client
                     }
 
                     BorderGroup.End();
-                    
+
                     BorderGroup.Begin("Emitted");
                     for (int i = 0; i < emitted.Count; i++)
                     {
@@ -201,30 +195,30 @@ namespace Pulsar4X.Client
                         ImGui.Indent();
                         ImGui.Text(Stringify.Power(em.Magnitude * _attenuationFactor));
                         ImGui.Unindent();
-                        
+
                     }
                     BorderGroup.End();
                 }
-                
+
                 ImGui.NextColumn();
-                if(_emitSensorProfile != null)
+                if (_emitSensorProfile != null)
                     Draw();
                 _highlightIndex = (-1, -1);
-                
+
                 Window.End();
             }
         }
 
         void Setup()
         {
-            if(_selectedEntity == null)
+            if (_selectedEntity == null || _selectedStarSysState == null)
                 return;
             if (_selectedEntity.TryGetDataBlob<SensorProfileDB>(out var sensorData))
             {
                 _emitSensorProfile = sensorData;
                 SetBoundsData();
             }
-            
+
             //gather potential targets data
             var tgts = _selectedStarSysState.StarSystem.GetAllEntitiesWithDataBlob<SensorAbilityDB>();
             _potentialTargetNames = new string[tgts.Count];
@@ -240,7 +234,7 @@ namespace Pulsar4X.Client
 
         void SetBoundsData()
         {
-            if (_atRange &&_sensorAbilityDB != null)
+            if (_atRange && _sensorAbilityDB != null && _emitSensorProfile?.OwningEntity != null)
             {
                 _distance = MoveMath.GetDistanceBetween(_sensorAbilityDB.OwningEntity, _emitSensorProfile.OwningEntity);
                 _attenuationFactor = SensorTools.AttenuationFactor(_distance);
@@ -250,14 +244,14 @@ namespace Pulsar4X.Client
                 _distance = 0;
                 _attenuationFactor = 1.0;
             }
-            
-            
+
+
             _lowestWave = double.MaxValue;
             _highestWave = double.MinValue;
             _lowestMagnitude = double.MaxValue;
             _highestMagnitude = double.MinValue;
-            
-            if(_emitSensorProfile != null)
+
+            if (_emitSensorProfile != null)
             {
                 SensorProfileTools.UpdateReflectionProfile(_emitSensorProfile, _uiState.PrimarySystemDateTime);
                 _emitted = _emitSensorProfile.EmittedEMSpectra;
@@ -280,7 +274,7 @@ namespace Pulsar4X.Client
                     _lowestMagnitude = Math.Min(_lowestMagnitude, atb.BestSensitivity_kW);
                     //_highestMagnitude = Math.Max(_highestMagnitude, atb.WorstSensitivity_kW);
                 }
-                
+
             }
 
             if (_logScale)
@@ -290,7 +284,7 @@ namespace Pulsar4X.Client
             }
         }
 
-        
+
         void Draw()
         {
             var draw_list = ImGui.GetWindowDrawList();
@@ -298,20 +292,20 @@ namespace Pulsar4X.Client
             _canvasPos = ImGui.GetCursorScreenPos();
             _canvasSize = ImGui.GetContentRegionAvail();
             _canvasEndPos = _canvasPos + _canvasSize;
-            
+
             //calculate X scale for canvas size.
             _scalingFactor.X = _canvasSize.X / (float)(_highestWave - _lowestWave);
-            
+
             _translation.X = (float)(_canvasPos.X - _lowestWave * _scalingFactor.X);
-            
+
             //calculate Y scale for canvas size (75%)
             _scalingFactor.Y = (float)(_canvasSize.Y * 0.75f / (_highestMagnitude - Math.Min(0, _lowestMagnitude)));
             //translate Y to proper screen position, and for the lowest point we want to draw.
             _translation.Y = (float)(_canvasEndPos.Y);
-            
-            
+
+
             double midVal = 1;
-            
+
             //draw canvas boarder.
             draw_list.AddRect(_canvasPos, _canvasEndPos, _canvasBorderColour);
 
@@ -333,7 +327,7 @@ namespace Pulsar4X.Client
                 wavP2.Y = _translation.Y;
 
                 draw_list.AddTriangle(wavP0, wavP1, wavP2, _reflectedColour);
-                if(_highlightIndex == (1, i))
+                if (_highlightIndex == (1, i))
                     draw_list.AddTriangleFilled(wavP0, wavP1, wavP2, _highlightColour);
             }
 
@@ -353,14 +347,14 @@ namespace Pulsar4X.Client
 
                 wavP2.X = (float)(_translation.X + em.WaveForm.WavelengthMax_nm * _scalingFactor.X);
                 wavP2.Y = _translation.Y;
-                
-                
+
+
                 draw_list.AddTriangle(wavP0, wavP1, wavP2, _emittedColour);
-                if(_highlightIndex == (2, i))
+                if (_highlightIndex == (2, i))
                     draw_list.AddTriangleFilled(wavP0, wavP1, wavP2, _highlightColour);
             }
 
-            if(_sensorAbilityDB != null)
+            if (_sensorAbilityDB != null)
             {
                 for (int i = 0; i < _sensorAbilityDB.InstanceAtributes.Count; i++)
                 {
@@ -379,11 +373,11 @@ namespace Pulsar4X.Client
                     wavP2.X = (float)(_translation.X + em.RecevingWaveformCapabilty.WavelengthMax_nm * _scalingFactor.X);
                     wavP2.Y = _canvasPos.Y;
                     draw_list.AddTriangle(wavP0, wavP1, wavP2, _receverColour);
-                    if(_highlightIndex == (0, i))
+                    if (_highlightIndex == (0, i))
                         draw_list.AddTriangleFilled(wavP0, wavP1, wavP2, _highlightColour);
                 }
             }
-            
+
         }
     }
 }

@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Pulsar4X.Engine;
 using Pulsar4X.Movement;
 
@@ -25,7 +25,6 @@ public static class EngineUiBridge
 public sealed class PositionDBAdapter : IPosition
 {
     private readonly PositionDB _db;
-
     public PositionDBAdapter(PositionDB db)
     {
         _db = db;

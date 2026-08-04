@@ -15,8 +15,7 @@ namespace Pulsar4X.Engine.Orders
             Game = game;
         }
 
-        public Game Game { get; private set; }
-
+        public Game? Game { get; set; }
         public bool HandleOrder(EntityCommand entityCommand)
         {
             if (entityCommand.IsValidCommand(Game))
@@ -25,12 +24,12 @@ namespace Pulsar4X.Engine.Orders
                 {
                     if (entityCommand.ActionOnDate > entityCommand.EntityCommanding.StarSysDateTime)
                     {
-                        entityCommand.EntityCommanding.Manager.ManagerSubpulses.AddEntityInterupt(entityCommand.ActionOnDate, nameof(OrderableProcessor), entityCommand.EntityCommanding);
+                        entityCommand.EntityCommanding.AttachedManager.ManagerSubpulses.AddEntityInterupt(entityCommand.ActionOnDate, nameof(OrderableProcessor), entityCommand.EntityCommanding);
                     }
 
-                    if(entityCommand.EntityCommanding.TryGetDataBlob<OrderableDB>(out var orderableDB))
+                    if (entityCommand.EntityCommanding.TryGetDataBlob<OrderableDB>(out var orderableDB))
                     {
-                        if(orderableDB.OwningEntity == null) throw new NullReferenceException("orderableDB.OwningEntity cannot be null");
+                        if (!orderableDB.OwningEntity.IsValid) throw new InvalidOperationException("orderableDB.OwningEntity is not valid");
 
                         // Issued (player) orders drop queued Standing work so Issue always wins.
                         if (entityCommand.Source == OrderSource.Issued)
@@ -38,10 +37,10 @@ namespace Pulsar4X.Engine.Orders
 
                         orderableDB.ActionList.Add(entityCommand);
 
-                        MessagePublisher.Instance.Publish(Message.Create(
+                        _ = MessagePublisher.Instance.Publish(Message.Create(
                             MessageTypes.OrdersChanged,
                             entityId: entityCommand.EntityCommanding.Id,
-                            systemId: entityCommand.EntityCommanding.Manager.ManagerID,
+                            systemId: entityCommand.EntityCommanding.AttachedManager.ManagerID,
                             factionId: entityCommand.EntityCommanding.FactionOwnerID));
 
                         Game.ProcessorManager.GetInstanceProcessor(nameof(OrderableProcessor)).ProcessEntity(orderableDB.OwningEntity, Game.TimePulse.GameGlobalDateTime);
@@ -49,11 +48,11 @@ namespace Pulsar4X.Engine.Orders
                 }
                 else
                 {
-                    if(entityCommand.EntityCommanding.StarSysDateTime >= entityCommand.ActionOnDate)
+                    if (entityCommand.EntityCommanding.StarSysDateTime >= entityCommand.ActionOnDate)
                         entityCommand.Execute(entityCommand.EntityCommanding.StarSysDateTime);
                     else
                     {
-                        entityCommand.EntityCommanding.Manager.ManagerSubpulses.AddEntityInterupt(entityCommand.ActionOnDate, nameof(OrderableProcessor), entityCommand.EntityCommanding);
+                        entityCommand.EntityCommanding.AttachedManager.ManagerSubpulses.AddEntityInterupt(entityCommand.ActionOnDate, nameof(OrderableProcessor), entityCommand.EntityCommanding);
                     }
                 }
                 return true;

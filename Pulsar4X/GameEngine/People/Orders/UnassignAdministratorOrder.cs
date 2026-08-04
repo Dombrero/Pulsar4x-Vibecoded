@@ -19,9 +19,9 @@ public class UnassignAdministratorOrder : EntityCommand
 
     internal override Entity EntityCommanding => _adminEntity;
 
-    private Entity _adminEntity;
+    private Entity _adminEntity = Entity.InvalidEntity;
     private int _administratorId;
-    private string _postComponentName;
+    private string? _postComponentName;
 
     private UnassignAdministratorOrder(Entity adminEntity, int administratorId, string postComponentName)
     {
@@ -42,7 +42,7 @@ public class UnassignAdministratorOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_adminEntity.TryGetDataBlob<AdminSpaceDB>(out var adminSpaceDB))
+        if (!_adminEntity.TryGetDataBlob<AdminSpaceDB>(out var adminSpaceDB))
             return;
 
         // Find the specific admin post by component name
@@ -59,10 +59,10 @@ public class UnassignAdministratorOrder : EntityCommand
         if (post == null)
             return;
 
-        if(!_adminEntity.Manager.TryGetGlobalEntityById(_administratorId, out var administrator))
+        if (!_adminEntity.AttachedManager.TryGetGlobalEntityById(_administratorId, out var administrator))
             return;
 
-        if(!administrator.TryGetDataBlob<CommanderDB>(out var commanderDB))
+        if (!administrator.TryGetDataBlob<CommanderDB>(out var commanderDB))
             return;
 
         // Clear the assignments
@@ -77,7 +77,7 @@ public class UnassignAdministratorOrder : EntityCommand
                     atDateTime,
                     "Admin post was unassigned an administrator",
                     _adminEntity.FactionOwnerID,
-                    _adminEntity.Manager.ManagerID,
+                    _adminEntity.AttachedManager.ManagerID,
                     _adminEntity.Id));
 
         // From the administrator perspective
@@ -87,7 +87,7 @@ public class UnassignAdministratorOrder : EntityCommand
                     atDateTime,
                     "Administrator was unassigned from post",
                     _adminEntity.FactionOwnerID,
-                    _adminEntity.Manager.ManagerID,
+                    _adminEntity.AttachedManager.ManagerID,
                     _administratorId));
     }
 

@@ -32,7 +32,8 @@ namespace Pulsar4X.Tests
         {
             _modLoader.LoadModManifest("Data/basemod/modInfo.json", _modDataStore);
 
-            var ex = Assert.Throws<DuplicateNameException>(() => {
+            var ex = Assert.Throws<DuplicateNameException>(() =>
+            {
                 // Load the same mod again
                 _modLoader.LoadModManifest("Data/basemod/modInfo.json", _modDataStore);
             });

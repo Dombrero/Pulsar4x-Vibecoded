@@ -36,100 +36,64 @@ namespace Pulsar4X.Modding
         public enum CollectionOperationType { Add, Remove, Overwrite }
         public DataType Type { get; set; }
         public OperationType Operation { get; set; } = OperationType.Default;
-        public CollectionOperationType? CollectionOperation { get; set;}
+        public CollectionOperationType? CollectionOperation { get; set; }
 
         [JsonIgnore]
-        public Blueprint Data { get; set; }
+        public Blueprint? Data { get; set; }
 
-        public JObject Payload { get; set; }
+        public JObject? Payload { get; set; }
     }
 
     public class ModInstructionJsonConverter : JsonConverter
     {
-        public override bool CanConvert(Type objectType)
+        public override bool CanConvert(Type? objectType)
         {
             return objectType == typeof(ModInstruction);
         }
+
+        private static T DeserializePayload<T>(JToken payload) where T : Blueprint =>
+            payload.ToObject<T>()!;
 
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             JObject jObject = JObject.Load(reader);
             var instruction = new ModInstruction
             {
-                Type = jObject["Type"].ToObject<ModInstruction.DataType>()
+                Type = jObject["Type"]!.ToObject<ModInstruction.DataType>()!
             };
-            if(jObject["Operation"] != null)
+            if (jObject["Operation"] != null)
             {
-                instruction.Operation = jObject["Operation"].ToObject<ModInstruction.OperationType>();
+                instruction.Operation = jObject["Operation"]!.ToObject<ModInstruction.OperationType>()!;
             }
-            if(jObject["CollectionOperation"] != null)
+            if (jObject["CollectionOperation"] != null)
             {
-                instruction.CollectionOperation = jObject["CollectionOperation"].ToObject<ModInstruction.CollectionOperationType>();
+                instruction.CollectionOperation = jObject["CollectionOperation"]!.ToObject<ModInstruction.CollectionOperationType>();
             }
 
-            switch (instruction.Type)
+            instruction.Data = instruction.Type switch
             {
-                case ModInstruction.DataType.Armor:
-                    instruction.Data = jObject["Payload"].ToObject<ArmorBlueprint>();
-                    break;
-                case ModInstruction.DataType.CargoType:
-                    instruction.Data = jObject["Payload"].ToObject<CargoTypeBlueprint>();
-                    break;
-                case ModInstruction.DataType.ComponentTemplate:
-                    instruction.Data = jObject["Payload"].ToObject<ComponentTemplateBlueprint>();
-                    break;
-                case ModInstruction.DataType.Gas:
-                    instruction.Data = jObject["Payload"].ToObject<GasBlueprint>();
-                    break;
-                case ModInstruction.DataType.IndustryType:
-                    instruction.Data = jObject["Payload"].ToObject<IndustryTypeBlueprint>();
-                    break;
-                case ModInstruction.DataType.Mineral:
-                    instruction.Data = jObject["Payload"].ToObject<Mineral>();
-                    break;
-                case ModInstruction.DataType.ProcessedMaterial:
-                    instruction.Data = jObject["Payload"].ToObject<ProcessedMaterial>();
-                    break;
-                case ModInstruction.DataType.SystemGenSettings:
-                    instruction.Data = jObject["Payload"].ToObject<SystemGenSettingsBlueprint>(serializer);
-                    break;
-                case ModInstruction.DataType.Tech:
-                    instruction.Data = jObject["Payload"].ToObject<TechBlueprint>();
-                    break;
-                case ModInstruction.DataType.TechCategory:
-                    instruction.Data = jObject["Payload"].ToObject<TechCategoryBlueprint>();
-                    break;
-                case ModInstruction.DataType.Theme:
-                    instruction.Data = jObject["Payload"].ToObject<ThemeBlueprint>();
-                    break;
-                case ModInstruction.DataType.DamageResistance:
-                    instruction.Data = jObject["Payload"].ToObject<DamageResistBlueprint>();
-                    break;
-                case ModInstruction.DataType.PartMat:
-                    instruction.Data = jObject["Payload"].ToObject<ParticleMaterialBlueprint>();
-                    break;
-                case ModInstruction.DataType.Species:
-                    instruction.Data = jObject["Payload"].ToObject<SpeciesBlueprint>();
-                    break;
-                case ModInstruction.DataType.System:
-                    instruction.Data = jObject["Payload"].ToObject<SystemBlueprint>();
-                    break;
-                case ModInstruction.DataType.Star:
-                    instruction.Data = jObject["Payload"].ToObject<StarBlueprint>();
-                    break;
-                case ModInstruction.DataType.SystemBody:
-                    instruction.Data = jObject["Payload"].ToObject<SystemBodyBlueprint>();
-                    break;
-                case ModInstruction.DataType.Colony:
-                    instruction.Data = jObject["Payload"].ToObject<ColonyBlueprint>();
-                    break;
-                case ModInstruction.DataType.ComponentDesign:
-                    instruction.Data = jObject["Payload"].ToObject<ComponentDesignBlueprint>();
-                    break;
-                case ModInstruction.DataType.ShipDesign:
-                    instruction.Data = jObject["Payload"].ToObject<ShipDesignBlueprint>();
-                    break;
-            }
+                ModInstruction.DataType.Armor => DeserializePayload<ArmorBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.CargoType => DeserializePayload<CargoTypeBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.ComponentTemplate => DeserializePayload<ComponentTemplateBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Gas => DeserializePayload<GasBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.IndustryType => DeserializePayload<IndustryTypeBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Mineral => DeserializePayload<Mineral>(jObject["Payload"]!),
+                ModInstruction.DataType.ProcessedMaterial => DeserializePayload<ProcessedMaterial>(jObject["Payload"]!),
+                ModInstruction.DataType.SystemGenSettings => jObject["Payload"]!.ToObject<SystemGenSettingsBlueprint>(serializer)!,
+                ModInstruction.DataType.Tech => DeserializePayload<TechBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.TechCategory => DeserializePayload<TechCategoryBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Theme => DeserializePayload<ThemeBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.DamageResistance => DeserializePayload<DamageResistBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.PartMat => DeserializePayload<ParticleMaterialBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Species => DeserializePayload<SpeciesBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.System => DeserializePayload<SystemBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Star => DeserializePayload<StarBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.SystemBody => DeserializePayload<SystemBodyBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.Colony => DeserializePayload<ColonyBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.ComponentDesign => DeserializePayload<ComponentDesignBlueprint>(jObject["Payload"]!),
+                ModInstruction.DataType.ShipDesign => DeserializePayload<ShipDesignBlueprint>(jObject["Payload"]!),
+                _ => throw new JsonSerializationException($"Unknown mod instruction type '{instruction.Type}'."),
+            };
 
             return instruction;
         }

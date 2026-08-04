@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using Pulsar4X.Engine;
 using Pulsar4X.Factions;
@@ -9,9 +8,9 @@ namespace Pulsar4X.Movement
 {
     public class PathfindingManager
     {
-        private readonly Game _game;
-        private readonly Hashtable _dist = new Hashtable();
-        private readonly Hashtable _path = new Hashtable();
+        private readonly Game? _game;
+        private readonly Dictionary<string, double> _dist = new();
+        private readonly Dictionary<string, Node?> _path = new();
 
         private readonly object _syncRoot = new object();
 
@@ -58,7 +57,7 @@ namespace Pulsar4X.Movement
                 foreach (Entity jumpPoint in jumpPoints)
                 {
                     var thisTransitableDB = jumpPoint.GetDataBlob<JumpPointDB>();
-                    Entity destinationJP = faction.Manager.GetGlobalEntityById(thisTransitableDB.DestinationId);
+                    Entity destinationJP = faction.AttachedManager.GetGlobalEntityById(thisTransitableDB.DestinationId);
 
                     var node = new JPNode(jumpPoint, destinationJP, new List<EdgeToNeighbor>());
                     pathfindingGraph.AddNode(node);
@@ -77,8 +76,8 @@ namespace Pulsar4X.Movement
 
                 foreach (Node node in graph.Nodes)
                 {
-                    _dist.Add(node.Key, double.MaxValue);
-                    _path.Add(node.Key, null);
+                    _dist[node.Key] = double.MaxValue;
+                    _path[node.Key] = null;
                 }
 
                 _dist[sourceNode.Key] = 0d;
@@ -99,10 +98,10 @@ namespace Pulsar4X.Movement
                 // [/Dijkstra]
 
                 // Determine if a path exists.
-                if(!_dist.ContainsKey(destinationNode.Key))
+                if (!_dist.ContainsKey(destinationNode.Key))
                     throw new InvalidOperationException($"Value for key '{destinationNode.Key}' is null or not found.");
 
-                totalCost = (double)_dist[destinationNode.Key];
+                totalCost = (double)_dist[destinationNode.Key]!;
                 if (totalCost == double.MaxValue)
                 {
                     // No path to target.
@@ -116,7 +115,9 @@ namespace Pulsar4X.Movement
                 do
                 {
                     Node prevNode = currentNode;
-                    currentNode = (Node)_path[prevNode.Key];
+                    if (!_path.TryGetValue(prevNode.Key, out Node? previousPathNode) || previousPathNode is null)
+                        break;
+                    currentNode = previousPathNode;
 
                     pathStack.Push(currentNode);
                 } while (currentNode != sourceNode);
@@ -132,7 +133,7 @@ namespace Pulsar4X.Movement
             Graph graph;
             if (source.FactionOwnerID >= 0)
             {
-                Entity faction = source.Manager.Game.Factions[source.FactionOwnerID];
+                Entity faction = source.AttachedManager.Game.Factions[source.FactionOwnerID];
                 graph = GetPathfindingGraph(faction);
             }
             else
@@ -156,17 +157,20 @@ namespace Pulsar4X.Movement
         {
             // find the node in nodes with the smallest distance value
             double minDist = double.MaxValue;
-            Node minNode = null;
+            Node? minNode = null;
             foreach (Node n in nodes)
             {
-                if ((double)_dist[n.Key] <= minDist)
+                if (!_dist.ContainsKey(n.Key))
+                    continue;
+                var dist = (double)_dist[n.Key]!;
+                if (dist <= minDist)
                 {
-                    minDist = (double)_dist[n.Key];
+                    minDist = dist;
                     minNode = n;
                 }
             }
 
-            return minNode;
+            return minNode ?? throw new InvalidOperationException("No minimum node found.");
         }
 
         /// <summary>
@@ -174,8 +178,11 @@ namespace Pulsar4X.Movement
         /// </summary>
         private void Relax(Node uJPNode, Node vJPNode, double cost)
         {
-            double distTouNode = (double)_dist[uJPNode.Key];
-            double distTovNode = (double)_dist[vJPNode.Key];
+            if (!_dist.ContainsKey(uJPNode.Key) || !_dist.ContainsKey(vJPNode.Key))
+                return;
+
+            double distTouNode = (double)_dist[uJPNode.Key]!;
+            double distTovNode = (double)_dist[vJPNode.Key]!;
 
             if (distTovNode > distTouNode + cost)
             {

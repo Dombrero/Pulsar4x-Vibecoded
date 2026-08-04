@@ -10,8 +10,8 @@ namespace Pulsar4X.Client.ModFileEditing;
 
 public class ShipDesignBlueprintUI : BluePrintsUI
 {
-    string[] _armorBlueprints;
-    string[] _componentBlueprintIDs;
+    string[] _armorBlueprints = Array.Empty<string>();
+    string[] _componentBlueprintIDs = Array.Empty<string>();
     public ShipDesignBlueprintUI(ModDataStore modDataStore) : base(modDataStore, ModInstruction.DataType.ShipDesign)
     {
         Dictionary<string, ShipDesignBlueprint> blueprints = _modDataStore.ShipDesigns;
@@ -27,7 +27,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
         int i = 0;
         foreach (var kvp in _modDataStore.Armor)
         {
-            _armorBlueprints[i]=kvp.Value.UniqueID;
+            _armorBlueprints[i] = kvp.Value.UniqueID;
             i++;
         }
         i = 0;
@@ -37,7 +37,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
             _isActive[i] = false;
             i++;
         }
-        
+
         _componentBlueprintIDs = new string[_componentBlueprints.Length];
         for (int index = 0; index < _componentBlueprints.Length; index++)
         {
@@ -48,7 +48,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
         newEmpty.Name = "New Blueprint";
         newEmpty.Components = new List<ShipDesignBlueprint.ShipComponentBlueprint>();
         _newEmpty = newEmpty;
-        
+
     }
 
     public override void DisplayEditorWindow(int selectedIndex)
@@ -58,7 +58,6 @@ public class ShipDesignBlueprintUI : BluePrintsUI
         var selectedItem = (ShipDesignBlueprint)_itemBlueprints[selectedIndex];
 
         string name = selectedItem.Name;
-        string editStr;
         ImGui.SetNextWindowSize(new Vector2(1500, 900));
         if (ImGui.Begin("Ship Design Editor: " + name, ref _isActive[selectedIndex]))
         {
@@ -68,7 +67,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
             ImGui.Text("Name: ");
             ImGui.NextColumn();
             _editStr = selectedItem.Name;
-            
+
             if (TextEditWidget.Display("##name" + selectedItem.UniqueID, ref _editStr))
             {
                 selectedItem.Name = _editStr;
@@ -91,7 +90,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
                     selectedItem.Armor = new ShipDesignBlueprint.ShipArmorBlueprint() { Id = _armorBlueprints[_editInt], Thickness = (uint)thickness, };
                 }
                 ImGui.TableNextColumn();
-                
+
                 if (SelectFromListWiget.Display("##armor", _armorBlueprints, ref _editInt))
                 {
                     selectedItem.Armor = new ShipDesignBlueprint.ShipArmorBlueprint() { Id = _armorBlueprints[_editInt], Thickness = (uint)thickness, };
@@ -106,18 +105,18 @@ public class ShipDesignBlueprintUI : BluePrintsUI
                 ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f);
                 ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 120f);
                 ImGui.TableSetupColumn("Design");
-                
+
                 ImGui.TableHeadersRow(); // Optional header row
-                
+
                 ImGui.TableNextRow();
-                
+
                 int index = 0;
                 for (index = 0; index < selectedItem.Components.Count; index++)
                 {
                     ShipDesignBlueprint.ShipComponentBlueprint component = selectedItem.Components[index];
                     string id = component.Id;
                     int amount = (int)component.Amount;
-                    
+
                     ImGui.TableNextColumn();
                     if (ImGui.Button("x##" + index))
                     {
@@ -125,7 +124,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
                     }
                     ImGui.TableNextColumn();
 
-                    
+
                     _editInt = (int)component.Amount;
                     if (IntEditWidget.Display("##compCount" + index, ref _editInt))
                     {
@@ -133,7 +132,7 @@ public class ShipDesignBlueprintUI : BluePrintsUI
                         selectedItem.Components[index] = new ShipDesignBlueprint.ShipComponentBlueprint() { Id = id, Amount = (uint)amount };
                     }
                     ImGui.TableNextColumn();
-                    
+
                     _editInt = Array.IndexOf(_componentBlueprintIDs, id);
                     if (SelectFromListWiget.Display("##comp" + index, _componentBlueprintIDs, ref _editInt))
                     {
@@ -146,11 +145,11 @@ public class ShipDesignBlueprintUI : BluePrintsUI
                 ImGui.TableNextColumn();
                 ImGui.TableNextColumn();
                 _editInt = Array.IndexOf(_componentBlueprintIDs, index);
-                
+
                 if (SelectFromListWiget.Display("##comp" + index, _componentBlueprintIDs, ref _editInt))
                 {
                     string id = _componentBlueprintIDs[_editInt];
-                    selectedItem.Components.Add( new ShipDesignBlueprint.ShipComponentBlueprint() { Id = id, Amount = (uint)1 });
+                    selectedItem.Components.Add(new ShipDesignBlueprint.ShipComponentBlueprint() { Id = id, Amount = (uint)1 });
                 }
             }
             ImGui.EndTable();

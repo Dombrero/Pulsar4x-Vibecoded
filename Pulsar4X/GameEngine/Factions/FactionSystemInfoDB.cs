@@ -7,7 +7,7 @@ namespace Pulsar4X.Factions
 {
     public class FactionSystemInfoDB : BaseDataBlob
     {
-        internal StarSystem StarSystem;
+        internal StarSystem? StarSystem;
         internal HashSet<Entity> OwnedEntitesInSystem = new HashSet<Entity>();
         internal HashSet<Entity> KnownSystemBodies = new HashSet<Entity>();
 

@@ -8,9 +8,8 @@ namespace Pulsar4X.Colonies;
 
 public class CreateColonyOrder : EntityCommand
 {
-    public Entity TargetSystemBody { get; private set; }
-    public Entity Species { get; private set; }
-
+    public Entity TargetSystemBody { get; set; } = Entity.InvalidEntity;
+    public Entity Species { get; set; } = Entity.InvalidEntity;
     public override ActionLaneTypes ActionLanes => ActionLaneTypes.InstantOrder;
 
     public override bool IsBlocking => false;
@@ -19,7 +18,7 @@ public class CreateColonyOrder : EntityCommand
 
     public override string Details => $"Create Colony on {TargetSystemBody.ToString()}";
 
-    private Entity _entityCommanding;
+    private Entity _entityCommanding = Entity.InvalidEntity;
     internal override Entity EntityCommanding => _entityCommanding;
 
     public static CreateColonyOrder CreateCommand(Entity faction, Entity species, Entity targetBody)
@@ -28,7 +27,7 @@ public class CreateColonyOrder : EntityCommand
         {
             _entityCommanding = faction,
             EntityCommandingGuid = faction.Id,
-            RequestingFactionGuid= faction.Id,
+            RequestingFactionGuid = faction.Id,
             TargetSystemBody = targetBody,
             Species = species
         };
@@ -57,7 +56,7 @@ public class CreateColonyOrder : EntityCommand
                 atDateTime,
                 $"{colonyName} has been created",
                 RequestingFactionGuid,
-                _entityCommanding.Manager.ManagerID,
+                _entityCommanding.AttachedManager.ManagerID,
                 colony.Id));
     }
 

@@ -5,9 +5,9 @@ namespace Pulsar4X.Industry
 {
     public abstract class JobBase
     {
-        public virtual string Name { get; internal set; }
+        public virtual string Name { get; internal set; } = string.Empty;
         public string JobID = Guid.NewGuid().ToString();
-        public string ItemGuid { get; protected set; }
+        public string? ItemGuid { get; protected set; }
         public ushort NumberOrdered { get; set; }
         public ushort NumberCompleted { get; internal set; }
 
@@ -26,8 +26,8 @@ namespace Pulsar4X.Industry
         public long ProductionPointsCost { get; protected set; }
         public bool Auto { get; internal set; }
 
-        public Dictionary<string, long> ResourcesRequiredRemaining { get; internal set; } = new ();
-        public Dictionary<string, long> ResourcesCosts { get; internal set; } = new ();
+        public Dictionary<string, long> ResourcesRequiredRemaining { get; internal set; } = new();
+        public Dictionary<string, long> ResourcesCosts { get; internal set; } = new();
 
         public JobBase()
         {

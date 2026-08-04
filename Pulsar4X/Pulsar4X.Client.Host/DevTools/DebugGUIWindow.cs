@@ -12,7 +12,7 @@ namespace Pulsar4X.Client
         }
         internal static DebugGUIWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<DebugGUIWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<DebugGUIWindow>(out var window))
             {
                 return window;
             }

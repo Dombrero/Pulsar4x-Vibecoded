@@ -8,7 +8,7 @@ namespace Pulsar4X.Energy
 {
     public class EnergyStoreAtb : IComponentDesignAttribute
     {
-        public string EnergyTypeID;
+        public string? EnergyTypeID;
         /// <summary>Capacity in kJ.</summary>
         public double MaxStore;
 

@@ -26,7 +26,7 @@ namespace Pulsar4X.DataStructures
 
         public void Add(T item)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 _innerList.Add(item);
             }
@@ -34,7 +34,7 @@ namespace Pulsar4X.DataStructures
 
         public bool Remove(T item)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 return _innerList.Remove(item);
             }
@@ -42,7 +42,7 @@ namespace Pulsar4X.DataStructures
 
         public void RemoveAt(int index)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 _innerList.RemoveAt(index);
             }
@@ -50,7 +50,7 @@ namespace Pulsar4X.DataStructures
 
         public int RemoveAll(Predicate<T> match)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 return _innerList.RemoveAll(match);
             }
@@ -58,7 +58,7 @@ namespace Pulsar4X.DataStructures
 
         public void Insert(int index, T item)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 _innerList.Insert(index, item);
             }
@@ -68,7 +68,7 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     return _innerList.Count;
                 }
@@ -79,14 +79,14 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     return _innerList[index];
                 }
             }
             set
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     _innerList[index] = value;
                 }
@@ -95,7 +95,7 @@ namespace Pulsar4X.DataStructures
 
         public bool Contains(T item)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 return _innerList.Contains(item);
             }
@@ -103,7 +103,7 @@ namespace Pulsar4X.DataStructures
 
         public void Clear()
         {
-            lock(_lock)
+            lock (_lock)
             {
                 _innerList.Clear();
             }
@@ -111,7 +111,7 @@ namespace Pulsar4X.DataStructures
 
         public T[] ToArray()
         {
-            lock(_lock)
+            lock (_lock)
             {
                 return _innerList.ToArray();
             }
@@ -119,7 +119,7 @@ namespace Pulsar4X.DataStructures
 
         public IEnumerator<T> GetEnumerator()
         {
-            lock(_lock)
+            lock (_lock)
             {
                 return new List<T>(_innerList).GetEnumerator();
             }
@@ -132,19 +132,19 @@ namespace Pulsar4X.DataStructures
 
         public bool Equals(SafeList<T>? other)
         {
-            if(other is null) return false;
-            if(ReferenceEquals(this, other)) return true;
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
 
-            lock(_lock)
+            lock (_lock)
             {
-                lock(other._lock)
+                lock (other._lock)
                 {
-                    if(_innerList.Count != other._innerList.Count)
+                    if (_innerList.Count != other._innerList.Count)
                     {
                         return false;
                     }
 
-                    for(int i = 0; i < _innerList.Count; i++)
+                    for (int i = 0; i < _innerList.Count; i++)
                     {
                         if (!EqualityComparer<T>.Default.Equals(_innerList[i], other._innerList[i]))
                             return false;
@@ -163,7 +163,7 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     return new List<T>(_innerList);
                 }
@@ -190,9 +190,18 @@ namespace Pulsar4X.DataStructures
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
+            if (value is null)
+            {
+                writer.WriteNull();
+                return;
+            }
             var objectType = value.GetType();
             var innerListProperty = objectType.GetProperty("InnerList", BindingFlags.NonPublic | BindingFlags.Instance);
-            var innerListValue = innerListProperty.GetValue(value);
+            if (innerListProperty?.GetValue(value) is not { } innerListValue)
+            {
+                writer.WriteNull();
+                return;
+            }
             serializer.Serialize(writer, innerListValue);
         }
     }

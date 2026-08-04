@@ -8,9 +8,9 @@ namespace Pulsar4X.Tests
 
     public class MatrixTests
     {
-        private Vector3 testVectorX = new Vector3() {X = 10, Y = 0, Z = 0};
-        private Vector3 testVectorY = new Vector3() {X = 0, Y = 10, Z = 0};
-        private Vector3 testVectorZ = new Vector3() {X = 0, Y = 0, Z = 10};
+        private Vector3 testVectorX = new Vector3() { X = 10, Y = 0, Z = 0 };
+        private Vector3 testVectorY = new Vector3() { X = 0, Y = 10, Z = 0 };
+        private Vector3 testVectorZ = new Vector3() { X = 0, Y = 0, Z = 10 };
 
 
 
@@ -114,8 +114,8 @@ namespace Pulsar4X.Tests
 
     public class Matrix2dTests
     {
-        private Vector2 testVector2X = new Vector2() {X = 10, Y = 0,};
-        private Vector2 testVector2Y = new Vector2() {X = 0, Y = 10,};
+        private Vector2 testVector2X = new Vector2() { X = 10, Y = 0, };
+        private Vector2 testVector2Y = new Vector2() { X = 0, Y = 10, };
 
         [Test]
         public void Transform()
@@ -128,7 +128,7 @@ namespace Pulsar4X.Tests
         public void Rotate()
         {
             var rotMtx = Matrix2d.IDRotate(Math.PI * 0.5); //rotate 90 degrees
-            var rotvec = rotMtx.Transform(testVector2X );
+            var rotvec = rotMtx.Transform(testVector2X);
 
             Assert.AreEqual(0, rotvec.X, 1.5e-15, "X should be 0, \r The vector is: " + rotvec);
 

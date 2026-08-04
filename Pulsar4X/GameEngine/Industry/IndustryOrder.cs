@@ -27,8 +27,7 @@ namespace Pulsar4X.Industry
             EditJob
         }
         public OrderTypeEnum OrderType;
-
-        public string ItemID { get; set; }
+        public string? ItemID { get; set; }
         public ushort NumberOrderd { get; set; }
         public bool RepeatJob { get; set; } = false;
         public bool AutoInstall { get; set; } = false;
@@ -40,15 +39,15 @@ namespace Pulsar4X.Industry
         public override bool IsBlocking => true; //?why block?
 
 
-        private Entity _entityCommanding;
+        private Entity _entityCommanding = Entity.InvalidEntity;
 
-        private string productionLineID;
-        internal override Entity EntityCommanding{get{return _entityCommanding;}}
+        private string? productionLineID;
+        internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
 
-        private Entity _factionEntity;
+        private Entity _factionEntity = Entity.InvalidEntity;
         // private ComponentDesign _design;
-        private IndustryJob _job;
+        private IndustryJob? _job;
 
 
 
@@ -126,11 +125,11 @@ namespace Pulsar4X.Industry
                 switch (OrderType)
                 {
                     case OrderTypeEnum.NewJob:
-                    {
-                        if(AutoAddSubJobs)
-                            IndustryTools.AutoAddSubJobs(_entityCommanding, _job);
-                        IndustryTools.AddJob(_entityCommanding, productionLineID, _job);
-                    }
+                        {
+                            if (AutoAddSubJobs)
+                                IndustryTools.AutoAddSubJobs(_entityCommanding, _job);
+                            IndustryTools.AddJob(_entityCommanding, productionLineID, _job);
+                        }
                         break;
                     case OrderTypeEnum.CancelJob:
                         IndustryTools.CancelExsistingJob(_entityCommanding, productionLineID, ItemID);

@@ -24,12 +24,11 @@ public enum AccessLevel : byte
 [JsonConverter(typeof(MaskedConverter))]
 public struct Masked<T> where T : struct
 {
-    private T _value;
-    private T _obscured;
+    private T _value = default!;
+    private T _obscured = default!;
     private int _fullMask;
     private int _partialMask;
     private AccessLevel _defaultAccess;
-
     /// <summary>
     /// Creates a new Masked value with full and partial access masks.
     /// </summary>
@@ -436,8 +435,8 @@ public class MaskedConverter : JsonConverter
 /// </summary>
 internal class MaskedData<T> where T : struct
 {
-    public T Value;
-    public T Obscured;
+    public T Value = default!;
+    public T Obscured = default!;
     public int FullMask;
     public int PartialMask;
     public AccessLevel DefaultAccess;

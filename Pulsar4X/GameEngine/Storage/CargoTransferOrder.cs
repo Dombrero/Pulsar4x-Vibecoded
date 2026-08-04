@@ -27,7 +27,7 @@ public class CargoTransferOrder : EntityCommand
 
     }
     [JsonProperty]
-    public Conditionals Condition {get; private set;} = Conditionals.TakeAvailibleAtOrder;
+    public Conditionals Condition { get; private set; } = Conditionals.TakeAvailibleAtOrder;
     [JsonProperty]
     public bool IsPrimaryEntity { get; private set; }
 
@@ -67,7 +67,7 @@ public class CargoTransferOrder : EntityCommand
         }
     }
 
-    Entity _entityCommanding;
+    Entity _entityCommanding = Entity.InvalidEntity;
 
     internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
@@ -134,26 +134,26 @@ public class CargoTransferOrder : EntityCommand
             && ReferenceEquals(other.TransferData, TransferData));
     }
 
-    public static bool CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, List<(ICargoable item, long amount)> itemsToMove )
+    public static bool CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, List<(ICargoable item, long amount)> itemsToMove)
     {
         CargoTransferDataDB cargoData = new(primaryEntity, secondaryEntity, itemsToMove);
         var cmd1 = new CargoTransferOrder(cargoData)
         {
             RequestingFactionGuid = faction,
             EntityCommandingGuid = primaryEntity.Id,
-            CreatedDate = primaryEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = true,
         };
-        bool primaryAccepted = primaryEntity.Manager.Game.OrderHandler.HandleOrder(cmd1);
+        bool primaryAccepted = primaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
 
         var cmd2 = new CargoTransferOrder(cargoData)
         {
             RequestingFactionGuid = faction,
             EntityCommandingGuid = secondaryEntity.Id,
-            CreatedDate = primaryEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = false
         };
-        return secondaryEntity.Manager.Game.OrderHandler.HandleOrder(cmd2) && primaryAccepted;
+        return secondaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd2) && primaryAccepted;
     }
 
     /// <summary>
@@ -165,7 +165,7 @@ public class CargoTransferOrder : EntityCommand
     /// <param name="secondaryEntity"></param>
     /// <param name="item"></param>
     /// <param name="condition"></param>
-    public static void CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, ICargoable item,  Conditionals condition )
+    public static void CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, ICargoable item, Conditionals condition)
     {
         long amount = 0;
         if (condition == Conditionals.WaitTillFull)
@@ -181,21 +181,21 @@ public class CargoTransferOrder : EntityCommand
         {
             RequestingFactionGuid = faction,
             EntityCommandingGuid = primaryEntity.Id,
-            CreatedDate = primaryEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = true,
             Condition = condition
         };
-        primaryEntity.Manager.Game.OrderHandler.HandleOrder(cmd1);
+        primaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
 
         var cmd2 = new CargoTransferOrder(cargoData)
         {
             RequestingFactionGuid = faction,
             EntityCommandingGuid = secondaryEntity.Id,
-            CreatedDate = primaryEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = false,
             Condition = condition
         };
-        secondaryEntity.Manager.Game.OrderHandler.HandleOrder(cmd2);
+        secondaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd2);
     }
 
     /// <returns>True if at least one of the fleet's ships was issued a refuel transfer.</returns>
@@ -285,7 +285,7 @@ public class CargoTransferOrder : EntityCommand
     internal override void Execute(DateTime atDateTime)
     {
         // Live entity refs are not serialized; recover from TransferData after save/load.
-        if (_entityCommanding == null || !_entityCommanding.IsValid)
+        if (!_entityCommanding.IsValid)
         {
             if (TransferData?.PrimaryEntity?.Id == EntityCommandingGuid)
                 _entityCommanding = TransferData.PrimaryEntity;
@@ -293,7 +293,10 @@ public class CargoTransferOrder : EntityCommand
                 _entityCommanding = TransferData.SecondaryEntity;
         }
 
-        if (_entityCommanding == null || !_entityCommanding.IsValid)
+        if (!_entityCommanding.IsValid)
+            return;
+
+        if (TransferData is null)
             return;
 
         if (!IsRunning)
@@ -323,48 +326,46 @@ public class CargoTransferOrder : EntityCommand
 
     internal override bool IsFinished()
     {
-        if(!IsRunning)
+        if (!IsRunning)
             return _isFinished = false;
 
         switch (Condition)
         {
             case Conditionals.TakeAvailibleAtOrder:
-            {
-                if (AmountLeftToXfer() > 0)
-                    _isFinished = false;
-                else
-                    _isFinished = true;
-                break;
-            }
-            case Conditionals.WaitTillFull:
-            {
-                if (AmountLeftToXfer() > 0)
-                    _isFinished = false;
-                else //if we've transfered everything from the inital order, check if we can fit more
                 {
-                    for (int index = 0; index < TransferData.OrderedToTransfer.Count; index++)
-                    {
-                        (ICargoable item, long amount) tup = TransferData.OrderedToTransfer[index];
-                        var amount = CargoMath.GetFreeUnitSpace(TransferData.PrimaryStorageDB, tup.item);
-                        TransferData.UpdateEscro(tup.item, amount);
-                    }
                     if (AmountLeftToXfer() > 0)
                         _isFinished = false;
                     else
                         _isFinished = true;
+                    break;
                 }
-                break;
-            }
+            case Conditionals.WaitTillFull:
+                {
+                    if (AmountLeftToXfer() > 0)
+                        _isFinished = false;
+                    else //if we've transfered everything from the inital order, check if we can fit more
+                    {
+                        for (int index = 0; index < TransferData.OrderedToTransfer.Count; index++)
+                        {
+                            (ICargoable item, long amount) tup = TransferData.OrderedToTransfer[index];
+                            var amount = CargoMath.GetFreeUnitSpace(TransferData.PrimaryStorageDB, tup.item);
+                            TransferData.UpdateEscro(tup.item, amount);
+                        }
+                        if (AmountLeftToXfer() > 0)
+                            _isFinished = false;
+                        else
+                            _isFinished = true;
+                    }
+                    break;
+                }
             case Conditionals.WailTillEmpty:
                 throw new NotImplementedException();
-                break;
             case Conditionals.TakeAvailible:
                 throw new NotImplementedException();
-                break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
-        if(_isFinished)
+        if (_isFinished)
         {
             //TransferData.PrimaryStorageDB.EscroItems.Remove(TransferData);
             //TransferData.SecondaryStorageDB.EscroItems.Remove(TransferData);

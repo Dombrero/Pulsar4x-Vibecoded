@@ -17,7 +17,7 @@ namespace Pulsar4X.Movement
         /// <summary>
         /// this is a specific mineral/refined materal etc, rather than a cargo type
         /// </summary>
-        public string FuelType;
+        public string? FuelType;
 
         /// <summary>
         /// in kg/s (mass)

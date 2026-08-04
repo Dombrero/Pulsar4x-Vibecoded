@@ -8,12 +8,12 @@ namespace Pulsar4X.Tests;
 
 public class MockDataBlob1 : BaseDataBlob
 {
-    public string Data;
+    public string Data = "";
 }
 
 public class MockDataBlob2 : BaseDataBlob
 {
-    public string Data;
+    public string Data = "";
 }
 
 [TestFixture]

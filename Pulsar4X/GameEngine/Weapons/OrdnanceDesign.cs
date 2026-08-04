@@ -21,9 +21,9 @@ namespace Pulsar4X.Weapons
         public ConstructableGuiHints GuiHints { get; } = ConstructableGuiHints.IsOrdinance;
         public int ID { get; private set; } = Game.GetEntityID();
         public string UniqueID { get; } = Guid.NewGuid().ToString();
-        public string Name { get; set; }
-        public bool IsValid {get; set; } = true;
-        public string CargoTypeID { get; }
+        public string? Name { get; set; }
+        public bool IsValid { get; set; } = true;
+        public string? CargoTypeID { get; internal set; }
         public int DesignVersion = 0;
         public bool IsObsolete = false;
         public long MassPerUnit { get; set; }
@@ -39,7 +39,7 @@ namespace Pulsar4X.Weapons
         public double BurnRate { get; }
 
         public double Volume;
-        public List<(ComponentDesign design, int count)> Components;
+        public List<(ComponentDesign design, int count)> Components = new();
         public (ArmorBlueprint type, float thickness) Armor;
         public Dictionary<string, long> ResourceCosts { get; internal set; } = new Dictionary<string, long>();
         public Dictionary<string, long> MineralCosts = new Dictionary<string, long>();
@@ -67,16 +67,16 @@ namespace Pulsar4X.Weapons
         }
 
         public int CreditCost;
-        public EntityDamageProfileDB DamageProfileDB;
+        public EntityDamageProfileDB? DamageProfileDB;
 
         [JsonConstructor]
         internal OrdnanceDesign()
         {
         }
 
-        public OrdnanceDesign(FactionInfoDB faction, string name, double fuelAmountKG,  List<(ComponentDesign design, int count)> components, string? id = null, bool startResearched = false)
+        public OrdnanceDesign(FactionInfoDB faction, string name, double fuelAmountKG, List<(ComponentDesign design, int count)> components, string? id = null, bool startResearched = false)
         {
-            if(id != null)
+            if (id != null)
                 UniqueID = id;
 
             faction.MissileDesigns.Add(UniqueID, this);
@@ -94,7 +94,7 @@ namespace Pulsar4X.Weapons
             foreach (var component in components)
             {
                 //If the mounttype does not include missiles, it will just ignore the component and wont add it.
-                if((component.design.ComponentMountType & ComponentMountType.Missile) == ComponentMountType.Missile)
+                if ((component.design.ComponentMountType & ComponentMountType.Missile) == ComponentMountType.Missile)
                 {
                     mass += component.design.MassPerUnit * component.count;
                     vol += component.design.VolumePerUnit * component.count;
@@ -131,7 +131,7 @@ namespace Pulsar4X.Weapons
             MassPerUnit = (int)WetMass;
             VolumePerUnit = vol;
 
-            if(startResearched)
+            if (startResearched)
             {
                 faction.Data.CargoGoods.Add(this);
             }

@@ -54,9 +54,9 @@ namespace Pulsar4X.Orbital
         public static double LinearEccentricityFromAxies(double a, double b)
         {
             return Math.Sqrt(a * a - b * b);
-            
+
         }
-        
+
         public static double Eccentricity(double linearEccentricity, double semiMajorAxis)
         {
             return linearEccentricity / semiMajorAxis;
@@ -107,7 +107,7 @@ namespace Pulsar4X.Orbital
 
             return area;
         }
-        
+
         /// <summary>
         /// works with ellipse and hyperabola. Plucked from: http://www.bogan.ca/orbits/kepler/orbteqtn.html
         /// </summary>
@@ -117,9 +117,9 @@ namespace Pulsar4X.Orbital
         /// <param name="eccentricity">Eccentricity.</param>
         public static double RadiusAtTrueAnomaly(double angle, double semiLatusRectum, double eccentricity)
         {
-            return Math.Abs( semiLatusRectum / (1 + eccentricity * Math.Cos(angle)));
+            return Math.Abs(semiLatusRectum / (1 + eccentricity * Math.Cos(angle)));
         }
-        
+
         /// <summary>
         /// https://en.wikipedia.org/wiki/Ellipse#Polar_form_relative_to_focus
         /// this is the same as RadiusAtTrueAnomaly, but allows for phi. 
@@ -149,13 +149,13 @@ namespace Pulsar4X.Orbital
             //r = p / (1 + e * cos(θ))
             //1 + e * cos(θ) = p/r
             //((p / r) -1) / e = cos(θ)
-            
+
             //I was getting some floating point errors and values ending up slightly over 1. 
             //clamp should fix that however not sure if it'll end up hiding other issues. 
             var foo = Math.Clamp(((semiLatusRectum / radius - 1) / eccentricity), -1, 1);
             return Math.Acos(foo);
         }
-        
+
         /// <summary>
         /// True anomaly from radius (same polar relation as <see cref="TrueAnomalyAtRadus"/>).
         /// Alias kept for callers/tests; previously had an algebraically wrong formula.
@@ -164,7 +164,7 @@ namespace Pulsar4X.Orbital
         {
             return TrueAnomalyAtRadus(radius, semiLatusRectum, eccentricity);
         }
-        
+
         /// <summary>
         /// True anomaly from radius (same polar relation as <see cref="TrueAnomalyAtRadus"/>).
         /// Alias kept for callers/tests; previously had an algebraically wrong formula.
@@ -173,7 +173,7 @@ namespace Pulsar4X.Orbital
         {
             return TrueAnomalyAtRadus(radius, semiLatusRectum, eccentricity);
         }
-        
+
         /// <summary>
         /// https://en.wikipedia.org/wiki/Ellipse#Polar_form_relative_to_center
         /// </summary>
@@ -193,7 +193,7 @@ namespace Pulsar4X.Orbital
             Vector2 pos = new Vector2() { X = r * Math.Cos(trueAnomaly), Y = r * Math.Sin(trueAnomaly) };
             return pos;
         }
-        
+
         /// <summary>
         /// Gets the position of an intersect between an orbit and a circle(radius)
         /// </summary>

@@ -18,7 +18,8 @@ namespace Pulsar4X.People
         public NavalAcademyDB() { }
         public NavalAcademyDB(int classSize, DateTime graduationDate, int trainingPeriod)
         {
-            Academies.Add(new NavalAcademy(){
+            Academies.Add(new NavalAcademy()
+            {
                 ClassSize = classSize,
                 GraduationDate = graduationDate,
                 TrainingPeriodInMonths = trainingPeriod

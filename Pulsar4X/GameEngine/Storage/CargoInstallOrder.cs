@@ -33,37 +33,35 @@ public class CargoInstallOrder : EntityCommand
         }
     }
 
-    Entity _entityCommanding;
+    Entity _entityCommanding = Entity.InvalidEntity;
 
     internal override Entity EntityCommanding { get { return _entityCommanding; } }
-    internal Entity InstallOnEntity { get; set; }
-
-    internal ComponentInstance facilityComponent { get; private set; }
-
+    internal Entity InstallOnEntity { get; set; } = Entity.InvalidEntity;
+    internal ComponentInstance? facilityComponent { get; set; }
     [JsonIgnore]
-    Entity factionEntity;
-    
+    Entity factionEntity = Entity.InvalidEntity;
+
 
     private CargoInstallOrder()
     {
 
     }
-    
-    public static void CreateCommand(int faction, Entity cargoFrom, Entity installOn, ComponentInstance facility )
+
+    public static void CreateCommand(int faction, Entity cargoFrom, Entity installOn, ComponentInstance facility)
     {
         var cmd1 = new CargoInstallOrder()
         {
             RequestingFactionGuid = faction,
             EntityCommandingGuid = cargoFrom.Id,
-            CreatedDate = cargoFrom.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = cargoFrom.AttachedManager.ManagerSubpulses.StarSysDateTime,
             InstallOnEntity = installOn,
             facilityComponent = facility
         };
-        cargoFrom.Manager.Game.OrderHandler.HandleOrder(cmd1);
+        cargoFrom.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
     }
-    
 
-    
+
+
     /// <summary>
     /// Validates and actions the command.
     /// may eventualy need to return a responce instead of void.
@@ -95,11 +93,11 @@ public class CargoInstallOrder : EntityCommand
     {
         return _isFinished;
     }
-    
-    
+
+
     public override EntityCommand Clone()
     {
         throw new NotImplementedException();
     }
-    
+
 }

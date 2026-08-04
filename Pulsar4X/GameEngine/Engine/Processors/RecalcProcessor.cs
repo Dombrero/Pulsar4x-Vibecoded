@@ -11,7 +11,7 @@ namespace Pulsar4X.Engine
     internal static class ReCalcProcessor
     {
         [ThreadStatic]
-        private static Entity CurrentEntity;
+        private static Entity CurrentEntity = Entity.InvalidEntity;
         internal static Dictionary<Type, Delegate> TypeProcessorMap = new Dictionary<Type, Delegate>
             {
                 // Every colony carries a ComponentInstancesDB, so use it to re-sum infrastructure
@@ -38,13 +38,13 @@ namespace Pulsar4X.Engine
 
             //lock (CurrentEntity)
             //{
-                CurrentEntity = entity;
-                foreach (var datablob in entity.Manager.GetAllDataBlobsForEntity(entity.Id))
-                {
-                    var t = datablob.GetType();
-                    if (TypeProcessorMap.ContainsKey(t))
-                        TypeProcessorMap[t].DynamicInvoke(datablob); // invoke appropriate delegate
-                }
+            CurrentEntity = entity;
+            foreach (var datablob in entity.AttachedManager.GetAllDataBlobsForEntity(entity.Id))
+            {
+                var t = datablob.GetType();
+                if (TypeProcessorMap.ContainsKey(t))
+                    TypeProcessorMap[t].DynamicInvoke(datablob); // invoke appropriate delegate
+            }
             //}
         }
     }

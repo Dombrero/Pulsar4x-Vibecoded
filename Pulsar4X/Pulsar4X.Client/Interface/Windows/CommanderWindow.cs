@@ -25,7 +25,7 @@ namespace Pulsar4X.Client
 
         internal static CommanderWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<CommanderWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<CommanderWindow>(out var window))
             {
                 return window;
             }
@@ -35,20 +35,20 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive) return;
+            if (!IsActive) return;
 
             var galaxy = _uiState.GameClient?.Galaxy;
 
-            if(Window.Begin("Commanders", ref IsActive, _flags))
+            if (Window.Begin("Commanders", ref IsActive, _flags))
             {
-                if(galaxy != null)
+                if (galaxy != null)
                 {
                     var people = galaxy.Commanders;
 
                     // Keep the selection valid, defaulting to the first person so the window is
                     // immediately usable without an extra click.
                     CommanderSnapshot? selected = null;
-                    if(people.Count > 0)
+                    if (people.Count > 0)
                     {
                         selected = people.FirstOrDefault(p => p.Id == _selectedId) ?? people[0];
                     }
@@ -58,7 +58,7 @@ namespace Pulsar4X.Client
                     var listSize = new Vector2(windowContentSize.X - Styles.LeftColumnWidthLg - 8, windowContentSize.Y);
                     var detailSize = new Vector2(Styles.LeftColumnWidthLg, windowContentSize.Y);
 
-                    if(ImGui.BeginChild("PeopleList", listSize, ImGuiChildFlags.Borders))
+                    if (ImGui.BeginChild("PeopleList", listSize, ImGuiChildFlags.Borders))
                     {
                         DisplayHelpers.Header("Personnel", "Everyone in the corporation's service");
                         DisplayPeopleList(people, galaxy.Time.GameDateTime);
@@ -66,9 +66,9 @@ namespace Pulsar4X.Client
                     ImGui.EndChild();
 
                     ImGui.SameLine();
-                    if(ImGui.BeginChild("PersonDetail", detailSize, ImGuiChildFlags.Borders))
+                    if (ImGui.BeginChild("PersonDetail", detailSize, ImGuiChildFlags.Borders))
                     {
-                        if(selected != null)
+                        if (selected != null)
                             DisplayPersonDetail(selected, galaxy.Time.GameDateTime);
                         else
                             ImGui.TextColored(Styles.DescriptiveColor, "No personnel in service.");
@@ -81,13 +81,13 @@ namespace Pulsar4X.Client
 
         private void DisplayPeopleList(IReadOnlyList<CommanderSnapshot> people, DateTime now)
         {
-            if(people.Count == 0)
+            if (people.Count == 0)
             {
                 ImGui.TextColored(Styles.DescriptiveColor, "No personnel in service.");
                 return;
             }
 
-            if(ImGui.BeginTable("PeopleTable", 6, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("PeopleTable", 6, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.26f);
                 ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.None, 0.12f);
@@ -97,10 +97,10 @@ namespace Pulsar4X.Client
                 ImGui.TableSetupColumn("Yrs in Rank", ImGuiTableColumnFlags.None, 0.1f);
                 ImGui.TableHeadersRow();
 
-                foreach(var person in people)
+                foreach (var person in people)
                 {
                     ImGui.TableNextColumn();
-                    if(ImGui.Selectable($"{person.Name}###{person.Id}", _selectedId == person.Id,
+                    if (ImGui.Selectable($"{person.Name}###{person.Id}", _selectedId == person.Id,
                         ImGuiSelectableFlags.SpanAllColumns))
                     {
                         _selectedId = person.Id;
@@ -113,19 +113,19 @@ namespace Pulsar4X.Client
                     ImGui.Text(RankDisplay(person));
 
                     ImGui.TableNextColumn();
-                    if(person.AssignmentName != null)
+                    if (person.AssignmentName != null)
                         ImGui.Text(person.AssignmentName);
                     else
                         ImGui.TextColored(Styles.DescriptiveColor, "Unassigned");
 
                     ImGui.TableNextColumn();
                     ImGui.Text(YearsBetween(person.CommissionedOn, now).ToString("F0"));
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Commissioned on: " + person.CommissionedOn.ToShortDateString());
 
                     ImGui.TableNextColumn();
                     ImGui.Text(YearsBetween(person.RankedOn, now).ToString("F0"));
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Promoted on: " + person.RankedOn.ToShortDateString());
                 }
 
@@ -152,7 +152,7 @@ namespace Pulsar4X.Client
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + headerPadding);
 
             IntPtr portraitTexture = _uiState.Img_Character();
-            if(portraitTexture != IntPtr.Zero)
+            if (portraitTexture != IntPtr.Zero)
             {
                 ImGui.Image(portraitTexture.ToTextureRef(), new Vector2(portraitSize, portraitSize));
                 ImGui.SameLine();
@@ -189,7 +189,7 @@ namespace Pulsar4X.Client
             DisplayHelpers.PrintCell(person.IsAssigned ? "Assigned" : "Available");
             ImGui.PopStyleColor();
 
-            if(person.AssignmentName != null)
+            if (person.AssignmentName != null)
             {
                 DisplayHelpers.PrintFormattedCell("Assignment:");
                 DisplayHelpers.PrintCell(person.AssignmentName);
@@ -197,19 +197,19 @@ namespace Pulsar4X.Client
 
             ImGui.Columns(1);
 
-            if(person.Bonuses.Count > 0)
+            if (person.Bonuses.Count > 0)
             {
                 ImGui.NewLine();
                 DisplayHelpers.Header("Bonuses");
 
-                foreach(var bonus in person.Bonuses)
+                foreach (var bonus in person.Bonuses)
                 {
                     string valueStr = bonus.IsPercentage
                         ? $"{bonus.Value * 100:+0.#;-0.#}%"
                         : $"{bonus.Value:+0.#;-0.#}";
 
                     string bonusText = bonus.Name;
-                    if(!string.IsNullOrEmpty(bonus.FilterName))
+                    if (!string.IsNullOrEmpty(bonus.FilterName))
                     {
                         bonusText += $" ({bonus.FilterName})";
                     }

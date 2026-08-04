@@ -17,21 +17,21 @@ namespace Pulsar4X.Client.Rendering
         SDL3Window _window;
         SystemLabelDistributor _distributor;
 
-        internal Dictionary<string, IDrawData> UIWidgets = new ();
+        internal Dictionary<string, IDrawData> UIWidgets = new();
 
-        ConcurrentDictionary<int, Icon> _testIcons = new ();
-        ConcurrentDictionary<int, Icon> _orbitRings = new ();
-        ConcurrentDictionary<int, Icon> _moveIcons = new ();
-        ConcurrentDictionary<int, Icon> _entityIcons = new ();
-        ConcurrentDictionary<int, Icon> _bodyIcons = new ();
+        ConcurrentDictionary<int, Icon> _testIcons = new();
+        ConcurrentDictionary<int, Icon> _orbitRings = new();
+        ConcurrentDictionary<int, Icon> _moveIcons = new();
+        ConcurrentDictionary<int, Icon> _entityIcons = new();
+        ConcurrentDictionary<int, Icon> _bodyIcons = new();
 
-        HashSet<EntityLabel> _allLabels = new ();
-        HashSet<EntityLabel> _visibleLabels = new ();
+        HashSet<EntityLabel> _allLabels = new();
+        HashSet<EntityLabel> _visibleLabels = new();
 
         // The last snapshot reference each entity's icons were built from. Snapshots are immutable,
         // so a reference change means the entity changed and its icons need rebuilding. This is
         // sync bookkeeping only — nothing reads game data from it.
-        Dictionary<int, EntitySnapshot> _iconedSnapshots = new ();
+        Dictionary<int, EntitySnapshot> _iconedSnapshots = new();
 
         DateTime _lastPhysicsTime;
 
@@ -39,7 +39,7 @@ namespace Pulsar4X.Client.Rendering
         // bodies (moons, ships, asteroids, comets) only show labels once you've
         // zoomed in enough that they aren't just visual clutter. Stars, planets,
         // dwarf planets and colonies are always shown (subject to view prefs).
-        static readonly Dictionary<UserOrbitSettings.OrbitBodyType, float> _minZoomForLabel = new ()
+        static readonly Dictionary<UserOrbitSettings.OrbitBodyType, float> _minZoomForLabel = new()
         {
             { UserOrbitSettings.OrbitBodyType.Star,         0f },
             { UserOrbitSettings.OrbitBodyType.Planet,       0f },
@@ -52,8 +52,9 @@ namespace Pulsar4X.Client.Rendering
             { UserOrbitSettings.OrbitBodyType.Unknown,      0f },
         };
 
-        ConcurrentDictionary<int, InteractableState[]> _interactable = new ();
-        IOrderedEnumerable<IGrouping<byte, InteractableState>> _interactableGrouped = null!;
+        ConcurrentDictionary<int, InteractableState[]> _interactable = new();
+        IOrderedEnumerable<IGrouping<byte, InteractableState>> _interactableGrouped =
+            Array.Empty<InteractableState>().GroupBy(_ => (byte)0).OrderBy(g => g.Key);
 
         internal List<IDrawData> SelectedEntityExtras = new List<IDrawData>();
         internal Vector2 GalacticMapPosition = new Vector2();
@@ -79,7 +80,8 @@ namespace Pulsar4X.Client.Rendering
             }
 
             var mainWin = (PulsarMainWindow)window;
-            mainWin.MouseButtonDownOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseButtonDownOccured += (object? sender, SDL.Event e) =>
+            {
                 if (mainWin.PlatformBackend.WantsMouseCapture())
                     return;
 
@@ -94,7 +96,7 @@ namespace Pulsar4X.Client.Rendering
 
                         var item = j.Item;
 
-                        var c = item.Contains(new (e.Motion.X, e.Motion.Y));
+                        var c = item.Contains(new(e.Motion.X, e.Motion.Y));
 
                         if (c)
                         {
@@ -105,7 +107,8 @@ namespace Pulsar4X.Client.Rendering
                     }
                 }
             };
-            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseButtonUpOccured += (object? sender, SDL.Event e) =>
+            {
                 if (mainWin.PlatformBackend.WantsMouseCapture())
                     return;
 
@@ -120,7 +123,7 @@ namespace Pulsar4X.Client.Rendering
 
                         var item = j.Item;
 
-                        var c = item.Contains(new (e.Motion.X, e.Motion.Y));
+                        var c = item.Contains(new(e.Motion.X, e.Motion.Y));
 
                         if (c)
                         {
@@ -131,7 +134,8 @@ namespace Pulsar4X.Client.Rendering
                     }
                 }
             };
-            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) =>
+            {
                 foreach (var i in _interactableGrouped)
                 {
                     var key = i.Key;
@@ -154,7 +158,7 @@ namespace Pulsar4X.Client.Rendering
                             continue;
                         }
 
-                        var c = item.Contains(new (e.Motion.X, e.Motion.Y));
+                        var c = item.Contains(new(e.Motion.X, e.Motion.Y));
 
                         if (j.IsHovered)
                         {
@@ -341,7 +345,7 @@ namespace Pulsar4X.Client.Rendering
         {
             foreach (var item in _orbitRings.Values)
             {
-                if(item is IUpdateUserSettings foo)
+                if (item is IUpdateUserSettings foo)
                 {
                     foo.UpdateUserSettings();
                 }

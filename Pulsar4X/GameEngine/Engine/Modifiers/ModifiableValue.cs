@@ -5,9 +5,9 @@ namespace Pulsar4X.Engine;
 
 public class ModifiableValue<T>
 {
-    private readonly List<IModifier<T>> _modifiers = new ();
+    private readonly List<IModifier<T>> _modifiers = new();
 
-    public T BaseValue { get; private set; }
+    public T BaseValue { get; set; } = default!;
 
     public ModifiableValue(T baseValue)
     {
@@ -35,7 +35,7 @@ public class ModifiableValue<T>
     public void RemoveModifier(string id)
     {
         var modifier = _modifiers.FirstOrDefault(m => m.Id.Equals(id));
-        if(modifier != null)
+        if (modifier != null)
         {
             _modifiers.Remove(modifier);
         }
@@ -55,7 +55,7 @@ public class ModifiableValue<T>
     {
         T result = BaseValue;
 
-        foreach(var modifier in _modifiers)
+        foreach (var modifier in _modifiers)
         {
             modifier.Before = result;
             result = modifier.Apply(BaseValue, result);

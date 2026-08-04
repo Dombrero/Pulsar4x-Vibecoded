@@ -59,7 +59,7 @@ namespace Pulsar4X.Client
         }
         internal static PerformanceWindow GetInstance()
         {
-            if(!_uiState.TryGetUniqueWindow<PerformanceWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<PerformanceWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new PerformanceWindow());
             }
@@ -92,7 +92,7 @@ namespace Pulsar4X.Client
         {
             if (!IsActive || _systemState == null || GameLifecycle.Instance?.Game == null) return;
 
-            if(Window.Begin("Performance Display"))
+            if (Window.Begin("Performance Display"))
             {
                 SetFrameRateArray();
                 SampleGameTickRate();
@@ -149,7 +149,7 @@ namespace Pulsar4X.Client
 
                     ImGui.Text(key);
                     ImGui.NextColumn();
-                    ImGui.Text( values.times.Count.ToString());
+                    ImGui.Text(values.times.Count.ToString());
 
                     ImGui.NextColumn();
                     str = $"{(values.sum):0.00}ms";
@@ -158,7 +158,7 @@ namespace Pulsar4X.Client
                     ImGui.NextColumn();
                     str = $"{(values.sum / values.times.Count):0.00}ms";
                     ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetColumnWidth() - ImGui.CalcTextSize(str).X - ImGui.GetScrollX() - 2 * ImGui.GetStyle().ItemSpacing.X);
-                    ImGui.Text( str );
+                    ImGui.Text(str);
                     ImGui.NextColumn();
                 }
                 ImGui.Columns(1);
@@ -174,7 +174,7 @@ namespace Pulsar4X.Client
                 ImGui.Text($"SensorAbilityDB Count: {numDB}");
 
 
-                if(ImGui.CollapsingHeader("All Systems"))
+                if (ImGui.CollapsingHeader("All Systems"))
                 {
                     foreach (var starsys in GameLifecycle.Instance!.Game!.Systems)
                     {
@@ -225,7 +225,7 @@ namespace Pulsar4X.Client
 
 
                         var db = datablobs[0];
-                        if(db.OwningEntity != null)
+                        if (db.OwningEntity != null)
                         {
                             _sw.Restart();
                             var ent = db.OwningEntity;
@@ -312,26 +312,26 @@ namespace Pulsar4X.Client
 
         void RecordToFile()
         {
-            if(_systemState == null) return;
+            if (_systemState == null) return;
 
             var t_lpt = GameLifecycle.Instance!.Game!.TimePulse.LastProcessingTime.TotalMilliseconds;
             var t_tf = GameLifecycle.Instance!.Game!.TimePulse.TickFrequency.TotalMilliseconds;
             var overtime = t_lpt - t_tf;
             var starsysdata = _systemState.StarSystem.ManagerSubpulses.Performance.GetLatestEntry();
             var dirst = System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            if(dirst == null) throw new InvalidOperationException($"{dirst} cannot be null");
+            if (dirst == null) throw new InvalidOperationException($"{dirst} cannot be null");
             var dirinf = new System.IO.DirectoryInfo(dirst);
             var dir = dirinf.Parent?.Parent?.Parent?.Parent;
-            if(dir == null) throw new InvalidOperationException("dir cannot be null");
+            if (dir == null) throw new InvalidOperationException("dir cannot be null");
             string machine = Environment.MachineName;
             string gitver = AssemblyInfo.GetGitHash();
             string datetime = DateTime.Now.ToString();
-            string threaded = string.Format("{0,-28}{1,16}","Threaded:", GameLifecycle.Instance!.Game!.Settings.EnableMultiThreading.ToString());
-            string timespan = string.Format("{0,-28}{1,16}","Time Span:" , GameLifecycle.Instance!.Game!.TimePulse.Ticklength.ToString());
-            string txt_lpt =  string.Format("{0,-28}{1,16}","Full Process Time:", t_lpt.ToString());
+            string threaded = string.Format("{0,-28}{1,16}", "Threaded:", GameLifecycle.Instance!.Game!.Settings.EnableMultiThreading.ToString());
+            string timespan = string.Format("{0,-28}{1,16}", "Time Span:", GameLifecycle.Instance!.Game!.TimePulse.Ticklength.ToString());
+            string txt_lpt = string.Format("{0,-28}{1,16}", "Full Process Time:", t_lpt.ToString());
 
             string sysname = _systemState.StarSystem.NameDB.OwnersName;
-            string sysptime = string.Format("{0,0} {1,-24}:{2,15}",sysname, "Time:", starsysdata.FullIntervalTime.ToString("0.0000"));
+            string sysptime = string.Format("{0,0} {1,-24}:{2,15}", sysname, "Time:", starsysdata.FullIntervalTime.ToString("0.0000"));
             var fpath = System.IO.Path.Combine(dir.FullName, "Perflog_" + machine);
 
             //var sb = StringBuilder(gitver);
@@ -348,7 +348,7 @@ namespace Pulsar4X.Client
 
             dataString += "_________________________________________________";
             //if (!System.IO.File.Exists(fpath))
-                //System.IO.File.Create(fpath);
+            //System.IO.File.Create(fpath);
             System.IO.File.AppendAllText(fpath, dataString);
         }
 

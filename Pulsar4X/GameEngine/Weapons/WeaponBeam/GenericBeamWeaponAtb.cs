@@ -81,7 +81,7 @@ namespace Pulsar4X.Weapons
 
             var beamLen = Math.Min(1, count * LenPerPulseInSeconds); //our beam can't be longer than the time period.
 
-            BeamWeaponProcessor.FireBeamWeapon(launchingEntity, tgtEntity, true, Energy, WaveLength ,BeamSpeed, beamLen);
+            BeamWeaponProcessor.FireBeamWeapon(launchingEntity, tgtEntity, true, Energy, WaveLength, BeamSpeed, beamLen);
         }
 
         public float ToHitChance(Entity launchingEntity, Entity tgtEntity)
@@ -93,7 +93,7 @@ namespace Pulsar4X.Weapons
             //var ttt = BeamWeapnProcessor.TimeToTarget(range, launchingEntity.))
             //tempory timetotarget
             double ttt = range / BeamSpeed; //this should be the closing speed (ie the velocity of the two, the beam speed and the range)
-            double missChance = ttt * ( 1 - BaseHitChance);
+            double missChance = ttt * (1 - BaseHitChance);
             return (float)(1 - missChance);
         }
 

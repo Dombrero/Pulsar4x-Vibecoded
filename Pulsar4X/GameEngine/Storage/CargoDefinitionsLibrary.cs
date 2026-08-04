@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Pulsar4X.DataStructures;
@@ -11,11 +11,11 @@ namespace Pulsar4X.Storage
     {
 
         [JsonProperty]
-        private SafeDictionary<int, ICargoable> _definitions;
+        private SafeDictionary<int, ICargoable> _definitions = new();
         [JsonProperty]
-        private SafeDictionary<int, Mineral> _minerals;
+        private SafeDictionary<int, Mineral> _minerals = new();
         [JsonProperty]
-        private SafeDictionary<int, ProcessedMaterial> _processedMaterials;
+        private SafeDictionary<int, ProcessedMaterial> _processedMaterials = new();
 
         public CargoDefinitionsLibrary() : this(new List<Mineral>(),
             new List<ProcessedMaterial>(),

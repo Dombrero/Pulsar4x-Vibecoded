@@ -9,7 +9,7 @@ public class MassVolumeProcessor
     {
         return density * volume;
     }
-    
+
     /// <summary>
     /// Calculates the volume given mass and density.
     /// </summary>

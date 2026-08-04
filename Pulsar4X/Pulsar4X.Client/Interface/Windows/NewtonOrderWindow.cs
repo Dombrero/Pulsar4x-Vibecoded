@@ -28,7 +28,7 @@ namespace Pulsar4X.Client
 
         internal static ChangeCurrentOrbitWindow GetInstance(EntityState entity)
         {
-            if(!_uiState.TryGetUniqueWindow<ChangeCurrentOrbitWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<ChangeCurrentOrbitWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new ChangeCurrentOrbitWindow(entity.Id, entity.StarSystemId!));
                 return window; // Entity is already set from ctor.

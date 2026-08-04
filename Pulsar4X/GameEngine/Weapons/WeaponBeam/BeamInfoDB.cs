@@ -23,16 +23,18 @@ public class BeamInfoDB : BaseDataBlob
     public Vector3 VelocityVector;
     public (Vector3, Vector3) Positions;
     public bool HitsTarget;
-    public Entity TargetEntity;
+    public Entity TargetEntity = Entity.InvalidEntity;
     public Vector3 LaunchPosition;
-    private PositionDB _posDB;
-    public PositionDB PosDB {
+    private PositionDB? _posDB;
+    public PositionDB PosDB
+    {
         get
         {
             if (_posDB == null)
                 _posDB = OwningEntity.GetDataBlob<PositionDB>();
             return _posDB;
-        }}
+        }
+    }
 
     public BeamInfoDB(int launchedBy, Entity targetEntity, bool hitsTarget, double energy)
     {

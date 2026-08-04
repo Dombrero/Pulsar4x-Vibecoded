@@ -43,7 +43,7 @@ namespace Pulsar4X.Weapons
                     if (wpn.UniqueID == wpnID)
                         add = false;
                 }
-                if(add)
+                if (add)
                     weaponsToAdd.Add(wpn);
             }
             if (weaponsToAdd.Count == 0)
@@ -63,12 +63,12 @@ namespace Pulsar4X.Weapons
             int[] shotsfireThisTick = new int[count];
             IFireWeaponInstr[] fireInstr = new IFireWeaponInstr[count];
             WeaponState[] wpnStates = new WeaponState[count];
-            double[] launchForce =  new double[count];
+            double[] launchForce = new double[count];
 
             FireControlAbilityState[] fcStates = new FireControlAbilityState[count];
 
 
-            if(WpnIDs.Length > 0)
+            if (WpnIDs.Length > 0)
             {
                 Array.Copy(WpnIDs, wpnIDs, currentCount); //we can't blockcopy a non primitive.
                 Array.Copy(FireControlStates, fcStates, currentCount);
@@ -79,7 +79,7 @@ namespace Pulsar4X.Weapons
                 Buffer.BlockCopy(ReloadAmountsPerSec, 0, reloadAmountsPerSec, 0, currentCount);
                 Buffer.BlockCopy(AmountPerShot, 0, amountPerShot, 0, currentCount);
                 Buffer.BlockCopy(MinShotsPerfire, 0, minShotsPerfire, 0, currentCount);
-                Buffer.BlockCopy(ShotsFiredThisTick, 0, shotsfireThisTick, 0, currentCount );
+                Buffer.BlockCopy(ShotsFiredThisTick, 0, shotsfireThisTick, 0, currentCount);
                 Buffer.BlockCopy(LaunchForces, 0, launchForce, 0, currentCount);
             }
             int offset = currentCount;
@@ -95,7 +95,9 @@ namespace Pulsar4X.Weapons
                 reloadAmountsPerSec[thisIndex] = wpnAtb.ReloadAmountPerSec;
                 amountPerShot[thisIndex] = wpnAtb.AmountPerShot;
                 minShotsPerfire[thisIndex] = wpnAtb.MinShotsPerfire;
-                fcStates[thisIndex] = (FireControlAbilityState)wpnState.ParentState;
+                if (wpnState.ParentState is not FireControlAbilityState fcState)
+                    throw new InvalidOperationException($"Weapon {wpns[i].UniqueID} has no fire-control parent state.");
+                fcStates[thisIndex] = fcState;
                 wpnStates[thisIndex] = wpnState;
                 fireInstr[thisIndex] = wpnState.FireWeaponInstructions;
                 shotsfireThisTick[thisIndex] = 0;
@@ -124,7 +126,7 @@ namespace Pulsar4X.Weapons
         internal void RemoveWeapons(string wpnId)
         {
             ComponentInstance[] wpnInstances = new ComponentInstance[1];
-            wpnInstances[0]= OwningEntity.GetDataBlob<ComponentInstancesDB>().AllComponents[wpnId];
+            wpnInstances[0] = OwningEntity.GetDataBlob<ComponentInstancesDB>().AllComponents[wpnId];
             RemoveWeapons(wpnInstances);
         }
 
@@ -133,7 +135,7 @@ namespace Pulsar4X.Weapons
             ComponentInstance[] wpnInstances = new ComponentInstance[wpnIds.Length];
             for (int i = 0; i < wpnIds.Length; i++)
             {
-                wpnInstances[i]= OwningEntity.GetDataBlob<ComponentInstancesDB>().AllComponents[wpnIds[i]];
+                wpnInstances[i] = OwningEntity.GetDataBlob<ComponentInstancesDB>().AllComponents[wpnIds[i]];
             }
             RemoveWeapons(wpnInstances);
         }
@@ -163,7 +165,7 @@ namespace Pulsar4X.Weapons
                         break;
                     }
                 }
-                if(keep)
+                if (keep)
                     wpnsToKeep.Add((WpnIDs[i], i));
             }
 
@@ -176,7 +178,7 @@ namespace Pulsar4X.Weapons
             int[] amountPerShot = new int[count];
             int[] minShotsPerfire = new int[count];
             IFireWeaponInstr[] fireInstr = new IFireWeaponInstr[count];
-            double[] launchForce =  new double[count];
+            double[] launchForce = new double[count];
             FireControlAbilityState[] fcStates = new FireControlAbilityState[count];
             WeaponState[] wpnStates = new WeaponState[count];
             int newIndex = 0;
@@ -238,7 +240,9 @@ namespace Pulsar4X.Weapons
                 reloadAmountsPerSec[i] = wpnAtb.ReloadAmountPerSec;
                 amountPerShot[i] = wpnAtb.AmountPerShot;
                 minShotsPerfire[i] = wpnAtb.MinShotsPerfire;
-                fcStates[i] = (FireControlAbilityState)wpnState.ParentState;
+                if (wpnState.ParentState is not FireControlAbilityState fcState)
+                    throw new InvalidOperationException($"Weapon {wpns[i].UniqueID} has no fire-control parent state.");
+                fcStates[i] = fcState;
                 wpnStates[i] = wpnState;
                 fireInstr[i] = wpnState.FireWeaponInstructions;
                 if (wpns[i].Design.HasAttribute<MissileLauncherAtb>())

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json.Linq;
@@ -14,8 +15,8 @@ public static class OrdnanceDesignFromJson
         string fileContents = File.ReadAllText(filePath);
         var rootJson = JObject.Parse(fileContents);
 
-        var designName = rootJson["name"].ToString();
-        var id = rootJson["id"] == null ? null : rootJson["id"].ToString();
+        var designName = rootJson["name"]?.ToString() ?? throw new InvalidOperationException("Ordnance design json missing name.");
+        var id = rootJson["id"] == null ? null : rootJson["id"]?.ToString();
         var fuelAmount = (double?)rootJson["fuelAmount"] ?? 0;
 
         var factionInfoDB = faction.GetDataBlob<FactionInfoDB>();
@@ -23,11 +24,11 @@ public static class OrdnanceDesignFromJson
 
 
         var components = (JArray?)rootJson["components"];
-        if(components != null)
+        if (components != null)
         {
-            foreach(var component in components)
+            foreach (var component in components)
             {
-                var componentId = component["id"].ToString();
+                var componentId = component["id"]?.ToString() ?? throw new InvalidOperationException("Ordnance component missing id.");
                 var amount = (int?)component["amount"] ?? 0;
 
                 ordnanceComponents.Add((

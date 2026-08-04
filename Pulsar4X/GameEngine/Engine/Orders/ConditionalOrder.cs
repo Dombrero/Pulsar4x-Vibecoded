@@ -6,13 +6,12 @@ namespace Pulsar4X.Engine.Orders
     public class ConditionalOrder
     {
         [JsonProperty]
-        public string Name { get; set; }
-
+        public string? Name { get; set; }
         [JsonProperty]
         public CompoundCondition Condition { get; set; } = new CompoundCondition();
 
         [JsonProperty]
-        public SafeList<EntityCommand> Actions { get; set; } = new ();
+        public SafeList<EntityCommand> Actions { get; set; } = new();
 
         [JsonIgnore]
         public bool IsValid

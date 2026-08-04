@@ -123,13 +123,13 @@ public class SerializationTests
     {
         // Test engine data structures
         AssertSerialization(new SafeList<int>() { 1, 2, 3, 4, 5 }, "SafeList<int>");
-        AssertSerialization(new SafeDictionary<int, string>() { {1, "one"}, {2, "two"}, {3, "three"} }, "SafeDictionary<int, string>");
+        AssertSerialization(new SafeDictionary<int, string>() { { 1, "one" }, { 2, "two" }, { 3, "three" } }, "SafeDictionary<int, string>");
         AssertSerialization(new PercentValue(0.42f), "PercentValue");
         AssertSerialization(new WeightedValue<string>() { Value = "one", Weight = 0.1 }, "WeightedValue<string>");
-        AssertSerialization(new WeightedList<string>() { { 0.1, "one"}, {0.2, "two"}, {0.3, "three"}, {0.4, "four"} }, "WeightedList<string>");
+        AssertSerialization(new WeightedList<string>() { { 0.1, "one" }, { 0.2, "two" }, { 0.3, "three" }, { 0.4, "four" } }, "WeightedList<string>");
         AssertSerialization(new ManuverState() { At = DateTime.Now, Mass = 12345.67, Position = new Orbital.Vector3(1.1, 2.2, 3.3), Velocity = new Orbital.Vector3(4.4, 5.5, 6.6) }, "ManuverState");
         AssertSerialization(new ValueTypeStruct() { ValueSize = ValueTypeStruct.ValueSizes.Centi, ValueType = ValueTypeStruct.ValueTypes.Volume }, "ValueTypeStruct");
-        AssertSerialization(new ReorderableSafeQueue<string>(new List<string>(){"one","two","three"}), "ReorderableSafeQueue<string");
+        AssertSerialization(new ReorderableSafeQueue<string>(new List<string>() { "one", "two", "three" }), "ReorderableSafeQueue<string");
     }
 
     [Test]

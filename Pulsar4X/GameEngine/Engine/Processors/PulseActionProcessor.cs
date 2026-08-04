@@ -8,18 +8,17 @@ namespace Pulsar4X.Engine
     internal static class PulseActionDictionary
     {
         [ThreadStatic]
-        private static Entity _currentEntity;
+        private static Entity _currentEntity = Entity.InvalidEntity;
         [ThreadStatic]
-        private static EntityManager _currentManager;
+        private static EntityManager? _currentManager;
         [ThreadStatic]
-        private static Game _game;
+        private static Game? _game;
         [ThreadStatic]
-        private static SystemEntityJumpPair _jumpPair;
-
+        private static SystemEntityJumpPair? _jumpPair;
         internal static Dictionary<PulseActionEnum, Delegate> EnumProcessorMap = new Dictionary<PulseActionEnum, Delegate>
         {
-            { PulseActionEnum.JumpOutProcessor, new Action<EntityManager>(processor => { InterSystemJumpProcessor.JumpOut(_game, _jumpPair) ;}) },
-            { PulseActionEnum.JumpInProcessor, new Action<EntityManager>(processor => { InterSystemJumpProcessor.JumpIn(_game, _jumpPair) ;}) },
+            { PulseActionEnum.JumpOutProcessor, new Action<EntityManager>(processor => { InterSystemJumpProcessor.JumpOut(_game ?? throw new InvalidOperationException("PulseActionDictionary: Game not set for JumpOut."), _jumpPair ?? throw new InvalidOperationException("PulseActionDictionary: Jump pair not set for JumpOut.")) ;}) },
+            { PulseActionEnum.JumpInProcessor, new Action<EntityManager>(processor => { InterSystemJumpProcessor.JumpIn(_game ?? throw new InvalidOperationException("PulseActionDictionary: Game not set for JumpIn."), _jumpPair ?? throw new InvalidOperationException("PulseActionDictionary: Jump pair not set for JumpIn.")) ;}) },
             //{ PulseActionEnum.EconProcessor, new Action<EntityManager>(processor => { EconProcessor.ProcessSystem(_currentManager);}) },
             //{ PulseActionEnum.OrbitProcessor, new Action<EntityManager>(processor => { OrbitProcessor.UpdateSystemOrbits(_currentManager);}) },
             //{ PulseActionEnum.OrderProcessor, new Action<EntityManager>(processor => { OrderProcessor.ProcessSystem(_currentManager);}) },

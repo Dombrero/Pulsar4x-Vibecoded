@@ -10,11 +10,11 @@ namespace Pulsar4X.Client
         {
             ImGui.PushID("###Population " + entityId);
             ImGui.Columns(1);
-            if(ImGui.CollapsingHeader("Population", ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader("Population", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 ImGui.Columns(2);
 
-                foreach(var species in colony.SpeciesPopulations)
+                foreach (var species in colony.SpeciesPopulations)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
                     ImGui.Text(species.SpeciesName);

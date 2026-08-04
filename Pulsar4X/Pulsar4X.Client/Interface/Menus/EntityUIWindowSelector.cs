@@ -24,12 +24,12 @@ namespace Pulsar4X.Client
 
         private EntityUIWindowSelector()
         {
-            _flags =  ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
+            _flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
         }
 
         internal static EntityUIWindowSelector GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<EntityUIWindowSelector>(out var window))
+            if (_uiState.TryGetUniqueWindow<EntityUIWindowSelector>(out var window))
             {
                 return window;
             }
@@ -53,7 +53,8 @@ namespace Pulsar4X.Client
 
                     ToolbuttonData btn;
 
-                    void NewButton(Type T, IntPtr imgPtr, string TooltipText, List<ToolbuttonData> ButtonList) {
+                    void NewButton(Type T, IntPtr imgPtr, string TooltipText, List<ToolbuttonData> ButtonList)
+                    {
                         //Creates a buttton if it is usuable in this situation
                         if (EntityUIWindows.CheckIfCanOpenWindow(T, _entityState, _uiState))
                         {
@@ -67,10 +68,12 @@ namespace Pulsar4X.Client
                             ButtonList.Add(btn);
                         }
                     }
-                    void NewCondtionalButton(Type T, IntPtr imgPtr, string TooltipText) {
+                    void NewCondtionalButton(Type T, IntPtr imgPtr, string TooltipText)
+                    {
                         NewButton(T, imgPtr, TooltipText, ConditionalButtons);
                     }
-                    void NewStandardButton(Type T, IntPtr imgPtr, string TooltipText) {
+                    void NewStandardButton(Type T, IntPtr imgPtr, string TooltipText)
+                    {
                         NewButton(T, imgPtr, TooltipText, StandardButtons);
                     }
 
@@ -85,7 +88,8 @@ namespace Pulsar4X.Client
                     NewCondtionalButton(typeof(FireControl), _uiState.Img_Firecon(), "Opens firecontrol menu");
 
                     //Displays all buttons in a list
-                    void PrintButtonList (ref List<ToolbuttonData> PrintButtons) {
+                    void PrintButtonList(ref List<ToolbuttonData> PrintButtons)
+                    {
                         uint iterations = 0;
                         uint unclickedcolor;
                         uint clickedcolour;
@@ -133,7 +137,7 @@ namespace Pulsar4X.Client
 
                     void ActionButton(Type T)
                     {
-                    //Makes a small button if it is usable in this situation
+                        //Makes a small button if it is usable in this situation
                         if (EntityUIWindows.CheckIfCanOpenWindow(T, _entityState, _uiState))
                         {
                             bool buttonresult = ImGui.SmallButton(GlobalUIState.NamesForMenus[T]);

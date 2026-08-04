@@ -17,23 +17,19 @@ namespace Pulsar4X.Engine.Api
     /// </summary>
     public sealed class EngineGameServer : IGameServer, IDisposable
     {
-        private readonly Game _game;
-        private readonly GameProjector _projector;
-        private readonly CommandTranslator _commands;
-
+        private readonly Game? _game;
+        private readonly GameProjector? _projector;
+        private readonly CommandTranslator? _commands;
         // Active subscriptions. Time is global, but faction snapshots (funds) differ per subscriber, so
         // we track the subscriptions (which know their faction), not bare sinks.
         private readonly object _sinkLock = new();
         private readonly List<ServerSubscription> _subscriptions = new();
-        private readonly DateChangedEventHandler _onDateChanged;
-
+        private readonly DateChangedEventHandler? _onDateChanged;
         // The focused system's sub-step clock drives smooth client rendering (see SetSystemFocus).
-        private readonly DateChangedEventHandler _onFocusedSystemDateChanged;
+        private readonly DateChangedEventHandler? _onFocusedSystemDateChanged;
         private StarSystem? _focusedSystem;
-
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
-        private readonly Action _onSimulationStopped;
-
+        private readonly Action? _onSimulationStopped;
         public EngineGameServer(Game game)
         {
             _game = game;
@@ -102,7 +98,6 @@ namespace Pulsar4X.Engine.Api
         // The focused system gets foreground-observer scheduling priority in the engine. One focus
         // per server is enough for the in-process case; per-session focus lands with networking.
         private string? _focusedSystemId;
-
         public void SetSystemFocus(PlayerSession session, string? systemId)
         {
             if (systemId == _focusedSystemId) return;
@@ -489,9 +484,9 @@ namespace Pulsar4X.Engine.Api
                 (MessageTypes.OrdersChanged, GameEventType.FleetsChanged),
             };
 
-            private readonly EngineGameServer _server;
+            private readonly EngineGameServer? _server;
             private readonly PlayerSession _session;
-            private readonly Action<GameEventEnvelope> _sink;
+            private readonly Action<GameEventEnvelope>? _sink;
             private readonly List<(MessageTypes Type, MessagePublisher.MessageHandler Handler)> _handlers = new();
             private readonly Action<Pulsar4X.Events.Event> _onLogEvent;
 
@@ -580,7 +575,7 @@ namespace Pulsar4X.Engine.Api
                     if (m.EntityId is not { } id
                         || !_server._game.GlobalManager.TryGetGlobalEntityById(id, out var e)
                         || e.Manager == null
-                        || !e.Manager.IsEntityVisibleToFaction(e, _session.FactionId))
+                        || !e.AttachedManager.IsEntityVisibleToFaction(e, _session.FactionId))
                         return Task.CompletedTask;
 
                     entity = projector.ProjectEntity(e, _session.FactionId);

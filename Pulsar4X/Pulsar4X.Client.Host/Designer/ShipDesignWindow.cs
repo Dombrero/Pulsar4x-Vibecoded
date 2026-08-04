@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -27,7 +27,7 @@ namespace Pulsar4X.Client
     public class ShipDesignWindow : UniquePulsarGuiWindow<ShipDesignWindow>
     {
         private bool ShowNoDesigns = false;
-        private byte[] SelectedDesignName =  Utils.BytesFromString("foo", 32);
+        private byte[] SelectedDesignName = Utils.BytesFromString("foo", 32);
         private List<string> _existingShipDesignNames = new();
         private List<string> _existingShipDesignIDs = new();
         private string SelectedExistingDesignID = String.Empty;
@@ -89,7 +89,6 @@ namespace Pulsar4X.Client
 
         bool displayimage = true;
         private EntityDamageProfileDB? _profile;
-        private bool existingdesignsstatus = true;
         bool DesignChanged = false;
         // Set when the server rejects a save; shown so a failed save isn't silent.
         private string? _saveError;
@@ -98,15 +97,17 @@ namespace Pulsar4X.Client
         private bool _editingNewDesign;
 
         private FactionInfoDB _factionInfoDB;
-
         private ShipDesignWindow()
         {
             //_flags = ImGuiWindowFlags.NoCollapse;
             // The interactive designer evaluates client-side against the faction's design-time data
             // (components, ship designs, armor) exposed by the adapter; writes go through commands.
             if (_uiState.Lifecycle is not IDesignDataProvider provider
-                || !provider.TryGetDesignData(out _factionInfoDB!, out _))
-                throw new NullReferenceException("The game client cannot provide design data");
+                || !provider.TryGetDesignData(out var factionInfo, out _)
+                || factionInfo is null)
+                throw new InvalidOperationException("The game client cannot provide design data");
+
+            _factionInfoDB = factionInfo;
 
             RefreshComponentDesigns();
             RefreshArmor();
@@ -132,7 +133,7 @@ namespace Pulsar4X.Client
 
         internal static ShipDesignWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<ShipDesignWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<ShipDesignWindow>(out var window))
             {
                 return window;
             }
@@ -155,7 +156,7 @@ namespace Pulsar4X.Client
             _sortedComponentNames[0] = "All";
             Array.Copy(sortedTempGroupNames, 0, _sortedComponentNames, 1, sortedTempGroupNames.Length);
 
-            if(_componentFilterIndex == 0)
+            if (_componentFilterIndex == 0)
             {
                 AvailableShipComponents = new List<ComponentDesign>(AllShipComponents);
             }
@@ -177,12 +178,12 @@ namespace Pulsar4X.Client
                 _existingShipDesignNames.Add(design.Name);
             }
 
-            if(_existingShipDesignNames.Count == 0)
+            if (_existingShipDesignNames.Count == 0)
             {
                 ShowNoDesigns = true;
                 return;
             }
-            if(SelectedExistingDesignID.IsNullOrEmpty() && !_editingNewDesign && _existingShipDesignNames.Count > 0)
+            if (SelectedExistingDesignID.IsNullOrEmpty() && !_editingNewDesign && _existingShipDesignNames.Count > 0)
                 Select(_factionInfoDB.ShipDesigns[_existingShipDesignIDs[0]]);
 
             ShowNoDesigns = false;
@@ -198,7 +199,7 @@ namespace Pulsar4X.Client
                 var armorMat = factionData.CargoGoods.GetAny(kvp.Value.ResourceID);
                 _armorSelection.Add(kvp.Value);
 
-                _armorNames[i]= armorMat?.Name ?? "Unknown";
+                _armorNames[i] = armorMat?.Name ?? "Unknown";
                 i++;
             }
             //TODO: bleed over from mod data to get a default armor...
@@ -225,11 +226,11 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive) return;
+            if (!IsActive) return;
 
             if (Window.Begin("Ship Design", ref IsActive, _flags))
             {
-                if(_existingShipDesignNames.Count != _factionInfoDB.ShipDesigns.Values.Count(d => !d.IsObsolete))
+                if (_existingShipDesignNames.Count != _factionInfoDB.ShipDesigns.Values.Count(d => !d.IsObsolete))
                 {
                     RefreshExistingClasses();
                 }
@@ -242,7 +243,7 @@ namespace Pulsar4X.Client
                 ImGui.SameLine();
                 ImGui.SetCursorPosY(27f);
 
-                if(ShowNoDesigns)
+                if (ShowNoDesigns)
                 {
                     ImGui.Text("Create a new design to begin editing.");
                     return;
@@ -252,21 +253,21 @@ namespace Pulsar4X.Client
                 var firstChildSize = new Vector2(windowContentSize.X * 0.33f, windowContentSize.Y);
                 var secondChildSize = new Vector2(windowContentSize.X * 0.33f, windowContentSize.Y);
                 var thirdChildSize = new Vector2(windowContentSize.X * 0.33f - (windowContentSize.X * 0.01f), windowContentSize.Y);
-                if(ImGui.BeginChild("ShipDesign1", firstChildSize, ImGuiChildFlags.Borders))
+                if (ImGui.BeginChild("ShipDesign1", firstChildSize, ImGuiChildFlags.Borders))
                 {
                     DisplayComponentSelection();
                 }
                 ImGui.EndChild();
                 ImGui.SameLine();
                 ImGui.SetCursorPosY(27f);
-                if(ImGui.BeginChild("ShipDesign2", secondChildSize, ImGuiChildFlags.Borders))
+                if (ImGui.BeginChild("ShipDesign2", secondChildSize, ImGuiChildFlags.Borders))
                 {
                     DisplayComponents();
                 }
                 ImGui.EndChild();
                 ImGui.SameLine();
                 ImGui.SetCursorPosY(27f);
-                if(ImGui.BeginChild("ShipDesign3", thirdChildSize, ImGuiChildFlags.Borders))
+                if (ImGui.BeginChild("ShipDesign3", thirdChildSize, ImGuiChildFlags.Borders))
                 {
                     DisplayStats();
                 }
@@ -281,7 +282,7 @@ namespace Pulsar4X.Client
             {
                 var name = Utils.StringFromBytes(SelectedDesignName);
 
-                if(name.IsNotNullOrEmpty() && _armor != null)
+                if (name.IsNotNullOrEmpty() && _armor != null)
                 {
                     // The working design is a local edit buffer; the server resolves the referenced
                     // component/armor ids, recalculates, validates and registers the design.
@@ -328,7 +329,7 @@ namespace Pulsar4X.Client
         internal void DisplayExistingDesigns()
         {
             Vector2 windowContentSize = ImGui.GetContentRegionAvail();
-            if(ImGui.BeginChild("ComponentDesignSelection", new Vector2(Styles.LeftColumnWidth, windowContentSize.Y - 24f), ImGuiChildFlags.Borders, ImGuiWindowFlags.ChildWindow))
+            if (ImGui.BeginChild("ComponentDesignSelection", new Vector2(Styles.LeftColumnWidth, windowContentSize.Y - 24f), ImGuiChildFlags.Borders, ImGuiWindowFlags.ChildWindow))
             {
                 DisplayHelpers.Header("Existing Designs", "Select an existing ship design to edit it.");
                 ImGui.Columns(2);
@@ -368,7 +369,7 @@ namespace Pulsar4X.Client
                     }
                     ImGui.NextColumn();
                     string versionText = "P";
-                    if(_factionInfoDB.ShipDesigns[designID].DesignVersion > 0)
+                    if (_factionInfoDB.ShipDesigns[designID].DesignVersion > 0)
                         versionText = _factionInfoDB.ShipDesigns[designID].DesignVersion.ToString();
                     ImGui.Text(versionText);
                     ImGui.NextColumn();
@@ -377,11 +378,11 @@ namespace Pulsar4X.Client
             }
             ImGui.EndChild();
 
-            if(ImGui.Button("Create New Design", new Vector2(204f, 0f)))
+            if (ImGui.Button("Create New Design", new Vector2(204f, 0f)))
             {
                 string originalName = NameFactory.GetShipName(GameLifecycle.Instance!.Game!), name = originalName;
                 int counter = 1;
-                while(_factionInfoDB.ShipDesigns.Values.Any(d => d.Name.Equals(name)))
+                while (_factionInfoDB.ShipDesigns.Values.Any(d => d.Name.Equals(name)))
                 {
                     name = originalName + " " + counter.ToString();
                     counter++;
@@ -391,7 +392,7 @@ namespace Pulsar4X.Client
                 RefreshArmor();
                 DesignChanged = true;
 
-                if(_armor == null)
+                if (_armor == null)
                     throw new NullReferenceException();
 
                 // A new design stays a local working copy until it's saved — the server assigns
@@ -412,7 +413,7 @@ namespace Pulsar4X.Client
         {
             DisplayHelpers.Header("Current Design");
 
-            if(SelectedComponents.Count == 0)
+            if (SelectedComponents.Count == 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, Styles.TerribleColor);
                 ImGui.Text("Add components from the available components list");
@@ -425,7 +426,7 @@ namespace Pulsar4X.Client
 
             ImGui.NewLine();
             DisplayHelpers.Header("Armor");
-            if(ImGui.BeginTable("CurrentShipDesignTable", 2, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("CurrentShipDesignTable", 2, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Attribute", ImGuiTableColumnFlags.None, 0.6f);
                 ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.None, 0.4f);
@@ -435,7 +436,7 @@ namespace Pulsar4X.Client
                 ImGui.Text("Type");
                 ImGui.TableNextColumn();
 
-                if(_armorNames == null)
+                if (_armorNames == null)
                     throw new NullReferenceException();
 
                 if (ImGui.Combo("##Armor Selection", ref _armorIndex, _armorNames, _armorNames.Length))
@@ -479,7 +480,7 @@ namespace Pulsar4X.Client
 
         internal void DisplayComponentsTable()
         {
-            if(ImGui.BeginTable("CurrentShipDesignTable", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("CurrentShipDesignTable", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.5f);
                 ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.None, 0.25f);
@@ -556,16 +557,16 @@ namespace Pulsar4X.Client
 
         internal void DisplayComponentSelection()
         {
-            if(_sortedComponentNames == null)
+            if (_sortedComponentNames == null)
                 throw new NullReferenceException();
 
             DisplayHelpers.Header("Available Components");
 
             var availableSize = ImGui.GetContentRegionAvail();
             ImGui.SetNextItemWidth(availableSize.X);
-            if(ImGui.Combo("###component-filter", ref _componentFilterIndex, _sortedComponentNames, _sortedComponentNames.Length))
+            if (ImGui.Combo("###component-filter", ref _componentFilterIndex, _sortedComponentNames, _sortedComponentNames.Length))
             {
-                if(_componentFilterIndex == 0)
+                if (_componentFilterIndex == 0)
                 {
                     AvailableShipComponents = new List<ComponentDesign>(AllShipComponents);
                 }
@@ -576,7 +577,7 @@ namespace Pulsar4X.Client
                 ImGui.EndCombo();
             }
 
-            if(ImGui.BeginTable("DesignStatsTables", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("DesignStatsTables", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.5f);
                 ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.None, 0.3f);
@@ -585,7 +586,7 @@ namespace Pulsar4X.Client
 
                 for (int i = 0; i < AvailableShipComponents.Count; i++)
                 {
-                    if(!AvailableShipComponents[i].ComponentMountType.HasFlag(ComponentMountType.ShipComponent))
+                    if (!AvailableShipComponents[i].ComponentMountType.HasFlag(ComponentMountType.ShipComponent))
                         continue;
 
                     var design = AvailableShipComponents[i];
@@ -593,7 +594,7 @@ namespace Pulsar4X.Client
 
                     ImGui.TableNextColumn();
                     ImGui.Text(name);
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                     {
                         void TooltipExtension()
                         {
@@ -609,7 +610,7 @@ namespace Pulsar4X.Client
                     ImGui.TableNextColumn();
                     ImGui.InvisibleButton($"{i}", new Vector2(4, 8));
                     ImGui.SameLine();
-                    if(ImGui.SmallButton("+ Add###add-component-" + i))
+                    if (ImGui.SmallButton("+ Add###add-component-" + i))
                     {
                         SelectedComponents.Add((AvailableShipComponents[i], 1));
                         DesignChanged = true;
@@ -648,7 +649,7 @@ namespace Pulsar4X.Client
             DisplayHelpers.Header("Statisitcs", "The attributes of the ship are calculated based on the components you have added to the design.");
 
             UpdateShipStats();
-            if(ImGui.BeginTable("DesignStatsTables", 2, Styles.TableFlags | ImGuiTableFlags.SizingStretchSame))
+            if (ImGui.BeginTable("DesignStatsTables", 2, Styles.TableFlags | ImGuiTableFlags.SizingStretchSame))
             {
                 ImGui.TableSetupColumn("Attribute", ImGuiTableColumnFlags.None);
                 ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.None);
@@ -732,18 +733,18 @@ namespace Pulsar4X.Client
                     ImGui.TableNextColumn();
                     ImGui.Text("Cargo Transfer Rate");
                     ImGui.TableNextColumn();
-                    if(_trate == 0)
+                    if (_trate == 0)
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.MediocreColor);
                     ImGui.Text(Stringify.Mass(_trate));
-                    if(_trate == 0)
+                    if (_trate == 0)
                         ImGui.PopStyleColor();
                     ImGui.TableNextColumn();
                     ImGui.Text("Cargo Transfer Range");
                     ImGui.TableNextColumn();
-                    if(_trnge == 0)
+                    if (_trnge == 0)
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.MediocreColor);
                     ImGui.Text(Stringify.Velocity(_trnge));
-                    if(_trnge == 0)
+                    if (_trnge == 0)
                         ImGui.PopStyleColor();
 
                 }
@@ -763,13 +764,13 @@ namespace Pulsar4X.Client
             ImGui.Text("Is Obsolete?");
             ImGui.Checkbox("###IsObsolete", ref SelectedDesignObsolete);
 
-            if(!IsDesignValid())
+            if (!IsDesignValid())
             {
                 ImGui.NewLine();
                 ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
                 ImGui.Text("Current design is invalid!");
                 // TODO: tell the player what is invalid about their design
-                if(ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("You will not be able to construct ships with an invalid design.");
                 ImGui.PopStyleColor();
             }
@@ -806,13 +807,13 @@ namespace Pulsar4X.Client
 
         private void UpdateShipStats()
         {
-            if(!DesignChanged) return;
+            if (!DesignChanged) return;
 
-            if(_armor == null)
+            if (_armor == null)
                 throw new NullReferenceException();
 
             _profile = new EntityDamageProfileDB(SelectedComponents, (_armor, _armorThickness));
-            if(displayimage)
+            if (displayimage)
             {
                 GenImage();
             }
@@ -911,7 +912,7 @@ namespace Pulsar4X.Client
             _egen = egen;
             _estor = estor;
             _trate = cargoTransfer.rate;
-            if(double.IsNaN(cargoTransfer.range))
+            if (double.IsNaN(cargoTransfer.range))
                 _trnge = 0;
             else
                 _trnge = cargoTransfer.range;
@@ -979,7 +980,7 @@ namespace Pulsar4X.Client
             if (_shipImgPtr != IntPtr.Zero && displayimage)
             {
                 int maxheightint = (int)(maxheight / 4);
-                maxheight = maxheightint*4;//ImGui.GetWindowHeight() * _imageratio;
+                maxheight = maxheightint * 4;//ImGui.GetWindowHeight() * _imageratio;
                 float scalew = 1;
                 float scaleh = 1;
                 float scale;

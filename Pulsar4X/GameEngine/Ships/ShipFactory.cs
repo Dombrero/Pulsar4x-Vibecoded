@@ -50,7 +50,7 @@ namespace Pulsar4X.Ships
             var x = distanceFromParent * Math.Cos(angleRad);
             var y = distanceFromParent * Math.Sin(angleRad);
 
-            var pos = new Vector3( x,  y, 0);
+            var pos = new Vector3(x, y, 0);
             var orbit = OrbitDB.FromPosition(parent, pos, shipDesign.MassPerUnit, parent.StarSysDateTime);
             return CreateShip(shipDesign, ownerFaction, orbit, parent, shipName);
         }
@@ -79,14 +79,14 @@ namespace Pulsar4X.Ships
         /// <param name="parent"></param>
         /// <param name="shipName"></param>
         /// <returns></returns>
-        public static Entity CreateShip(ShipDesign shipDesign, Entity ownerFaction,  KeplerElements ke, Entity parent, string? shipName = null)
+        public static Entity CreateShip(ShipDesign shipDesign, Entity ownerFaction, KeplerElements ke, Entity parent, string? shipName = null)
         {
-            OrbitDB orbit = OrbitDB.FromKeplerElements(parent,shipDesign.MassPerUnit, ke, parent.StarSysDateTime);
-            var position =  OrbitMath.GetPosition(ke, parent.StarSysDateTime);
+            OrbitDB orbit = OrbitDB.FromKeplerElements(parent, shipDesign.MassPerUnit, ke, parent.StarSysDateTime);
+            var position = OrbitMath.GetPosition(ke, parent.StarSysDateTime);
             return CreateShip(shipDesign, ownerFaction, orbit, parent, shipName);
         }
 
-        public static Entity CreateShip(ShipDesign shipDesign, Entity ownerFaction, OrbitDB orbit,  Entity parent, string? shipName = null)
+        public static Entity CreateShip(ShipDesign shipDesign, Entity ownerFaction, OrbitDB orbit, Entity parent, string? shipName = null)
         {
             if (shipDesign.DesignVersion == 0) //we're using version 0 to indicate the design hasn't been built yet.
                 shipDesign.DesignVersion = 1;
@@ -167,17 +167,17 @@ namespace Pulsar4X.Ships
             // - Create wreckage
             // - Remove the ship entity from the game
 
-            var game = shipToDestroy.Manager.Game;
+            var game = shipToDestroy.AttachedManager.Game;
             var faction = game.Factions[shipToDestroy.FactionOwnerID];
 
             // Remove the ship from its fleet
-            if(faction.TryGetDataBlob<FleetDB>(out var fleetDB))
+            if (faction.TryGetDataBlob<FleetDB>(out var fleetDB))
             {
                 // Recursively try to get the fleet the ship belongs to
                 var belongsToFleet = fleetDB.TryGetChild<FleetDB>(shipToDestroy);
 
                 // If we found it send out the order to unassign the ship
-                if(belongsToFleet != null && belongsToFleet.OwningEntity != null)
+                if (belongsToFleet != null && belongsToFleet.OwningEntity.IsValid)
                 {
                     // The unassign ship command removes the ship from the fleet
                     // and checks if it is the flagship and removes that also
@@ -193,8 +193,8 @@ namespace Pulsar4X.Ships
             // Kill any officers on board
             // (currently just the commander)
             // TODO: check for additional people on board (passengers, officers, scientists etc)
-            if(shipToDestroy.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB)
-                && shipToDestroy.Manager.TryGetEntityById(shipInfoDB.CommanderID, out var commanderEntity))
+            if (shipToDestroy.TryGetDataBlob<ShipInfoDB>(out var shipInfoDB)
+                && shipToDestroy.AttachedManager.TryGetEntityById(shipInfoDB.CommanderID, out var commanderEntity))
             {
                 CommanderFactory.DestroyCommander(commanderEntity);
             }

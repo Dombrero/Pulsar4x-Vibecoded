@@ -20,9 +20,9 @@ namespace Pulsar4X.Galaxy
 {
     public class StarSystemFactory
     {
-        internal GalaxyFactory GalaxyGen;
-        private SystemBodyFactory _systemBodyFactory;
-        private StarFactory _starFactory;
+        internal GalaxyFactory? GalaxyGen;
+        private SystemBodyFactory? _systemBodyFactory;
+        private StarFactory? _starFactory;
 
         public StarSystemFactory(GalaxyFactory galaxyGen)
         {
@@ -57,7 +57,7 @@ namespace Pulsar4X.Galaxy
             JPFactory.GenerateJumpPoints(this, newSystem, stars[0].GetDataBlob<PositionDB>().Root);
 
             // Go through all the created entities and set them to be neutral
-            foreach(var entity in newSystem.GetAllEntites())
+            foreach (var entity in newSystem.GetAllEntites())
             {
                 entity.FactionOwnerID = Game.NeutralFactionId;
             }
@@ -108,7 +108,7 @@ namespace Pulsar4X.Galaxy
             SensorProfileDB sensorProfile = new SensorProfileDB();
             mercuryPositionDB.AbsolutePosition += new Vector3(x, y, 0);
             Entity mercury = Entity.Create();
-            sol.AddEntity(mercury, new List<BaseDataBlob>{sensorProfile, mercuryPositionDB, mercuryBodyDB, mercuryMVDB, mercuryNameDB, mercuryOrbitDB});
+            sol.AddEntity(mercury, new List<BaseDataBlob> { sensorProfile, mercuryPositionDB, mercuryBodyDB, mercuryMVDB, mercuryNameDB, mercuryOrbitDB });
             _systemBodyFactory.MineralGeneration(game.StartingGameData.Minerals.Values.ToList(), sol, mercury);
             SensorTools.PlanetEmmisionSig(sensorProfile, mercuryBodyDB, mercuryMVDB);
 
@@ -148,7 +148,7 @@ namespace Pulsar4X.Galaxy
             AtmosphereDB planetAtmosphereDB = new AtmosphereDB(1f, true, 71, 1f, 1f, 57.2f, atmoGasses);
             sensorProfile = new SensorProfileDB();
             Entity planet = Entity.Create();
-            sol.AddEntity(planet, new List<BaseDataBlob> {sensorProfile, planetPositionDB, planetBodyDB, planetMVDB, planetNameDB, planetOrbitDB, planetAtmosphereDB });
+            sol.AddEntity(planet, new List<BaseDataBlob> { sensorProfile, planetPositionDB, planetBodyDB, planetMVDB, planetNameDB, planetOrbitDB, planetAtmosphereDB });
             _systemBodyFactory.HomeworldMineralGeneration(game.StartingGameData.Minerals.Values.ToList(), sol, planet);
             SensorTools.PlanetEmmisionSig(sensorProfile, planetBodyDB, planetMVDB);
 
@@ -168,12 +168,12 @@ namespace Pulsar4X.Galaxy
             PositionDB lunaPositionDB = new PositionDB(lunaOrbitDB.GetPosition(game.TimePulse.GameGlobalDateTime) + planetPositionDB.AbsolutePosition, planet);
             sensorProfile = new SensorProfileDB();
             Entity luna = Entity.Create();
-            sol.AddEntity(luna, new List<BaseDataBlob> {sensorProfile, lunaPositionDB, lunaBodyDB, lunaMVDB, lunaNameDB, lunaOrbitDB });
+            sol.AddEntity(luna, new List<BaseDataBlob> { sensorProfile, lunaPositionDB, lunaBodyDB, lunaMVDB, lunaNameDB, lunaOrbitDB });
             _systemBodyFactory.MineralGeneration(game.StartingGameData.Minerals.Values.ToList(), sol, luna);
             SensorTools.PlanetEmmisionSig(sensorProfile, lunaBodyDB, lunaMVDB);
 
 
-            SystemBodyInfoDB halleysBodyDB = new SystemBodyInfoDB { BodyType = BodyType.Comet, SupportsPopulations = false, Albedo = 0.04f  }; //Albedo = 0.04f
+            SystemBodyInfoDB halleysBodyDB = new SystemBodyInfoDB { BodyType = BodyType.Comet, SupportsPopulations = false, Albedo = 0.04f }; //Albedo = 0.04f
             MassVolumeDB halleysMVDB = MassVolumeDB.NewFromMassAndRadius_AU(2.2e14, Distance.KmToAU(11));
             NameDB halleysNameDB = new NameDB("ASSHOLE");
             double halleysSemiMajAxis = 17.834; //AU
@@ -308,7 +308,7 @@ namespace Pulsar4X.Galaxy
             JPFactory.GenerateJumpPoints(this, sol, sun.GetDataBlob<PositionDB>().Root);
 
             // Go through all the created entities and set them to be neutral
-            foreach(var entity in sol.GetAllEntites())
+            foreach (var entity in sol.GetAllEntites())
             {
                 entity.FactionOwnerID = Game.NeutralFactionId;
             }
@@ -321,43 +321,46 @@ namespace Pulsar4X.Galaxy
         {
             string fileContents = File.ReadAllText(Path.Combine(folder, "systemInfo.json"));
             var rootJson = JObject.Parse(fileContents);
-            var id = rootJson["id"].ToString();
-            var systemName = rootJson["name"].ToString();
+            var id = rootJson["id"]?.ToString() ?? throw new InvalidOperationException("systemInfo.json missing id.");
+            var systemName = rootJson["name"]?.ToString() ?? throw new InvalidOperationException("systemInfo.json missing name.");
             var rngSeed = (int?)rootJson["seed"] ?? -1;
 
             StarSystem system = new StarSystem();
             system.Initialize(game, systemName, rngSeed, false, id);
 
-            var stars = (JArray?)rootJson["stars"];
+            var stars = (JArray?)rootJson["stars"] ?? throw new InvalidOperationException("systemInfo.json missing stars.");
             Entity? rootStar = null;
-            foreach(var starFileName in stars)
+            foreach (var starFileName in stars)
             {
                 var star = StarFactory.Create(system, GalaxyGen.Settings, Path.Combine(folder, starFileName.ToString()));
-                if(rootStar == null)
+                if (rootStar == null)
                     rootStar = star;
             }
 
-            if(rootStar != null)
+            if (rootStar != null)
             {
                 var bodies = (JArray?)rootJson["bodies"];
-                foreach(var bodyFileName in bodies)
+                if (bodies is not null)
                 {
-                    var body = SystemBodyFactory.Create(
-                        game,
-                        system,
-                        rootStar,
-                        GalaxyGen.Settings.J2000,
-                        new SensorProfileDB(),
-                        Path.Combine(folder, bodyFileName.ToString()));
+                    foreach (var bodyFileName in bodies)
+                    {
+                        var body = SystemBodyFactory.Create(
+                            game,
+                            system,
+                            rootStar,
+                            GalaxyGen.Settings.J2000,
+                            new SensorProfileDB(),
+                            Path.Combine(folder, bodyFileName.ToString() ?? string.Empty));
+                    }
                 }
             }
 
             var surveyRings = (JArray?)rootJson["surveyRings"];
-            if(surveyRings != null)
+            if (surveyRings != null)
             {
                 var ringSettings = new Dictionary<double, int>();
 
-                foreach(var ring in surveyRings)
+                foreach (var ring in surveyRings)
                 {
                     var radius = (double?)ring["ringRadiusInAU"] ?? 1;
                     var count = (int?)ring["count"] ?? 1;
@@ -371,13 +374,13 @@ namespace Pulsar4X.Galaxy
                 JPSurveyFactory.GenerateJPSurveyPoints(system);
             }
 
-            if(rootStar != null)
+            if (rootStar != null)
             {
                 JPFactory.GenerateJumpPoints(this, system, rootStar.GetDataBlob<PositionDB>().Root);
             }
 
             // Go through all the created entities and set them to be neutral
-            foreach(var entity in system.GetAllEntites())
+            foreach (var entity in system.GetAllEntites())
             {
                 entity.FactionOwnerID = Game.NeutralFactionId;
             }
@@ -389,31 +392,34 @@ namespace Pulsar4X.Galaxy
 
         public static StarSystem LoadFromBlueprint(Game game, SystemBlueprint systemBlueprint)
         {
+            ArgumentNullException.ThrowIfNull(systemBlueprint);
             var galaxyGen = new GalaxyFactory(game.SystemGenSettings);
 
-            int seed = systemBlueprint?.Seed ?? -1;
+            int seed = systemBlueprint.Seed ?? -1;
             StarSystem system = new StarSystem();
             system.Initialize(game, systemBlueprint.Name, seed, false, systemBlueprint.UniqueID);
             Entity? rootStar = null;
 
             // Load stars
-            foreach(var id in systemBlueprint.Stars)
+            foreach (var id in systemBlueprint.Stars)
             {
                 var starEntity = StarFactory.CreateFromBlueprint(system, game.SystemGenSettings, game.StartingGameData.Stars[id]);
-                if(rootStar == null)
+                if (rootStar == null)
                     rootStar = starEntity;
             }
 
             // Load bodies
-            foreach(var id in systemBlueprint.Bodies)
+            if (rootStar is not { IsValid: true })
+                throw new InvalidOperationException($"System '{systemBlueprint.UniqueID}' has no star for body placement.");
+            foreach (var id in systemBlueprint.Bodies)
             {
                 var bodyEntity = SystemBodyFactory.CreateFromBlueprint(game, system, rootStar, galaxyGen.Settings.J2000, new SensorProfileDB(), game.StartingGameData.SystemBodies[id]);
             }
 
-            if(systemBlueprint.SurveyRings != null)
+            if (systemBlueprint.SurveyRings != null)
             {
                 var ringSettings = new Dictionary<double, int>();
-                foreach(var ring in systemBlueprint.SurveyRings)
+                foreach (var ring in systemBlueprint.SurveyRings)
                 {
                     ringSettings.Add(Distance.AuToMt(ring.RingRadiusInAU), (int)ring.Count);
                 }
@@ -424,13 +430,13 @@ namespace Pulsar4X.Galaxy
                 JPSurveyFactory.GenerateJPSurveyPoints(system);
             }
 
-            if(rootStar != null)
+            if (rootStar != null)
             {
                 JPFactory.GenerateJumpPoints(galaxyGen.StarSystemFactory, system, rootStar.GetDataBlob<PositionDB>().Root);
             }
 
             // Go through all the created entities and set them to be neutral
-            foreach(var entity in system.GetAllEntites())
+            foreach (var entity in system.GetAllEntites())
             {
                 entity.FactionOwnerID = Game.NeutralFactionId;
             }
@@ -466,7 +472,7 @@ namespace Pulsar4X.Galaxy
 
             for (int i = 0; i < 16; i++)
             {
-                NameDB planetNameDB = new NameDB("planet"+i);
+                NameDB planetNameDB = new NameDB("planet" + i);
 
                 SystemBodyInfoDB planetBodyDB = new SystemBodyInfoDB { BodyType = BodyType.Terrestrial, SupportsPopulations = true };
                 MassVolumeDB planetMVDB = MassVolumeDB.NewFromMassAndRadius_AU(3.3022E23, Distance.KmToAU(2439.7));
@@ -485,7 +491,8 @@ namespace Pulsar4X.Galaxy
         /// Creates an test system with planets of varying longitude of periapsis.
         /// Adds to game.StarSystem.
         /// </summary>
-        public StarSystem CreateLongitudeTest(Game game) {
+        public StarSystem CreateLongitudeTest(Game game)
+        {
             StarSystem system = new StarSystem();
             system.Initialize(game, "Longitude test", -1);
 
@@ -503,7 +510,7 @@ namespace Pulsar4X.Galaxy
 
             for (int i = 0; i < 13; i++)
             {
-                NameDB planetNameDB = new NameDB("planet"+i);
+                NameDB planetNameDB = new NameDB("planet" + i);
                 SystemBodyInfoDB planetBodyDB = new SystemBodyInfoDB { BodyType = BodyType.Terrestrial, SupportsPopulations = true };
                 MassVolumeDB planetMVDB = MassVolumeDB.NewFromMassAndRadius_AU(3.3022E23, Distance.KmToAU(2439.7));
                 PositionDB planetPositionDB = new PositionDB();

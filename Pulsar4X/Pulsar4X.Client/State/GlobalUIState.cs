@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using Pulsar4X.Orbital;
 using SDL3;
 using System;
@@ -101,7 +101,7 @@ namespace Pulsar4X.Client
         internal DateTime LastGameUpdateTime = new();
         internal DateTime SelectedSystemTime => GameClient?.Galaxy.GetSystem(SelectedStarSystemId)?.DateTime ?? default;
         internal DateTime SelectedSysLastUpdateTime = new();
-        internal string SelectedStarSystemId { get; private set; }
+        internal string SelectedStarSystemId { get; private set; } = "";
         internal SystemMapRendering? SelectedSysMapRender => GalacticMap == null ? null : GalacticMap.SelectedSysMapRender;
         internal DateTime PrimarySystemDateTime;
         internal EntityContextMenu? ContextMenu { get; set; }
@@ -109,7 +109,6 @@ namespace Pulsar4X.Client
         internal int? PendingContextMenuEntityId { get; set; }
         internal Camera Camera;
         internal SDL3Window ViewPort { get; private set; }
-
         internal Dictionary<Type, UniquePulsarGuiWindow> LoadedWindows { get; init; } = new();
         internal Dictionary<string, NamedPulsarGuiWindow> LoadedNonUniqueWindows { get; init; } = new();
 
@@ -142,7 +141,6 @@ namespace Pulsar4X.Client
 
         // Game Settings
         internal GameSettings GameSettings { get; set; }
-
         // Per-system camera positions, restored when the player returns to a system.
         private readonly Dictionary<string, CameraState> _savedCameraStates = new();
 
@@ -150,6 +148,7 @@ namespace Pulsar4X.Client
         {
             ViewPort = viewport;
             UniquePulsarGuiWindow._uiState = this;
+            UpdateWindowState._uiState = this;
             var windowPtr = viewport.Window;
 
             SDLRendererPtr = SDL.CreateRenderer(windowPtr, "pulsar4x");
@@ -372,14 +371,14 @@ namespace Pulsar4X.Client
         /// <returns>The unique window instance, or <see langword="null"/> if no instance exists.</returns>
         internal T? GetUniqueWindow<T>() where T : UniquePulsarGuiWindow
         {
-            if(TryGetUniqueWindow<T>(out var window))
+            if (TryGetUniqueWindow<T>(out var window))
             {
                 return window;
             }
             return null;
         }
 
-        internal bool TryGetUniqueWindow<T>([NotNullWhen(true)]out T? window) where T : UniquePulsarGuiWindow
+        internal bool TryGetUniqueWindow<T>([NotNullWhen(true)] out T? window) where T : UniquePulsarGuiWindow
         {
             if (LoadedWindows.TryGetValue(typeof(T), out var foundWindow))
             {

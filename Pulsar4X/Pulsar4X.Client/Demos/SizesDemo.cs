@@ -73,7 +73,7 @@ public static class SizesDemo
             DoRectangle("GetWindowContentRegionMax", windowContentRegionStart, getWindowContentRegionMax);
             DoRectangle("GetWindowContentRegionMin", cursorScreenStartPos, getWindowContentRegionMin);
 
-            DoRectangle("GetContentRegionMax", _windowPos ,getContentRegionMax);
+            DoRectangle("GetContentRegionMax", _windowPos, getContentRegionMax);
             DoRectangle("GetContentRegionAvail", cursorScreenStartPos, getContentRegionAvail);
 
             itemStartPos = ImGui.GetCursorScreenPos();
@@ -144,7 +144,7 @@ public static class SizesDemo
         ImGui.Text(name);
         if (ImGui.IsItemHovered())
         {
-            if(foR == FrameOfReference.Window)
+            if (foR == FrameOfReference.Window)
                 DrawCrosshair(_windowPos + point, 3);
             else
                 DrawCrosshair(point, 3);
@@ -152,7 +152,7 @@ public static class SizesDemo
         ImGui.NextColumn();
         ImGui.Text(point.ToString());
         ImGui.SameLine();
-        if(foR == FrameOfReference.Window)
+        if (foR == FrameOfReference.Window)
             ImGui.Text("Frame of Reference: Window");
         else
             ImGui.Text("Frame of Reference: Screen");

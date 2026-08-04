@@ -34,7 +34,7 @@ public class MineralBlueprintUI : BluePrintsUI
 
     public override void DisplayEditorWindow(int selectedIndex)
     {
-        if(!_isActive[selectedIndex])
+        if (!_isActive[selectedIndex])
             return;
         var selectedItem = (MineralBlueprint)_itemBlueprints[selectedIndex];
 
@@ -85,7 +85,7 @@ public class MineralBlueprintUI : BluePrintsUI
 
             ImGui.Text("Volume: ");
             ImGui.NextColumn();
-            var editDouble= selectedItem.VolumePerUnit;
+            var editDouble = selectedItem.VolumePerUnit;
             if (DoubleEditWidget.Display("##vol" + selectedItem.UniqueID, ref editDouble))
             {
                 selectedItem.VolumePerUnit = editDouble;

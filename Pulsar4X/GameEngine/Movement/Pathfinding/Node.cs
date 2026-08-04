@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
@@ -16,12 +16,9 @@ namespace Pulsar4X.Movement
     /// </summary>
     public class Node
     {
-        public string Key { get; protected set; }
-        public object Data { get; protected set; }
-
-        public List<EdgeToNeighbor> Neighbors { get; protected set; }
-
-
+        public string? Key { get; protected set; }
+        public object? Data { get; protected set; }
+        public List<EdgeToNeighbor> Neighbors { get; protected set; } = new();
         protected Node()
         {
             Neighbors = new List<EdgeToNeighbor>();
@@ -119,10 +116,10 @@ namespace Pulsar4X.Movement
                 return false;
             }
 
-            var jp1System = jp1PositionDB.OwningEntity.Manager.ManagerID;
-            var jp2System = jp2PositionDB.OwningEntity.Manager.ManagerID;
-            var otherJP1System = otherJP1PositionDB.OwningEntity.Manager.ManagerID;
-            var otherJP2System = otherJP2PositionDB.OwningEntity.Manager.ManagerID;
+            var jp1System = jp1PositionDB.OwningEntity.AttachedManager.ManagerID;
+            var jp2System = jp2PositionDB.OwningEntity.AttachedManager.ManagerID;
+            var otherJP1System = otherJP1PositionDB.OwningEntity.AttachedManager.ManagerID;
+            var otherJP2System = otherJP2PositionDB.OwningEntity.AttachedManager.ManagerID;
 
             if (jp1System.IsNotNullOrEmpty())
             {

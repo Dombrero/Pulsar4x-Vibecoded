@@ -11,31 +11,30 @@ public class DiscordCrashLogger
     private readonly string _webhookUrl;
     private readonly HttpClient _httpClient;
 
-    // Define the structure for Discord webhook fields
-    private struct DiscordField
+    private class DiscordField
     {
-        public string Name { get; set; }
-        public string Value { get; set; }
+        public string? Name { get; set; }
+        public string? Value { get; set; }
         public bool? Inline { get; set; }
     }
 
     // Define the structure for Discord webhook embeds
-    private struct DiscordEmbed
+    private class DiscordEmbed
     {
-        public string Title { get; set; }
+        public string? Title { get; set; }
         public int Color { get; set; }
-        public DiscordField[] Fields { get; set; }
-        public DiscordFooter Footer { get; set; }
+        public DiscordField[]? Fields { get; set; }
+        public DiscordFooter? Footer { get; set; }
     }
 
-    private struct DiscordFooter
+    private class DiscordFooter
     {
-        public string Text { get; set; }
+        public string? Text { get; set; }
     }
 
-    private struct DiscordWebhookPayload
+    private class DiscordWebhookPayload
     {
-        public DiscordEmbed[] Embeds { get; set; }
+        public DiscordEmbed[]? Embeds { get; set; }
     }
 
     public DiscordCrashLogger(string webhookUrl)

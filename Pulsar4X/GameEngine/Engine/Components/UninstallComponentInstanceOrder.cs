@@ -14,7 +14,7 @@ namespace Pulsar4X.Engine.Orders
         public override string Details => "Remove a component from it's parent entity";
 
         internal override Entity EntityCommanding { get; }
-        public ComponentInstance ComponentInstance { get; private set; }
+        public ComponentInstance? ComponentInstance { get; set; }
         public int Amount { get; private set; }
 
         internal UninstallComponentInstanceOrder(Entity entity, ComponentInstance componentInstance, int amount = 1)
@@ -30,7 +30,7 @@ namespace Pulsar4X.Engine.Orders
             {
                 RequestingFactionGuid = entity.FactionOwnerID,
                 EntityCommandingGuid = entity.Id,
-                CreatedDate = entity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = entity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 UseActionLanes = false
             };
 

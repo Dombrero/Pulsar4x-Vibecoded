@@ -25,7 +25,7 @@ namespace Pulsar4X.Industry
         public Dictionary<int, double>? MiningRemainder { get; set; }
 
         [JsonProperty]
-        public int NumberOfMines { get; set;} = 0;
+        public int NumberOfMines { get; set; } = 0;
 
         public Dictionary<int, MineralDeposit> MineralDeposit => OwningEntity.GetDataBlob<ColonyInfoDB>().PlanetEntity.GetDataBlob<MineralsDB>().Minerals;
 

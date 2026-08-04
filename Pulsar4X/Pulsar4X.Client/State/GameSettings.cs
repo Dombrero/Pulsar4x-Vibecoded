@@ -100,7 +100,7 @@ namespace Pulsar4X.Client
                     SDL.SetWindowBordered(window.Window, true);
 
                     if (WindowWidth > 0 && WindowHeight > 0)
-                        window.Size = new (WindowWidth, WindowHeight);
+                        window.Size = new(WindowWidth, WindowHeight);
                 }
                 else if (DisplayMode == DisplayModeType.BorderlessFullscreen)
                 {
@@ -111,7 +111,7 @@ namespace Pulsar4X.Client
                     var mode = SDL.GetCurrentDisplayMode(SDL.GetPrimaryDisplay());
                     if (mode != null)
                     {
-                        window.Size = new (mode.Value.W, mode.Value.H);
+                        window.Size = new(mode.Value.W, mode.Value.H);
                         SDL.SetWindowPosition(window.Window, 0, 0);
                     }
                 }

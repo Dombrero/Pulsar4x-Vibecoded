@@ -9,7 +9,7 @@ namespace Pulsar4X.Industry
 {
     public class IndustryJob : JobBase
     {
-        internal string TypeID;
+        internal string? TypeID;
         public IndustryJobStatus Status { get; internal set; } = IndustryJobStatus.Queued;
 
         /// <summary>
@@ -28,15 +28,15 @@ namespace Pulsar4X.Industry
             var design = factionInfo.IndustryDesigns[itemID];
             TypeID = design.IndustryTypeID;
             Name = design.Name;
-            if(design.ResourceCosts != null)
+            if (design.ResourceCosts != null)
             {
                 ResourcesRequiredRemaining = new Dictionary<string, long>(design.ResourceCosts);
             }
             else
             {
-                ResourcesRequiredRemaining = new ();
+                ResourcesRequiredRemaining = new();
             }
-            ResourcesCosts = design.ResourceCosts;
+            ResourcesCosts = design.ResourceCosts ?? new Dictionary<string, long>();
             ProductionPointsLeft = design.IndustryPointCosts;
             ProductionPointsCost = design.IndustryPointCosts;
             NumberOrdered = 1;
@@ -48,7 +48,7 @@ namespace Pulsar4X.Industry
             TypeID = design.IndustryTypeID;
             Name = design.Name;
             ResourcesRequiredRemaining = new Dictionary<string, long>(design.ResourceCosts);
-            ResourcesCosts = design.ResourceCosts;
+            ResourcesCosts = design.ResourceCosts ?? new Dictionary<string, long>();
             ProductionPointsLeft = design.IndustryPointCosts;
             ProductionPointsCost = design.IndustryPointCosts;
             NumberOrdered = 1;

@@ -14,7 +14,7 @@ public static class SensorProfileTools
 
     public static void SetProfileDB(Entity parentEntity)
     {
-        
+
         if (!parentEntity.TryGetDataBlob<SensorProfileDB>(out var sensorProfileDB))
         {
             sensorProfileDB = new SensorProfileDB();
@@ -22,7 +22,7 @@ public static class SensorProfileTools
         }
         ComponentInstancesDB components = parentEntity.GetDataBlob<ComponentInstancesDB>();
         sensorProfileDB.EmittedEMSpectra.Clear();
-        
+
         if (components.TryGetComponentsByAttribute<SensorSignatureAtb>(out var componentInstances))
         {
             foreach (var instance in componentInstances)
@@ -31,11 +31,11 @@ public static class SensorProfileTools
                 var sensorAtb = (SensorSignatureAtb)atts[typeof(SensorSignatureAtb)];
                 var partWaveForm = sensorAtb.PartWaveForm;
                 var partWaveFormMag = sensorAtb.PartWaveFormMag;
-                
+
                 var emdata = new EMData()
                 {
                     SourceEntity = parentEntity,
-                    Instance = instance, 
+                    Instance = instance,
                     WaveForm = partWaveForm,
                     Magnitude = partWaveFormMag,
                 };
@@ -53,15 +53,15 @@ public static class SensorProfileTools
         sensorProfileDB.LastPositionOfReflectionSet = position.AbsolutePosition;
         sensorProfileDB.LastDatetimeOfReflectionSet = atDateTime;
         sensorProfileDB.ReflectedEMSpectra.Clear();
-        
-        var profiles = entity.Manager.GetAllDataBlobsOfType<SensorProfileDB>();
-        
+
+        var profiles = entity.AttachedManager.GetAllDataBlobsOfType<SensorProfileDB>();
+
         foreach (var profileDB in profiles)
         {
             var emittingEntity = profileDB.OwningEntity;
 
             // onlyl reflect valid entities and not ourself
-            if(emittingEntity == Entity.InvalidEntity || emittingEntity == entity)
+            if (emittingEntity == Entity.InvalidEntity || emittingEntity == entity)
                 continue;
 
             double distance = position.GetDistanceTo_m(emittingEntity.GetDataBlob<PositionDB>());
@@ -73,18 +73,18 @@ public static class SensorProfileTools
                 //TODO: we're ignoring anything under a petawatt(pre attenuated) for reflection.
                 //we may have to balance this later, maybe add a flag in the emmissionDB or a seperate dictionary for stuff that should be reflected.
                 //picking up ALL emmisions for reflection is probabily overkill/too much ui data/too much processing.
-                if(emitedItem.Magnitude < 1e+12)
+                if (emitedItem.Magnitude < 1e+12)
                     continue;
-                
+
                 var attenuated = SensorTools.AttenuationCalc(emitedItem.Magnitude, distance);//per meter^2
                 var reflectedMagnatude = profileDB.ReflectionCoefficent * attenuated;
-                
+
                 //debug code:
                 if (emitedItem.Magnitude < 0)
                     throw new Exception("Source should not be less than 0");
-                if(attenuated > emitedItem.Magnitude)
+                if (attenuated > emitedItem.Magnitude)
                     throw new Exception("Attenuated value shoudl be less than source");
-                if(reflectedMagnatude > emitedItem.Magnitude)
+                if (reflectedMagnatude > emitedItem.Magnitude)
                 {
                     // var source = Stringify.Power(emitedItem.Value);
                     // var reflec = Stringify.Power(reflectedMagnatude);
@@ -97,10 +97,10 @@ public static class SensorProfileTools
                     reflectedMagnatude = emitedItem.Magnitude * sensorProfileDB.Reflectivity;
 
                 }
-                if(reflectedMagnatude < 0)
+                if (reflectedMagnatude < 0)
                     throw new Exception("Final magnitude should not be less than 0");
 
-                if(reflectedMagnatude > 0.001) //ignore it if the signal is less than a watt
+                if (reflectedMagnatude > 0.001) //ignore it if the signal is less than a watt
                 {
                     var emdata = new EMData()
                     {

@@ -7,24 +7,29 @@ namespace Pulsar4X.Client.Interface.Themes;
 public class FuturisticTheme : ITheme
 {
     // Text
-    public Color Text {
+    public Color Text
+    {
         // Bright but not pure white
         get => Color.FromArgb(255, 217, 217, 217);
     }
-    public Color TextDisabled {
+    public Color TextDisabled
+    {
         get => Color.Gray;
     }
 
     // Buttons and interactive elements
-    public Color Button {
+    public Color Button
+    {
         // Semi-transparent blue
         get => Color.FromArgb(102, 38, 71, 120);
     }
-    public Color ButtonHovered {
+    public Color ButtonHovered
+    {
         // Brighter blue glow
         get => Color.FromArgb(161, 61, 117, 250);
     }
-    public Color ButtonActive {
+    public Color ButtonActive
+    {
         // Brightest when clicked
         get => Color.FromArgb(242, 99, 156, 255);
     }

@@ -30,7 +30,7 @@ public class ReorderableSafeQueue<T> : IEnumerable<T>
     {
         get
         {
-            lock(_lockObject)
+            lock (_lockObject)
             {
                 return _items.Count;
             }
@@ -45,27 +45,27 @@ public class ReorderableSafeQueue<T> : IEnumerable<T>
         }
     }
 
-    public bool TryDequeue(out T result)
+    public bool TryDequeue([MaybeNullWhen(false)] out T result)
     {
         lock (_lockObject)
         {
-            if (_items.Count > 0)
+            if (_items.First is LinkedListNode<T> first)
             {
-                result = _items.First.Value;
+                result = first.Value;
                 _items.RemoveFirst();
                 return true;
             }
 
-            result = default;
+            result = default!;
             return false;
         }
     }
 
     public bool TryPeek([NotNullWhen(true)] out T? result)
     {
-        lock(_lockObject)
+        lock (_lockObject)
         {
-            if(_items.First != null)
+            if (_items.First != null)
             {
                 result = _items.First.Value!;
                 return true;
@@ -110,7 +110,7 @@ public class ReorderableSafeQueue<T> : IEnumerable<T>
         lock (_lockObject)
         {
             var node = _items.Find(item);
-            if(node == null)
+            if (node == null)
                 return false;
 
             _items.Remove(node);
@@ -128,7 +128,7 @@ public class ReorderableSafeQueue<T> : IEnumerable<T>
 
     public IEnumerator<T> GetEnumerator()
     {
-        lock(_lockObject)
+        lock (_lockObject)
         {
             return new LinkedList<T>(_items).GetEnumerator();
         }
@@ -147,7 +147,7 @@ public class ReorderableSafeQueue<T> : IEnumerable<T>
     {
         get
         {
-            lock(_lockObject)
+            lock (_lockObject)
             {
                 return new LinkedList<T>(_items);
             }
@@ -183,13 +183,20 @@ public class ReorderableSafeQueueConverter : JsonConverter
             return constructor.Invoke(new[] { list });
 
         // Fallback: create an empty queue and add items manually
-        var result = Activator.CreateInstance(objectType);
-        var enqueueMethod = objectType.GetMethod("Enqueue");
+        var result = Activator.CreateInstance(objectType)
+            ?? throw new InvalidOperationException($"Could not create {objectType.Name}.");
+        var enqueueMethod = objectType.GetMethod("Enqueue")
+            ?? throw new InvalidOperationException($"Could not find Enqueue on {objectType.Name}.");
 
         // Get the enumerator and add each item
-        var enumerator = list.GetType().GetMethod("GetEnumerator").Invoke(list, null);
-        var moveNextMethod = enumerator.GetType().GetMethod("MoveNext");
-        var currentProperty = enumerator.GetType().GetProperty("Current");
+        var getEnumerator = list.GetType().GetMethod("GetEnumerator")
+            ?? throw new InvalidOperationException("List enumerator not found.");
+        var enumerator = getEnumerator.Invoke(list, null)
+            ?? throw new InvalidOperationException("List enumerator was null.");
+        var moveNextMethod = enumerator.GetType().GetMethod("MoveNext")
+            ?? throw new InvalidOperationException("Enumerator MoveNext not found.");
+        var currentProperty = enumerator.GetType().GetProperty("Current")
+            ?? throw new InvalidOperationException("Enumerator Current not found.");
 
         while (moveNextMethod.Invoke(enumerator, null) is bool moveNext && moveNext)
         {
@@ -202,8 +209,14 @@ public class ReorderableSafeQueueConverter : JsonConverter
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
+        if (value is null)
+        {
+            writer.WriteNull();
+            return;
+        }
         var objectType = value.GetType();
-        var innerProperty = objectType.GetProperty("InnerList", BindingFlags.NonPublic | BindingFlags.Instance);
+        var innerProperty = objectType.GetProperty("InnerList", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("InnerList property not found.");
         var innerValue = innerProperty.GetValue(value);
         serializer.Serialize(writer, innerValue);
     }

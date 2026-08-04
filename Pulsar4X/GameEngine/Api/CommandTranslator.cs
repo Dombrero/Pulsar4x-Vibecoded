@@ -33,7 +33,6 @@ namespace Pulsar4X.Engine.Api
     {
         private readonly Game _game;
         private readonly Dictionary<Type, Func<Entity, Entity, GameCommand, CommandResult>> _translators;
-
         public CommandTranslator(Game game)
         {
             _game = game;
@@ -107,10 +106,10 @@ namespace Pulsar4X.Engine.Api
         // (they have no engine order of their own), so unlike HandleOrder they must signal the
         // change themselves — otherwise the fleet UI wouldn't refresh while paused.
         private static void PublishOrdersChanged(Entity holder)
-            => MessagePublisher.Instance.Publish(Message.Create(
+            => _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.OrdersChanged,
                 entityId: holder.Id,
-                systemId: holder.Manager.ManagerID,
+                systemId: holder.AttachedManager.ManagerID,
                 factionId: holder.FactionOwnerID));
 
         private bool TryResolve(int entityId, out Entity entity)
@@ -333,7 +332,7 @@ namespace Pulsar4X.Engine.Api
                     && !q.ActionList.Any(a => a.Source == OrderSource.Issued)
                     && commanded.Manager?.Game?.ProcessorManager != null)
                 {
-                    commanded.Manager.Game.ProcessorManager
+                    commanded.AttachedManager.Game.ProcessorManager
                         .RunProcessOnEntity<FleetDB>(commanded, 0);
                 }
             }
@@ -433,10 +432,10 @@ namespace Pulsar4X.Engine.Api
                     minerals.GrantFactionPartialAccess(info.FactionMask);
             }
 
-            MessagePublisher.Instance.Publish(Message.Create(
+            _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.EntityChanged,
                 entityId: commanded.Id,
-                systemId: commanded.Manager.ManagerID,
+                systemId: commanded.AttachedManager.ManagerID,
                 factionId: faction.Id));
 
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
@@ -624,7 +623,7 @@ namespace Pulsar4X.Engine.Api
 
             // Visibility enforced at the boundary: a faction can only warp to what it can see.
             if (destination.Manager == null
-                || !destination.Manager.IsEntityVisibleToFaction(destination, faction.Id))
+                || !destination.AttachedManager.IsEntityVisibleToFaction(destination, faction.Id))
                 return CommandResult.Reject($"Entity {warp.DestinationId} not found.");
 
             DateTime now = commanded.StarSysDateTime;
@@ -666,7 +665,7 @@ namespace Pulsar4X.Engine.Api
                 return CommandResult.Reject($"Entity {target.TargetId} not found.");
             // A faction can only target what it can see (no locking onto undetected entities).
             if (targetEntity.Manager == null
-                || !targetEntity.Manager.IsEntityVisibleToFaction(targetEntity, faction.Id))
+                || !targetEntity.AttachedManager.IsEntityVisibleToFaction(targetEntity, faction.Id))
                 return CommandResult.Reject($"Entity {target.TargetId} not found.");
 
             bool accepted = Pulsar4X.Weapons.SetTargetFireControlOrder.CreateCommand(
@@ -1035,9 +1034,9 @@ namespace Pulsar4X.Engine.Api
         }
 
         // Local-construction jobs carry no id, so commands address them by queue position.
-        private static bool TryGetConstructionJob(Entity entity, int queueIndex, out LocalConstructionJob job)
+        private static bool TryGetConstructionJob(Entity entity, int queueIndex, out LocalConstructionJob? job)
         {
-            job = null!;
+            job = null;
             if (!entity.TryGetDataBlob<LocalConstructionDB>(out var construction)) return false;
             if (queueIndex < 0 || queueIndex >= construction.BuildQueue.Count) return false;
 

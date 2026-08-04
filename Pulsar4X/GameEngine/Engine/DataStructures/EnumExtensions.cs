@@ -9,10 +9,12 @@ namespace Pulsar4X.Extensions
     {
         public static string ToDescription<TEnum>(this TEnum source)
         {
-            if(source == null) throw new ArgumentNullException("source cannot be null");
+            if (source == null) throw new ArgumentNullException("source cannot be null");
             var sourceStr = source.ToString();
-            if(string.IsNullOrEmpty(sourceStr)) throw new NullReferenceException("Somehow ToString returned null?");
+            if (string.IsNullOrEmpty(sourceStr)) throw new NullReferenceException("Somehow ToString returned null?");
             FieldInfo? fi = source.GetType().GetField(sourceStr);
+            if (fi is null)
+                return sourceStr;
 
             DescriptionAttribute[] attributes = (DescriptionAttribute[])fi.GetCustomAttributes(
                 typeof(DescriptionAttribute), false);

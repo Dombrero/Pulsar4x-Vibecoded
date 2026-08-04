@@ -10,8 +10,7 @@ namespace Pulsar4X.Sensors
     public class SensorReceiverAtb : IComponentDesignAttribute
     {
         [JsonProperty]
-        public EMWaveForm RecevingWaveformCapabilty { get; internal set; }
-
+        public EMWaveForm? RecevingWaveformCapabilty { get; internal set; }
         /// <summary>
         /// Sensitivity at the ideal wavelength, lower is better, 0 is (imposible) best. should not be negitive.
         /// </summary>
@@ -39,7 +38,7 @@ namespace Pulsar4X.Sensors
         /// Solar arrays use the same code as sensor detection.
         /// </summary>
         [JsonProperty] public bool IsEnergyGen { get; internal set; } = false;
-    
+
 
 
         [JsonConstructor]
@@ -72,13 +71,13 @@ namespace Pulsar4X.Sensors
                 // StaticRefLib.EventLog.AddEvent(ev);
                 worstSensitivity = bestSensitivity;
             }
-            RecevingWaveformCapabilty = new EMWaveForm(peakWaveLength - bandwidth * 0.5,peakWaveLength, peakWaveLength + bandwidth * 0.5);
+            RecevingWaveformCapabilty = new EMWaveForm(peakWaveLength - bandwidth * 0.5, peakWaveLength, peakWaveLength + bandwidth * 0.5);
             BestSensitivity_kW = bestSensitivity * 0.001;
             WorstSensitivity_kW = worstSensitivity * 0.001;
             Resolution = (float)resolution;
             ScanTime = (int)scanTime;
         }
-        
+
         public SensorReceiverAtb(double peakWaveLength, double bandwidth, double bestSensitivity, double worstSensitivity, double efficency)
         {
             //TODO:  should make this component invalid.
@@ -96,7 +95,7 @@ namespace Pulsar4X.Sensors
                 // StaticRefLib.EventLog.AddEvent(ev);
                 worstSensitivity = bestSensitivity;
             }
-            RecevingWaveformCapabilty = new EMWaveForm(peakWaveLength - bandwidth * 0.5,peakWaveLength, peakWaveLength + bandwidth * 0.5);
+            RecevingWaveformCapabilty = new EMWaveForm(peakWaveLength - bandwidth * 0.5, peakWaveLength, peakWaveLength + bandwidth * 0.5);
             BestSensitivity_kW = bestSensitivity * 0.001;
             WorstSensitivity_kW = worstSensitivity * 0.001;
             Resolution = (float)efficency;
@@ -112,7 +111,7 @@ namespace Pulsar4X.Sensors
             Resolution = db.Resolution;
             ScanTime = db.ScanTime;
         }
-        
+
 
         public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance)
         {

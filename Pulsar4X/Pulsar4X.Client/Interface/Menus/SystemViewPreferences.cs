@@ -21,7 +21,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         public string FileName;
         public string DisplayName;
         public int Id;
-        public Dictionary<UserOrbitSettings.OrbitBodyType, bool> FilterCheckmarks = new ();
+        public Dictionary<UserOrbitSettings.OrbitBodyType, bool> FilterCheckmarks = new();
 
         public View(string fileName, string displayName, int id)
         {
@@ -33,7 +33,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
 
     private const string DefaultFileName = "default.ini";
 
-    Dictionary<int, View> Views = new ();
+    Dictionary<int, View> Views = new();
     int _selectedEditorViewIndex = 0;
     string[]? _selectedEditorViewNames;
     string ViewsDirectory = "";
@@ -44,13 +44,13 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         get { return _selectedEditorViewNames ?? new string[1] { "Default" }; }
     }
 
-    Dictionary<string, int> ViewIndexes { get; set; } = new ();
+    Dictionary<string, int> ViewIndexes { get; set; } = new();
 
     internal event EventHandler<View>? ViewUpdateOccured;
 
     public int GetViewIndex(string key)
     {
-        if(!ViewIndexes.ContainsKey(key))
+        if (!ViewIndexes.ContainsKey(key))
             ViewIndexes[key] = 0;
 
         return ViewIndexes[key];
@@ -82,7 +82,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
 
     internal static SystemViewPreferences GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<SystemViewPreferences>(out var window))
+        if (_uiState.TryGetUniqueWindow<SystemViewPreferences>(out var window))
         {
             return window;
         }
@@ -96,7 +96,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         string? baseDirectory = SDL.GetPrefPath(PulsarMainWindow.OrgName, PulsarMainWindow.AppName);
         ViewsDirectory = Path.Combine(baseDirectory ?? "", "Views");
 
-        if(!Directory.Exists(ViewsDirectory))
+        if (!Directory.Exists(ViewsDirectory))
         {
             Directory.CreateDirectory(ViewsDirectory);
         }
@@ -110,9 +110,9 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         Views.Clear();
 
         var files = Directory.EnumerateFiles(ViewsDirectory, "*.ini");
-        if(files.Count() > 0)
+        if (files.Count() > 0)
         {
-            foreach(var fileName in files)
+            foreach (var fileName in files)
             {
                 LoadViewIni(fileName);
             }
@@ -124,7 +124,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         }
 
         _selectedEditorViewNames = new string[Views.Count];
-        foreach((var id, var view) in Views)
+        foreach ((var id, var view) in Views)
         {
             _selectedEditorViewNames[id] = view.DisplayName;
         }
@@ -153,7 +153,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
         var values = new Dictionary<UserOrbitSettings.OrbitBodyType, bool>();
 
         // Asteroids
-        if(asteroids != null && bool.TryParse(asteroids, out bool asteroidValue))
+        if (asteroids != null && bool.TryParse(asteroids, out bool asteroidValue))
         {
             values.Add(UserOrbitSettings.OrbitBodyType.Asteroid, asteroidValue);
         }
@@ -281,7 +281,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
     {
         var filePath = Path.Combine(directory, DefaultFileName);
 
-        using( var writer = new StreamWriter(filePath))
+        using (var writer = new StreamWriter(filePath))
         {
             writer.WriteLine("[meta]");
             writer.WriteLine("name=Default");
@@ -300,30 +300,31 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
 
-        if(_selectedEditorViewNames == null)
-                throw new NullReferenceException();
+        if (_selectedEditorViewNames == null)
+            throw new NullReferenceException();
 
-        if(Window.Begin("System View Preferences", ref IsActive))
+        if (Window.Begin("System View Preferences", ref IsActive))
         {
-            if(ImGui.Combo("###view-selector", ref _selectedEditorViewIndex, _selectedEditorViewNames, _selectedEditorViewNames.Length))
+            if (ImGui.Combo("###view-selector", ref _selectedEditorViewIndex, _selectedEditorViewNames, _selectedEditorViewNames.Length))
             {
                 ImGui.EndCombo();
             }
             ImGui.SameLine();
-            if(ImGui.Button("New..."))
+            if (ImGui.Button("New..."))
             {
                 _showModal = true;
             }
 
-            if(_showModal)
+            if (_showModal)
             {
-                TextModal.GetInstance().DisplayModal("New View Preference", returnedString => {
+                TextModal.GetInstance().DisplayModal("New View Preference", returnedString =>
+                {
                     // Create new preference file here
                     var view = new View(returnedString.Trim().ToLower() + ".ini", returnedString, -1)
                     {
-                        FilterCheckmarks = new ()
+                        FilterCheckmarks = new()
                         {
                             { UserOrbitSettings.OrbitBodyType.Asteroid, true },
                             { UserOrbitSettings.OrbitBodyType.Colony, true },
@@ -357,7 +358,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
                 var tip = UserOrbitSettings.OrbitBodyTypeTooltips[idx];
 
                 bool isChecked = Views[_selectedEditorViewIndex].FilterCheckmarks[type];
-                if(ImGui.Checkbox(tip, ref isChecked))
+                if (ImGui.Checkbox(tip, ref isChecked))
                 {
                     Views[_selectedEditorViewIndex].FilterCheckmarks[type] = isChecked;
                     SaveViewIni(Views[_selectedEditorViewIndex]);
@@ -371,11 +372,11 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
     internal void DisplayCombo(string key, Action<int> onItemSelected)
     {
         int viewIndex = GetViewIndex(key);
-        if(ImGui.BeginCombo($"###{key}-view-selector", ViewNames[viewIndex], ImGuiComboFlags.PopupAlignLeft | ImGuiComboFlags.HeightSmall))
+        if (ImGui.BeginCombo($"###{key}-view-selector", ViewNames[viewIndex], ImGuiComboFlags.PopupAlignLeft | ImGuiComboFlags.HeightSmall))
         {
-            for(int i = 0; i < ViewNames.Length; i++)
+            for (int i = 0; i < ViewNames.Length; i++)
             {
-                if(ImGui.Selectable(ViewNames[i], i == viewIndex))
+                if (ImGui.Selectable(ViewNames[i], i == viewIndex))
                 {
                     SetViewIndex(key, i);
                     onItemSelected?.Invoke(i);
@@ -384,7 +385,7 @@ public class SystemViewPreferences : UniquePulsarGuiWindow<SystemViewPreferences
 
             ImGui.Separator();
 
-            if(ImGui.Selectable("Edit..."))
+            if (ImGui.Selectable("Edit..."))
             {
                 _selectedEditorViewIndex = viewIndex;
                 SetActive(true);

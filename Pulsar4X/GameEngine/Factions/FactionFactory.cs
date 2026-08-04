@@ -60,21 +60,21 @@ namespace Pulsar4X.Factions
             var rootDirectory = (string?)Path.GetDirectoryName(filePath) ?? "Data/basemod/";
             var rootJson = JObject.Parse(fileContents);
 
-            var name = rootJson["name"].ToString();
+            var name = rootJson["name"]?.ToString() ?? throw new InvalidOperationException("Faction JSON missing 'name'.");
             var faction = CreateFaction(game, name);
             var factionInfoDB = faction.GetDataBlob<FactionInfoDB>();
             var factionDataStore = factionInfoDB.Data;
 
             var componentDesignsToLoad = (JArray?)rootJson["componentDesigns"];
-            foreach(var componentDesignToLoad in componentDesignsToLoad)
+            foreach (var componentDesignToLoad in componentDesignsToLoad ?? [])
             {
                 string path = componentDesignToLoad.ToString();
                 string fullPath = Path.Combine(rootDirectory, path);
 
-                if(Directory.Exists(fullPath))
+                if (Directory.Exists(fullPath))
                 {
                     var files = Directory.GetFiles(fullPath, "*.json", SearchOption.AllDirectories);
-                    foreach(var file in files)
+                    foreach (var file in files)
                     {
                         ComponentDesignFromJson.Create(faction, factionDataStore, file);
                     }
@@ -86,15 +86,15 @@ namespace Pulsar4X.Factions
             }
 
             var ordnanceDesignsToLoad = (JArray?)rootJson["ordnanceDesigns"];
-            foreach(var ordnanceDesignToLoad in ordnanceDesignsToLoad)
+            foreach (var ordnanceDesignToLoad in ordnanceDesignsToLoad ?? [])
             {
                 string path = ordnanceDesignToLoad.ToString();
                 string fullPath = Path.Combine(rootDirectory, path);
 
-                if(Directory.Exists(fullPath))
+                if (Directory.Exists(fullPath))
                 {
                     var files = Directory.GetFiles(fullPath, "*.json", SearchOption.AllDirectories);
-                    foreach(var file in files)
+                    foreach (var file in files)
                     {
                         OrdnanceDesignFromJson.Create(faction, file);
                     }
@@ -106,15 +106,15 @@ namespace Pulsar4X.Factions
             }
 
             var shipDesignsToLoad = (JArray?)rootJson["shipDesigns"];
-            foreach(var shipDesignToLoad in shipDesignsToLoad)
+            foreach (var shipDesignToLoad in shipDesignsToLoad ?? [])
             {
                 string path = shipDesignToLoad.ToString();
                 string fullPath = Path.Combine(rootDirectory, path);
 
-                if(Directory.Exists(fullPath))
+                if (Directory.Exists(fullPath))
                 {
                     var files = Directory.GetFiles(fullPath, "*.json", SearchOption.AllDirectories);
-                    foreach(var file in files)
+                    foreach (var file in files)
                     {
                         ShipDesignFromJson.Create(faction, factionDataStore, file);
                     }
@@ -126,15 +126,15 @@ namespace Pulsar4X.Factions
             }
 
             var speciesToLoad = (JArray?)rootJson["species"];
-            foreach(var toLoad in speciesToLoad)
+            foreach (var toLoad in speciesToLoad ?? [])
             {
                 string path = toLoad.ToString();
                 string fullPath = Path.Combine(rootDirectory, path);
 
-                if(Directory.Exists(fullPath))
+                if (Directory.Exists(fullPath))
                 {
                     var files = Directory.GetFiles(fullPath, "*.json", SearchOption.AllDirectories);
-                    foreach(var file in files)
+                    foreach (var file in files)
                     {
                         SpeciesFactory.CreateFromJson(faction, game.GlobalManager, file);
                     }
@@ -146,35 +146,39 @@ namespace Pulsar4X.Factions
             }
 
             var coloniesToLoad = (JArray?)rootJson["colonies"];
-            if(coloniesToLoad != null)
+            if (coloniesToLoad != null)
             {
-                foreach(var colonyToLoad in coloniesToLoad)
+                foreach (var colonyToLoad in coloniesToLoad)
                 {
-                    var systemId = colonyToLoad["systemId"].ToString();
+                    var systemId = colonyToLoad["systemId"]?.ToString()
+                        ?? throw new InvalidOperationException("Colony JSON missing 'systemId'.");
 
                     var system = game.Systems.Find(s => s.ID.Equals(systemId));
-                    if(system == null) throw new NullReferenceException("invalid systemId in json");
-                    var location = NameLookup.GetFirstEntityWithName(system, colonyToLoad["location"].ToString());
+                    if (system == null) throw new NullReferenceException("invalid systemId in json");
+                    var location = NameLookup.GetFirstEntityWithName(system, colonyToLoad["location"]?.ToString()
+                        ?? throw new InvalidOperationException("Colony JSON missing 'location'."));
 
                     // Mark the colony location as geo surveyed
-                    if(location.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
+                    if (location.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
                     {
                         geoSurveyableDB.GeoSurveyStatus[faction.Id] = 0;
                     }
 
-                    var speciesName = colonyToLoad["species"]["name"].ToString();
+                    var speciesName = colonyToLoad["species"]?["name"]?.ToString()
+                        ?? throw new InvalidOperationException("Colony JSON missing species name.");
                     var species = faction.GetDataBlob<FactionInfoDB>().Species.Find(s => s.GetOwnersName().Equals(speciesName));
-                    if(species == null) throw new NullReferenceException("invalid species name in json");
-                    var population = (long?)colonyToLoad["species"]["population"] ?? 0;
+                    if (species == null) throw new NullReferenceException("invalid species name in json");
+                    var population = (long?)colonyToLoad["species"]?["population"] ?? 0;
 
                     var colony = ColonyFactory.CreateColony(faction, species, location, population);
 
                     var installationsToAdd = (JArray?)colonyToLoad["installations"];
-                    if(installationsToAdd != null)
+                    if (installationsToAdd != null)
                     {
-                        foreach(var install in installationsToAdd)
+                        foreach (var install in installationsToAdd)
                         {
-                            var installId = install["id"].ToString();
+                            var installId = install["id"]?.ToString()
+                                ?? throw new InvalidOperationException("Installation JSON missing 'id'.");
                             var amount = (int?)install["amount"] ?? 1;
 
                             colony.AddComponent(
@@ -195,26 +199,29 @@ namespace Pulsar4X.Factions
             }
 
             var fleetsToLoad = (JArray?)rootJson["fleets"];
-            if(fleetsToLoad != null)
+            if (fleetsToLoad != null)
             {
-                foreach(var fleetToLoad in fleetsToLoad)
+                foreach (var fleetToLoad in fleetsToLoad)
                 {
                     var fleetName = (string?)fleetToLoad["name"] ?? NameFactory.GetFleetName(game);
-                    var systemId = fleetToLoad["location"]["systemId"].ToString();
+                    var systemId = fleetToLoad["location"]?["systemId"]?.ToString()
+                        ?? throw new InvalidOperationException("Fleet JSON missing location systemId.");
                     var system = game.Systems.Find(s => s.ID.Equals(systemId));
-                    if(system == null) throw new NullReferenceException("invalid systemId in json");
-                    var location = NameLookup.GetFirstEntityWithName(system, fleetToLoad["location"]["body"].ToString());
+                    if (system == null) throw new NullReferenceException("invalid systemId in json");
+                    var location = NameLookup.GetFirstEntityWithName(system, fleetToLoad["location"]?["body"]?.ToString()
+                        ?? throw new InvalidOperationException("Fleet JSON missing location body."));
 
                     var fleet = FleetFactory.Create(system, faction.Id, fleetName);
                     var fleetDB = fleet.GetDataBlob<FleetDB>();
                     fleetDB.SetParent(faction);
 
                     var shipsInFleet = (JArray?)fleetToLoad["ships"];
-                    if(shipsInFleet != null)
+                    if (shipsInFleet != null)
                     {
-                        foreach(var shipToLoad in shipsInFleet)
+                        foreach (var shipToLoad in shipsInFleet)
                         {
-                            var designId = shipToLoad["designId"].ToString();
+                            var designId = shipToLoad["designId"]?.ToString()
+                                ?? throw new InvalidOperationException("Ship JSON missing 'designId'.");
                             var shipName = (string?)shipToLoad["name"] ?? NameFactory.GetShipName(game);
                             var ship = ShipFactory.CreateShip(factionInfoDB.ShipDesigns[designId], faction, location, shipName);
                             fleetDB.AddChild(ship);
@@ -225,7 +232,7 @@ namespace Pulsar4X.Factions
                             var commander = CommanderFactory.Create(system, faction.Id, commanderDB);
                             ship.GetDataBlob<ShipInfoDB>().CommanderID = commander.Id;
 
-                            if(fleetDB.FlagShipID < 0)
+                            if (fleetDB.FlagShipID < 0)
                                 fleetDB.FlagShipID = ship.Id;
 
                             LoadCargo(ship, factionDataStore, (JArray?)shipToLoad["cargo"]);
@@ -239,15 +246,16 @@ namespace Pulsar4X.Factions
 
         private static void LoadCargo(Entity target, FactionDataStore factionDataStore, JArray? cargoArray)
         {
-            if(cargoArray == null) return;
+            if (cargoArray == null) return;
 
-            foreach(var toAdd in cargoArray)
+            foreach (var toAdd in cargoArray)
             {
-                var cargoId = toAdd["id"].ToString();
+                var cargoId = toAdd["id"]?.ToString()
+                    ?? throw new InvalidOperationException("Cargo JSON missing 'id'.");
                 var amount = (int?)toAdd["amount"] ?? 1;
                 var type = (string?)toAdd["type"] ?? "byMass";
 
-                switch(type)
+                switch (type)
                 {
                     case "byVolume":
                         CargoTransferProcessor.AddRemoveCargoVolume(target, factionDataStore.CargoGoods[cargoId], amount);

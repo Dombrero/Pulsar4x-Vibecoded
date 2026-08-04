@@ -32,7 +32,7 @@ namespace Pulsar4X.Movement
         [JsonProperty]
         internal Vector2 _position;
         [JsonProperty]
-        internal Entity _parentEnitity;
+        internal Entity _parentEnitity = Entity.InvalidEntity;
 
         [JsonProperty]
         internal bool IsAtTarget { get; set; }
@@ -66,14 +66,12 @@ namespace Pulsar4X.Movement
         public KeplerElements EndpointTargetOrbit { get; private set; }
 
         [JsonProperty]
-        internal Entity? TargetEntity;
-
-
-        [JsonProperty] 
-        internal PositionDB TargetPositionDB;
+        internal Entity? TargetEntity = Entity.InvalidEntity;
+        [JsonProperty]
+        internal PositionDB? TargetPositionDB;
         public PositionDB GetTargetPosDB
         {
-            get { return TargetPositionDB; }
+            get { return TargetPositionDB ?? throw new InvalidOperationException("Warp move has no target position."); }
         }
 
         #endregion
@@ -97,7 +95,7 @@ namespace Pulsar4X.Movement
 
             ExitPointAbsolute = targetPosition_m;
             EntryPointAbsolute = startState.pos;
-            EntryDateTime = thisEntity.Manager.ManagerSubpulses.StarSysDateTime;
+            EntryDateTime = thisEntity.AttachedManager.ManagerSubpulses.StarSysDateTime;
             ExitPointrelative = Vector3.Zero;
             //PredictedExitTime = targetIntercept.atDateTime;
             SavedNewtonionVector = MoveMath.GetRelativeState(thisEntity).Velocity; //TODO: this needs to check GameSettings.UseRelativeVelocity
@@ -116,7 +114,7 @@ namespace Pulsar4X.Movement
         /// a position relative to the entity you're wanting to move to</param>
         public WarpMovingDB(Entity thisEntity, Entity targetEntity, Vector3 offsetPosition, KeplerElements endpointTargetOrbit)
         {
-            EntryDateTime = thisEntity.Manager.ManagerSubpulses.StarSysDateTime;
+            EntryDateTime = thisEntity.AttachedManager.ManagerSubpulses.StarSysDateTime;
             var targetIntercept = WarpMath.GetInterceptPosition(thisEntity, targetEntity, EntryDateTime, offsetPosition);
 
             var startState = MoveMath.GetAbsoluteState(thisEntity);
@@ -150,7 +148,7 @@ namespace Pulsar4X.Movement
         [OnDeserialized]
         private void Deserialized(StreamingContext context)
         {
-            
+
         }
 
         public override object Clone()

@@ -18,9 +18,8 @@ public class RemoveFromConstructionQueueOrder : EntityCommand
 
     internal override Entity EntityCommanding => _colonyEntity;
 
-    private Entity _colonyEntity;
-    private LocalConstructionJob _job;
-
+    private Entity _colonyEntity = Entity.InvalidEntity;
+    private LocalConstructionJob? _job;
     private RemoveFromConstructionQueueOrder(Entity colonyEntity, LocalConstructionJob job)
     {
         _colonyEntity = colonyEntity;

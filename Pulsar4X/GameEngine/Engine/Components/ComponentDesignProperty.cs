@@ -15,13 +15,14 @@ namespace Pulsar4X.Components
     {
         private readonly CultureInfo _toStringCulture = new CultureInfo("en-GB");
 
-        private ComponentTemplatePropertyBlueprint _templateSD;
+        private ComponentTemplatePropertyBlueprint? _templateSD;
         public string Name { get { return _templateSD.Name; } }
 
         public string Unit { get { return _templateSD.Units; } }
         public GuiHint GuiHint { get { return _templateSD.GuiHint; } }
         public string PairedPropertyName { get { return _templateSD.PairedPropertyName; } }
-        public bool IsEnabled {
+        public bool IsEnabled
+        {
             get
             {
                 if (IsEnabledFormula == null)
@@ -34,13 +35,12 @@ namespace Pulsar4X.Components
         /// <summary>
         /// this is the IComponentDesignAttribute type
         /// </summary>
-        public Type AttributeType;
-
-        public Type EnumType;
+        public Type? AttributeType;
+        public Type? EnumType;
         public int ListSelection;
         //public BaseDataBlob DataBlob;
-        internal ComponentDesigner ParentComponent;
-        
+        internal ComponentDesigner? ParentComponent;
+
         public ComponentDesignProperty(ComponentDesigner parentComponent, ComponentTemplatePropertyBlueprint templateAtb, FactionDataStore factionDataStore, FactionTechDB factionTech)
         {
             ParentComponent = parentComponent;
@@ -51,19 +51,19 @@ namespace Pulsar4X.Components
                 Formula = new ChainedExpression(_templateSD.PropertyFormula, this, factionDataStore, factionTech);
             }
 
-            if (!string.IsNullOrEmpty(_templateSD.DescriptionFormula ))
+            if (!string.IsNullOrEmpty(_templateSD.DescriptionFormula))
             {
                 DescriptionFormula = new ChainedExpression(_templateSD.DescriptionFormula, this, factionDataStore, factionTech);
             }
 
-            if (_templateSD.DataDict != null )
+            if (_templateSD.DataDict != null)
             {
                 GuidDictionary = new Dictionary<string, ChainedExpression>();
                 if (GuiHint == GuiHint.GuiTechSelectionList)
                 {
                     foreach (var kvp in _templateSD.DataDict)
                     {
-                        if(factionDataStore.Techs.ContainsKey(kvp.Key))
+                        if (factionDataStore.Techs.ContainsKey(kvp.Key))
                         {
                             Tech techSD = factionDataStore.Techs[kvp.Key];
                             GuidDictionary.Add(kvp.Key, new ChainedExpression(techSD.TechDataFormula().ToString(), this, factionDataStore, factionTech));
@@ -100,9 +100,10 @@ namespace Pulsar4X.Components
                 MaxRangeFormula = new ChainedExpression(_templateSD.MaxRangeFormula, this, factionDataStore, factionTech);
             if (_templateSD.AttributeType != null)
             {
-                AttributeType = Type.GetType(_templateSD.AttributeType);
-                if(AttributeType == null)
+                var resolvedAttributeType = Type.GetType(_templateSD.AttributeType);
+                if (resolvedAttributeType is null)
                     throw new Exception("Attribute Type Error. Attribute type not found: " + _templateSD.AttributeType + ". Try checking the namespace.");
+                AttributeType = resolvedAttributeType;
             }
 
             if (GuiHint == GuiHint.GuiEnumSelectionList)
@@ -113,14 +114,15 @@ namespace Pulsar4X.Components
                 SetMax();
                 SetMin();
                 SetStep();
-                EnumType = Type.GetType(_templateSD.EnumTypeName);
-                if(EnumType == null)
+                var resolvedEnumType = Type.GetType(_templateSD.EnumTypeName);
+                if (resolvedEnumType is null)
                     throw new Exception("EnumTypeName not found: " + _templateSD.EnumTypeName);
+                EnumType = resolvedEnumType;
                 //don't allow a value less than 0
                 if (MinValue < 0)
                     MinValue = 0;
                 //Dont set a max value above the max length of the enum list.
-                MaxValue = Math.Min(MaxValue , Enum.GetNames(EnumType).Length);
+                MaxValue = Math.Min(MaxValue, Enum.GetNames(EnumType).Length);
 
                 ListSelection = (int)Value - (int)MinValue;
                 //string[] names = Enum.GetNames(EnumType);
@@ -137,7 +139,7 @@ namespace Pulsar4X.Components
             }
         }
 
-        internal ChainedExpression DescriptionFormula { get; set; }
+        internal ChainedExpression? DescriptionFormula { get; set; }
         public string Description
         {
             get
@@ -149,13 +151,13 @@ namespace Pulsar4X.Components
             }
         }
 
-        internal ChainedExpression IsEnabledFormula { get; set; }
+        internal ChainedExpression? IsEnabledFormula { get; set; }
         public void RecalcIsEnabled()
         {
             IsEnabledFormula.Evaluate();
         }
 
-        public Dictionary<string, ChainedExpression> GuidDictionary;
+        public Dictionary<string, ChainedExpression> GuidDictionary = new();
 
         public void SetValueFromDictionaryExpression(string key)
         {
@@ -190,7 +192,7 @@ namespace Pulsar4X.Components
             ParentComponent.SetAttributes();
         }
 
-        internal ChainedExpression Formula { get; set; }
+        internal ChainedExpression? Formula { get; set; }
         public void SetValue()
         {
             Formula.Evaluate();
@@ -212,10 +214,10 @@ namespace Pulsar4X.Components
         }
 
         public double Value { get { return Formula.DResult; } }
-        public string ValueString {get { return Formula.StrResult; } }
+        public string ValueString { get { return Formula.StrResult; } }
 
         public double MinValue = double.MinValue;
-        internal ChainedExpression MinValueFormula { get; set; }
+        internal ChainedExpression? MinValueFormula { get; set; }
         public void SetMin()
         {
             if (MinValueFormula == null) return;
@@ -223,7 +225,7 @@ namespace Pulsar4X.Components
             MinValue = MinValueFormula.DResult;
         }
         public double MaxValue = double.MaxValue;
-        internal ChainedExpression MaxValueFormula { get; set; }
+        internal ChainedExpression? MaxValueFormula { get; set; }
         public void SetMax()
         {
             if (MaxValueFormula == null) return;
@@ -232,7 +234,7 @@ namespace Pulsar4X.Components
         }
 
         public double StepValue;
-        internal ChainedExpression StepValueFormula { get; set; }
+        internal ChainedExpression? StepValueFormula { get; set; }
         public void SetStep()
         {
             if (StepValueFormula == null) return;
@@ -245,7 +247,7 @@ namespace Pulsar4X.Components
         /// value and its paired partner. double.PositiveInfinity means no gap constraint.
         /// </summary>
         public double MaxRangeValue = double.PositiveInfinity;
-        internal ChainedExpression MaxRangeFormula { get; set; }
+        internal ChainedExpression? MaxRangeFormula { get; set; }
         public void SetMaxRange()
         {
             if (MaxRangeFormula == null) return;

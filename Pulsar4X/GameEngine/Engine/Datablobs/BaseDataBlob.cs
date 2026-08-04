@@ -11,7 +11,7 @@ namespace Pulsar4X.Datablobs
         /// <summary>
         /// This is the Entity which Owns/Conatains/IsParentOf this datablob
         /// </summary>
-        public virtual Entity? OwningEntity { get; internal set; } = Entity.InvalidEntity;
+        public virtual Entity OwningEntity { get; internal set; } = Entity.InvalidEntity;
 
         /// <summary>
         /// while not what we're going for with the whole datablobs being only data, this could help make some things easier.
@@ -33,8 +33,8 @@ namespace Pulsar4X.Datablobs
 
         public bool Equals(BaseDataBlob? other)
         {
-            if(other is null) return false;
-            if(this.GetType() != other.GetType()) return false;
+            if (other is null) return false;
+            if (this.GetType() != other.GetType()) return false;
 
             return true;
         }

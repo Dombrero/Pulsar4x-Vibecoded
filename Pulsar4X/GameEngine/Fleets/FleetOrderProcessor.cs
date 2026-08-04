@@ -400,7 +400,7 @@ namespace Pulsar4X.Fleets
                 return avg < exitThreshold;
             }
 
-            return order.Condition.Evaluate(fleet);
+            return order.Condition?.Evaluate(fleet) ?? false;
         }
 
         /// <summary>
@@ -469,7 +469,7 @@ namespace Pulsar4X.Fleets
                 }
                 else
                 {
-                    matches = order.Condition.Evaluate(fleet);
+                    matches = order.Condition?.Evaluate(fleet) ?? false;
                 }
 
                 if (matches)
@@ -597,7 +597,7 @@ namespace Pulsar4X.Fleets
             {
                 if (fleet.Manager?.Game?.ProcessorManager != null)
                 {
-                    fleet.Manager.Game.ProcessorManager
+                    fleet.AttachedManager.Game.ProcessorManager
                         .GetInstanceProcessor(nameof(OrderableProcessor))
                         .ProcessEntity(fleet, fleet.StarSysDateTime);
                 }
@@ -829,10 +829,10 @@ namespace Pulsar4X.Fleets
             if (fleet.Manager == null)
                 return;
 
-            MessagePublisher.Instance.Publish(Message.Create(
+            _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.OrdersChanged,
                 entityId: fleet.Id,
-                systemId: fleet.Manager.ManagerID,
+                systemId: fleet.AttachedManager.ManagerID,
                 factionId: fleet.FactionOwnerID));
         }
     }

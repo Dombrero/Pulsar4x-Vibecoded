@@ -5,8 +5,7 @@ namespace Pulsar4X.Blueprints
 {
     public class ComponentTemplateBlueprint : Blueprint
     {
-        public string Name { get; set;}
-
+        public string? Name { get; set; }
         /// <summary>
         /// Description
         /// Mass
@@ -18,12 +17,12 @@ namespace Pulsar4X.Blueprints
         /// CreditCost
         /// BuildPointCost
         /// </summary>
-        public Dictionary<string, string> Formulas { get; set;}
-        public Dictionary<string, string> ResourceCost { get; set; }
-        public string ComponentType { get; set; }
+        public Dictionary<string, string> Formulas { get; set; } = new();
+        public Dictionary<string, string> ResourceCost { get; set; } = new();
+        public string? ComponentType { get; set; }
         public ComponentMountType MountType { get; set; }
-        public string IndustryTypeID { get; set;}
-        public string CargoTypeID { get; set;}
-        public List<ComponentTemplatePropertyBlueprint> Properties { get; set; }
+        public string? IndustryTypeID { get; set; }
+        public string? CargoTypeID { get; set; }
+        public List<ComponentTemplatePropertyBlueprint> Properties { get; set; } = new();
     }
 }

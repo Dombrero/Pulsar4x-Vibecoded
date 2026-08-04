@@ -225,10 +225,10 @@ namespace Pulsar4X.Fleets
             => fleetDB.Children.Where(c => !c.HasDataBlob<FleetDB>());
 
         private static void PublishOrdersChanged(Entity holder)
-            => MessagePublisher.Instance.Publish(Message.Create(
+            => _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.OrdersChanged,
                 entityId: holder.Id,
-                systemId: holder.Manager.ManagerID,
+                systemId: holder.AttachedManager.ManagerID,
                 factionId: holder.FactionOwnerID));
     }
 }

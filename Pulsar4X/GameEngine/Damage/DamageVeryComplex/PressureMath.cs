@@ -6,7 +6,7 @@ namespace GameEngine.Damage;
 
 public static class PressureMath
 {
-        public static void UpdatePressureMap(DamageMap damageMap)
+    public static void UpdatePressureMap(DamageMap damageMap)
     {
         float localDensity = 0;
         float pressureFactor = 0;
@@ -28,7 +28,7 @@ public static class PressureMath
         float density = 0;
         float radius = 1.0f; // Define a radius for local density calculation
         List<PhysicalParticle> neighbors = DamageMapHelpers.GetNeighboringParticles(damageMap, position, radius);
-    
+
         foreach (var neighbor in neighbors)
         {
             // Could get more complex, e.g., using distance for a smoother density fall-off
@@ -42,7 +42,7 @@ public static class PressureMath
         if (currentPressure > physicalParticle.MatType.TriplePoint.Bar)
         {
             // Here you could interpolate between triple and critical point for a more accurate model
-            temperatureFactor = (physicalParticle.Temperature - physicalParticle.MatType.TriplePoint.Kelvin) / 
+            temperatureFactor = (physicalParticle.Temperature - physicalParticle.MatType.TriplePoint.Kelvin) /
                                 (physicalParticle.MatType.CriticalPoint.Kelvin - physicalParticle.MatType.TriplePoint.Kelvin);
         }
         else if (currentPressure < physicalParticle.MatType.TriplePoint.Bar)

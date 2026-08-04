@@ -19,7 +19,7 @@ public class SensorReflectionProcessor : IHotloopProcessor
 
     public void ProcessEntity(Entity entity, int deltaSeconds)
     {
-        if(!entity.TryGetDataBlob<PositionDB>(out var detectablePosDB))
+        if (!entity.TryGetDataBlob<PositionDB>(out var detectablePosDB))
         {
             return;
         }
@@ -30,7 +30,7 @@ public class SensorReflectionProcessor : IHotloopProcessor
     public int ProcessManager(EntityManager manager, int deltaSeconds)
     {
         var entities = manager.GetAllEntitiesWithDataBlob<SensorProfileDB>();
-        foreach(var entity in entities)
+        foreach (var entity in entities)
         {
             ProcessEntity(entity, deltaSeconds);
         }

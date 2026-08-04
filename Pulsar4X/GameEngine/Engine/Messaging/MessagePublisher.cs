@@ -8,14 +8,14 @@ namespace Pulsar4X.Messaging;
 public class MessagePublisher
 {
     private static readonly MessagePublisher instance = new MessagePublisher();
-    private MessagePublisher() {}
+    private MessagePublisher() { }
     public static MessagePublisher Instance => instance;
     public delegate Task MessageHandler(Message message);
-    private static SafeDictionary<MessageTypes, SafeList<(MessageHandler Handler, Func<Message, bool>? Filter)>> subscribers = new ();
+    private static SafeDictionary<MessageTypes, SafeList<(MessageHandler Handler, Func<Message, bool>? Filter)>> subscribers = new();
 
     public void Subscribe(MessageTypes messageType, MessageHandler handler, Func<Message, bool>? filter = null)
     {
-        if(subscribers.TryGetValue(messageType, out var subs))
+        if (subscribers.TryGetValue(messageType, out var subs))
         {
             subs.Add((handler, filter));
             return;
@@ -26,7 +26,7 @@ public class MessagePublisher
 
     public void Unsubscribe(MessageTypes messageType, MessageHandler handler)
     {
-        if(subscribers.TryGetValue(messageType, out var subs))
+        if (subscribers.TryGetValue(messageType, out var subs))
         {
             subs.RemoveAll(sub => sub.Handler == handler);
         }

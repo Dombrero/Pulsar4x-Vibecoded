@@ -11,11 +11,11 @@ public class LaunchShipCommand : EntityCommand
     public override string Name { get; } = "Launch Ship";
     public override string Details { get; } = "";
 
-    Entity _factionEntity;
-    Entity _entityCommanding;
+    Entity _factionEntity = Entity.InvalidEntity;
+    Entity _entityCommanding = Entity.InvalidEntity;
     internal override Entity EntityCommanding => _entityCommanding;
 
-    private string _padId;
+    private string? _padId;
     private bool _hasLaunched = false;
 
     public static void CreateCommand(int factionId, Entity colonyEntity, string padId)
@@ -24,11 +24,11 @@ public class LaunchShipCommand : EntityCommand
         {
             RequestingFactionGuid = factionId,
             EntityCommandingGuid = colonyEntity.Id,
-            CreatedDate = colonyEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = colonyEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             _padId = padId
         };
 
-        colonyEntity.Manager.Game.OrderHandler.HandleOrder(cmd);
+        colonyEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
     }
 
     internal override void Execute(DateTime atDateTime)

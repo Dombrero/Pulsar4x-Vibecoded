@@ -10,17 +10,17 @@ namespace Pulsar4X.Storage
 {
     public static class StorageSpaceProcessor
     {
-       internal static void RecalcVolumeCapacityAndRates(Entity parentEntity)
+        internal static void RecalcVolumeCapacityAndRates(Entity parentEntity)
         {
             CargoStorageDB cargoStorageDB = parentEntity.GetDataBlob<CargoStorageDB>();
             var instancesDB = parentEntity.GetDataBlob<ComponentInstancesDB>();
-            
+
             //TODO: needs to be a global library not a faction library or we'll potentialy have problems with captured ships
             var cargoLibrary = parentEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
-            
+
             foreach (var kvp in CalculatedMaxStorage(instancesDB))
             {
-                if(!cargoStorageDB.TypeStores.ContainsKey(kvp.Key))
+                if (!cargoStorageDB.TypeStores.ContainsKey(kvp.Key))
                     cargoStorageDB.TypeStores.Add(kvp.Key, new TypeStore(kvp.Value));
                 else
                 {
@@ -29,16 +29,16 @@ namespace Pulsar4X.Storage
                     cargoStorageDB.ChangeMaxVolume(kvp.Key, dif, cargoLibrary);
                 }
             }
-            
+
             var randr = CalcRateAndRange(instancesDB);
             cargoStorageDB.TransferRate = randr.rate;
             cargoStorageDB.TransferRangeDv_mps = randr.range;
         }
 
-        internal static Dictionary<string, double> CalculatedMaxStorage(ComponentInstancesDB instancesDB )
-        {         
-            Dictionary<string, double> calculatedMaxStorage = new ();
-            if( instancesDB.TryGetComponentsByAttribute<CargoStorageAtb>(out var componentInstances))
+        internal static Dictionary<string, double> CalculatedMaxStorage(ComponentInstancesDB instancesDB)
+        {
+            Dictionary<string, double> calculatedMaxStorage = new();
+            if (instancesDB.TryGetComponentsByAttribute<CargoStorageAtb>(out var componentInstances))
             {
 
                 foreach (var instance in componentInstances)
@@ -48,7 +48,7 @@ namespace Pulsar4X.Storage
 
                     if (instance.HealthPercent > instance.StopWorkingAtPercent)
                     {
-                        if(!calculatedMaxStorage.ContainsKey(atbdata.StoreTypeID))
+                        if (!calculatedMaxStorage.ContainsKey(atbdata.StoreTypeID))
                             calculatedMaxStorage[atbdata.StoreTypeID] = atbdata.MaxVolume;
                         else
                             calculatedMaxStorage[atbdata.StoreTypeID] += atbdata.MaxVolume;
@@ -70,7 +70,7 @@ namespace Pulsar4X.Storage
         {
             double rate = 0;
             double range = 0;
-            
+
             int i = 0;
             if (instancesDB.TryGetComponentsByAttribute<CargoTransferAtb>(out List<ComponentInstance> componentTransferInstances))
             {
@@ -97,10 +97,10 @@ namespace Pulsar4X.Storage
             double finalRange = range / i;
             return (finalRate, finalRange);
         }
-        
+
         public static Dictionary<string, double> CalculatedMaxStorage(ShipDesign shipDesign)
-        {         
-            Dictionary<string, double> calculatedMaxStorage = new ();
+        {
+            Dictionary<string, double> calculatedMaxStorage = new();
             foreach (var component in shipDesign.Components)
             {
                 if (component.design.HasAttribute<CargoStorageAtb>())

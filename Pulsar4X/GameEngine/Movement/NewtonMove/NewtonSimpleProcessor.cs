@@ -61,8 +61,10 @@ public class NewtonSimpleProcessor : IHotloopProcessor
         CargoDefinitionsLibrary cargoLib = entity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
         var fuelTypeID = thrustdb.FuelType;
         var fuelType = cargoLib.GetAny(fuelTypeID);
+        if (fuelType is null)
+            return;
         var storage = entity.GetDataBlob<CargoStorageDB>();
-        var fuelMass = storage.GetMassStored(fuelType, false);
+        var fuelMass = CargoMath.GetMassStored(storage, fuelType, false);
 
         var currentOrbit = newtonSimplelMoveDB.CurrentTrajectory;
         var targetOrbit = newtonSimplelMoveDB.TargetTrajectory;
@@ -116,7 +118,7 @@ public class NewtonSimpleProcessor : IHotloopProcessor
 
         if (posdb.Parent != null)
         {
-            pos += MoveMath.GetAbsoluteFuturePosition(posdb.Parent,atDateTime);
+            pos += MoveMath.GetAbsoluteFuturePosition(posdb.Parent, atDateTime);
             vel += MoveMath.GetAbsoluteFutureVelocity(posdb.Parent, atDateTime);
         }
         return (pos, vel);

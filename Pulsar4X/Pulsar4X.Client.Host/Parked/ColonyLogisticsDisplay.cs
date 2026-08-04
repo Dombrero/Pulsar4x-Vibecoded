@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using ImGuiNET;
@@ -20,9 +20,9 @@ namespace Pulsar4X.Client
 
         private Dictionary<ICargoable,(int count, int demandSupplyWeight)> _changes = new Dictionary<ICargoable, (int count, int demandSupplyWeight)>();
 
-        private List<ICargoable> _allResources;
-        private string[] _allResourceNames;
-        private List<int> _allResourceID;
+        private List<ICargoable> _allResources = new();
+        private string[] _allResourceNames = Array.Empty<string>();
+        private List<int> _allResourceID = new();
         private int _allResourceIndex = 0;
         private Dictionary<string, Dictionary<ICargoable, (int count, int demandSupplyWeight)>> _displayedStoredResources = new ();
         private Dictionary<string, Dictionary<ICargoable, (int count, int demandSupplyWeight)>> _displayedUnstored = new ();

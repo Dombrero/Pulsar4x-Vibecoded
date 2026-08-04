@@ -5,9 +5,9 @@ namespace Pulsar4X.Client.BodyVisuals;
 /// <summary>Hand-tuned looks for well-known Sol bodies (names from scenario JSON).</summary>
 public static class SolBodyPresets
 {
-    public static bool TryGet(string? name, out BodyVisualState state)
+    public static bool TryGet(string? name, out BodyVisualState? state)
     {
-        state = null!;
+        state = null;
         if (string.IsNullOrWhiteSpace(name))
             return false;
 

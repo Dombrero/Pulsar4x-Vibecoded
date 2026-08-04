@@ -24,15 +24,14 @@ namespace Pulsar4X.Fleets
 
         public override string Name => "Fleet Order (" + OrderType.ToString() + ")";
 
-        public FleetOrderType OrderType { get; private set; }
-
+        public FleetOrderType OrderType { get; set; }
         public override string Details => Name;
 
-        private Entity _factionEntity;
-        private Entity _entityCommanding;
-        private Entity _targetEntity;
-        private string _requestedName;
-        private EntityManager _manager;
+        private Entity _factionEntity = Entity.InvalidEntity;
+        private Entity _entityCommanding = Entity.InvalidEntity;
+        private Entity _targetEntity = Entity.InvalidEntity;
+        private string? _requestedName;
+        private EntityManager? _manager;
         internal override Entity EntityCommanding
         {
             get { return _entityCommanding; }
@@ -135,9 +134,13 @@ namespace Pulsar4X.Fleets
         internal override void Execute(DateTime atDateTime)
         {
             var factionRoot = _factionEntity.GetDataBlob<FleetDB>();
-            switch(OrderType)
+            switch (OrderType)
             {
                 case FleetOrderType.Create:
+                    if (_manager is null)
+                        throw new InvalidOperationException("FleetOrder.Create requires a manager.");
+                    if (string.IsNullOrEmpty(_requestedName))
+                        throw new InvalidOperationException("FleetOrder.Create requires a fleet name.");
                     var fleet = FleetFactory.Create(_manager, RequestingFactionGuid, _requestedName);
                     fleet.GetDataBlob<FleetDB>().SetParent(_factionEntity);
                     break;
@@ -149,12 +152,12 @@ namespace Pulsar4X.Fleets
                     //  - Should assign to the parent of the disbanding fleet
                     // Ships:
                     //  - Should assign un-attached to the root
-                    if(navyDB.Children.Count > 0)
+                    if (navyDB.Children.Count > 0)
                     {
-                        foreach(var child in navyDB.GetChildren())
+                        foreach (var child in navyDB.GetChildren())
                         {
                             // Fleet
-                            if(child.HasDataBlob<FleetDB>())
+                            if (child.HasDataBlob<FleetDB>())
                             {
                                 var childDB = child.GetDataBlob<FleetDB>();
                                 childDB.SetParent(navyDB.Parent);
@@ -167,30 +170,30 @@ namespace Pulsar4X.Fleets
                         }
                     }
 
-                    if(factionRoot.Children.Contains(_entityCommanding))
+                    if (factionRoot.Children.Contains(_entityCommanding))
                     {
                         factionRoot.RemoveChild(_entityCommanding);
                     }
                     else
                     {
                         navyDB.Children.Clear();
-                        navyDB.ParentDB.RemoveChild(_entityCommanding);
+                        navyDB.ParentDB?.RemoveChild(_entityCommanding);
                     }
 
-                    _entityCommanding.Manager.TagEntityForRemoval(_entityCommanding);
+                    _entityCommanding.AttachedManager.TagEntityForRemoval(_entityCommanding);
                     break;
                 case FleetOrderType.ChangeParent:
                     // Remove the entity from the parent tree
                     var sourceFleetInfo = _entityCommanding.GetDataBlob<FleetDB>();
 
                     // Check if nested
-                    if(sourceFleetInfo.Root != _entityCommanding)
+                    if (sourceFleetInfo.Root != _entityCommanding)
                     {
-                        sourceFleetInfo.ParentDB.RemoveChild(_entityCommanding);
+                        sourceFleetInfo.ParentDB?.RemoveChild(_entityCommanding);
                         sourceFleetInfo.ClearParent();
                     }
 
-                    if(factionRoot.Children.Contains(_entityCommanding))
+                    if (factionRoot.Children.Contains(_entityCommanding))
                     {
                         factionRoot.RemoveChild(_entityCommanding);
                     }
@@ -206,25 +209,22 @@ namespace Pulsar4X.Fleets
                         factionRoot.RemoveChild(_targetEntity);
 
                     // If no children or no flagship set the ship as the flagship
-                    if(navyDB.Children.Count == 0 || navyDB.FlagShipID == -1)
+                    if (navyDB.Children.Count == 0 || navyDB.FlagShipID == -1)
                     {
                         navyDB.FlagShipID = _targetEntity.Id;
                         // update to the ships manager
-                        _targetEntity.Manager.Transfer(_entityCommanding);
+                        _targetEntity.AttachedManager.Transfer(_entityCommanding);
                     }
 
                     navyDB.AddChild(_targetEntity);
                     break;
                 case FleetOrderType.UnassignShip:
                     navyDB = _entityCommanding.GetDataBlob<FleetDB>();
+                    var wasFlagship = _targetEntity.Id == navyDB.FlagShipID;
                     navyDB.RemoveChild(_targetEntity);
 
-                    if(_targetEntity.Id == navyDB.FlagShipID)
-                    {
-                        navyDB.FlagShipID = -1;
-                        // if we have no flagship, move to the global entity manager
-                        _manager.Transfer(_entityCommanding);
-                    }
+                    if (wasFlagship)
+                        navyDB.FlagShipID = navyDB.Children.Count > 0 ? navyDB.Children[0].Id : -1;
 
                     // Keep the ship visible in Fleet Management as "Unattached" under the faction root.
                     // Without this, RemoveChild orphans the ship from the hierarchy projection.
@@ -235,9 +235,9 @@ namespace Pulsar4X.Fleets
                     }
                     break;
                 case FleetOrderType.SetFlagShip:
-                    if(_entityCommanding.Manager != _targetEntity.Manager)
+                    if (_entityCommanding.Manager != _targetEntity.Manager)
                     {
-                        _targetEntity.Manager.Transfer(_entityCommanding);
+                        _targetEntity.AttachedManager.Transfer(_entityCommanding);
                     }
                     _entityCommanding.GetDataBlob<FleetDB>().FlagShipID = _targetEntity.Id;
                     break;
@@ -249,26 +249,27 @@ namespace Pulsar4X.Fleets
 
             // Fleet operations reshape the faction's fleet tree via TreeHierarchyDB (no entity add/
             // remove), so signal the change explicitly for any observers (e.g. the API layer).
-            MessagePublisher.Instance.Publish(Message.Create(MessageTypes.FleetReorganized, factionId: RequestingFactionGuid));
+            _ = MessagePublisher.Instance.Publish(Message.Create(MessageTypes.FleetReorganized, factionId: RequestingFactionGuid));
 
             _isFinished = true;
         }
 
         internal override bool IsValidCommand(Game game)
         {
-            if(_manager == null) _manager = game.GlobalManager;
+            if (_manager == null) _manager = game.GlobalManager;
 
-            switch(OrderType)
+            switch (OrderType)
             {
                 case FleetOrderType.Create:
                     // Faction lives on GlobalManager; resolve via Factions map rather than
                     // searching the target star-system manager alone.
-                    if (!game.Factions.TryGetValue(RequestingFactionGuid, out _factionEntity))
+                    if (!game.Factions.TryGetValue(RequestingFactionGuid, out var factionEntity))
                         return false;
+                    _factionEntity = factionEntity;
                     _entityCommanding = _factionEntity;
                     return true;
                 default:
-                    if(game.Factions.ContainsKey(RequestingFactionGuid))
+                    if (game.Factions.ContainsKey(RequestingFactionGuid))
                     {
                         _factionEntity = game.Factions[RequestingFactionGuid];
                     }

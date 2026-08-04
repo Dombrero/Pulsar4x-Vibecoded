@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
+using Pulsar4X.Extensions;
 using Pulsar4X.Names;
 
 namespace Pulsar4X.Engine;
@@ -16,6 +18,10 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     [JsonIgnore]
     public EntityManager? Manager { get; internal set; }
+
+    /// <summary>Entity manager after <see cref="EntityManager.AddEntity"/>; throws if not attached yet.</summary>
+    [JsonIgnore]
+    public EntityManager AttachedManager => RequireManager();
 
     [JsonConstructor]
     private Entity(int id)
@@ -41,6 +47,13 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public static readonly Entity InvalidEntity = new Entity(-1);
 
+    private EntityManager RequireManager([CallerMemberName] string? caller = null)
+    {
+        if (Manager is null)
+            throw new InvalidOperationException($"Entity#{Id} has no Manager ({caller}).");
+        return Manager;
+    }
+
     [JsonProperty]
     public bool IsValid { get; internal set; }
     /* Maybe we should do the below, but I'm unsure if IsValid is being checked elswhere for a tag if it's set for removal
@@ -55,31 +68,53 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
         }
     }*/
 
-    [Obsolete("Use TryGetDataBlob<T>() instead.")]
-    public T GetDataBlob<T>() where T : BaseDataBlob
+    public T GetRequiredDataBlob<T>() where T : BaseDataBlob
     {
-        return Manager.GetDataBlob<T>(Id);
+        var manager = RequireManager();
+        if (!TryGetDataBlob(out T? blob) || blob is null)
+            throw new KeyNotFoundException($"BlobType {typeof(T)} not found on entity#{Id} in manager {manager.ManagerID}.");
+        return blob;
     }
 
-    [Obsolete("Use TryGetDataBlob<T>() instead.")]
+    public BaseDataBlob GetRequiredDataBlob(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        var manager = RequireManager();
+        if (!TryGetDataBlob(type, out object? value) || value is not BaseDataBlob blob)
+            throw new KeyNotFoundException($"BlobType {type} not found on entity#{Id} in manager {manager.ManagerID}.");
+        return blob;
+    }
+
+    public T GetDataBlob<T>() where T : BaseDataBlob
+    {
+        return RequireManager().GetDataBlob<T>(Id);
+    }
+
+    /// <summary>Prefer <see cref="TryGetDataBlob"/> or <see cref="GetRequiredDataBlob"/> when absence is possible.</summary>
     public BaseDataBlob GetDataBlob(Type type)
     {
-        return Manager.GetDataBlob(Id, type);
+        return RequireManager().GetDataBlob(Id, type);
     }
 
     public bool HasDataBlob<T>() where T : BaseDataBlob
     {
-        return Manager.HasDataBlob<T>(Id);
+        return Manager is not null && Manager.HasDataBlob<T>(Id);
     }
 
     public bool HasDataBlob(Type type)
     {
-        return Manager.HasDataBlob(Id, type);
+        return Manager is not null && Manager.HasDataBlob(Id, type);
     }
 
-    public bool TryGetDataBlob(Type type, [NotNullWhen(true)]out object? value)
+    public bool TryGetDataBlob(Type type, [NotNullWhen(true)] out object? value)
     {
-        if(Manager.TryGetDataBlob(Id, type, out value))
+        if (Manager is null)
+        {
+            value = null;
+            return false;
+        }
+
+        if (Manager.TryGetDataBlob(Id, type, out value))
         {
             return value != null;
         }
@@ -90,6 +125,12 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public bool TryGetDataBlob<T>([NotNullWhen(true)] out T? value) where T : BaseDataBlob
     {
+        if (Manager is null)
+        {
+            value = null;
+            return false;
+        }
+
         if (Manager.TryGetDataBlob<T>(Id, out value))
         {
             return value != null;
@@ -101,29 +142,29 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public List<BaseDataBlob> GetAllDataBlobs()
     {
-        return Manager.GetAllDataBlobsForEntity(Id);
+        return RequireManager().GetAllDataBlobsForEntity(Id);
     }
 
     public void SetDataBlob<T>(T dataBlob) where T : BaseDataBlob
     {
-        Manager.SetDataBlob(Id, dataBlob);
+        RequireManager().SetDataBlob(Id, dataBlob);
     }
 
     public void RemoveDataBlob<T>() where T : BaseDataBlob
     {
-        Manager.RemoveDatablob<T>(Id);
+        RequireManager().RemoveDatablob<T>(Id);
     }
 
     [JsonIgnore]
     public DateTime StarSysDateTime
     {
-        get { return Manager.StarSysDateTime; }
+        get { return RequireManager().StarSysDateTime; }
     }
 
     public int FactionOwnerID { get; set; }
 
     [JsonIgnore]
-    public Entity GetFactionOwner => Manager.Game.Factions[FactionOwnerID];
+    public Entity GetFactionOwner => RequireManager().Game.Factions[FactionOwnerID];
 
     public void AddComponent(ComponentInstance componentInstance)
     {
@@ -146,7 +187,7 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public void AddComponent(ComponentDesign componentDesign, int count = 1)
     {
-        for(int i = 0; i < count; i++)
+        for (int i = 0; i < count; i++)
         {
             AddComponent(new ComponentInstance(componentDesign));
         }
@@ -154,7 +195,7 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public void AddComponent(List<ComponentInstance> instances)
     {
-        foreach(var instance in instances)
+        foreach (var instance in instances)
         {
             AddComponent(instance);
         }
@@ -162,7 +203,7 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public void AddComponent(List<ComponentDesign> designs)
     {
-        foreach(var design in designs)
+        foreach (var design in designs)
         {
             AddComponent(design);
         }
@@ -184,7 +225,7 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public void Destroy()
     {
-        Manager.TagEntityForRemoval(this);
+        RequireManager().TagEntityForRemoval(this);
         //manager does this:
         //Manager = null;
         //FactionOwnerID = -1;
@@ -192,10 +233,14 @@ public class Entity : IHasDataBlobs, IEquatable<Entity>
 
     public bool Equals(Entity? other)
     {
-        return other != null
-            && this.Id == other.Id
-            && this.FactionOwnerID == other.FactionOwnerID
-            && this.Manager.ManagerID.Equals(other.Manager.ManagerID);
+        if (other is null)
+            return false;
+        if (Manager is null || other.Manager is null)
+            return Id == other.Id && FactionOwnerID == other.FactionOwnerID;
+
+        return Id == other.Id
+            && FactionOwnerID == other.FactionOwnerID
+            && Manager.ManagerID.Equals(other.Manager.ManagerID);
     }
 
     [JsonIgnore]

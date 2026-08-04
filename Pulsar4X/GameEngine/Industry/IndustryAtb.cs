@@ -11,15 +11,15 @@ namespace Pulsar4X.Industry
     public class IndustryAtb : IComponentDesignAttribute
     {
         [JsonProperty]
-        public Dictionary<string, int> IndustryPoints { get; private set; } = new ();
+        public Dictionary<string, int> IndustryPoints { get; private set; } = new();
 
         [JsonProperty]
         private double MaxProductionVolume;
         [JsonProperty]
-        private IndustryAbilityDB.ProductionLine _productionLine;
+        private IndustryAbilityDB.ProductionLine? _productionLine;
 
         [JsonConstructor]
-        private IndustryAtb(){}
+        private IndustryAtb() { }
         public IndustryAtb(Dictionary<string, double> industryRates)
         {
             MaxProductionVolume = double.PositiveInfinity;
@@ -46,7 +46,8 @@ namespace Pulsar4X.Industry
 
         public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance)
         {
-            _productionLine = new() {
+            _productionLine = new()
+            {
                 MaxVolume = MaxProductionVolume,
                 IndustryTypeRates = IndustryPoints,
                 Name = componentInstance.Name

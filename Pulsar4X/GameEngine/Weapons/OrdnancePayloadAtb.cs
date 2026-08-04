@@ -61,7 +61,7 @@ namespace Pulsar4X.Weapons
         double LinerDepth;
         double LinerAngle;
         double LinerThickness;
-        public OrdnanceShapedPayload(int trigger, double totalMass, double tntEqMass, double linerRadius, double linerDepth, double linerThickness): base((TriggerTypes)trigger, totalMass)
+        public OrdnanceShapedPayload(int trigger, double totalMass, double tntEqMass, double linerRadius, double linerDepth, double linerThickness) : base((TriggerTypes)trigger, totalMass)
         {
             ExposiveTnTEQMass = tntEqMass;
             LinerRadius = linerRadius;
@@ -72,13 +72,13 @@ namespace Pulsar4X.Weapons
     }
     public class OrdnanceLaserPayload : OrdnancePayloadAtb
     {
-        public OrdnanceLaserPayload(int trigger, double totalMass, Guid designID): base((TriggerTypes)trigger, totalMass)
+        public OrdnanceLaserPayload(int trigger, double totalMass, Guid designID) : base((TriggerTypes)trigger, totalMass)
         {
         }
     }
     public class OrdnanceSubmunitionsPayload : OrdnancePayloadAtb
     {
-        public OrdnanceSubmunitionsPayload(int trigger, double totalMass, Guid designID, int count): base((TriggerTypes)trigger, totalMass)
+        public OrdnanceSubmunitionsPayload(int trigger, double totalMass, Guid designID, int count) : base((TriggerTypes)trigger, totalMass)
         {
         }
     }

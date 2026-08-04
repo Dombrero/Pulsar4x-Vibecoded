@@ -109,18 +109,18 @@ namespace Pulsar4X.Client
         struct BorderListState
         {
             internal System.Numerics.Vector2 _labelSize;
-            internal  float _xleft;
-            internal  float _xcentr;
-            internal  float _xright;
+            internal float _xleft;
+            internal float _xcentr;
+            internal float _xright;
 
-            internal  float _ytop;
-            internal  float _yctr1;
-            internal  float _yctr2;
-            internal  float _ybot;
+            internal float _ytop;
+            internal float _yctr1;
+            internal float _yctr2;
+            internal float _ybot;
 
-            internal  uint _colour;
+            internal uint _colour;
 
-            internal  float _lhHeight;
+            internal float _lhHeight;
         }
 
         private static BorderListState[] _states = new BorderListState[8];
@@ -150,7 +150,7 @@ namespace Pulsar4X.Client
             ImGui.PushID(id);
             var state = new BorderListState();
             state._colour = ImGui.GetColorU32(ImGuiCol.Border);
-            state._labelSize = new System.Numerics.Vector2( width, ImGui.GetTextLineHeight());
+            state._labelSize = new System.Numerics.Vector2(width, ImGui.GetTextLineHeight());
             colomnCount = ImGui.GetColumnsCount();
             ImGui.Columns(2, id, false);
             ImGui.SetColumnWidth(0, width);
@@ -175,7 +175,7 @@ namespace Pulsar4X.Client
                     selectedChanged = true;
                 }
 
-                if(i == selected)
+                if (i == selected)
                 {
                     state._yctr1 = pos.Y - vpad * 0.5f;
                     state._yctr2 = state._yctr1 + ImGui.GetTextLineHeightWithSpacing();
@@ -187,7 +187,7 @@ namespace Pulsar4X.Client
             state._ybot = ImGui.GetCursorScreenPos().Y;
             state._lhHeight = ImGui.GetContentRegionAvail().Y;
             //if nothing is selected we'll draw a line at the bottom instead of around one of the items:
-            if(selected < 0)
+            if (selected < 0)
             {
                 state._yctr1 = state._ybot;
                 state._yctr2 = state._ybot;
@@ -302,7 +302,7 @@ namespace Pulsar4X.Client
             _size[_nestIndex] = new System.Numerics.Vector2(width, pos.Y - _startPos[_nestIndex].Y);
             ImDrawListPtr wdl = ImGui.GetWindowDrawList();
 
-            float by = _startPos[_nestIndex].Y + _size[_nestIndex].Y + _dentMulitpier -_dentMulitpier * _nestIndex;
+            float by = _startPos[_nestIndex].Y + _size[_nestIndex].Y + _dentMulitpier - _dentMulitpier * _nestIndex;
             float rx = _startPos[_nestIndex].X + _size[_nestIndex].X - _dentMulitpier * _nestIndex;
 
             System.Numerics.Vector2[] pts = new System.Numerics.Vector2[6];
@@ -332,13 +332,13 @@ namespace Pulsar4X.Client
             var txtWid = Math.Max(ImGui.CalcTextSize(leftState).X, ImGui.CalcTextSize(rightState).X);
             ImGui.PushItemWidth(txtWid * 3);
             var cpos = ImGui.GetCursorPos();
-            if(ImGui.SliderInt(label,ref intState, 0, 1, "" ))
+            if (ImGui.SliderInt(label, ref intState, 0, 1, ""))
             {
                 state = Convert.ToBoolean(intState);
                 return true;
             }
             System.Numerics.Vector2 recSize = ImGui.GetItemRectSize();
-            float x = cpos.X  + 2 + (intState * (txtWid -4) * 2);
+            float x = cpos.X + 2 + (intState * (txtWid - 4) * 2);
             float y = (float)(cpos.Y + recSize.Y * 0.5 - ImGui.GetTextLineHeight() * 0.5);
             ImGui.SetCursorPos(new System.Numerics.Vector2(x, y));
             ImGui.Text(strstate);
@@ -373,24 +373,21 @@ namespace Pulsar4X.Client
             m
         }
 
-        static DisplayType GlobalDisplayType = DisplayType.Km;
-        static string GlobalFormat = "0.###";
-
         static string StringifyValue(double value, string format = "0.###")
         {
             return Stringify.Distance(value, format);
         }
 
-        public static void Display(string Id, double value, ValueType inputType, ref DisplayType displayType, ref string displayFormat )
+        public static void Display(string Id, double value, ValueType inputType, ref DisplayType displayType, ref string displayFormat)
         {
             //ImGui.GetID(Id);
 
             ImGui.Text(StringifyValue(value, displayFormat));
-            if(ImGui.BeginPopupContextItem(Id, ImGuiPopupFlags.MouseButtonRight))
+            if (ImGui.BeginPopupContextItem(Id, ImGuiPopupFlags.MouseButtonRight))
             {
-                if(ImGui.SmallButton("Set Display Type"))
+                if (ImGui.SmallButton("Set Display Type"))
                 { }
-                if(ImGui.SmallButton("Set Display Format"))
+                if (ImGui.SmallButton("Set Display Format"))
                 { }
 
             }
@@ -401,7 +398,7 @@ namespace Pulsar4X.Client
 
     public static class LargeRangeSliderInt
     {
-        public delegate int Step (int value);
+        public delegate int Step(int value);
 
         public static Step StepMethod = Step1;
 
@@ -412,7 +409,7 @@ namespace Pulsar4X.Client
 
         public static int StepLog2x(int value)
         {
-            return Convert.ToInt32(Math.Log2(value)) ;
+            return Convert.ToInt32(Math.Log2(value));
         }
 
 
@@ -433,38 +430,45 @@ namespace Pulsar4X.Client
             {
                 value = Math.Max(min, value - 1000);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("-100"))
             {
                 value = Math.Max(min, value - 100);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("-1"))
             {
                 value = Math.Max(min, value - 1);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
 
             if (ImGui.DragInt(label, ref value, step, min, max))
             {
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
 
             if (ImGui.Button("100k"))
             {
                 value = Math.Min(max, value - 100000);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("1k"))
             {
                 value = Math.Min(max, value - 1000);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("100"))
             {
                 value = Math.Min(max, value - 100);
                 changed = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("1"))
             {
                 value = Math.Min(max, value - 1);
@@ -482,12 +486,12 @@ namespace Pulsar4X.Client
         public static bool ButtonED(string label, bool IsEnabled)
         {
 
-            if(!IsEnabled)
+            if (!IsEnabled)
                 ImGui.PushStyleVar(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f);
 
             bool clicked = ImGui.Button(label);
 
-            if(!IsEnabled)
+            if (!IsEnabled)
             {
                 ImGui.PopStyleVar();
                 clicked = false; //if we're not enabled, we return false.
@@ -498,12 +502,12 @@ namespace Pulsar4X.Client
         public static bool SliderAngleED(string label, ref float v_rad, bool IsEnabled)
         {
             var rad = v_rad;
-            if(!IsEnabled)
+            if (!IsEnabled)
                 ImGui.PushStyleVar(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f);
 
             bool clicked = ImGui.SliderAngle(label, ref v_rad);
 
-            if(!IsEnabled)
+            if (!IsEnabled)
             {
                 ImGui.PopStyleVar();
                 v_rad = rad;
@@ -521,7 +525,7 @@ namespace Pulsar4X.Client
 
         public static bool SliderDouble(string label, ref double value, double min, double max, string? format, ImGuiSliderFlags flags)
         {
-            if(string.IsNullOrEmpty(format))
+            if (string.IsNullOrEmpty(format))
             {
                 format = "";
             }
@@ -545,7 +549,7 @@ namespace Pulsar4X.Client
             }
 
             bool changed = false;
-            if(ImGui.SliderScalar(label, ImGuiDataType.Double, valPtr, minPtr, maxPtr, format, flags))
+            if (ImGui.SliderScalar(label, ImGuiDataType.Double, valPtr, minPtr, maxPtr, format, flags))
             {
                 value = val;
                 changed = true;
@@ -574,7 +578,7 @@ namespace Pulsar4X.Client
             }
 
             bool changed = false;
-            if(ImGui.DragScalar(label, ImGuiDataType.Double, valPtr, v_speed, minPtr, maxPtr, format, flags))
+            if (ImGui.DragScalar(label, ImGuiDataType.Double, valPtr, v_speed, minPtr, maxPtr, format, flags))
             {
                 value = val;
                 changed = true;
@@ -613,7 +617,7 @@ namespace Pulsar4X.Client
             _valueStyle = valueStyle;
             bool changed = false;
             ImGui.SameLine();
-            if(ImGui.SmallButton("Style"))
+            if (ImGui.SmallButton("Style"))
             {
                 var nextStyle = (short)_displayStyle + 1;
                 var max = Enum.GetValues(typeof(Style)).Length;
@@ -651,7 +655,7 @@ namespace Pulsar4X.Client
             _valueStyle = valueStyle;
             bool changed = false;
             ImGui.SameLine();
-            if(ImGui.SmallButton("Style"))
+            if (ImGui.SmallButton("Style"))
             {
                 var nextStyle = (short)_displayStyle + 1;
                 var max = Enum.GetValues(typeof(Style)).Length;
@@ -761,7 +765,7 @@ namespace Pulsar4X.Client
             bool changed = false;
             double r = 0;
             float theta = 0;
-            if(_valueStyle == Style.Cartesian)
+            if (_valueStyle == Style.Cartesian)
             {
                 r = (int)Math.Round(values.Length());
                 theta = (float)Math.Atan2(values.Y, values.X);
@@ -771,7 +775,7 @@ namespace Pulsar4X.Client
             }
             else
             {
-                r =  (int)Math.Round(values.X);
+                r = (int)Math.Round(values.X);
                 theta = (int)Math.Round(values.Y);
             }
 
@@ -785,20 +789,20 @@ namespace Pulsar4X.Client
             double mdelta = ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).X;
             mdelta = Math.Min(mdelta, maxMouseDelta);
             double step = (Math.Log(maxVal) - Math.Log(1)) / maxMouseDelta;
-            float speed = (float)(Math.Min(maxVal,Math.Exp(Math.Log(1) + mdelta * step)));
+            float speed = (float)(Math.Min(maxVal, Math.Exp(Math.Log(1) + mdelta * step)));
             //ImGui.Text("mdelta:" + mdelta);
             //ImGui.Text("step:" + step);
             //ImGui.Text("speed:" + speed);
 
 
-            if(ImGuiExt.DragDouble("r", ref r, speed, 0, maxVal, Stringify.Distance(r), ImGuiSliderFlags.AlwaysClamp))
+            if (ImGuiExt.DragDouble("r", ref r, speed, 0, maxVal, Stringify.Distance(r), ImGuiSliderFlags.AlwaysClamp))
                 changed = true;
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Radius");
 
             if (ImGui.SliderAngle("θ°", ref theta, 0f, 360f))
                 changed = true;
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Angle");
 
             if (changed)
@@ -823,7 +827,7 @@ namespace Pulsar4X.Client
             bool changed = false;
             int r = 0;
             float theta = 0;
-            if(_valueStyle == Style.Cartesian)
+            if (_valueStyle == Style.Cartesian)
             {
                 r = (int)Math.Round(values.Length());
                 theta = (float)Math.Atan2(values.Y, values.X);
@@ -833,7 +837,7 @@ namespace Pulsar4X.Client
             }
             else
             {
-                r =  (int)Math.Round(values.X);
+                r = (int)Math.Round(values.X);
                 theta = (int)Math.Round(values.Y);
             }
 
@@ -847,20 +851,20 @@ namespace Pulsar4X.Client
             double mdelta = ImGui.GetMouseDragDelta(ImGuiMouseButton.Left).Length();
             mdelta = Math.Min(mdelta, maxMouseDelta);
             double step = (Math.Log(maxVal) - Math.Log(1)) / maxMouseDelta;
-            int speed = Convert.ToInt32(Math.Min(maxVal,Math.Exp(Math.Log(1) + mdelta * step)));
+            int speed = Convert.ToInt32(Math.Min(maxVal, Math.Exp(Math.Log(1) + mdelta * step)));
             //ImGui.Text("mdelta:" + mdelta);
             //ImGui.Text("step:" + step);
             //ImGui.Text("speed:" + speed);
 
 
-            if(ImGui.DragInt("r", ref r, speed, 0, maxVal, r.ToString(), ImGuiSliderFlags.AlwaysClamp))
+            if (ImGui.DragInt("r", ref r, speed, 0, maxVal, r.ToString(), ImGuiSliderFlags.AlwaysClamp))
                 changed = true;
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Radius");
 
             if (ImGui.SliderAngle("θ°", ref theta, 0f, 360f))
                 changed = true;
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Angle");
 
             if (changed)

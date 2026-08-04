@@ -33,7 +33,7 @@ namespace Pulsar4X.DataStructures
 
         public static PercentValue SetRawValue(byte rawValue)
         {
-            return new PercentValue(){_percent = rawValue};
+            return new PercentValue() { _percent = rawValue };
         }
 
         public static byte GetRawValue(PercentValue percentValue)

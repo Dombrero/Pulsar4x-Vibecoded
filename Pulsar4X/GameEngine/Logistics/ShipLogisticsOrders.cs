@@ -10,21 +10,21 @@ public class ShipLogisticsOrders : EntityCommand
 
     public override bool IsBlocking => false;
 
-    public override string Name {get {return _name;}}
+    public override string Name { get { return _name; } }
     string _name = "Logisitics";
 
-    public override string Details {get {return _details;}}
+    public override string Details { get { return _details; } }
     string _details = "";
 
     internal override Entity EntityCommanding { get { return _entityCommanding; } }
-    Entity _entityCommanding;
-    Entity _factionEntity;
+    Entity _entityCommanding = Entity.InvalidEntity;
+    Entity _factionEntity = Entity.InvalidEntity;
 
     LogiShipperDB _logiShipperDB;
 
     internal override bool IsFinished()
     {
-        if(_logiShipperDB != null && _entityCommanding.HasDataBlob<LogiShipperDB>())
+        if (_logiShipperDB != null && _entityCommanding.HasDataBlob<LogiShipperDB>())
             _isFinished = false;
         else
             _isFinished = true;
@@ -41,39 +41,39 @@ public class ShipLogisticsOrders : EntityCommand
         switch (_logiShipperDB.CurrentState)
         {
             case LogiShipperDB.States.Bidding:
-            {
-                _details = "Bidding on " + _logiShipperDB.BiddingTasks.Count + " consignments";
-            }
+                {
+                    _details = "Bidding on " + _logiShipperDB.BiddingTasks.Count + " consignments";
+                }
                 break;
             case LogiShipperDB.States.MoveToSupply:
-            {
-                _details = "Traveling to Supply to collect goods";
-            }
+                {
+                    _details = "Traveling to Supply to collect goods";
+                }
                 break;
             case LogiShipperDB.States.Loading:
-            {
-                _details = "Loading goods ";
-            }
+                {
+                    _details = "Loading goods ";
+                }
                 break;
             case LogiShipperDB.States.MoveToDestination:
-            {
-                _details = "Moving to Destination";
-            }
+                {
+                    _details = "Moving to Destination";
+                }
                 break;
             case LogiShipperDB.States.Unloading:
-            {
-                _details = "Unloading goods";
-            }
+                {
+                    _details = "Unloading goods";
+                }
                 break;
             case LogiShipperDB.States.ResuplySelf:
-            {
-                _details = "Refueling";
-            }
+                {
+                    _details = "Refueling";
+                }
                 break;
             case LogiShipperDB.States.Waiting:
-            {
-                _details = "Waiting for suply and/or demand";
-            }
+                {
+                    _details = "Waiting for suply and/or demand";
+                }
                 break;
 
             default:

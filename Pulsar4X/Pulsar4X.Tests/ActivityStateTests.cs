@@ -8,7 +8,7 @@ namespace Pulsar4X.Tests
     [TestFixture]
     public class ActivityStateTests
     {
-        private Game _game;
+        private Game _game = null;
         private StarSystem[] _distinctSystems;
 
         [SetUp]

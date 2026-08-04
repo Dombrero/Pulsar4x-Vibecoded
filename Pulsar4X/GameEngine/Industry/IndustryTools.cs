@@ -38,7 +38,7 @@ namespace Pulsar4X.Industry
 
         public static void AddJob(IndustryAbilityDB industryDB, string plineID, IndustryJob job)
         {
-            lock(industryDB.ProductionLines[plineID])
+            lock (industryDB.ProductionLines[plineID])
             {
                 var pline = industryDB.ProductionLines[plineID];
                 pline.Jobs.Add(job);
@@ -106,23 +106,23 @@ namespace Pulsar4X.Industry
 
         internal static void ConstructStuff(Entity industryEntity)
         {
-            if(!industryEntity.TryGetDataBlob<CargoStorageDB>(out var stockpile))
+            if (!industryEntity.TryGetDataBlob<CargoStorageDB>(out var stockpile))
             {
                 throw new Exception("Tried to ConstructStuff on an entity with no CargoStorageDB");
             }
 
-            if(!industryEntity.Manager.Game.Factions.ContainsKey(industryEntity.FactionOwnerID))
+            if (!industryEntity.AttachedManager.Game.Factions.ContainsKey(industryEntity.FactionOwnerID))
             {
                 throw new Exception("Unable to find the faction entity");
             }
-            var faction = industryEntity.Manager.Game.Factions[industryEntity.FactionOwnerID];
+            var faction = industryEntity.AttachedManager.Game.Factions[industryEntity.FactionOwnerID];
 
-            if(!faction.TryGetDataBlob<FactionInfoDB>(out var factionInfo))
+            if (!faction.TryGetDataBlob<FactionInfoDB>(out var factionInfo))
             {
                 throw new Exception("Unable to find FactionInfoDB");
             }
 
-            if(!industryEntity.TryGetDataBlob<IndustryAbilityDB>(out var industryDB))
+            if (!industryEntity.TryGetDataBlob<IndustryAbilityDB>(out var industryDB))
             {
                 throw new Exception("Unable to find IndustryAbilityDB");
             }
@@ -140,7 +140,7 @@ namespace Pulsar4X.Industry
                 foreach (var rate in prodLine.IndustryTypeRates)
                     industryPointsRemaining[rate.Key] = (int)(rate.Value * efficiency);
 
-                foreach(var batchJob in prodLine.Jobs.ToArray())
+                foreach (var batchJob in prodLine.Jobs.ToArray())
                 {
                     IConstructableDesign designInfo = factionInfo.IndustryDesigns[batchJob.ItemGuid];
                     if (!industryPointsRemaining.TryGetValue(designInfo.IndustryTypeID, out var pointsForType)
@@ -270,7 +270,7 @@ namespace Pulsar4X.Industry
         {
             foreach (var kvp in toUse.ToArray())
             {
-                ICargoable? cargoItem = fromCargo.OwningEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetAny(kvp.Key);//fromCargo.OwningEntity.Manager.Game.StaticData.GetICargoable(kvp.Key);
+                ICargoable? cargoItem = fromCargo.OwningEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetAny(kvp.Key);//fromCargo.OwningEntity.AttachedManager.Game.StaticData.GetICargoable(kvp.Key);
                 if (cargoItem is null)
                 {
                     if (fromCargo.OwningEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().InternalComponentDesigns.TryGetValue(kvp.Key, out var design))
@@ -283,6 +283,8 @@ namespace Pulsar4X.Industry
                         throw new Exception("Cant build from non ICargoable Items");
                     }
                 }
+                if (cargoItem is null)
+                    throw new InvalidOperationException("Industry job references unknown cargo item.");
                 string cargoTypeID = cargoItem.CargoTypeID;
                 long amountUsedThisTick = 0;
                 if (fromCargo.TypeStores.ContainsKey(cargoTypeID))
@@ -303,11 +305,11 @@ namespace Pulsar4X.Industry
 
         public static void AutoAddSubJobs(Entity industryEntity, IndustryJob job)
         {
-            if(!industryEntity.TryGetDataBlob<CargoStorageDB>(out var stockpile))
+            if (!industryEntity.TryGetDataBlob<CargoStorageDB>(out var stockpile))
             {
                 throw new Exception("Tried to ConstructStuff on an entity with no CargoStorageDB");
             }
-            if(!industryEntity.TryGetDataBlob<IndustryAbilityDB>(out var industryDB))
+            if (!industryEntity.TryGetDataBlob<IndustryAbilityDB>(out var industryDB))
             {
                 throw new Exception("Unable to find IndustryAbilityDB");
             }
@@ -357,7 +359,7 @@ namespace Pulsar4X.Industry
                 if (rate > bestLine.rate)
                     bestLine = (line.Key, rate);
             }
-            if(bestLine.lineID != String.Empty)
+            if (bestLine.lineID != String.Empty)
                 AddJob(industrydb, bestLine.lineID, job);
         }
 

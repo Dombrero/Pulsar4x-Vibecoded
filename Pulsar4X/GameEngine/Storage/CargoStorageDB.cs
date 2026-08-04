@@ -5,9 +5,9 @@ using Pulsar4X.Datablobs;
 
 namespace Pulsar4X.Storage
 {
-/// <summary>
-/// TODO: this needs to be made threadsafe for reading form the ui!
-/// </summary>
+    /// <summary>
+    /// TODO: this needs to be made threadsafe for reading form the ui!
+    /// </summary>
     public class CargoStorageDB : BaseDataBlob, IAbilityDescription
     {
         [JsonProperty]
@@ -15,7 +15,7 @@ namespace Pulsar4X.Storage
 
         [JsonProperty]
         internal List<CargoTransferDataDB> EscroItems { get; } = new();
-        
+
         /// <summary>
         /// This includes Escro Items.
         /// </summary>
@@ -85,12 +85,12 @@ namespace Pulsar4X.Storage
         /// Key is ICargoable.ID
         /// </summary>
         [JsonProperty]
-        public SafeDictionary<int, long> CurrentStoreInUnits = new ();
+        public SafeDictionary<int, long> CurrentStoreInUnits = new();
         /// <summary>
         /// Key is ICargoable.ID
         /// </summary>
         [JsonProperty]
-        internal SafeDictionary<int, ICargoable> Cargoables =  new ();
+        internal SafeDictionary<int, ICargoable> Cargoables = new();
         public TypeStore(double maxVolume)
         {
             MaxVolume = maxVolume;
@@ -99,14 +99,14 @@ namespace Pulsar4X.Storage
 
         public Dictionary<int, ICargoable> GetCargoables()
         {
-            return new (Cargoables);
+            return new(Cargoables);
         }
 
         public bool HasCargoInStore(int cargoID)
         {
             return CurrentStoreInUnits.ContainsKey(cargoID);
         }
-        
+
         public TypeStore Clone()
         {
             TypeStore clone = new TypeStore(MaxVolume);

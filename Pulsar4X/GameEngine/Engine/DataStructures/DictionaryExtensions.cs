@@ -16,7 +16,7 @@ namespace Pulsar4X.Extensions
         /// <param name="key"></param>
         /// <param name="toReplace"></param>
         [PublicAPI]
-        public static void SafeValueReplace<TKey>(this Dictionary<TKey, int> dict, TKey key, int toReplace)
+        public static void SafeValueReplace<TKey>(this Dictionary<TKey, int> dict, TKey key, int toReplace) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toReplace);
@@ -26,7 +26,7 @@ namespace Pulsar4X.Extensions
             }
         }
 
-        public static void SafeValueReplace<TKey>(this Dictionary<TKey, long> dict, TKey key, long toReplace)
+        public static void SafeValueReplace<TKey>(this Dictionary<TKey, long> dict, TKey key, long toReplace) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toReplace);
@@ -44,7 +44,7 @@ namespace Pulsar4X.Extensions
         /// <param name="key"></param>
         /// <param name="toAdd"></param>
         [PublicAPI]
-        public static void SafeValueAdd<TKey>(this Dictionary<TKey, int> dict, TKey key, int toAdd)
+        public static void SafeValueAdd<TKey>(this Dictionary<TKey, int> dict, TKey key, int toAdd) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toAdd);
@@ -62,7 +62,7 @@ namespace Pulsar4X.Extensions
         /// <param name="key"></param>
         /// <param name="toAdd"></param>
         [PublicAPI]
-        public static void SafeValueAdd<TKey>(this Dictionary<TKey, long> dict, TKey key, long toAdd)
+        public static void SafeValueAdd<TKey>(this Dictionary<TKey, long> dict, TKey key, long toAdd) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toAdd);
@@ -80,7 +80,7 @@ namespace Pulsar4X.Extensions
         /// <param name="key"></param>
         /// <param name="toAdd"></param>
         [PublicAPI]
-        public static void SafeValueAdd<TKey>(this Dictionary<TKey, float> dict, TKey key, float toAdd)
+        public static void SafeValueAdd<TKey>(this Dictionary<TKey, float> dict, TKey key, float toAdd) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toAdd);
@@ -97,7 +97,7 @@ namespace Pulsar4X.Extensions
         /// <param name="key"></param>
         /// <param name="toAdd"></param>
         [PublicAPI]
-        public static void SafeValueAdd<TKey>(this Dictionary<TKey, double> dict, TKey key, double toAdd)
+        public static void SafeValueAdd<TKey>(this Dictionary<TKey, double> dict, TKey key, double toAdd) where TKey : notnull
         {
             if (!dict.ContainsKey(key))
                 dict.Add(key, toAdd);
@@ -126,6 +126,6 @@ namespace Pulsar4X.Extensions
         }
     }
 
-   
+
 
 }

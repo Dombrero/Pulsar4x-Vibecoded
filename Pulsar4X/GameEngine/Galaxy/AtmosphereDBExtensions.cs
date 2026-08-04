@@ -23,7 +23,7 @@ namespace Pulsar4X.Galaxy
 
             foreach (var (id, pressure) in atmosphere.Composition)
             {
-                var gas = atmosphere.OwningEntity.Manager.Game.AtmosphericGases[id];
+                var gas = atmosphere.OwningEntity.AttachedManager.Game.AtmosphericGases[id];
                 if (!gas.WouldBeFrozenAtGivenTemperature(baseTemp))
                 {
                     totalPressure += pressure;
@@ -40,8 +40,9 @@ namespace Pulsar4X.Galaxy
 
             foreach (var (id, pressure) in atmosphere.Composition)
             {
-                var gas = atmosphere.OwningEntity.Manager.Game.AtmosphericGases[id];
-                if (gas.GreenhouseEffect > 0 && !gas.WouldBeFrozenAtGivenTemperature(baseTemp)) {
+                var gas = atmosphere.OwningEntity.AttachedManager.Game.AtmosphericGases[id];
+                if (gas.GreenhouseEffect > 0 && !gas.WouldBeFrozenAtGivenTemperature(baseTemp))
+                {
                     totalPressure += pressure;
                 }
             }
@@ -56,7 +57,7 @@ namespace Pulsar4X.Galaxy
 
             foreach (var (id, pressure) in atmosphere.Composition)
             {
-                var gas = atmosphere.OwningEntity.Manager.Game.AtmosphericGases[id];
+                var gas = atmosphere.OwningEntity.AttachedManager.Game.AtmosphericGases[id];
                 if (gas.GreenhouseEffect < 0 && !gas.WouldBeFrozenAtGivenTemperature(baseTemp))
                 {
                     totalPressure += pressure;

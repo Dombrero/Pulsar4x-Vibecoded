@@ -11,7 +11,7 @@ namespace Pulsar4X.Fleets
     {
         public static Entity Create(EntityManager? manager, int factionID, string name)
         {
-            if(manager == null) throw new ArgumentNullException("manager cannot be null");
+            if (manager == null) throw new ArgumentNullException("manager cannot be null");
 
             var dataBlobs = new List<BaseDataBlob>();
             var nameDB = new NameDB(name, factionID, name);

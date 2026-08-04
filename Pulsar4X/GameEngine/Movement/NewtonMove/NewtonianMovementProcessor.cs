@@ -81,7 +81,7 @@ namespace Pulsar4X.Movement
             double massTotal_Kg = entity.GetDataBlob<MassVolumeDB>().MassTotal;
             double parentMass_kg = newtonMoveDB.ParentMass;
 
-            var manager = entity.Manager;
+            var manager = entity.AttachedManager;
             DateTime dateTimeFrom = newtonMoveDB.LastProcessDateTime;
             DateTime dateTimeNow = manager.ManagerSubpulses.StarSysDateTime;
             //DateTime toDateTime = dateTimeNow + TimeSpan.FromSeconds(deltaSeconds);
@@ -110,7 +110,12 @@ namespace Pulsar4X.Movement
                 if (result.FuelBurned > 0)
                 {
                     var fuelTypeID = newtonThrust.FuelType;
-                    var fuelType = entity.GetFactionCargoDefinitions().GetAny(fuelTypeID);
+                    var cargoLib = entity.GetFactionCargoDefinitions();
+                    if (cargoLib is null)
+                        continue;
+                    var fuelType = cargoLib.GetAny(fuelTypeID);
+                    if (fuelType is null)
+                        continue;
                     CargoTransferProcessor.AddRemoveCargoMass(entity, fuelType, -result.FuelBurned);
                     massTotal_Kg = entity.GetDataBlob<MassVolumeDB>().MassTotal;
                 }
@@ -130,7 +135,7 @@ namespace Pulsar4X.Movement
                     {
                         var orbitDB = newtonMoveDB.SOIParent.GetDataBlob<OrbitDB>();
                         newParent = orbitDB.Parent;
-                        if(newParent == null) throw new NullReferenceException("newParent cannot be null");
+                        if (newParent == null) throw new NullReferenceException("newParent cannot be null");
                         var parentVelocity = orbitDB.InstantaneousOrbitalVelocityVector_m(entity.StarSysDateTime);
                         parentrelativeVector = newtonMoveDB.CurrentVector_ms + parentVelocity;
 
@@ -204,7 +209,7 @@ namespace Pulsar4X.Movement
                     var dateTime = dateTimeNow + TimeSpan.FromSeconds(deltaT - secondsToItterate);
 
                     var parentEntity = positionDB.Parent;
-                    if(parentEntity == null) throw new NullReferenceException("parentEntity cannot be null");
+                    if (parentEntity == null) throw new NullReferenceException("parentEntity cannot be null");
 
                     if (entity.HasDataBlob<ProjectileInfoDB>()) //this feels a bit hacky.
                     {
@@ -241,7 +246,7 @@ namespace Pulsar4X.Movement
         /// <param name="newtonMoveDB"></param>
         /// <param name="atDateTime"></param>
         /// <returns>Positional and Velocity states</returns>
-        public static (Vector3 pos, Vector3 vel)GetRelativeState(Entity entity, NewtonMoveDB newtonMoveDB, DateTime atDateTime)
+        public static (Vector3 pos, Vector3 vel) GetRelativeState(Entity entity, NewtonMoveDB newtonMoveDB, DateTime atDateTime)
         {
             PositionDB positionDB = entity.GetDataBlob<PositionDB>();
             NewtonThrustAbilityDB newtonThrust = entity.GetDataBlob<NewtonThrustAbilityDB>();

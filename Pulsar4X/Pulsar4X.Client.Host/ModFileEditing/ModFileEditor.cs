@@ -1,3 +1,4 @@
+﻿using System;
 using System.IO;
 using ImGuiNET;
 using Pulsar4X.Blueprints;
@@ -7,17 +8,15 @@ namespace Pulsar4X.Client.ModFileEditing;
 
 public class ModFileEditor : UniquePulsarGuiWindow<ModFileEditor>
 {
-    private ModInfoUI _modInfoUI;
-    private TechBlueprintUI _techBlueprintUI;
-    private TechCatBlueprintUI _techCatBlueprintUI;
-    private ComponentBluprintUI _componentBluprintUI;
-    private CargoTypeBlueprintUI _cargoTypeBlueprintUI;
-    private ComponentPropertyBlueprintUI _componentPropertyBlueprintUI;
-    private ArmorBlueprintUI _armorBlueprintUI;
-    private ProcessedMaterialsUI _processedMaterialsUI;
-    private MineralBlueprintUI _mineralsBlueprintUI;
-    private ShipDesignBlueprintUI _shipDesignBlueprintUI;
-
+    private ModInfoUI? _modInfoUI;
+    private TechBlueprintUI? _techBlueprintUI;
+    private TechCatBlueprintUI? _techCatBlueprintUI;
+    private ComponentBluprintUI? _componentBluprintUI;
+    private CargoTypeBlueprintUI? _cargoTypeBlueprintUI;
+    private ArmorBlueprintUI? _armorBlueprintUI;
+    private ProcessedMaterialsUI? _processedMaterialsUI;
+    private MineralBlueprintUI? _mineralsBlueprintUI;
+    private ShipDesignBlueprintUI? _shipDesignBlueprintUI;
     private ModFileEditor()
     {
 
@@ -31,6 +30,8 @@ public class ModFileEditor : UniquePulsarGuiWindow<ModFileEditor>
             ModLoader modLoader = new ModLoader();
             ModDataStore modDataStore = new ModDataStore();
             string? appDataDirectory = PulsarMainWindow.GetAppDataPath();
+            if (string.IsNullOrEmpty(appDataDirectory))
+                throw new InvalidOperationException("Application data path is not available.");
             string modPath = Path.Combine(appDataDirectory, PulsarMainWindow.ModsPath, "basemod/modInfo.json");
             modLoader.LoadModManifest(modPath, modDataStore);
             instance.Refresh(modDataStore);
@@ -64,23 +65,23 @@ public class ModFileEditor : UniquePulsarGuiWindow<ModFileEditor>
         {
             if (ImGui.Begin("Editor", ref IsActive))
             {
-                _modInfoUI.Display("Mod Info");
+                (_modInfoUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Mod Info");
                 ImGui.NewLine();
-                _techCatBlueprintUI.Display("Tech Categorys");
+                (_techCatBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Tech Categorys");
                 ImGui.NewLine();
-                _techBlueprintUI.Display("Techs");
+                (_techBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Techs");
                 ImGui.NewLine();
-                _componentBluprintUI.Display("Components");
+                (_componentBluprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Components");
                 ImGui.NewLine();
-                _cargoTypeBlueprintUI.Display("Cargo Types");
+                (_cargoTypeBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Cargo Types");
                 ImGui.NewLine();
-                _armorBlueprintUI.Display("Armor");
+                (_armorBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Armor");
                 ImGui.NewLine();
-                _processedMaterialsUI.Display("Processed Materials");
+                (_processedMaterialsUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Processed Materials");
                 ImGui.NewLine();
-                _mineralsBlueprintUI.Display("Minerals");
+                (_mineralsBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Minerals");
                 ImGui.NewLine();
-                _shipDesignBlueprintUI.Display("Ship Designs");
+                (_shipDesignBlueprintUI ?? throw new InvalidOperationException("Mod editor not initialized.")).Display("Ship Designs");
                 ImGui.NewLine();
             }
 

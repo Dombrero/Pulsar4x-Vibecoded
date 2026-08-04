@@ -19,6 +19,7 @@ namespace Pulsar4X.DataStructures
 
     [JsonConverter(typeof(SafeDictionaryConverter))]
     public class SafeDictionary<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>, IEquatable<SafeDictionary<TKey, TValue>>, ISafeDictionary
+        where TKey : notnull
     {
         object ISafeDictionary.this[int index]
         {
@@ -41,15 +42,14 @@ namespace Pulsar4X.DataStructures
         private readonly object _lock = new object();
         public delegate void DictionaryChangedHandler(TKey key, TValue value);
 
-        public event DictionaryChangedHandler ItemAdded;
-        public event DictionaryChangedHandler ItemRemoved;
-        public event DictionaryChangedHandler OnChange;
-
+        public event DictionaryChangedHandler? ItemAdded;
+        public event DictionaryChangedHandler? ItemRemoved;
+        public event DictionaryChangedHandler? OnChange;
         public int Count
         {
             get
             {
-                lock(_lock) return _innerDictionary.Count;
+                lock (_lock) return _innerDictionary.Count;
             }
         }
 
@@ -57,7 +57,7 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock) return _innerDictionary.Keys;
+                lock (_lock) return _innerDictionary.Keys;
             }
         }
 
@@ -65,14 +65,14 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock) return _innerDictionary.Values;
+                lock (_lock) return _innerDictionary.Values;
             }
         }
 
         public SafeDictionary() { }
         public SafeDictionary(IDictionary<TKey, TValue> dictionary)
         {
-            foreach(var (key, value) in dictionary)
+            foreach (var (key, value) in dictionary)
             {
                 _innerDictionary.Add(key, value);
             }
@@ -80,7 +80,7 @@ namespace Pulsar4X.DataStructures
 
         public SafeDictionary(SafeDictionary<TKey, TValue> dictionary)
         {
-            foreach(var (key, value) in dictionary)
+            foreach (var (key, value) in dictionary)
             {
                 _innerDictionary.Add(key, value);
             }
@@ -90,11 +90,11 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock) return _innerDictionary[key];
+                lock (_lock) return _innerDictionary[key];
             }
             set
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     _innerDictionary[key] = value;
                     OnChange?.Invoke(key, value);
@@ -104,19 +104,19 @@ namespace Pulsar4X.DataStructures
 
         public void Add(TKey key, TValue value)
         {
-            lock(_lock)
+            lock (_lock)
             {
                 _innerDictionary.Add(key, value);
-                ItemAdded?.Invoke(key , value);
+                ItemAdded?.Invoke(key, value);
                 OnChange?.Invoke(key, value);
             }
         }
 
         public bool Remove(TKey key)
         {
-            lock(_lock)
+            lock (_lock)
             {
-                if(_innerDictionary.TryGetValue(key, out TValue? value))
+                if (_innerDictionary.TryGetValue(key, out TValue? value))
                 {
                     _innerDictionary.Remove(key);
                     ItemRemoved?.Invoke(key, value);
@@ -129,19 +129,19 @@ namespace Pulsar4X.DataStructures
 
         public bool ContainsKey(TKey key)
         {
-            lock(_lock) return _innerDictionary.ContainsKey(key);
+            lock (_lock) return _innerDictionary.ContainsKey(key);
         }
 
         public void Clear()
         {
-            lock(_lock) _innerDictionary.Clear();
+            lock (_lock) _innerDictionary.Clear();
         }
 
         public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? value)
         {
-            lock(_lock)
+            lock (_lock)
             {
-                if(_innerDictionary.ContainsKey(key))
+                if (_innerDictionary.ContainsKey(key))
                 {
                     value = _innerDictionary[key];
                     if (value is null)
@@ -158,7 +158,7 @@ namespace Pulsar4X.DataStructures
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             List<KeyValuePair<TKey, TValue>> snapshot;
-            lock(_lock)
+            lock (_lock)
             {
                 snapshot = _innerDictionary.ToList();
             }
@@ -172,19 +172,19 @@ namespace Pulsar4X.DataStructures
 
         public bool Equals(SafeDictionary<TKey, TValue>? other)
         {
-            if(other is null) return false;
-            if(ReferenceEquals(this, other)) return true;
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
 
-            lock(_lock)
+            lock (_lock)
             {
-                lock(other._lock)
+                lock (other._lock)
                 {
-                    if(_innerDictionary.Count != other._innerDictionary.Count)
+                    if (_innerDictionary.Count != other._innerDictionary.Count)
                     {
                         return false;
                     }
 
-                    foreach(var kvp in _innerDictionary)
+                    foreach (var kvp in _innerDictionary)
                     {
                         if (!other._innerDictionary.TryGetValue(kvp.Key, out var value))
                             return false;
@@ -206,7 +206,7 @@ namespace Pulsar4X.DataStructures
         {
             get
             {
-                lock(_lock)
+                lock (_lock)
                 {
                     return new Dictionary<TKey, TValue>(_innerDictionary);
                 }
@@ -216,9 +216,11 @@ namespace Pulsar4X.DataStructures
 
     public class SafeDictionaryConverter : JsonConverter
     {
-        public override bool CanConvert(Type objectType)
+        public override bool CanConvert(Type? objectType)
         {
-            return objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(SafeDictionary<,>);
+            return objectType != null
+                && objectType.IsGenericType
+                && objectType.GetGenericTypeDefinition() == typeof(SafeDictionary<,>);
         }
 
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
@@ -234,15 +236,25 @@ namespace Pulsar4X.DataStructures
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
+            if (value is null)
+            {
+                writer.WriteNull();
+                return;
+            }
+
             var objectType = value.GetType();
             var innerDictionaryProperty = objectType.GetProperty("InnerDictionary", BindingFlags.NonPublic | BindingFlags.Instance);
-            var innerDictionaryValue = innerDictionaryProperty.GetValue(value);
+            if (innerDictionaryProperty?.GetValue(value) is not { } innerDictionaryValue)
+            {
+                writer.WriteNull();
+                return;
+            }
             serializer.Serialize(writer, innerDictionaryValue);
         }
 
         private Type GetDerivedType(Type baseType)
         {
-            if(baseType == typeof(EntityManager))
+            if (baseType == typeof(EntityManager))
             {
                 return typeof(StarSystem);
             }

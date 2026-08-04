@@ -29,8 +29,8 @@ namespace Pulsar4X.Client
                 new Vector2 { X = 25, Y = 0 }
             };
             SDL.Color lcolor = new SDL.Color() { R = 0, G = 255, B = 0, A = 255 };
-            shapes.Add( new Shape() { Points = lpoints1, Color = lcolor });
-            shapes.Add( new Shape() { Points = lpoints2, Color = lcolor });
+            shapes.Add(new Shape() { Points = lpoints1, Color = lcolor });
+            shapes.Add(new Shape() { Points = lpoints2, Color = lcolor });
             icons.Add(new Icon(new StaticPosition(Vector3.Zero)) { Shapes = shapes });
 
             for (int i = 0; i < 4; i++)

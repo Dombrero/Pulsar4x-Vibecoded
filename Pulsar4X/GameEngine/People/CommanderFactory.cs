@@ -15,7 +15,7 @@ namespace Pulsar4X.People
     {
         public static Entity Create(EntityManager? manager, int factionID, CommanderDB commanderDB)
         {
-            if(manager == null) throw new ArgumentNullException("manager cannot be null");
+            if (manager == null) throw new ArgumentNullException("manager cannot be null");
 
             var blobs = new List<BaseDataBlob>();
             var nameDB = new NameDB(commanderDB.ToString(), factionID, commanderDB.ToString());
@@ -27,7 +27,7 @@ namespace Pulsar4X.People
             manager.AddEntity(entity, blobs);
 
             var faction = manager.Game.Factions[factionID];
-            if(faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
+            if (faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
             {
                 factionInfoDB.Commanders.Add(entity);
             }
@@ -104,10 +104,10 @@ namespace Pulsar4X.People
 
         public static void DestroyCommander(Entity commanderToDestroy)
         {
-            var game = commanderToDestroy.Manager.Game;
+            var game = commanderToDestroy.AttachedManager.Game;
             var faction = game.Factions[commanderToDestroy.FactionOwnerID];
 
-            if(faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
+            if (faction.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))
             {
                 factionInfoDB.Commanders.Remove(commanderToDestroy);
             }
@@ -115,10 +115,10 @@ namespace Pulsar4X.People
             EventManager.Instance.Publish(
                 Event.Create(
                     EventType.CrewLosses,
-                    commanderToDestroy.Manager.StarSysDateTime,
+                    commanderToDestroy.AttachedManager.StarSysDateTime,
                     $"{commanderToDestroy.GetOwnersName()} has been killed",
                     commanderToDestroy.FactionOwnerID,
-                    commanderToDestroy.Manager.ManagerID,
+                    commanderToDestroy.AttachedManager.ManagerID,
                     commanderToDestroy.Id
                 ));
 

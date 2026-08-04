@@ -14,19 +14,18 @@ namespace Pulsar4X.Storage
     public class CargoTransferDB : BaseDataBlob
     {
         [JsonProperty]
-        internal CargoStorageDB ParentStorageDB { get; set; }
-        
+        internal CargoStorageDB? ParentStorageDB { get; set; }
         /// <summary>
         /// This object is shared between two datablobs/entites 
         /// </summary>
         [JsonProperty]
-        internal CargoTransferDataDB TransferData { get; private set; } 
-        
+        internal CargoTransferDataDB? TransferData { get; private set; }
+
         internal bool IsPrimary
         {
             get { return OwningEntity == TransferData.PrimaryEntity; }
         }
-        
+
         /// <summary>
         /// Threadsafe gets items left to transfer. don't call this every ui frame!
         /// (or you could cause deadlock slowdowns with the processing)tr
@@ -34,22 +33,22 @@ namespace Pulsar4X.Storage
         /// <returns></returns>
         public List<(ICargoable item, long unitCount)> GetItemsToTransfer()
         {
-             List<(ICargoable item, long unitCount)> list = new();
-             foreach (var item in TransferData.EscroHeldInPrimary)
-             {
-                 var count = item.count;
-                 if (IsPrimary)
-                     count *= -1;
-                 list.Add((item.item, count));
-             }
-             foreach (var item in TransferData.EscroHeldInSecondary)
-             {
-                 var count = item.count;
-                 if (!IsPrimary)
-                     count *= -1;
-                 list.Add((item.item, count));
-             }
-             return list;
+            List<(ICargoable item, long unitCount)> list = new();
+            foreach (var item in TransferData.EscroHeldInPrimary)
+            {
+                var count = item.count;
+                if (IsPrimary)
+                    count *= -1;
+                list.Add((item.item, count));
+            }
+            foreach (var item in TransferData.EscroHeldInSecondary)
+            {
+                var count = item.count;
+                if (!IsPrimary)
+                    count *= -1;
+                list.Add((item.item, count));
+            }
+            return list;
         }
 
         public CargoTransferDB(CargoTransferDataDB transferDataDB)

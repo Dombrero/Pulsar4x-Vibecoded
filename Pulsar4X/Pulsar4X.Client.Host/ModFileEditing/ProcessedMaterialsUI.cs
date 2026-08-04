@@ -37,15 +37,15 @@ public class ProcessedMaterialsUI : BluePrintsUI
     public override void DisplayEditorWindow(int selectedIndex)
     {
 
-        if(!_isActive[selectedIndex])
+        if (!_isActive[selectedIndex])
             return;
         var selectedItem = (ProcessedMaterialBlueprint)_itemBlueprints[selectedIndex];
 
         if (ImGui.Begin($"Processed Materials Editor: {selectedItem.Name}###{selectedItem.UniqueID}", ref _isActive[selectedIndex]))
         {
             ImGui.Columns(2);
-            ImGui.SetColumnWidth(0,150);
-            ImGui.SetColumnWidth(1,500);
+            ImGui.SetColumnWidth(0, 150);
+            ImGui.SetColumnWidth(1, 500);
             ImGui.Text("Name: ");
             ImGui.NextColumn();
 
@@ -130,7 +130,7 @@ public class ProcessedMaterialsUI : BluePrintsUI
             _editInt = Array.IndexOf(_constrGuiHints, selectedItem.GuiHints);
             if (SelectFromListWiget.Display("##mntt" + selectedItem.UniqueID, _constrGuiHints, ref _editInt))
             {
-                if(Enum.TryParse(typeof(ConstructableGuiHints), _constrGuiHints[_editInt], out var mtype))
+                if (Enum.TryParse(typeof(ConstructableGuiHints), _constrGuiHints[_editInt], out var mtype))
                     selectedItem.GuiHints = (ConstructableGuiHints)mtype;
             }
             ImGui.NextColumn();
@@ -147,7 +147,7 @@ public class ProcessedMaterialsUI : BluePrintsUI
 
             ImGui.Text("Volume: ");
             ImGui.NextColumn();
-            var editDouble= selectedItem.VolumePerUnit;
+            var editDouble = selectedItem.VolumePerUnit;
             if (DoubleEditWidget.Display("##vol" + selectedItem.UniqueID, ref editDouble))
             {
                 selectedItem.VolumePerUnit = editDouble;

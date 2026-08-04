@@ -168,7 +168,7 @@ namespace Pulsar4X.Client
 
         void CreatePointArray()
         {
-            if(_eccentricity <1 )
+            if (_eccentricity < 1)
                 CreatePointArrayElliptic();
             else
                 CreatePointArrayHyperbolic();
@@ -182,7 +182,7 @@ namespace Pulsar4X.Client
                 for (int i = 0; i < _points.Length; i++)
                 {
                     var pnt = mtxr.Transform(new Vector3(_points[i].X, _points[i].Y, 0));
-                    _points[i] = new Vector2() {X = pnt.X, Y = pnt.Y};
+                    _points[i] = new Vector2() { X = pnt.X, Y = pnt.Y };
                 }
             }
         }
@@ -211,7 +211,7 @@ namespace Pulsar4X.Client
         {
             double p = EllipseMath.SemiLatusRectum(OrbitEllipseSemiMaj_m, _eccentricity);
             double angleToSOIPoint = EllipseMath.TrueAnomalyAtRadus(_soiWorldRadius_m, p, _eccentricity);
-            _points = CreatePrimitiveShapes.HyperbolicPoints(OrbitEllipseSemiMaj_m, _eccentricity, LonditudeOfPeriapsis, angleToSOIPoint, _numberOfArcSegments );
+            _points = CreatePrimitiveShapes.HyperbolicPoints(OrbitEllipseSemiMaj_m, _eccentricity, LonditudeOfPeriapsis, angleToSOIPoint, _numberOfArcSegments);
         }
 
 
@@ -258,7 +258,7 @@ namespace Pulsar4X.Client
                     index = 0;
 
 
-                translated = matrix.TransformD(Distance.MToAU( _points[index].X), Distance.MToAU(_points[index].Y)); //add zoom transformation.
+                translated = matrix.TransformD(Distance.MToAU(_points[index].X), Distance.MToAU(_points[index].Y)); //add zoom transformation.
 
                 int x = (int)(ViewScreenPos.X + translated.X);
                 int y = (int)(ViewScreenPos.Y + translated.Y);
@@ -280,7 +280,7 @@ namespace Pulsar4X.Client
             float alpha = MaxAlpha;
             for (int i = 0; i < _numberOfDrawSegments - 1; i++)
             {
-                if(_eccentricity > 1 && i == _index-2)//don't draw the line segment for hyperbolic orbits where it's at the SOI.
+                if (_eccentricity > 1 && i == _index - 2)//don't draw the line segment for hyperbolic orbits where it's at the SOI.
                     continue;
                 var au = 1;//UniversalConstants.Units.MetersPerAu;
                 int x1 = (int)(_drawPoints[i].X * au);
@@ -310,35 +310,35 @@ namespace Pulsar4X.Client
 
             //SDL.SDL_RenderDrawPoints(rendererPtr, soipnts.ToArray(), soipnts.Count);
             var lasty = 0;
-            for (int i = 0; i < soipnts.Count ; i+=2)
+            for (int i = 0; i < soipnts.Count; i += 2)
             {
                 var x = soipnts[i].X;
                 var y = soipnts[i].Y;
-                if(y != lasty)
-                    SDL.RenderLine(rendererPtr, ViewScreenPos.X -x, ViewScreenPos.Y -y, ViewScreenPos.X + x, ViewScreenPos.Y - y);
+                if (y != lasty)
+                    SDL.RenderLine(rendererPtr, ViewScreenPos.X - x, ViewScreenPos.Y - y, ViewScreenPos.X + x, ViewScreenPos.Y - y);
                 lasty = y;
             }
 
 
-/*
-            for (int i = 0; i < soipnts.Count -1; i++)
-            {
-                //var err = SDL.SDL_GetError();
-                //SDL.SDL_RenderDrawLine(rendererPtr, soipnts[i].x, soipnts[i].y, soipnts[i + 1].x, soipnts[i + 1].y);
-                if (SDL.SDL_RenderDrawPoint(rendererPtr, soipnts[i].x, soipnts[i].y) < 0)
-                {
-                    var err = SDL.SDL_GetError();
-                }
+            /*
+                        for (int i = 0; i < soipnts.Count -1; i++)
+                        {
+                            //var err = SDL.SDL_GetError();
+                            //SDL.SDL_RenderDrawLine(rendererPtr, soipnts[i].x, soipnts[i].y, soipnts[i + 1].x, soipnts[i + 1].y);
+                            if (SDL.SDL_RenderDrawPoint(rendererPtr, soipnts[i].x, soipnts[i].y) < 0)
+                            {
+                                var err = SDL.SDL_GetError();
+                            }
 
-                //SDL.SDL_RenderDrawLine(rendererPtr, ViewScreenPos.x, ViewScreenPos.y, soipnts[i].x, soipnts[i].y);
-                //var err2 = SDL.SDL_GetError();
-            }
-  */
+                            //SDL.SDL_RenderDrawLine(rendererPtr, ViewScreenPos.x, ViewScreenPos.y, soipnts[i].x, soipnts[i].y);
+                            //var err2 = SDL.SDL_GetError();
+                        }
+              */
             //Planet Filled Circle
             SDL.SetRenderDrawColor(rendererPtr, 100, 0, 0, 255);
             DrawPrimitive.DrawEllipse(rendererPtr, ViewScreenPos.X, ViewScreenPos.Y, _targetViewRadius, _targetViewRadius);
             var plntPts = CreatePrimitiveShapes.BresenhamCircle(ViewScreenPos.X, ViewScreenPos.Y, (int)_targetViewRadius);
-            for (int i = 0; i < plntPts.Count -1; i++)
+            for (int i = 0; i < plntPts.Count - 1; i++)
             {
                 SDL.RenderLine(rendererPtr, plntPts[i].X, plntPts[i].Y, plntPts[i + 1].X, plntPts[i + 1].Y);
             }

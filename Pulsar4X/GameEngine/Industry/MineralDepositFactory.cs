@@ -70,7 +70,7 @@ public class MineralDepositFactory
     {
         var mineralsDb = new MineralsDB();
 
-        foreach((int id, double abundance, double accessibility) in mineralsToGenerate)
+        foreach ((int id, double abundance, double accessibility) in mineralsToGenerate)
         {
             var mdi = new MineralDeposit()
             {

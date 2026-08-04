@@ -34,7 +34,7 @@ public class ArmorBlueprintUI : BluePrintsUI
 
     public override void DisplayEditorWindow(int selectedIndex)
     {
-        if(!_isActive[selectedIndex])
+        if (!_isActive[selectedIndex])
             return;
         var selectedItem = (ArmorBlueprint)_itemBlueprints[selectedIndex];
         _editStr = selectedItem.UniqueID;
@@ -42,8 +42,8 @@ public class ArmorBlueprintUI : BluePrintsUI
         if (ImGui.Begin($"Tech Category Editor: {_editStr}###{selectedItem.UniqueID}", ref _isActive[selectedIndex]))
         {
             ImGui.Columns(2);
-            ImGui.SetColumnWidth(0,150);
-            ImGui.SetColumnWidth(1,500);
+            ImGui.SetColumnWidth(0, 150);
+            ImGui.SetColumnWidth(1, 500);
             ImGui.Text("Name: ");
             ImGui.NextColumn();
             if (TextEditWidget.Display("##name" + selectedItem.UniqueID, ref _editStr))
@@ -65,7 +65,7 @@ public class ArmorBlueprintUI : BluePrintsUI
             ImGui.Text("Density: ");
             ImGui.NextColumn();
             double editDoub = selectedItem.Density;
-            if (DoubleEditWidget.Display("##density"+selectedItem.UniqueID, ref editDoub))
+            if (DoubleEditWidget.Display("##density" + selectedItem.UniqueID, ref editDoub))
             {
                 selectedItem.Density = (float)editDoub;
             }

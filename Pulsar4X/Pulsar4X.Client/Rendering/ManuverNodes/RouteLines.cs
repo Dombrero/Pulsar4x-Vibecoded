@@ -58,7 +58,7 @@ public class ManuverLinesComplete : IDrawData
         if (val[1].nodeIndex != -1) //if has next node
         {
             val[1].seq.ManuverNodes[val[1].nodeIndex].PriorOrbit = node.TargetOrbit;
-            SelectedSequence.ManuverNodes.Insert(0,node);
+            SelectedSequence.ManuverNodes.Insert(0, node);
         }
         else
         {
@@ -170,12 +170,12 @@ public class ManuverLinesComplete : IDrawData
         var foo = camera.ViewCoordinateV2_m(RootSequence.ParentPosition.AbsolutePosition); //camera position and zoom
         var trns = Matrix.IDTranslate(foo.X, foo.Y);
         var scAU = Matrix.IDScale(6.6859E-12, 6.6859E-12);
-        var mtrx =  scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
+        var mtrx = scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
 
         for (int i = 0; i < points.Length; i++)
         {
             var result = mtrx.TransformToSDL_Point(points[i].X, points[i].Y);
-            DrawPoints[i] = new SDL.FPoint() { X = result.X, Y = result. Y };
+            DrawPoints[i] = new SDL.FPoint() { X = result.X, Y = result.Y };
         }
 
         // If the editing node has patched conics segments and the first segment enters a SOI,
@@ -206,12 +206,12 @@ public class ManuverLinesComplete : IDrawData
         {
             points = RenderManuverLines.CreatePointArray(EditingNodes);
         }
-        if(DrawPointsEditing.Length != points.Length)
+        if (DrawPointsEditing.Length != points.Length)
             DrawPointsEditing = new SDL.FPoint[points.Length];
         for (int i = 0; i < points.Length; i++)
         {
             var result = mtrx.TransformToSDL_Point(points[i].X, points[i].Y);
-            DrawPointsEditing[i] = new SDL.FPoint() { X = result.X, Y = result. Y };
+            DrawPointsEditing[i] = new SDL.FPoint() { X = result.X, Y = result.Y };
         }
 
         // Compute screen positions for editing node markers
@@ -381,7 +381,7 @@ public class ManuverLinesComplete : IDrawData
         SDL.RenderLines(rendererPtr, DrawPoints, DrawPoints.Length);
         SDL.SetRenderDrawColor(rendererPtr, editClr.R, editClr.G, editClr.B, editClr.A);
         SDL.RenderLines(rendererPtr, DrawPointsEditing, DrawPointsEditing.Length);
-        if(DrawPoints.Length > 1)
+        if (DrawPoints.Length > 1)
             SDL.RenderLine(rendererPtr, DrawPoints[0].X, DrawPoints[0].Y, DrawPoints[1].X, DrawPoints[1].Y);
 
         // Draw committed node markers (green diamonds)
@@ -700,7 +700,7 @@ public static class RenderManuverLines
         for (int i = 0; i < arraylist.Count; i++)
         {
             var source = arraylist[i];
-            Array.Copy(source, 0, pointArray, paIndex, source.Length );
+            Array.Copy(source, 0, pointArray, paIndex, source.Length);
             paIndex += source.Length;
         }
 
@@ -760,7 +760,7 @@ public static class RenderManuverLines
         for (int i = 0; i < arraylist.Count; i++)
         {
             var source = arraylist[i];
-            Array.Copy(source, 0, pointArray, paIndex, source.Length );
+            Array.Copy(source, 0, pointArray, paIndex, source.Length);
             paIndex += source.Length;
         }
 
@@ -785,10 +785,10 @@ public static class RenderManuverLines
     {
 
         (ManuverSequence seq, int priorNodeIndex)[] returnValue = new (ManuverSequence seq, int priorNodeIndex)[2];
-        returnValue[0] =  (manuverSequence, -1);
+        returnValue[0] = (manuverSequence, -1);
         returnValue[1] = (manuverSequence, -1);
 
-        if(manuverSequence.ManuverNodes.Count > 0)
+        if (manuverSequence.ManuverNodes.Count > 0)
         {
             for (int i = 0; i < manuverSequence.ManuverNodes.Count; i++)
             {

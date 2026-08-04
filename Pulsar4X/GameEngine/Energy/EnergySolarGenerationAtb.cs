@@ -12,11 +12,10 @@ namespace Pulsar4X.Energy;
 public class EnergySolarGenerationAtb : IComponentDesignAttribute
 {
     [JsonProperty]
-    public string EnergyTypeID;
+    public string? EnergyTypeID;
 
     [JsonProperty]
-    public EMWaveForm AbsorptionWaveformCapability { get; internal set; }
-
+    public EMWaveForm? AbsorptionWaveformCapability { get; internal set; }
     /// <summary>
     /// Sensitivity at the ideal wavelength, lower is better, 0 is (imposible) best. should not be negitive.
     /// </summary>
@@ -28,7 +27,7 @@ public class EnergySolarGenerationAtb : IComponentDesignAttribute
     /// </summary>
     [JsonProperty]
     public double WorstEfficiency { get; internal set; } // sensitivity at worst detectable wavelengths
-        
+
 
     public double Area_m2 { get; set; } // Panel surface area
 
@@ -36,7 +35,7 @@ public class EnergySolarGenerationAtb : IComponentDesignAttribute
     {
         EnergyTypeID = "electricity";
         Area_m2 = area;
-        AbsorptionWaveformCapability = new EMWaveForm(peakWaveLength - bandwidth * 0.5,peakWaveLength, peakWaveLength + bandwidth * 0.5);
+        AbsorptionWaveformCapability = new EMWaveForm(peakWaveLength - bandwidth * 0.5, peakWaveLength, peakWaveLength + bandwidth * 0.5);
         BestEfficiency = bestEfficiency;
         WorstEfficiency = worstEfficiency;
     }
@@ -44,7 +43,9 @@ public class EnergySolarGenerationAtb : IComponentDesignAttribute
     public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance)
     {
         string resourceID = EnergyTypeID;
-        ICargoable? energyCargoable = parentEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetAny(resourceID);
+            ICargoable? energyCargoable = parentEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetAny(resourceID);
+            if (energyCargoable is null)
+                throw new InvalidOperationException($"Energy cargo type '{resourceID}' not found for faction.");
         EnergyGenAbilityDB genDB;
         if (!parentEntity.HasDataBlob<EnergyGenAbilityDB>())
         {
@@ -59,13 +60,13 @@ public class EnergySolarGenerationAtb : IComponentDesignAttribute
 
             if (genDB.EnergyType == null)
                 genDB.EnergyType = energyCargoable;
-            else if(genDB.EnergyType != energyCargoable)//this is just to reduce complexity. we can add this ability later.
+            else if (genDB.EnergyType != energyCargoable)//this is just to reduce complexity. we can add this ability later.
                 throw new Exception("PrimeEntity cannot use two different energy types");
 
         }
-        
-        genDB.SolarPanels.Add(this); 
-        
+
+        genDB.SolarPanels.Add(this);
+
     }
 
     public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)

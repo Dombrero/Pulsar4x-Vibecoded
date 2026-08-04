@@ -8,9 +8,9 @@ public class ServeyAnomalyAction : EntityCommand
 {
     public override ActionLaneTypes ActionLanes { get; }
     public override bool IsBlocking { get; }
-    public override string Name { get; }
-    public override string Details { get; }
-    internal override Entity EntityCommanding { get; }
+    public override string? Name { get; }
+    public override string? Details { get; }
+    internal override Entity EntityCommanding { get; } = Entity.InvalidEntity;
     internal override bool IsValidCommand(Game game)
     {
         throw new NotImplementedException();

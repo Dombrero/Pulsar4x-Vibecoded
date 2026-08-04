@@ -22,16 +22,21 @@ namespace Pulsar4X.Movement
         public DateTime EndDateTime;
         public KeplerElements StartKepler;
         public KeplerElements EndKepler;
-        public Entity StartSOIParent;
-        public Entity EndSOIParent;
+        public Entity StartSOIParent = Entity.InvalidEntity;
+        public Entity EndSOIParent = Entity.InvalidEntity;
+        public Manuver()
+        {
+            StartSOIParent = Entity.InvalidEntity;
+            EndSOIParent = Entity.InvalidEntity;
+        }
     }
     public class NavSequenceDB : BaseDataBlob
     {
-        public string CurrentActivity { get; internal set; }
+        public string? CurrentActivity { get; internal set; }
         public List<Manuver> ManuverNodes = new List<Manuver>();
 
 
-        public NavSequenceDB(){}
+        public NavSequenceDB() { }
 
         public NavSequenceDB(NavSequenceDB db)
         {
@@ -52,8 +57,8 @@ namespace Pulsar4X.Movement
                 EndKepler = endKE,
             };
             ManuverNodes.Add(node);
-            StartParent.Manager.ManagerSubpulses.AddEntityInterupt(startDate, nameof(NavSequenceProcessor), OwningEntity);
-            EndParent.Manager.ManagerSubpulses.AddEntityInterupt(endDate, nameof(NavSequenceProcessor), OwningEntity);
+            StartParent.AttachedManager.ManagerSubpulses.AddEntityInterupt(startDate, nameof(NavSequenceProcessor), OwningEntity);
+            EndParent.AttachedManager.ManagerSubpulses.AddEntityInterupt(endDate, nameof(NavSequenceProcessor), OwningEntity);
         }
 
         internal void AddManuver(Manuver manuver)
@@ -61,8 +66,8 @@ namespace Pulsar4X.Movement
             ManuverNodes.Add(manuver);
             var startDate = manuver.StartDateTime;
             var endDate = manuver.EndDateTime;
-            var startParentSubpulse = manuver.StartSOIParent.Manager.ManagerSubpulses;
-            var endParentSubpulse = manuver.EndSOIParent.Manager.ManagerSubpulses;
+            var startParentSubpulse = manuver.StartSOIParent.AttachedManager.ManagerSubpulses;
+            var endParentSubpulse = manuver.EndSOIParent.AttachedManager.ManagerSubpulses;
             startParentSubpulse.AddEntityInterupt(startDate, nameof(NavSequenceProcessor), OwningEntity);
             endParentSubpulse.AddEntityInterupt(endDate, nameof(NavSequenceProcessor), OwningEntity);
         }

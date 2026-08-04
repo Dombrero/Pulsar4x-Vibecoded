@@ -27,12 +27,12 @@ public struct ParticleMaterial
     public float MeltingZeroPoint;
     public PhasePoint TriplePoint;
     public PhasePoint CriticalPoint;
-    public EMWaveForm PhotonReflectivity;
+    public EMWaveForm? PhotonReflectivity;
     public float PhotonReflectivityPeak;
-    public EMWaveForm PhotonTransparency;
+    public EMWaveForm? PhotonTransparency;
     public float PhotonTransperencyPeak;
 
-    
+
     public ParticleMaterial(ParticleMaterialBlueprint materialBP, ICargoable minOrMat)
     {
         PartMatID = materialBP.PartMatID;
@@ -47,7 +47,7 @@ public struct ParticleMaterial
         PhotonTransparency = materialBP.PhotonTransparency;
         PhotonTransperencyPeak = materialBP.PhotonTransparencyPeak;
     }
-    
+
 }
 
 public struct PhasePoint
@@ -74,15 +74,15 @@ public class BeamPoint
 {
     public int BeamID { get; set; }
     public Vector2 Position { get; set; }
-    
+
     public float Wavelength { get; set; }
     public float Power { get; set; }
     public float AbsorbPercentage { get; set; } = 1.0f;
-    
+
     public Vector2 ReflectDirection { get; set; }
     public float ReflectPercentage { get; set; } = 0.0f;
     public int ReflectChildIndex { get; set; } = -1;
-    
+
     public Vector2 TransmitDirection { get; set; }
     public float TransmitPercentage { get; set; } = 0.0f;
     public int TransmitChildIndex { get; set; } = -1;
@@ -95,7 +95,7 @@ public class BeamPoint
         Wavelength = wavelength;
         Power = power;
         AbsorbPercentage = ReflectPercentage = TransmitPercentage = 0;
-        
+
     }
 
     public BeamPoint(BeamInfoDB beamInfo, Vector2 particlePosition, float lifetime)
@@ -112,7 +112,7 @@ public class BeamPoint
 
     public BeamPoint(BeamPoint parent, Vector2 position, Vector2 direction, float power, PhysicalParticle collisionParticle)
     {
-        
+
         var reflectVector = Vector2.Reflect(direction, collisionParticle.Position - position);
         BeamID = parent.BeamID;
         Position = position;
@@ -121,8 +121,8 @@ public class BeamPoint
 
         Power = power;
         ReflectDirection = reflectVector;
-        
-        if( power > PhotonMath.minPower)
+
+        if (power > PhotonMath.minPower)
         {
             (float reflected, float transmitted, float absorbed) = PhotonMath.CalculatePhotonInteraction(parent.Wavelength, collisionParticle.MatType);
             AbsorbPercentage = absorbed;
@@ -135,28 +135,28 @@ public class BeamPoint
 public class PhysicalParticle
 {
     public int compID { get; set; }
-    public int mapIndex{ get; set; }
-    public Vector2 Position{ get; set; }
-    public Vector2 Velocity{ get; set; }
+    public int mapIndex { get; set; }
+    public Vector2 Position { get; set; }
+    public Vector2 Velocity { get; set; }
     public static int NextID = 0;
     public int ID = NextID++;
-    
+
     public ParticleMaterial MatType;
     public PhaseState StateOfPhase = PhaseState.Solid;
     public bool IsComponentPartDestroyed = false;
     public float Mass;
-    public DamageMap DMap;
-    public bool IsDeleted  { get; set; } = false;
+    public DamageMap? DMap;
+    public bool IsDeleted { get; set; } = false;
     public float Temperature
     {
         get => _temperature;
         set
         {
-            if(float.IsNaN(value))
+            if (float.IsNaN(value))
                 throw new Exception("tempIsNaN");
-            if(float.IsInfinity(value))
+            if (float.IsInfinity(value))
                 throw new Exception("tempIsInfinit");
-            if(value < 0)
+            if (value < 0)
                 throw new Exception("tempIsNegative");
             _temperature = value;
         }
@@ -171,7 +171,7 @@ public class PhysicalParticle
         Velocity = velocity;
         Temperature = 293.15f; // Room temperature in Kelvin
         Mass = matType.Density * 1 / scale;
-        if(Mass <= 0)
+        if (Mass <= 0)
             throw new Exception("mass canot be zero or negative");
     }
 }
@@ -203,11 +203,11 @@ public static class ParticleHelpers
         }
         return matsList[0].partMat;
     }
-    
+
     public static List<(ParticleMaterial partMat, int amount)> GetMaterialsList(ModDataStore modData, ComponentDesign componentDesign)
     {
         var partMatBPs = modData.ParticleMaterials;
-        
+
         var resources = componentDesign.ResourceCosts;
         List<(ParticleMaterial partMat, int amount)> partMats = new();
         foreach (var resource in resources)
@@ -230,7 +230,7 @@ public static class ParticleHelpers
                     partMats.Add((partMat, (int)resource.Value));
                 }
             }
-            
+
         }
         return partMats;
     }

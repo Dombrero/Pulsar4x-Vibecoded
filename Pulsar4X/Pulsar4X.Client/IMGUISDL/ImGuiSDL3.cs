@@ -68,7 +68,7 @@ public class ImGuiSDL3 : IDisposable
     public void Dispose()
     {
         FreeOwnedClipboard();
-        for(int i = 0; i < _mouseCursors.Length; i++)
+        for (int i = 0; i < _mouseCursors.Length; i++)
             SDL.DestroyCursor(_mouseCursors[i]);
     }
 
@@ -112,7 +112,7 @@ public class ImGuiSDL3 : IDisposable
         int displayW, displayH;
 
         SDL.GetWindowSize(Window, out w, out h);
-        if(SDL.GetWindowFlags(Window).HasFlag(SDL.WindowFlags.Minimized))
+        if (SDL.GetWindowFlags(Window).HasFlag(SDL.WindowFlags.Minimized))
         {
             w = h = 0;
         }
@@ -120,10 +120,10 @@ public class ImGuiSDL3 : IDisposable
         SDL.GetWindowSizeInPixels(Window, out displayW, out displayH);
         io.DisplaySize = new System.Numerics.Vector2((float)w, (float)h);
 
-        if(w > 0 && h > 0)
+        if (w > 0 && h > 0)
             io.DisplayFramebufferScale = new System.Numerics.Vector2((float)displayW / w, (float)displayH / h);
 
-        if(_mousePendingLeaveFrame > 0 &&  _mousePendingLeaveFrame >= ImGui.GetFrameCount())
+        if (_mousePendingLeaveFrame > 0 && _mousePendingLeaveFrame >= ImGui.GetFrameCount())
         {
             _mouseWindowId = 0;
             _mousePendingLeaveFrame = 0;
@@ -138,17 +138,17 @@ public class ImGuiSDL3 : IDisposable
     {
         ImGuiIOPtr io = ImGui.GetIO();
 
-        switch((SDL.EventType)e.Type)
+        switch ((SDL.EventType)e.Type)
         {
             case SDL.EventType.MouseMotion:
-                if(GetViewportForWindowId(e.Motion.WindowID) == null)
+                if (GetViewportForWindowId(e.Motion.WindowID) == null)
                     return false;
 
                 io.AddMouseSourceEvent(e.Motion.Which == SDL.TouchMouseID ? ImGuiMouseSource.TouchScreen : ImGuiMouseSource.Mouse);
                 io.AddMousePosEvent(e.Motion.X, e.Motion.Y);
                 return true;
             case SDL.EventType.MouseWheel:
-                if(GetViewportForWindowId(e.Wheel.WindowID) == null)
+                if (GetViewportForWindowId(e.Wheel.WindowID) == null)
                     return false;
 
                 float wheelX = -e.Wheel.X;
@@ -159,23 +159,23 @@ public class ImGuiSDL3 : IDisposable
                 return true;
             case SDL.EventType.MouseButtonDown:
             case SDL.EventType.MouseButtonUp:
-                if(GetViewportForWindowId(e.Button.WindowID) == null)
+                if (GetViewportForWindowId(e.Button.WindowID) == null)
                     return false;
 
                 int mouseButton = -1;
-                if(e.Button.Button == SDL.ButtonLeft) mouseButton = 0;
-                if(e.Button.Button == SDL.ButtonRight) mouseButton = 1;
-                if(e.Button.Button == SDL.ButtonMiddle) mouseButton = 2;
-                if(e.Button.Button == SDL.ButtonX1) mouseButton = 3;
-                if(e.Button.Button == SDL.ButtonX2) mouseButton = 4;
-                if(mouseButton == -1) break;
+                if (e.Button.Button == SDL.ButtonLeft) mouseButton = 0;
+                if (e.Button.Button == SDL.ButtonRight) mouseButton = 1;
+                if (e.Button.Button == SDL.ButtonMiddle) mouseButton = 2;
+                if (e.Button.Button == SDL.ButtonX1) mouseButton = 3;
+                if (e.Button.Button == SDL.ButtonX2) mouseButton = 4;
+                if (mouseButton == -1) break;
 
                 io.AddMouseSourceEvent(e.Button.Which == SDL.TouchMouseID ? ImGuiMouseSource.TouchScreen : ImGuiMouseSource.Mouse);
                 io.AddMouseButtonEvent(mouseButton, (SDL.EventType)e.Type == SDL.EventType.MouseButtonDown);
                 _mouseButtonsDown = ((SDL.EventType)e.Type == SDL.EventType.MouseButtonDown) ? _mouseButtonsDown | (1 << mouseButton) : _mouseButtonsDown & ~(1 << mouseButton);
                 return true;
             case SDL.EventType.TextInput:
-                if(GetViewportForWindowId(e.Text.WindowID) == null)
+                if (GetViewportForWindowId(e.Text.WindowID) == null)
                     return false;
 
                 unsafe
@@ -185,7 +185,7 @@ public class ImGuiSDL3 : IDisposable
                 return true;
             case SDL.EventType.KeyDown:
             case SDL.EventType.KeyUp:
-                if(GetViewportForWindowId(e.Key.WindowID) == null)
+                if (GetViewportForWindowId(e.Key.WindowID) == null)
                     return false;
 
                 UpdateKeyModifiers(e.Key.Mod);
@@ -194,21 +194,21 @@ public class ImGuiSDL3 : IDisposable
                 io.SetKeyEventNativeData(key, (int)e.Key.Key, (int)e.Key.Scancode, (int)e.Key.Scancode);
                 return true;
             case SDL.EventType.WindowMouseEnter:
-                if(GetViewportForWindowId(e.Window.WindowID) == null)
+                if (GetViewportForWindowId(e.Window.WindowID) == null)
                     return false;
 
                 _mouseWindowId = e.Window.WindowID;
                 _mousePendingLeaveFrame = 0;
                 return true;
             case SDL.EventType.WindowMouseLeave:
-                if(GetViewportForWindowId(e.Window.WindowID) == null)
+                if (GetViewportForWindowId(e.Window.WindowID) == null)
                     return false;
 
                 _mousePendingLeaveFrame = ImGui.GetFrameCount() + 1;
                 return true;
             case SDL.EventType.WindowFocusGained:
             case SDL.EventType.WindowFocusLost:
-                if(GetViewportForWindowId(e.Window.WindowID) == null)
+                if (GetViewportForWindowId(e.Window.WindowID) == null)
                     return false;
 
                 io.AddFocusEvent((SDL.EventType)e.Type == SDL.EventType.WindowFocusGained);
@@ -226,9 +226,9 @@ public class ImGuiSDL3 : IDisposable
 
         var focusedWindow = SDL.GetKeyboardFocus();
         bool isAppFocused = focusedWindow == Window;
-        if(isAppFocused)
+        if (isAppFocused)
         {
-            if(io.WantSetMousePos)
+            if (io.WantSetMousePos)
             {
                 SDL.WarpMouseInWindow(Window, (int)io.MousePos.X, (int)io.MousePos.Y);
             }
@@ -238,19 +238,19 @@ public class ImGuiSDL3 : IDisposable
     private void UpdateMouseCursor()
     {
         ImGuiIOPtr io = ImGui.GetIO();
-        if((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) != 0)
+        if ((io.ConfigFlags & ImGuiConfigFlags.NoMouseCursorChange) != 0)
             return;
 
         ImGuiMouseCursor imguiCursor = ImGui.GetMouseCursor();
 
-        if(io.MouseDrawCursor || imguiCursor == ImGuiMouseCursor.None)
+        if (io.MouseDrawCursor || imguiCursor == ImGuiMouseCursor.None)
         {
             SDL.HideCursor();
         }
         else
         {
             nint expectedCursor = _mouseCursors[(int)imguiCursor];
-            if(_mouseLastCursor != expectedCursor)
+            if (_mouseLastCursor != expectedCursor)
             {
                 SDL.SetCursor(expectedCursor);
                 _mouseLastCursor = expectedCursor;
@@ -261,7 +261,7 @@ public class ImGuiSDL3 : IDisposable
 
     private ImGuiKey KeyEventToImGui(SDL.Keycode keycoade, SDL.Scancode scancode)
     {
-        switch(scancode)
+        switch (scancode)
         {
             case SDL.Scancode.Kp0: return ImGuiKey.Keypad0;
             case SDL.Scancode.Kp1: return ImGuiKey.Keypad1;
@@ -283,7 +283,7 @@ public class ImGuiSDL3 : IDisposable
             default: break;
         }
 
-        switch(keycoade)
+        switch (keycoade)
         {
             case SDL.Keycode.Tab: return ImGuiKey.Tab;
             case SDL.Keycode.Left: return ImGuiKey.LeftArrow;
@@ -424,13 +424,13 @@ public class ImGuiSDL3 : IDisposable
     {
         ImFontPtr font = null;
         ImFontAtlasPtr fontAtlas = ImGui.GetIO().Fonts;
-        ImFontConfigPtr config = new (ImGuiNative.ImFontConfig_ImFontConfig());
-        ImFontGlyphRangesBuilderPtr builder = new (ImGuiNative.ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder());
+        ImFontConfigPtr config = new(ImGuiNative.ImFontConfig_ImFontConfig());
+        ImFontGlyphRangesBuilderPtr builder = new(ImGuiNative.ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder());
         string filePath = Path.Combine(path, file);
 
         config.PixelSnapH = true;
         config.MergeMode = merge;
-        if(string.IsNullOrEmpty(glyphs))
+        if (string.IsNullOrEmpty(glyphs))
         {
 
             font = fontAtlas.AddFontFromFileTTF(filePath, fontSize, config);

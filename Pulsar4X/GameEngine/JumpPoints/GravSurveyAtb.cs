@@ -18,7 +18,7 @@ public class GravSurveyAtb : IComponentDesignAttribute
 
     public void OnComponentInstallation(Entity parentEntity, ComponentInstance componentInstance)
     {
-        if(parentEntity.TryGetDataBlob<JPSurveyAbilityDB>(out var gravSurveyAbilityDB))
+        if (parentEntity.TryGetDataBlob<JPSurveyAbilityDB>(out var gravSurveyAbilityDB))
         {
             gravSurveyAbilityDB.Speed += Speed;
         }
@@ -30,9 +30,9 @@ public class GravSurveyAtb : IComponentDesignAttribute
 
     public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
     {
-        if(parentEntity.TryGetDataBlob<JPSurveyAbilityDB>(out var gravSurveyAbilityDB))
+        if (parentEntity.TryGetDataBlob<JPSurveyAbilityDB>(out var gravSurveyAbilityDB))
         {
-            if(Speed >= gravSurveyAbilityDB.Speed)
+            if (Speed >= gravSurveyAbilityDB.Speed)
             {
                 parentEntity.RemoveDataBlob<JPSurveyAbilityDB>();
             }

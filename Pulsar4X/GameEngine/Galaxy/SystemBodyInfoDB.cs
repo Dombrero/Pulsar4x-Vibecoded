@@ -39,7 +39,6 @@ namespace Pulsar4X.Galaxy
         [PublicAPI]
         [JsonProperty]
         public TectonicActivity Tectonics { get; internal set; }
-
         /// <summary>
         /// The Axial Tilt of this body.
         /// Measured in degrees.
@@ -98,7 +97,6 @@ namespace Pulsar4X.Galaxy
         [PublicAPI]
         [JsonProperty]
         public TimeSpan LengthOfDay { get; internal set; }
-
         /// <summary>
         /// Gravity on this body measured in m/s/s. Affects ColonyCost.
         /// </summary>
@@ -150,7 +148,7 @@ namespace Pulsar4X.Galaxy
 
         void UpdateDatablob(SystemBodyInfoDB originalDB, SensorInfoDB sensorInfo)
         {
-            Random rng = originalDB.OwningEntity.Manager.RNG;
+            Random rng = originalDB.OwningEntity.AttachedManager.RNG;
             float accuracy = sensorInfo.HighestDetectionQuality.SignalQuality;
 
             if (sensorInfo.HighestDetectionQuality.SignalQuality > 0.20)

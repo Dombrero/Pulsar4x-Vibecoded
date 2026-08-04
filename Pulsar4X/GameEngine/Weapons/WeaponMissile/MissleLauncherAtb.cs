@@ -10,8 +10,7 @@ namespace Pulsar4X.Weapons
         public double LauncherSize;
         public double ReloadRate;
         public double LaunchForce;
-        public OrdnanceDesign AssignedOrdnance { get; private set; }
-
+        public OrdnanceDesign? AssignedOrdnance { get; set; }
         public MissileLauncherAtb()
         {
         }

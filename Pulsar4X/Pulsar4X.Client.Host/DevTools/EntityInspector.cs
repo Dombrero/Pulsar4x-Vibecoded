@@ -39,7 +39,7 @@ namespace Pulsar4X.Client
         {
             if (Window.Begin("Entity Inspector", ref _isActive))
             {
-                if(entity.Id != _entityID || (entity.Manager != null && entity.Manager.GetAllDataBlobsForEntity(entity.Id).Count != _dataBlobs.Length))
+                if (entity.Id != _entityID || (entity.Manager != null && entity.Manager.GetAllDataBlobsForEntity(entity.Id).Count != _dataBlobs.Length))
                     Refresh(entity);
 
                 DisplayDatablobs(entity);
@@ -53,7 +53,7 @@ namespace Pulsar4X.Client
         public static void Refresh(Entity entity)
         {
             _entityID = entity.Id;
-            if(entity.Manager != null)
+            if (entity.Manager != null)
                 _dataBlobs = entity.Manager.GetAllDataBlobsForEntity(entity.Id).ToArray();
         }
 
@@ -83,11 +83,11 @@ namespace Pulsar4X.Client
             if (_selectedDB >= _dataBlobs.Length)
                 _selectedDB = -1;
 
-            if(_selectedDB >= 0)
+            if (_selectedDB >= 0)
                 DBDisplay(_dataBlobs[_selectedDB]);
 
             var p1 = ImGui.GetCursorPos();
-            var size = new System.Numerics.Vector2(ImGui.GetContentRegionAvail().X, p1.Y - p0.Y );
+            var size = new System.Numerics.Vector2(ImGui.GetContentRegionAvail().X, p1.Y - p0.Y);
 
             BorderListOptions.End(size);
         }
@@ -128,13 +128,13 @@ namespace Pulsar4X.Client
                     MemberTypes membertype = memberInfo.MemberType;
                     object? prevVal = value;
                     value = GetValue(memberInfo, obj);
-                    if(value == null)
+                    if (value == null)
                         continue;
                     Type valueType = value.GetType();
                     if (typeof(ICollection).IsAssignableFrom(value.GetType()))
                     {
                         var items = (ICollection?)GetValue(memberInfo, obj);
-                        if(items == null) continue;
+                        if (items == null) continue;
                         int itemsCount = items.Count;
 
                         if (ImGui.TreeNode(memberInfo.Name))
@@ -163,7 +163,7 @@ namespace Pulsar4X.Client
                     else if (typeof(HashSet<Tech>).IsAssignableFrom(value.GetType()))
                     {
                         var items = (HashSet<Tech>?)GetValue(memberInfo, obj);
-                        if(items == null) continue;
+                        if (items == null) continue;
                         int itemsCount = items.Count;
 
                         if (ImGui.TreeNode(memberInfo.Name))
@@ -192,7 +192,7 @@ namespace Pulsar4X.Client
                     else if (typeof(IDictionary).IsAssignableFrom(value.GetType()))
                     {
                         var items = (IDictionary?)GetValue(memberInfo, obj);
-                        if(items == null) continue;
+                        if (items == null) continue;
                         int itemsCount = items.Count;
 
                         if (ImGui.TreeNode(memberInfo.Name))
@@ -221,7 +221,7 @@ namespace Pulsar4X.Client
                     else if (typeof(SafeList<Object>).IsAssignableFrom(value.GetType()))
                     {
                         var items = (IEnumerable?)GetValue(memberInfo, obj);
-                        if(items == null) continue;
+                        if (items == null) continue;
                         //int itemsCount = items.Count;
                         ImGui.Text(memberInfo.Name);
 
@@ -251,7 +251,7 @@ namespace Pulsar4X.Client
                     else if (typeof(KeplerElements).IsAssignableFrom(value.GetType()))
                     {
                         //var items = (KeplerElements)GetValue(memberInfo, obj);
-                        MemberInfo[] memberInfoske =  typeof(KeplerElements).GetMembers(flags);
+                        MemberInfo[] memberInfoske = typeof(KeplerElements).GetMembers(flags);
                         int itemsCount = memberInfoske.Length;
 
                         if (ImGui.TreeNode(memberInfo.Name))
@@ -261,17 +261,17 @@ namespace Pulsar4X.Client
                             ImGui.NextColumn();
                             _numLines += itemsCount;
 
-                                foreach (var memberInfoke in memberInfoske)
-                                {
-                                    object? valueke = GetValue(memberInfoke, value);
-                                    ImGui.Text(memberInfoke.Name);
-                                    ImGui.NextColumn();
-                                    //object value = memberInfo.GetValue(obj);
-                                    if (valueke != null)
-                                        ImGui.Text(valueke.ToString());
-                                    else ImGui.Text("null");
-                                    ImGui.NextColumn();
-                                }
+                            foreach (var memberInfoke in memberInfoske)
+                            {
+                                object? valueke = GetValue(memberInfoke, value);
+                                ImGui.Text(memberInfoke.Name);
+                                ImGui.NextColumn();
+                                //object value = memberInfo.GetValue(obj);
+                                if (valueke != null)
+                                    ImGui.Text(valueke.ToString());
+                                else ImGui.Text("null");
+                                ImGui.NextColumn();
+                            }
 
                             ImGui.TreePop();
                         }
@@ -291,7 +291,7 @@ namespace Pulsar4X.Client
                         string tooltipStr = "";
                         if (value != null)
                         {
-                            if(value is string)
+                            if (value is string)
                             {
                                 var guid = (string)value;
                                 displayStr = guid.ToString();
@@ -324,10 +324,10 @@ namespace Pulsar4X.Client
                                 // }
                                 // else
                                 // {
-                                     displayStr = guid.ToString();
+                                displayStr = guid.ToString();
                                 // }
                             }
-                            else if(value is Entity)
+                            else if (value is Entity)
                             {
                                 var entity = (Entity)value;
                                 displayStr = entity.GetOwnersName();
@@ -361,10 +361,10 @@ namespace Pulsar4X.Client
                                 IConstructableDesign constD = (IConstructableDesign)value;
                                 displayStr = "Constructable: " + constD.Name;
                             }
-                            if (value is (Tech tech ,int pointsResearched, int pointCost))
+                            if (value is (Tech tech, int pointsResearched, int pointCost))
                             {
-                                (Tech tech ,int pointsResearched, int pointCost) tval = ((Tech tech ,int pointsResearched, int pointCost))value;
-                                displayStr = "TechSD: " + tval.tech.Name + " Points Researched: " + tval.pointsResearched + " / " +tval.pointCost;
+                                (Tech tech, int pointsResearched, int pointCost) tval = ((Tech tech, int pointsResearched, int pointCost))value;
+                                displayStr = "TechSD: " + tval.tech.Name + " Points Researched: " + tval.pointsResearched + " / " + tval.pointCost;
                             }
                         }
                         ImGui.Text(displayStr);
@@ -406,7 +406,7 @@ namespace Pulsar4X.Client
         private static int _selectedComponent = -1;
         static void DisplayComponents(ComponentInstancesDB instancesDB)
         {
-            if(instancesDB.OwningEntity == null || instancesDB.OwningEntity.Manager == null) return;
+            if (instancesDB.OwningEntity == null || instancesDB.OwningEntity.Manager == null) return;
 
             var componentsByDesign = instancesDB.ComponentsByDesign;
             var faction = instancesDB.OwningEntity.Manager.Game.Factions[instancesDB.OwningEntity.FactionOwnerID];
@@ -478,9 +478,9 @@ namespace Pulsar4X.Client
     {
         public static void Display(SensorProfileDB db)
         {
-            if(db.OwningEntity ==  null) return;
+            if (db.OwningEntity == null) return;
 
-            if(!db.OwningEntity.TryGetDataBlob<ComponentInstancesDB>(out var componentInstancesDB))
+            if (!db.OwningEntity.TryGetDataBlob<ComponentInstancesDB>(out var componentInstancesDB))
             {
                 return;
             }
@@ -505,7 +505,7 @@ namespace Pulsar4X.Client
             {
                 ImGui.Text(component.Name);
                 ImGui.SameLine();
-                ImGui.Text(" ("+ component.Design.TemplateName+")");
+                ImGui.Text(" (" + component.Design.TemplateName + ")");
                 SensorSignatureAtb emmitterAtbs = (SensorSignatureAtb)component.Design.AttributesByType[typeof(SensorSignatureAtb)];
                 DisplayValues(emmitterAtbs.PartWaveForm, emmitterAtbs.PartWaveFormMag);
             }

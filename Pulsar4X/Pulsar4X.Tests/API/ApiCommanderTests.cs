@@ -43,7 +43,7 @@ namespace Pulsar4X.Tests
             Assert.That(commanders, Is.Not.Null);
             Assert.That(commanders!.Select(c => c.Id), Is.EquivalentTo(new[] { navy.Id, scientist.Id }));
 
-            var navySnapshot = commanders.Single(c => c.Id == navy.Id);
+            var navySnapshot = commanders!.Single(c => c.Id == navy.Id);
             Assert.That(navySnapshot.Kind, Is.EqualTo(CommanderKind.Navy));
             Assert.That(navySnapshot.Rank, Is.EqualTo(6));
             Assert.That(navySnapshot.RankName, Is.EqualTo("Captain"), "expected the theme's title for navy rank 6");
@@ -52,7 +52,7 @@ namespace Pulsar4X.Tests
             Assert.That(navySnapshot.IsAssigned, Is.False);
             Assert.That(navySnapshot.AssignmentName, Is.Null);
 
-            var scientistSnapshot = commanders.Single(c => c.Id == scientist.Id);
+            var scientistSnapshot = commanders!.Single(c => c.Id == scientist.Id);
             Assert.That(scientistSnapshot.Kind, Is.EqualTo(CommanderKind.Scientist));
             Assert.That(scientistSnapshot.RankName, Is.Null, "only the navy track has theme rank titles");
         }

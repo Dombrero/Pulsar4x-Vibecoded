@@ -9,15 +9,15 @@ namespace Pulsar4X.Client
     public abstract class NamedPulsarGuiWindow : UpdateWindowState
     {
         protected ImGuiWindowFlags _flags = ImGuiWindowFlags.None;
-        
+
         internal bool CanActive { get; set; } = false;
 
         private bool _isActive = false;
-        
+
         public bool IsActive
         {
             get { return _isActive; }
-            set {  _isActive = value; }
+            set { _isActive = value; }
         }
         protected ref bool IsActiveRef => ref _isActive;
 

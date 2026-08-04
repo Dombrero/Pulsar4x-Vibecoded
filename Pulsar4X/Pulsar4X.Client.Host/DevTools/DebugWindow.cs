@@ -32,7 +32,7 @@ namespace Pulsar4X.Client
         private Entity? _selectedEntity;
         private Entity? SelectedEntity
         {
-            get { return _selectedEntity;}
+            get { return _selectedEntity; }
             set
             {
                 if (_selectedEntity != value)
@@ -40,10 +40,10 @@ namespace Pulsar4X.Client
 
                     _selectedEntity = value;
 
-                    if(_selectedEntity != null)
+                    if (_selectedEntity != null)
                     {
                         _selectedEntityName = _selectedEntity.HasDataBlob<NameDB>() ? _selectedEntity.GetDataBlob<NameDB>().GetName(GameLifecycle.Instance!.Faction!) : "Unknown";
-                        if(SystemState != null && !string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
+                        if (SystemState != null && !string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
                         {
                             _uiState.EntityClicked(_selectedEntity.Id, _uiState.SelectedStarSystemId, MouseButtons.Primary);
                             _selectedEntityState = _uiState.LastClickedEntity;
@@ -63,8 +63,6 @@ namespace Pulsar4X.Client
 
         public SystemState? SystemState { get; set; }
 
-        bool _dateChangeSinceLastFrame = true;
-        bool _isRunningFrame = false;
         bool _drawSOI = false;
         bool _drawParentSOI = false;
         private bool _showDamageWindow = false;
@@ -90,16 +88,16 @@ namespace Pulsar4X.Client
         }
         internal static DebugWindow GetInstance()
         {
-            if(!_uiState.TryGetUniqueWindow<DebugWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<DebugWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new DebugWindow());
             }
 
-            if(_uiState.IsGameLoaded)
+            if (_uiState.IsGameLoaded)
             {
                 window.RefreshFactionEntites(_uiState);
 
-                if(!string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
+                if (!string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
                 {
                     // TODO: Remove dependency on GameLifecycle Sinleton.
                     window.SystemState = GameLifecycle.Instance?.SelectedSystemState;
@@ -122,14 +120,14 @@ namespace Pulsar4X.Client
 
         private void OnSelectedEntityChanged()
         {
-            if(SelectedEntity == null) return;
+            if (SelectedEntity == null) return;
 
             if (SelectedEntity.HasDataBlob<EntityDamageProfileDB>())
             {
                 var dmgdb = SelectedEntity.GetDataBlob<EntityDamageProfileDB>();
                 RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, dmgdb.DamageProfile, ref _dmgTxtr, SDL.PixelFormat.ARGB8888);
             }
-            else if(SelectedEntity.HasDataBlob<SensorInfoDB>())
+            else if (SelectedEntity.HasDataBlob<SensorInfoDB>())
             {
 
                 var actualEntity = SelectedEntity.GetDataBlob<SensorInfoDB>().DetectedEntity;
@@ -146,7 +144,7 @@ namespace Pulsar4X.Client
 
         private void UIStateEntityClicked(EntityState entityState, MouseButtons btn)
         {
-            if(btn == MouseButtons.Primary)
+            if (btn == MouseButtons.Primary)
             {
                 SelectedEntity = entityState.GetEntity();
             }
@@ -163,10 +161,9 @@ namespace Pulsar4X.Client
         {
             if (!IsActive) return;
 
-            _isRunningFrame = true;
-            if(Window.Begin("Debug Window", ref IsActive))
+            if (Window.Begin("Debug Window", ref IsActive))
             {
-                if(ImGui.BeginTabBar("DebugTabs"))
+                if (ImGui.BeginTabBar("DebugTabs"))
                 {
                     DisplayInfoTab();
                     DisplayEntitiesTab();
@@ -178,9 +175,6 @@ namespace Pulsar4X.Client
                 }
             }
             Window.End();
-
-            _isRunningFrame = false;
-            _dateChangeSinceLastFrame = false;
         }
 
         private void DisplayEntitiesTab()
@@ -193,7 +187,7 @@ namespace Pulsar4X.Client
 
                 if (ImGui.BeginChild("Enttiy Selector", firstChildSize))
                 {
-                    if(ImGui.BeginTable("EntityTable", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
+                    if (ImGui.BeginTable("EntityTable", 3, Styles.TableFlags | ImGuiTableFlags.SizingStretchProp))
                     {
                         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.4f);
                         ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.None, 0.2f);
@@ -277,7 +271,7 @@ namespace Pulsar4X.Client
                             {
                                 ImGui.Indent();
 
-                                if(_selectedEntity != null)
+                                if (_selectedEntity != null)
                                     storeDB.Display(_selectedEntity, _uiState);
 
                                 ImGui.Text("Total Stored Mass inc. escro: " + Stringify.Mass(storeDB.TotalStoredMass));
@@ -319,7 +313,7 @@ namespace Pulsar4X.Client
                                     orbitDB = SelectedEntity.GetDataBlob<OrbitUpdateOftenDB>();
                                 //if (_uiState.CurrentSystemDateTime != lastDate)
                                 //{
-                                pos = OrbitMath.GetAbsolutePosition(orbitDB,_uiState.PrimarySystemDateTime);
+                                pos = OrbitMath.GetAbsolutePosition(orbitDB, _uiState.PrimarySystemDateTime);
                                 truAnomoly = orbitDB.GetTrueAnomaly(_uiState.PrimarySystemDateTime);
                                 //lastDate = _uiState.PrimarySystemDateTime;
                                 //}
@@ -470,7 +464,7 @@ namespace Pulsar4X.Client
                                 ImGui.Text("Solar   : " + Stringify.Power(powerDB.MaxOutputFromSolar));
 
                                 ImGui.Text("Max of: " + Stringify.Power(powerDB.TotalOutputMax) + "/s");
-                                if(!string.IsNullOrEmpty(powerDB.TotalFuelUseAtMax.type))
+                                if (!string.IsNullOrEmpty(powerDB.TotalFuelUseAtMax.type))
                                 {
                                     string fueltype = SelectedEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetMaterial(powerDB.TotalFuelUseAtMax.type).Name;
                                     ImGui.Text("Burning " + powerDB.TotalFuelUseAtMax.maxUse + " of " + fueltype);
@@ -903,17 +897,17 @@ namespace Pulsar4X.Client
 
         private void DisplayInstanceProcessorsTab()
         {
-            if(SystemState == null) return;
+            if (SystemState == null) return;
 
-            if(ImGui.BeginTabItem("Instance Processors"))
+            if (ImGui.BeginTabItem("Instance Processors"))
             {
-                if(ImGui.BeginTable("InstanceProcessors", 3, Styles.TableFlags))
+                if (ImGui.BeginTable("InstanceProcessors", 3, Styles.TableFlags))
                 {
                     ImGui.TableSetupColumn("Next Run Time", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("System", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("Processor", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableHeadersRow();
-                    foreach(var qi in SystemState.StarSystem.ManagerSubpulses.InstanceProcessorsQueue)
+                    foreach (var qi in SystemState.StarSystem.ManagerSubpulses.InstanceProcessorsQueue)
                     {
                         var instanceProcess = qi.Item;
                         var s = instanceProcess.Item1;
@@ -936,18 +930,18 @@ namespace Pulsar4X.Client
 
         private void DisplayHotLoopProcessorsTab()
         {
-            if(SystemState == null) return;
+            if (SystemState == null) return;
 
-            if(ImGui.BeginTabItem("HotLoop Processors"))
+            if (ImGui.BeginTabItem("HotLoop Processors"))
             {
-                if(ImGui.BeginTable("HotLoopProcessors", 4, Styles.TableFlags))
+                if (ImGui.BeginTable("HotLoopProcessors", 4, Styles.TableFlags))
                 {
                     ImGui.TableSetupColumn("Next Run Time", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("Processor", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("Run Frequency", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableHeadersRow();
-                    foreach(var (type, dateTime) in SystemState.StarSystem.ManagerSubpulses.HotLoopProcessorsNextRun)
+                    foreach (var (type, dateTime) in SystemState.StarSystem.ManagerSubpulses.HotLoopProcessorsNextRun)
                     {
                         ImGui.TableNextRow();
                         ImGui.TableSetColumnIndex(0);
@@ -969,10 +963,10 @@ namespace Pulsar4X.Client
 
         private bool EnableDrawSOI()
         {
-            if(SelectedEntity == null) return false;
+            if (SelectedEntity == null) return false;
             var myPos = SelectedEntity.GetDataBlob<PositionDB>();
 
-            if(myPos.Parent == null) return false;
+            if (myPos.Parent == null) return false;
             var parent = myPos.Parent;
             var cnmve = SelectedEntity.GetDataBlob<NewtonMoveDB>();
 
@@ -1014,7 +1008,7 @@ namespace Pulsar4X.Client
 
         void RefreshFactionEntites(GlobalUIState uiState)
         {
-            if(GameLifecycle.Instance?.Faction == null || GameLifecycle.Instance?.Game == null)
+            if (GameLifecycle.Instance?.Faction == null || GameLifecycle.Instance?.Game == null)
                 throw new NullReferenceException();
 
             SystemState = GameLifecycle.Instance?.SelectedSystemState;
@@ -1023,7 +1017,7 @@ namespace Pulsar4X.Client
             foreach (var entity in factionEntites.ToArray())
             {
                 string name = entity.Id.ToString();
-                if(entity.HasDataBlob<NameDB>())
+                if (entity.HasDataBlob<NameDB>())
                 {
                     name = entity.GetDataBlob<NameDB>().GetName(GameLifecycle.Instance!.Faction!);
                 }
@@ -1044,18 +1038,18 @@ namespace Pulsar4X.Client
 
             void addEntity(Entity entity)
             {
-                if(entity == null || GameLifecycle.Instance?.Game == null)
+                if (entity == null || GameLifecycle.Instance?.Game == null)
                     return;
                 string name = entity.Id.ToString();
-                if(entity.HasDataBlob<NameDB>())
+                if (entity.HasDataBlob<NameDB>())
                     name = entity.GetDataBlob<NameDB>().OwnersName;
 
                 string factionOwner = Guid.Empty.ToString();
-                if(entity.FactionOwnerID == Game.NeutralFactionId)
+                if (entity.FactionOwnerID == Game.NeutralFactionId)
                 {
                     factionOwner = "Neutral";
                 }
-                else if(GameLifecycle.Instance!.Game!.Factions.ContainsKey(entity.FactionOwnerID))
+                else if (GameLifecycle.Instance!.Game!.Factions.ContainsKey(entity.FactionOwnerID))
                 {
                     factionOwner = GameLifecycle.Instance!.Game!.Factions[entity.FactionOwnerID].GetDataBlob<NameDB>().OwnersName;
                 }
@@ -1063,7 +1057,7 @@ namespace Pulsar4X.Client
             }
         }
 
-                private int _hvSelectedIndex = -1;
+        private int _hvSelectedIndex = -1;
         void HoverButtons()
         {
 
@@ -1094,7 +1088,7 @@ namespace Pulsar4X.Client
                 ImGui.BeginGroup();
                 var cpos = ImGui.GetCursorPos();
                 ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetColorU32(ImGuiCol.ChildBg));
-                ImGui.Button("##ht"+i, new System.Numerics.Vector2(colomnWidth0 - spacingH, ImGui.GetTextLineHeightWithSpacing()));
+                ImGui.Button("##ht" + i, new System.Numerics.Vector2(colomnWidth0 - spacingH, ImGui.GetTextLineHeightWithSpacing()));
                 ImGui.PopStyleColor();
                 ImGui.SetCursorPos(cpos);
                 ImGui.Text(_listfoo[i].name);
@@ -1194,76 +1188,76 @@ namespace Pulsar4X.Client
 
         void StaticButtons()
         {
-                int selectedItem = -1;
-                for (int i = 0; i < _listfoo.Count; i++)
+            int selectedItem = -1;
+            for (int i = 0; i < _listfoo.Count; i++)
+            {
+                string name = _listfoo[i].name;
+                int number = _listfoo[i].count;
+
+                /*
+                if (ImGui.Selectable(name, selectedItem == i, ImGuiSelectableFlags.SpanAllColumns))
                 {
-                    string name = _listfoo[i].name;
-                    int number = _listfoo[i].count;
+                    selectedItem = i;
+                }
+                */
+                ImGui.Text(name);
 
-                    /*
-                    if (ImGui.Selectable(name, selectedItem == i, ImGuiSelectableFlags.SpanAllColumns))
-                    {
-                        selectedItem = i;
-                    }
-                    */
-                    ImGui.Text(name);
+                bool hovered = ImGui.IsItemHovered();
+                if (hovered)
+                    selectedItem = i;
 
-                    bool hovered = ImGui.IsItemHovered();
-                    if (hovered)
-                        selectedItem = i;
-
-                    ImGui.NextColumn();
-                    ImGui.Text(number.ToString());
+                ImGui.NextColumn();
+                ImGui.Text(number.ToString());
 
 
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton("+##sb" + i)) //todo: imagebutton
-                    {
-                        _listfoo[i] = (name, _listfoo[i].count + 1);
-
-                    }
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton("-##sb" + i) && number > 0) //todo: imagebutton
-                    {
-                        _listfoo[i] = (name, _listfoo[i].count - 1);
-
-                    }
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton("x##sb" + i)) //todo: imagebutton
-                    {
-                        _listfoo.RemoveAt(i);
-
-                    }
-
-                    if (i > 0)
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.SmallButton("^##sb" + i)) //todo: imagebutton
-                        {
-
-                            (string name, int count) item = _listfoo[i];
-                            _listfoo.RemoveAt(i);
-                            _listfoo.Insert(i - 1, item);
-
-
-                        }
-                    }
-
-
-                    if (_listfoo.Count <= i)
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.SmallButton("v##sb" + i)) //todo: imagebutton
-                        {
-                            (string name, int count) item = _listfoo[i];
-                            _listfoo.RemoveAt(i);
-                            _listfoo.Insert(i + 1, item);
-                        }
-                    }
-
-                    ImGui.NextColumn();
+                ImGui.SameLine();
+                if (ImGui.SmallButton("+##sb" + i)) //todo: imagebutton
+                {
+                    _listfoo[i] = (name, _listfoo[i].count + 1);
 
                 }
+                ImGui.SameLine();
+                if (ImGui.SmallButton("-##sb" + i) && number > 0) //todo: imagebutton
+                {
+                    _listfoo[i] = (name, _listfoo[i].count - 1);
+
+                }
+                ImGui.SameLine();
+                if (ImGui.SmallButton("x##sb" + i)) //todo: imagebutton
+                {
+                    _listfoo.RemoveAt(i);
+
+                }
+
+                if (i > 0)
+                {
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("^##sb" + i)) //todo: imagebutton
+                    {
+
+                        (string name, int count) item = _listfoo[i];
+                        _listfoo.RemoveAt(i);
+                        _listfoo.Insert(i - 1, item);
+
+
+                    }
+                }
+
+
+                if (_listfoo.Count <= i)
+                {
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("v##sb" + i)) //todo: imagebutton
+                    {
+                        (string name, int count) item = _listfoo[i];
+                        _listfoo.RemoveAt(i);
+                        _listfoo.Insert(i + 1, item);
+                    }
+                }
+
+                ImGui.NextColumn();
+
+            }
         }
 
         private (string name, int count) _bbselectedItem;
@@ -1351,7 +1345,7 @@ namespace Pulsar4X.Client
             BorderGroup.Begin("List Options: ");
             BorderListOptions.Begin("blo", items, ref _bloSelectedIndex, 64);
             var s1 = ImGui.GetCursorPos();
-            if(_bloSelectedIndex >=0)
+            if (_bloSelectedIndex >= 0)
             {
                 if (ImGui.Button("^"))
                 {
@@ -1386,7 +1380,7 @@ namespace Pulsar4X.Client
             }
 
             var s2 = ImGui.GetCursorPos();
-            BorderListOptions.End(s2-s1);
+            BorderListOptions.End(s2 - s1);
 
             BorderGroup.End(137);
             ImGui.Unindent(5);
@@ -1395,9 +1389,7 @@ namespace Pulsar4X.Client
 
         public override void OnSystemTickChange(DateTime newDate)
         {
-            _dateChangeSinceLastFrame = true;
-
-            if(SystemState == null) return;
+            if (SystemState == null) return;
         }
     }
 }

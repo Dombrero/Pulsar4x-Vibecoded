@@ -12,7 +12,6 @@ namespace Pulsar4X.People
         public int TrainingPeriodInMonths { get; internal set; }
 
         private NavalAcademy _academy;
-
         public NavalAcademyAtb(double classSize, double period)
         {
             ClassSize = (int)classSize;
@@ -45,7 +44,8 @@ namespace Pulsar4X.People
         {
             DateTime graduationDate = parentEntity.StarSysDateTime + TimeSpan.FromDays(TrainingPeriodInMonths * 30);
 
-            _academy = new NavalAcademy() {
+            _academy = new NavalAcademy()
+            {
                 ClassSize = this.ClassSize,
                 GraduationDate = graduationDate,
                 TrainingPeriodInMonths = this.TrainingPeriodInMonths
@@ -61,16 +61,16 @@ namespace Pulsar4X.People
                 academyDB.Academies.Add(_academy);
                 parentEntity.SetDataBlob(academyDB);
             }
-            parentEntity.Manager.ManagerSubpulses.AddEntityInterupt(graduationDate, nameof(NavalAcademyProcessor), parentEntity);
+            parentEntity.AttachedManager.ManagerSubpulses.AddEntityInterupt(graduationDate, nameof(NavalAcademyProcessor), parentEntity);
         }
 
         public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
         {
-            if(parentEntity.TryGetDataBlob<NavalAcademyDB>(out var academyDB))
+            if (parentEntity.TryGetDataBlob<NavalAcademyDB>(out var academyDB))
             {
                 academyDB.Academies.Remove(_academy);
 
-                if(academyDB.Academies.Count == 0)
+                if (academyDB.Academies.Count == 0)
                 {
                     parentEntity.RemoveDataBlob<NavalAcademyDB>();
                 }

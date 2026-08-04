@@ -16,7 +16,7 @@ public class ResupplyAction : EntityCommand
 
     public override bool IsBlocking => true;
 
-    private Entity _entityCommanding;
+    private Entity _entityCommanding = Entity.InvalidEntity;
     internal override Entity EntityCommanding => _entityCommanding;
 
     public ResupplyAction() { }
@@ -48,7 +48,7 @@ public class ResupplyAction : EntityCommand
         _isFinished = true;
     }
 
-    internal override bool IsValidCommand(Game game) => _entityCommanding != null;
+        internal override bool IsValidCommand(Game game) => _entityCommanding.IsValid;
 
     internal override void BindCommandingEntity(Entity entity)
     {

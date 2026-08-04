@@ -28,17 +28,17 @@ namespace Pulsar4X.Colonies
             var factionInfo = faction.GetDataBlob<FactionInfoDB>();
 
             // Unlock the starting items
-            foreach(var id in colonyBlueprint.StartingItems)
+            foreach (var id in colonyBlueprint.StartingItems ?? [])
             {
                 factionInfo.Data.Unlock(id);
 
                 // Research any tech that is listed
-                if(factionInfo.Data.Techs.ContainsKey(id))
+                if (factionInfo.Data.Techs.ContainsKey(id))
                 {
                     factionInfo.Data.IncrementTechLevel(id);
                 }
 
-                if(factionInfo.Data.CargoGoods.IsMaterial(id))
+                if (factionInfo.Data.CargoGoods.IsMaterial(id))
                 {
                     var material = factionInfo.Data.CargoGoods.GetMaterial(id);
                     // Empty IndustryTypeID = energy-type / unconstructable (e.g. electricity).
@@ -54,7 +54,7 @@ namespace Pulsar4X.Colonies
 
             // Add component designs
             ComponentDesigner.StartResearched = true;
-            foreach(var id in colonyBlueprint.ComponentDesigns)
+            foreach (var id in colonyBlueprint.ComponentDesigns ?? [])
             {
                 try
                 {
@@ -68,7 +68,7 @@ namespace Pulsar4X.Colonies
             ComponentDesigner.StartResearched = false;
 
             // Add ship designs
-            foreach(var id in colonyBlueprint.ShipDesigns)
+            foreach (var id in colonyBlueprint.ShipDesigns ?? [])
             {
                 ShipDesignFromJson.Create(faction, factionInfo.Data, game.StartingGameData.ShipDesigns[id]);
             }
@@ -95,7 +95,7 @@ namespace Pulsar4X.Colonies
 
             Entity colonyEntity = Entity.Create();
             colonyEntity.FactionOwnerID = faction.Id;
-            systemBody.Manager.AddEntity(colonyEntity, blobs);
+            systemBody.AttachedManager.AddEntity(colonyEntity, blobs);
             factionInfo.Colonies.Add(colonyEntity);
             faction.GetDataBlob<FactionOwnerDB>().SetOwned(colonyEntity);
 
@@ -106,7 +106,7 @@ namespace Pulsar4X.Colonies
             }
 
             // Add starting installations
-            foreach(var installation in colonyBlueprint.Installations)
+            foreach (var installation in colonyBlueprint.Installations ?? [])
             {
                 colonyEntity.AddComponent(
                     factionInfo.InternalComponentDesigns[installation.Id],
@@ -146,14 +146,14 @@ namespace Pulsar4X.Colonies
             colonyEntity.GetDataBlob<TeamsHousedDB>().AddTeam(scientistEntity);
 
             // Add starting fleets
-            foreach(var fleet in colonyBlueprint.Fleets)
+            foreach (var fleet in colonyBlueprint.Fleets ?? [])
             {
                 var fleetEntity = FleetFactory.Create(startingSystem, faction.Id, fleet.Name);
                 var fleetDB = fleetEntity.GetDataBlob<FleetDB>();
                 fleetDB.SetParent(faction);
-                if(fleet.Ships == null) continue;
+                if (fleet.Ships == null) continue;
 
-                foreach(var ship in fleet.Ships)
+                foreach (var ship in fleet.Ships)
                 {
                     double randomRadian = game.RNG.NextDouble() * Math.PI * 2;
                     var shipEntity = ShipFactory.CreateShip(factionInfo.ShipDesigns[ship.DesignId], faction, systemBody, randomRadian, ship.Name);
@@ -165,7 +165,7 @@ namespace Pulsar4X.Colonies
                     var commander = CommanderFactory.Create(startingSystem, faction.Id, commanderDB);
                     shipEntity.GetDataBlob<ShipInfoDB>().CommanderID = commander.Id;
 
-                    if(fleetDB.FlagShipID < 0)
+                    if (fleetDB.FlagShipID < 0)
                         fleetDB.FlagShipID = shipEntity.Id;
 
                     LoadCargo(shipEntity, factionInfo.Data, ship.Cargo);
@@ -203,7 +203,7 @@ namespace Pulsar4X.Colonies
 
             Entity colonyEntity = Entity.Create();
             colonyEntity.FactionOwnerID = factionEntity.Id;
-            planetEntity.Manager.AddEntity(colonyEntity, blobs);
+            planetEntity.AttachedManager.AddEntity(colonyEntity, blobs);
             var factionInfo = factionEntity.GetDataBlob<FactionInfoDB>();
             factionInfo.Colonies.Add(colonyEntity);
             factionEntity.GetDataBlob<FactionOwnerDB>().SetOwned(colonyEntity);
@@ -219,13 +219,13 @@ namespace Pulsar4X.Colonies
 
         private static void LoadCargo(Entity target, FactionDataStore factionDataStore, List<ColonyBlueprint.StartingItemBlueprint>? cargo)
         {
-            if(cargo == null) return;
+            if (cargo == null) return;
 
-            foreach(var item in cargo)
+            foreach (var item in cargo)
             {
                 var type = item.Type ?? "byMass";
 
-                switch(type)
+                switch (type)
                 {
                     case "byVolume":
                         CargoTransferProcessor.AddRemoveCargoVolume(target, factionDataStore.CargoGoods[item.Id], item.Amount);

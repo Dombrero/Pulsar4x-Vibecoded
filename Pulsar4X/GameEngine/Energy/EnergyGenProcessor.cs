@@ -59,13 +59,13 @@ namespace Pulsar4X.Energy
             {
                 double timeToFill = Math.Ceiling(freestore / powerToStoreKW);
                 DateTime interuptTime = atDateTime + TimeSpan.FromSeconds(Math.Max(1, timeToFill));
-                entity.Manager.ManagerSubpulses.AddEntityInterupt(interuptTime, nameof(EnergyGenProcessor), entity);
+                entity.AttachedManager.ManagerSubpulses.AddEntityInterupt(interuptTime, nameof(EnergyGenProcessor), entity);
             }
             else if (powerToStoreKW < -1e-9 && stored > 1e-9)
             {
                 double timeToEmpty = Math.Ceiling(Math.Abs(stored / powerToStoreKW));
                 DateTime interuptTime = atDateTime + TimeSpan.FromSeconds(Math.Max(1, timeToEmpty));
-                entity.Manager.ManagerSubpulses.AddEntityInterupt(interuptTime, nameof(EnergyGenProcessor), entity);
+                entity.AttachedManager.ManagerSubpulses.AddEntityInterupt(interuptTime, nameof(EnergyGenProcessor), entity);
             }
 
             double load = 0;

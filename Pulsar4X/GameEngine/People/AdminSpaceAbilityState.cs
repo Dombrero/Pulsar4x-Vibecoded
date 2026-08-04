@@ -4,17 +4,14 @@ namespace GameEngine.People;
 
 public class AdminSpaceAbilityState// : ComponentAbilityState
 {
-    public string ComponentName  { get; internal set; }
-
+    public string? ComponentName { get; internal set; }
     public int CommanderID { get; internal set; } = -1;
-    internal CommanderDB Commander { get;  set; }
+    internal CommanderDB? Commander { get; set; }
     public AdminLevel SeatType { get; internal set; }
-    public bool TryGetCommander(out CommanderDB commander)
+    public bool TryGetCommander([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out CommanderDB? commander)
     {
         commander = Commander;
-        if (Commander == null)
-            return false;
-        return true;
+        return commander is not null;
     }
 
 

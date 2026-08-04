@@ -61,7 +61,7 @@ public class SerializationEquivalenceTester
             result.AreEqual = CompareObjects(originalObject, deserializedObject, "", result.Differences);
 
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             result.AreEqual = false;
             result.Differences.Add($"Serialization/Deserializtion failed: {ex.Message}");
@@ -72,10 +72,10 @@ public class SerializationEquivalenceTester
 
     private static bool CompareObjects(object? original, object? deserialized, string path, List<string> differences)
     {
-        if(original == null && deserialized == null)
+        if (original == null && deserialized == null)
             return true;
 
-        if(original == null || deserialized == null)
+        if (original == null || deserialized == null)
         {
             differences.Add($"{path}: One object is null while the other is not");
             return false;
@@ -84,9 +84,9 @@ public class SerializationEquivalenceTester
         Type type = original.GetType();
 
         // Handle primitive types and strings
-        if(type.IsPrimitive || type == typeof(string) || type == typeof(decimal))
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal))
         {
-            if(!object.Equals(original, deserialized))
+            if (!object.Equals(original, deserialized))
             {
                 differences.Add($"{path}: Values differ - Original: {original}, Deserialized: {deserialized}");
                 return false;
@@ -95,12 +95,12 @@ public class SerializationEquivalenceTester
         }
 
         // Handle DateTime
-        if(type == typeof(DateTime))
+        if (type == typeof(DateTime))
         {
             var originalDate = (DateTime)original;
             var deserializedDate = (DateTime)deserialized;
 
-            if(originalDate != deserializedDate)
+            if (originalDate != deserializedDate)
             {
                 differences.Add($"{path}: DateTime values differ - Original: {originalDate}, Deserialized: {deserializedDate}");
                 return false;
@@ -109,7 +109,7 @@ public class SerializationEquivalenceTester
         }
 
         // Handle IEnumerable (except strings)
-        if(typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string))
+        if (typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string))
         {
             return CompareEnumerables((IEnumerable)original, (IEnumerable)deserialized, path, differences);
         }
@@ -120,13 +120,13 @@ public class SerializationEquivalenceTester
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                             .Where(p => p.GetCustomAttribute<JsonPropertyAttribute>() != null || p.GetGetMethod()?.IsPublic == true);
 
-        foreach(var prop in properties)
+        foreach (var prop in properties)
         {
             string propertyPath = string.IsNullOrEmpty(path) ? prop.Name : $"{path}.{prop.Name}";
             var originalValue = prop.GetValue(original);
             var deserializedValue = prop.GetValue(deserialized);
 
-            if(!CompareObjects(originalValue, deserializedValue, propertyPath, differences))
+            if (!CompareObjects(originalValue, deserializedValue, propertyPath, differences))
                 return false;
         }
 
@@ -134,13 +134,13 @@ public class SerializationEquivalenceTester
         var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                         .Where(f => f.GetCustomAttribute<JsonPropertyAttribute>() != null || f.IsPublic);
 
-        foreach(var field in fields)
+        foreach (var field in fields)
         {
             string fieldPath = string.IsNullOrEmpty(path) ? field.Name : $"{path}.{field.Name}";
             var originalValue = field.GetValue(original);
             var deserializedValue = field.GetValue(deserialized);
 
-            if(!CompareObjects(originalValue, deserializedValue, fieldPath, differences))
+            if (!CompareObjects(originalValue, deserializedValue, fieldPath, differences))
                 return false;
         }
 
@@ -152,15 +152,15 @@ public class SerializationEquivalenceTester
         var originalList = original.Cast<object>().ToList();
         var deserializedList = deserialized.Cast<object>().ToList();
 
-        if(originalList.Count != deserializedList.Count)
+        if (originalList.Count != deserializedList.Count)
         {
             differences.Add($"{path}: Collections have different lengths - Original: {originalList.Count}, Deserialized: {deserializedList.Count}");
             return false;
         }
 
-        for(int i = 0; i < originalList.Count; i++)
+        for (int i = 0; i < originalList.Count; i++)
         {
-            if(!CompareObjects(originalList[i], deserializedList[i], $"{path}[{i}]", differences))
+            if (!CompareObjects(originalList[i], deserializedList[i], $"{path}[{i}]", differences))
                 return false;
         }
 

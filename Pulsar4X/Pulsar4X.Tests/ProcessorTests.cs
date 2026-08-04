@@ -1,4 +1,4 @@
-﻿//using System;
+//using System;
 //using System.Collections.Generic;
 //using System.Linq;
 //using System.Runtime.Remoting.Channels;
@@ -11,10 +11,10 @@
 //    [TestFixture, Description("Processor Tests")]
 //    class ProcessorTests
 //    {
-//        private Game _game;
+//        private Game _game = null;
 //        EntityManager _entityManager;
-//        private Entity _faction;
-//        private Entity _colonyEntity;
+//        private Entity _faction = Entity.InvalidEntity;
+//        private Entity _colonyEntity = Entity.InvalidEntity;
 //        private MineralSD _duraniumSD;
 //        private MineralSD _corundiumSD;
 

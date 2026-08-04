@@ -82,9 +82,9 @@ public class Benchmarks
 
         // Generate random systems
         int numberToGenerate = maxSystems - enabledSystems.Count;
-        if(numberToGenerate > 0)
+        if (numberToGenerate > 0)
         {
-            for(int i = 0; i < numberToGenerate; i++)
+            for (int i = 0; i < numberToGenerate; i++)
             {
                 string systemName = $"Generated System #{i + 1}";
                 game.GalaxyGen.GenerateSystem(game, systemName, masterSeed);
@@ -95,21 +95,24 @@ public class Benchmarks
         startingBodyBlueprint = modDataStore.SystemBodies[selectedBodyId];
 
         // Load pre-made systems
-        foreach(var id in enabledSystems)
+        foreach (var id in enabledSystems)
         {
             var system = StarSystemFactory.LoadFromBlueprint(game, modDataStore.Systems[id]);
-            if(id.Equals(selectedSystemId))
+            if (id.Equals(selectedSystemId))
             {
                 startingSystem = system;
-                foreach(var systemBody in startingSystem.GetAllDataBlobsOfType<SystemBodyInfoDB>())
+                foreach (var systemBody in startingSystem.GetAllDataBlobsOfType<SystemBodyInfoDB>())
                 {
-                    if(startingBodyBlueprint != null && systemBody.OwningEntity?.GetDefaultName()?.Equals(startingBodyBlueprint.Name) == true)
+                    if (startingBodyBlueprint != null && systemBody.OwningEntity?.GetDefaultName()?.Equals(startingBodyBlueprint.Name) == true)
                     {
                         startingBody = systemBody.OwningEntity;
                     }
                 }
             }
         }
+
+        if (startingSystem == null || startingBody == null)
+            throw new InvalidOperationException("Benchmark setup could not resolve starting system/body.");
 
         // Create player faction
         var playerFaction = FactionFactory.CreateBasicFaction(
@@ -135,7 +138,7 @@ public class Benchmarks
         var adminDB = CommanderFactory.CreateAdmin(game);
         var admin = CommanderFactory.Create(startingSystem, playerFaction.Id, adminDB);
 
-        if(scientist.TryGetDataBlob<BonusesDB>(out var bonusesDB))
+        if (scientist.TryGetDataBlob<BonusesDB>(out var bonusesDB))
         {
             bonusesDB.Bonuses.Add(new Bonus(
                         "Research Points",

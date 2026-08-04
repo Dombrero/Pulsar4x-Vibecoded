@@ -108,7 +108,7 @@ namespace Pulsar4X.Movement
             MoveStateProcessor.ProcessForType(db, toDateTime);
         }
 
-        public static void WarpMove(Entity entity, WarpMovingDB moveDB,  DateTime toDateTime)
+        public static void WarpMove(Entity entity, WarpMovingDB moveDB, DateTime toDateTime)
         {
             if (moveDB.HasStarted || StartNonNewtTranslation(entity))
             {
@@ -123,17 +123,22 @@ namespace Pulsar4X.Movement
 
                 var newPositionMt = moveDB._position + (Vector2)currentVelocityMS * deltaT;
 
-                double distanceToMove = ( moveDB._position - newPositionMt).Length();
+                double distanceToMove = (moveDB._position - newPositionMt).Length();
                 double distanceToTargetMt = (moveDB._position - (Vector2)targetPosMt).Length();
 
                 if (distanceToTargetMt <= distanceToMove) // moving would overtake target, just go directly to target
                 {
-                    moveDB._parentEnitity = moveDB.TargetEntity;
+                    if (moveDB.TargetEntity is not { IsValid: true } targetEntity)
+                    {
+                        EndWarpMove(entity, warpDB, moveDB, toDateTime);
+                        return;
+                    }
+                    moveDB._parentEnitity = targetEntity;
                     moveDB._position = (Vector2)moveDB.ExitPointrelative;
-                    var destinationMoveType = moveDB.TargetEntity.GetDataBlob<PositionDB>().MoveType;
+                    var destinationMoveType = targetEntity.GetDataBlob<PositionDB>().MoveType;
                     moveDB.IsAtTarget = true;
                     //if our destination is a non moving object eg a grav anomaly or jump point.
-                    if(destinationMoveType == PositionDB.MoveTypes.None)
+                    if (destinationMoveType == PositionDB.MoveTypes.None)
                     {
                         moveDB.CurrentNonNewtonionVectorMS = Vector3.Zero;
                         // Stay in zero-speed warp (design), but sync PositionDB + bill tank fuel.
@@ -258,7 +263,7 @@ namespace Pulsar4X.Movement
             powerDB.AddDemand(warpDB.BubbleSustainCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
         }
 
-        static void EndWarpMove(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB,  DateTime toDateTime)
+        static void EndWarpMove(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB, DateTime toDateTime)
         {
             var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();
 
@@ -268,40 +273,39 @@ namespace Pulsar4X.Movement
             powerDB.AddDemand(-warpDB.BubbleSustainCost, entity.StarSysDateTime);
             powerDB.AddDemand(-warpDB.BubbleCollapseCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
 
-            var destinationMoveType = moveDB.TargetEntity.GetDataBlob<PositionDB>().MoveType;
+            if (moveDB.TargetEntity is not { IsValid: true } targetEntity)
+            {
+                FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
+                return;
+            }
+            var destinationMoveType = targetEntity.GetDataBlob<PositionDB>().MoveType;
 
             switch (destinationMoveType)
             {
                 case PositionDB.MoveTypes.None:
-                {
-                    FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
-                    break;
-                }
+                    {
+                        FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
+                        break;
+                    }
                 case PositionDB.MoveTypes.Orbit:
-                {
-                    // Predictable tank drain for the hop (not uncapped newton circularisation).
-                    ConsumeWarpTankFuel(entity, moveDB, toDateTime);
-                    entity.RemoveDataBlob<WarpMovingDB>();
-                    SetOrbitHereNoNewt(entity, moveDB, toDateTime);
-                    break;
-                }
+                    {
+                        // Predictable tank drain for the hop (not uncapped newton circularisation).
+                        ConsumeWarpTankFuel(entity, moveDB, toDateTime);
+                        entity.RemoveDataBlob<WarpMovingDB>();
+                        SetOrbitHereNoNewt(entity, moveDB, toDateTime);
+                        break;
+                    }
                 case PositionDB.MoveTypes.NewtonSimple:
-                {
                     throw new NotImplementedException();
-                    break;
-                }
                 case PositionDB.MoveTypes.NewtonComplex:
-                {
                     throw new NotImplementedException();
-                    break;
-                }
                 case PositionDB.MoveTypes.Warp:
-                {
-                    var targetSpeed = moveDB.TargetEntity.GetDataBlob<WarpMovingDB>().CurrentNonNewtonionVectorMS;
-                    var newspeed = Math.Min(targetSpeed.Length(), warpDB.MaxSpeed);
-                    moveDB.CurrentNonNewtonionVectorMS = Vector3.Normalise(targetSpeed) * newspeed;
-                    break;
-                }
+                    {
+                        var targetSpeed = moveDB.TargetEntity.GetDataBlob<WarpMovingDB>().CurrentNonNewtonionVectorMS;
+                        var newspeed = Math.Min(targetSpeed.Length(), warpDB.MaxSpeed);
+                        moveDB.CurrentNonNewtonionVectorMS = Vector3.Normalise(targetSpeed) * newspeed;
+                        break;
+                    }
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -400,7 +404,7 @@ namespace Pulsar4X.Movement
         /// <exception cref="NullReferenceException"></exception>
         static void SetOrbitHereNoNewt(Entity entity, WarpMovingDB moveDB, DateTime atDateTime)
         {
-            if(moveDB.TargetEntity == null) throw new NullReferenceException("moveDB.TargetEntity cannot be null");
+            if (moveDB.TargetEntity == null) throw new NullReferenceException("moveDB.TargetEntity cannot be null");
 
             PositionDB moveStatedb = entity.GetDataBlob<PositionDB>();
             Entity intendedTarget = moveDB.TargetEntity;
@@ -427,7 +431,7 @@ namespace Pulsar4X.Movement
                 targetEntity = intendedTarget;
             }
 
-            if(targetEntity == null) throw new NullReferenceException("targetEntity cannot be null");
+            if (targetEntity == null) throw new NullReferenceException("targetEntity cannot be null");
 
             //just chuck it in a circular orbit.
             OrbitDB newOrbit = OrbitDB.FromPosition(targetEntity, entity, atDateTime);
@@ -440,13 +444,15 @@ namespace Pulsar4X.Movement
         static void SetOrbitHereSimpleNewt(Entity entity, WarpMovingDB moveDB, DateTime atDateTime)
         {
             var newOrbit = moveDB.EndpointTargetOrbit;
-            var mass = moveDB.TargetEntity.GetDataBlob<MassVolumeDB>().MassTotal;
+            if (moveDB.TargetEntity is not { IsValid: true } targetEntity)
+                throw new InvalidOperationException("Warp ended without valid target entity.");
+            var mass = targetEntity.GetDataBlob<MassVolumeDB>().MassTotal;
             mass += entity.GetDataBlob<MassVolumeDB>().MassTotal;
             var sgp = GeneralMath.StandardGravitationalParameter(mass);
 
             var currentOrbit = OrbitMath.KeplerFromPositionAndVelocity(sgp, moveDB.ExitPointrelative, moveDB.SavedNewtonionVector, atDateTime);
 
-            var target = moveDB.TargetEntity;
+            var target = targetEntity;
             NewtonSimpleMoveDB newtMove = new NewtonSimpleMoveDB(target, currentOrbit, newOrbit, atDateTime);
             entity.SetDataBlob(newtMove);
             NewtonSimpleProcessor.ProcessEntity(entity, atDateTime);
@@ -463,7 +469,7 @@ namespace Pulsar4X.Movement
         /// <exception cref="NullReferenceException"></exception>
         static void SetOrbitHereFullNewt(Entity entity, WarpMovingDB moveDB, DateTime atDateTime)
         {
-            if(moveDB.TargetEntity == null) throw new NullReferenceException("moveDB.TargetEntity cannot be null");
+            if (moveDB.TargetEntity == null) throw new NullReferenceException("moveDB.TargetEntity cannot be null");
             //propulsionDB.CurrentVectorMS = new Vector3(0, 0, 0);
             var moveStatedb = entity.GetDataBlob<PositionDB>();
             double targetSOI = moveDB.TargetEntity.GetSOI_m();
@@ -479,7 +485,7 @@ namespace Pulsar4X.Movement
                 targetEntity = moveDB.TargetEntity;
             }
 
-            if(targetEntity == null) throw new NullReferenceException("targetEntity cannot be null");
+            if (targetEntity == null) throw new NullReferenceException("targetEntity cannot be null");
             OrbitDB targetPlanetsOrbit = targetEntity.GetDataBlob<OrbitDB>();
             Vector3 insertionVector_m = OrbitProcessor.GetOrbitalInsertionVector(moveDB.SavedNewtonionVector, targetPlanetsOrbit, atDateTime);
             moveStatedb.SetParent(targetEntity);

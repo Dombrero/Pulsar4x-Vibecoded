@@ -48,7 +48,7 @@ namespace Pulsar4X.JumpPoints
                 // TODO: Introduce a random chance to stablize jumppoints.
             }
 
-            var dataBlobs = new List<BaseDataBlob> { jpNameDB, jpTransitableDB, jpPositionDB};
+            var dataBlobs = new List<BaseDataBlob> { jpNameDB, jpTransitableDB, jpPositionDB };
 
             Entity jumpPoint = Entity.Create();
             jumpPoint.FactionOwnerID = Game.NeutralFactionId;

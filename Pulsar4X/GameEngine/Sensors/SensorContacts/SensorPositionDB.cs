@@ -12,14 +12,13 @@ namespace Pulsar4X.Sensors
         internal DataFrom GetDataFrom = DataFrom.Parent;
 
         [JsonProperty]
-        public PositionDB ActualEntityPositionDB; //the detected actual entity
+        public PositionDB? ActualEntityPositionDB; //the detected actual entity
 
         [JsonProperty]
         public PositionDB? ParentPositionDB; //detected actual entity positional parent for relative positions.
 
         [JsonProperty]
         public Vector3 MemoryrelativePosition_m;
-
         [JsonProperty]
         internal Vector3 AcuracyOffset = new Vector3();
 
@@ -31,8 +30,9 @@ namespace Pulsar4X.Sensors
                     return ActualEntityPositionDB.AbsolutePosition;
                 if (GetDataFrom == DataFrom.Sensors)
                     return ActualEntityPositionDB.AbsolutePosition + AcuracyOffset;
-                else
+                else if (ParentPositionDB is not null)
                     return ParentPositionDB.AbsolutePosition + MemoryrelativePosition_m;
+                return MemoryrelativePosition_m;
             }
         }
 
@@ -70,7 +70,10 @@ namespace Pulsar4X.Sensors
         public SensorPositionDB(SensorPositionDB toClone)
         {
             GetDataFrom = toClone.GetDataFrom;
+            ActualEntityPositionDB = toClone.ActualEntityPositionDB;
+            ParentPositionDB = toClone.ParentPositionDB;
             MemoryrelativePosition_m = toClone.MemoryrelativePosition_m;
+            AcuracyOffset = toClone.AcuracyOffset;
         }
 
         public override object Clone()

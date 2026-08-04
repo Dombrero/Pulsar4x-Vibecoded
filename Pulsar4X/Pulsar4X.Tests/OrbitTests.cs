@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using NUnit.Framework;
 using Pulsar4X.Datablobs;
@@ -13,7 +13,7 @@ namespace Pulsar4X.Tests
     [TestFixture, Description("Tests kepler form velocity")]
     public class OrbitTests
     {
-        private EntityManager _entityManager;
+        private EntityManager _entityManager = null;
         const double Tolerance = 1e-14;
 
 
@@ -165,7 +165,7 @@ namespace Pulsar4X.Tests
 
                 Assert.AreEqual(r, r2, angleDelta, "two simular functions shouldbe the same");
 
-                Assert.AreEqual(angle, theta, angleDelta,  "inc: " + i + " r: " + r);
+                Assert.AreEqual(angle, theta, angleDelta, "inc: " + i + " r: " + r);
                 Assert.AreEqual(angle, theta2, angleDelta, "AngleAtRadus2 inc: " + i);
                 Assert.AreEqual(angle, theta3, angleDelta, "AngleAtRadus3 inc: " + i);
                 i++;
@@ -474,17 +474,17 @@ namespace Pulsar4X.Tests
             Assert.AreEqual(majAxisLenke, majAxisLenke2, 1.0E-4);
             var majAxisLendb = objOrbit.SemiMajorAxis * 2;
             var majAxisLendb2 = objOrbit.Apoapsis + objOrbit.Periapsis;
-            Assert.AreEqual(majAxisLendb, majAxisLendb2, 1.0E-4 );
-            Assert.AreEqual(majAxisLenke, majAxisLendb, 1.0E-4 );
-            Assert.AreEqual(majAxisLenke2, majAxisLendb2, 1.0E-4 );
+            Assert.AreEqual(majAxisLendb, majAxisLendb2, 1.0E-4);
+            Assert.AreEqual(majAxisLenke, majAxisLendb, 1.0E-4);
+            Assert.AreEqual(majAxisLenke2, majAxisLendb2, 1.0E-4);
 
 
 
             var ke_apm = ke_m.Apoapsis;
             var db_apm = objOrbit.Apoapsis;
             var differnce = ke_apm - db_apm;
-            Assert.AreEqual(ke_m.Apoapsis, objOrbit.Apoapsis, 1.0E-4 );
-            Assert.AreEqual(ke_m.Periapsis, objOrbit.Periapsis, 1.0E-4 );
+            Assert.AreEqual(ke_m.Apoapsis, objOrbit.Apoapsis, 1.0E-4);
+            Assert.AreEqual(ke_m.Periapsis, objOrbit.Periapsis, 1.0E-4);
 
             Vector3 pos_m = position_InMeters;
             Vector3 result_m = objOrbit.GetPosition(new DateTime());
@@ -514,7 +514,7 @@ namespace Pulsar4X.Tests
             //var speedVectorAU = OrbitProcessor.PreciseOrbitalVector(sgp, position, ke.SemiMajorAxis);
             //var speedVectorAU2 = OrbitProcessor.PreciseOrbitalVector(objOrbit, new DateTime());
             //Assert.AreEqual(speedVectorAU, speedVectorAU2);
-    }
+        }
 
 
         [Test]
@@ -530,11 +530,11 @@ namespace Pulsar4X.Tests
             Entity parentEntity = Entity.Create();
             _entityManager.AddEntity(parentEntity, parentblobs);
 
-            Vector3 currentPos_m = new Vector3 { X= Distance.AuToMt( -0.77473184638034), Y =Distance.AuToMt( 0.967145228951685) };
+            Vector3 currentPos_m = new Vector3 { X = Distance.AuToMt(-0.77473184638034), Y = Distance.AuToMt(0.967145228951685) };
             Vector3 currentVelocity_m = new Vector3 { Y = Distance.KmToM(40) };
-            double nonNewtSpeed_m = Distance.KmToM( 283.018);
+            double nonNewtSpeed_m = Distance.KmToM(283.018);
 
-            Vector3 targetObjPosition = new Vector3 { X = Distance.AuToMt(0.149246434443459),  Y= Distance.AuToMt(-0.712107888348067) };
+            Vector3 targetObjPosition = new Vector3 { X = Distance.AuToMt(0.149246434443459), Y = Distance.AuToMt(-0.712107888348067) };
             Vector3 targetObjVelocity = new Vector3 { Y = Distance.KmToM(35) };
 
 
@@ -547,11 +547,11 @@ namespace Pulsar4X.Tests
 
 
 
-            var intercept_m = WarpMath.GetInterceptPosition_m(currentPos_m, nonNewtSpeed_m, targetOrbit ,currentDateTime);
+            var intercept_m = WarpMath.GetInterceptPosition_m(currentPos_m, nonNewtSpeed_m, targetOrbit, currentDateTime);
 
-            var futurePos1_m = OrbitMath.GetAbsolutePosition(targetOrbit ,intercept_m.Item2);
+            var futurePos1_m = OrbitMath.GetAbsolutePosition(targetOrbit, intercept_m.Item2);
 
-            var futurePos2_m =  intercept_m.Item1;
+            var futurePos2_m = intercept_m.Item1;
 
 
 
@@ -567,7 +567,7 @@ namespace Pulsar4X.Tests
 
             var timeb = distance_m / nonNewtSpeed_m;
 
-            Assert.AreEqual(nonNewtSpeed_m, speed, 1.0e-4 );
+            Assert.AreEqual(nonNewtSpeed_m, speed, 1.0e-4);
 
             var dif = distance_m - distb_m;
             Assert.AreEqual(distance_m, distb_m, 100.0, "Out by a difference of " + dif + " meters");
@@ -580,8 +580,8 @@ namespace Pulsar4X.Tests
 
             Vector3 absolutePosition = new Vector3(0, Distance.AuToMt(8.52699302490434E-05), 0);
 
-			PositionDB pos1 = new PositionDB(parentEntity) { AbsolutePosition = absolutePosition };
-            var newt1 = new NewtonMoveDB(parentEntity, new Vector3(-10.0, 0, 0)){ ManuverDeltaV = new Vector3(0,1,0)};
+            PositionDB pos1 = new PositionDB(parentEntity) { AbsolutePosition = absolutePosition };
+            var newt1 = new NewtonMoveDB(parentEntity, new Vector3(-10.0, 0, 0)) { ManuverDeltaV = new Vector3(0, 1, 0) };
             BaseDataBlob[] objBlobs1 = new BaseDataBlob[4];
             objBlobs1[0] = pos1;
             objBlobs1[1] = new MassVolumeDB() { MassDry = 10000 };
@@ -592,7 +592,7 @@ namespace Pulsar4X.Tests
 
 
             PositionDB pos2 = new PositionDB(parentEntity) { AbsolutePosition = absolutePosition };
-            var newt2 = new NewtonMoveDB(parentEntity, new Vector3(-10.0, 0, 0)){ ManuverDeltaV = new Vector3(0,1,0)};
+            var newt2 = new NewtonMoveDB(parentEntity, new Vector3(-10.0, 0, 0)) { ManuverDeltaV = new Vector3(0, 1, 0) };
             BaseDataBlob[] objBlobs2 = new BaseDataBlob[4];
             objBlobs2[0] = pos2;
             objBlobs2[1] = new MassVolumeDB() { MassDry = 10000 };
@@ -639,10 +639,10 @@ namespace Pulsar4X.Tests
                 OrbitalMath.EccentricityVector(sgp, position, velocity);
                 sw1.Stop();
 
-				sw2.Start();
-				OrbitalMath.EccentricityVector2(sgp, position, velocity);
-				sw2.Stop();
-			}
+                sw2.Start();
+                OrbitalMath.EccentricityVector2(sgp, position, velocity);
+                sw2.Stop();
+            }
 
             Console.WriteLine("EccentricityVector:\t\t" + sw1.Elapsed.ToString());
             Console.WriteLine("EccentricityVector2:\t" + sw2.Elapsed.ToString());

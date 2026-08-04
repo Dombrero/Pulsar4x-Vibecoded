@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -31,7 +32,7 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
     private const string DEFAULT_ABBREVIATION = "UEC";
 
     private readonly GlobalUIState _state;
-    private ModDataStore _modDataStore = new ();
+    private ModDataStore _modDataStore = new();
 
     private Game? _game;
     private EngineGameServer? _server;
@@ -336,10 +337,10 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
         _game.Settings.StrictNewtonion = rules.StrictNewtonion;
     }
 
-    public bool TryGetDesignData(out FactionInfoDB info, out FactionTechDB techs)
+    public bool TryGetDesignData([NotNullWhen(true)] out FactionInfoDB? info, [NotNullWhen(true)] out FactionTechDB? techs)
     {
-        info = null!;
-        techs = null!;
+        info = null;
+        techs = null;
         if (_server == null || _state.GameClient is not { } client) return false;
         if (_server.GetFactionDesignData(client.Session) is not { } data) return false;
 

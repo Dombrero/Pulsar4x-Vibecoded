@@ -1,4 +1,4 @@
-﻿/*
+/*
 using NUnit.Framework;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Engine;
@@ -16,7 +16,7 @@ namespace Pulsar4X.Tests
     [TestFixture]
     public class SystemGenTests
     {
-        private Game _game;
+        private Game _game = null;
 
         //TODO: Needs updated for new serialization, or deleted.
         [Test]

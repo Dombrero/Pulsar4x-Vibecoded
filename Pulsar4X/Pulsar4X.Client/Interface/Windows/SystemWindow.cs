@@ -10,8 +10,9 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
 {
     private const string SystemViewPreferencesKey = "system-viewer";
 
-    internal static SystemWindow GetInstance() {
-        if(_uiState.TryGetUniqueWindow<SystemWindow>(out var window))
+    internal static SystemWindow GetInstance()
+    {
+        if (_uiState.TryGetUniqueWindow<SystemWindow>(out var window))
         {
             return window;
         }
@@ -22,7 +23,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
     //displays selected entity info
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
 
         if (Window.Begin("System Viewer", ref IsActive, _flags))
         {
@@ -31,7 +32,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
             {
                 ImGui.Text("View Options: ");
                 ImGui.SameLine();
-                SystemViewPreferences.GetInstance().DisplayCombo(SystemViewPreferencesKey, selectedIndex => {});
+                SystemViewPreferences.GetInstance().DisplayCombo(SystemViewPreferencesKey, selectedIndex => { });
 
                 // The celestial bodies, their orbital hierarchy, and the faction's colonies keyed by
                 // the body they sit on — rebuilt each frame from the (faction-filtered) snapshot.
@@ -64,7 +65,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
                     .OrderBy(DistanceFromRoot)
                     .ToList();
 
-                if(ImGui.BeginTable("DesignStatsTables", 9, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
+                if (ImGui.BeginTable("DesignStatsTables", 9, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
                 {
                     ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 0.15f);
                     ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.None, 0.15f);
@@ -106,7 +107,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
     void TreeGen(EntitySnapshot currentBody, Dictionary<int, List<EntitySnapshot>> children,
         Dictionary<int, EntitySnapshot> coloniesByBody, int depth = 0)
     {
-        if(SystemViewPreferences.GetInstance().ShouldDisplay(SystemViewPreferencesKey, UserOrbitSettings.FromBodyKind(currentBody.Kind)))
+        if (SystemViewPreferences.GetInstance().ShouldDisplay(SystemViewPreferencesKey, UserOrbitSettings.FromBodyKind(currentBody.Kind)))
             PrintEntity(currentBody, coloniesByBody, depth);
 
         if (children.TryGetValue(currentBody.Id, out var childList))
@@ -126,17 +127,17 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
         bool isSurveyComplete = geoSurvey?.IsSurveyComplete ?? false;
 
         ImGui.TableNextColumn();
-        if(depth > 0) ImGui.Indent(16 * depth);
+        if (depth > 0) ImGui.Indent(16 * depth);
         ImGui.Text(entity.GetView<NameView>()?.Name ?? "Unknown");
-        if(depth > 0) ImGui.Unindent(16 * depth);
+        if (depth > 0) ImGui.Unindent(16 * depth);
         ImGui.TableNextColumn();
         ImGui.Text(bodyType);
         ImGui.TableNextColumn();
 
-        if(coloniesByBody.TryGetValue(entity.Id, out var colony))
+        if (coloniesByBody.TryGetValue(entity.Id, out var colony))
         {
             var colonyName = colony.GetView<NameView>()?.Name ?? "Colony";
-            if(ImGui.SmallButton(colonyName + "###" + colony.Id))
+            if (ImGui.SmallButton(colonyName + "###" + colony.Id))
             {
                 ColonyManagementWindow.GetInstance().SetActive(true);
                 ColonyManagementWindow.GetInstance().SelectColony(colony.Id, _uiState.SelectedStarSystemId);
@@ -144,9 +145,9 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
         }
         else
         {
-            if(isSurveyComplete && entity.HasView<ColonizableView>())
+            if (isSurveyComplete && entity.HasView<ColonizableView>())
             {
-                if(ImGui.SmallButton("Colonize") && _uiState.GameClient != null)
+                if (ImGui.SmallButton("Colonize") && _uiState.GameClient != null)
                 {
                     _uiState.GameClient.SubmitCommandAsync(
                         new CreateColonyCommand(_uiState.GameClient.Session.FactionId, entity.Id));
@@ -158,11 +159,11 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
             }
         }
         ImGui.TableNextColumn();
-        if(geoSurvey != null)
+        if (geoSurvey != null)
         {
-            if(geoSurvey.HasSurveyStarted)
+            if (geoSurvey.HasSurveyStarted)
             {
-                if(isSurveyComplete)
+                if (isSurveyComplete)
                 {
                     ImGui.Text("Complete");
                 }
@@ -181,7 +182,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
             ImGui.Text("");
         }
 
-        if(isSurveyComplete)
+        if (isSurveyComplete)
         {
             var body = entity.GetView<BodyView>();
             ImGui.TableNextColumn();
@@ -189,13 +190,13 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
             ImGui.TableNextColumn();
             ImGui.Text((body?.SurfaceTemperatureC ?? 0).ToString("#.#") + " C");
 
-            if(entity.GetView<AtmosphereView>() is { } atmosphere)
+            if (entity.GetView<AtmosphereView>() is { } atmosphere)
             {
                 ImGui.TableNextColumn();
                 ImGui.Text(Stringify.Quantity(atmosphere.PressureAtm));
                 ImGui.TableNextColumn();
                 var oxygen = atmosphere.Composition.FirstOrDefault(g => g.Id == "oxygen");
-                if(oxygen != null)
+                if (oxygen != null)
                 {
                     ImGui.Text(oxygen.PartialPressureAtm > 0.001 ? oxygen.PartialPressureAtm.ToString("0.0#") : "trace");
                 }
@@ -210,7 +211,7 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
                 ImGui.TableNextColumn();
             }
 
-            if(entity.HasView<MineralDepositsView>())
+            if (entity.HasView<MineralDepositsView>())
             {
                 ImGui.TableNextColumn();
                 ImGui.Text("Yes");

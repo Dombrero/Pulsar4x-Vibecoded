@@ -13,7 +13,7 @@ public static class TempratureMath
         PhysicalParticle to;
         if (a.Temperature == b.Temperature)
             return;
-        if(a.Temperature > b.Temperature)
+        if (a.Temperature > b.Temperature)
         {
             from = a;
             to = b;
@@ -23,11 +23,11 @@ public static class TempratureMath
             from = b;
             to = a;
         }
-        
+
         float deltaTemp = (from.Temperature - to.Temperature) / neighborCount;
 
         double distance = Vector2.Distance(from.Position, to.Position);
-    
+
         // Calculate average thermal conductivity
         float avgConductivity = (from.MatType.ThermalConductivity + to.MatType.ThermalConductivity) / 2;
 
@@ -50,10 +50,10 @@ public static class TempratureMath
         // Apply temperature changes
         from.Temperature -= tempChangeFrom;
         to.Temperature += tempChangeTo;
-        
+
     }
-    
-    public static void TransferHeat(DamageMap damageMap, float timeStep )
+
+    public static void TransferHeat(DamageMap damageMap, float timeStep)
     {
         float baseRadius = 0.1f * damageMap.ParticlesPerMeter; // Base radius for 1 meter
         //float heatTransferRadius = baseRadius * MathF.Sqrt(timeStep);
@@ -76,11 +76,11 @@ public static class TempratureMath
         {
             PhysicalParticle? particle = damageMap.PMap[index];
             var pressure = damageMap.PresMap[index];
-            if(particle != null && pressure != null)
+            if (particle != null)
                 particle.StateOfPhase = GetPhaseState(particle, pressure);
         }
     }
-    
+
     /// <summary>
     /// 
     /// </summary>
@@ -102,37 +102,37 @@ public static class TempratureMath
             {
                 if (pressure < tripplePoint.Bar) //sublimation
                     state = PhaseState.Gas;
-                else 
+                else
                     state = PhaseState.Solid;
             }
-            else if(temperature < (criticalPoint.Kelvin * 0.5))
+            else if (temperature < (criticalPoint.Kelvin * 0.5))
             {
-                if(pressure > criticalPoint.Bar)
+                if (pressure > criticalPoint.Bar)
                     state = PhaseState.Solid;
-                if(pressure < criticalPoint.Bar)
+                if (pressure < criticalPoint.Bar)
                     state = PhaseState.Liquid;
-                if(pressure < tripplePoint.Bar)
+                if (pressure < tripplePoint.Bar)
                     state = PhaseState.Gas;
             }
             else if (temperature < criticalPoint.Kelvin)
             {
-                if(pressure > criticalPoint.Bar)
+                if (pressure > criticalPoint.Bar)
                     state = PhaseState.Liquid;
-                else 
+                else
                     state = PhaseState.Gas;
             }
-            else 
+            else
                 state = PhaseState.Plasma;
         }
-        
+
         return state;
     }
-    
+
     public static void PostCollisionTempratureChange(PhysicalParticle physicalParticleA, PhysicalParticle physicalParticleB, double keDelta, DamageMap map)
     {
         var m1 = physicalParticleA.Mass;
         var m2 = physicalParticleB.Mass;
-        
+
 
         var totalMass = m1 + m2;
         // Distribute heat based on mass (more massive objects absorb more heat)
@@ -145,7 +145,7 @@ public static class TempratureMath
 
         // Ensure temperature increases are non-negative
         physicalParticleA.Temperature += tempIncreaseA; // Minimum temperature to avoid 0 in logs or divisions
-        physicalParticleB.Temperature += tempIncreaseB; 
+        physicalParticleB.Temperature += tempIncreaseB;
     }
     /*
     public static void HandleBoilOff(DamageMap damageMap)
@@ -194,26 +194,26 @@ public static class TempratureMath
         if (pressure < physicalParticle.MatType.CriticalPoint.Bar && pressure > physicalParticle.MatType.TriplePoint.Bar)
         {
             // Linear interpolation between triple and critical point for boiling temperature
-            float boilingTemperature = physicalParticle.MatType.TriplePoint.Kelvin + 
-                ((pressure - physicalParticle.MatType.TriplePoint.Bar) / 
-                (physicalParticle.MatType.CriticalPoint.Bar - physicalParticle.MatType.TriplePoint.Bar)) * 
+            float boilingTemperature = physicalParticle.MatType.TriplePoint.Kelvin +
+                ((pressure - physicalParticle.MatType.TriplePoint.Bar) /
+                (physicalParticle.MatType.CriticalPoint.Bar - physicalParticle.MatType.TriplePoint.Bar)) *
                 (physicalParticle.MatType.CriticalPoint.Kelvin - physicalParticle.MatType.TriplePoint.Kelvin);
             return physicalParticle.Temperature >= boilingTemperature;
         }
         // If pressure is at or above critical point, we might consider it a supercritical fluid, not boiling
         return false;
     }
-/*
-    private static float CalculateBoilOffAmount(Particle particle, float pressure)
-    {
-        float excessTemperature = particle.Temperature - IsBoiling(particle, pressure) ? 
-                                  (particle.MatType.TriplePoint.Kelvin + 
-                                   ((pressure - particle.MatType.TriplePoint.Bar) / 
-                                    (particle.MatType.CriticalPoint.Bar - particle.MatType.TriplePoint.Bar)) * 
-                                   (particle.MatType.CriticalPoint.Kelvin - particle.MatType.TriplePoint.Kelvin)) 
-                                  : 0;
-        float boilOffRate = excessTemperature * particle.Mass / pressure; // Simplified model
-        return Math.Min(particle.Mass, boilOffRate);
-    }
-*/
+    /*
+        private static float CalculateBoilOffAmount(Particle particle, float pressure)
+        {
+            float excessTemperature = particle.Temperature - IsBoiling(particle, pressure) ? 
+                                      (particle.MatType.TriplePoint.Kelvin + 
+                                       ((pressure - particle.MatType.TriplePoint.Bar) / 
+                                        (particle.MatType.CriticalPoint.Bar - particle.MatType.TriplePoint.Bar)) * 
+                                       (particle.MatType.CriticalPoint.Kelvin - particle.MatType.TriplePoint.Kelvin)) 
+                                      : 0;
+            float boilOffRate = excessTemperature * particle.Mass / pressure; // Simplified model
+            return Math.Min(particle.Mass, boilOffRate);
+        }
+    */
 }

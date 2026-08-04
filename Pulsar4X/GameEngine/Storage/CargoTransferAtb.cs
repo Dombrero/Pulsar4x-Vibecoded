@@ -32,7 +32,7 @@ public class CargoTransferAtb : IComponentDesignAttribute
             var newdb = new CargoStorageDB();
             parentEntity.SetDataBlob(newdb);
         }
-        
+
         StorageSpaceProcessor.RecalcVolumeCapacityAndRates(parentEntity);
     }
 

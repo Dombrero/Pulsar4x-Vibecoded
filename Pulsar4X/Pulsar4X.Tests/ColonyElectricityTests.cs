@@ -22,7 +22,7 @@ namespace Pulsar4X.Tests
     [TestFixture]
     public class ColonyElectricityTests
     {
-        private Game _game = null!;
+        private Game _game = null;
 
         [SetUp]
         public void SetUp()

@@ -13,7 +13,7 @@ namespace Pulsar4X.Client
 
         internal static PowerGenWindow GetInstance()
         {
-            if(!_uiState.TryGetUniqueWindow<PowerGenWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<PowerGenWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new PowerGenWindow());
             }

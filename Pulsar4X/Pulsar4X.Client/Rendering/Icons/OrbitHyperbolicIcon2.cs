@@ -40,7 +40,7 @@ public class OrbitHyperbolicIcon2 : OrbitIconBase
         //we find the point in the ellipse which is closest to the body so we can start drawing from the body.
         double minDist = (_bodyrelativePos - _points[0]).Length();
 
-        for (int i =0; i < _points.Length; i++)
+        for (int i = 0; i < _points.Length; i++)
         {
             double dist = (_bodyrelativePos - _points[i]).Length();
             if (dist < minDist)
@@ -61,10 +61,10 @@ public class OrbitHyperbolicIcon2 : OrbitIconBase
         var foo = camera.ViewCoordinateV2_m(WorldPosition_m); //camera position and zoom
         var trns = Matrix.IDTranslate(foo.X, foo.Y);
         var scAU = Matrix.IDScale(6.6859E-12, 6.6859E-12);
-        var mtrx =  scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
+        var mtrx = scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
         var spos = camera.ViewCoordinateV2_m(_bodyAbsolutePos);
         //_drawPoints = new SDL.SDL_Point[_points.Length];
-        _drawPoints[0] = new SDL.Point(){ X = (int)spos.X, Y = (int)spos.Y};
+        _drawPoints[0] = new SDL.Point() { X = (int)spos.X, Y = (int)spos.Y };
 
         /*
         for (int i = 0; i < _points.Length; i++)
@@ -73,9 +73,9 @@ public class OrbitHyperbolicIcon2 : OrbitIconBase
         }*/
 
         int i2 = 1;
-        if(IsRetrogradeOrbit)
+        if (IsRetrogradeOrbit)
         {
-            for (int i = _index-1; i > -1; i--)
+            for (int i = _index - 1; i > -1; i--)
             {
                 _drawPoints[i2] = mtrx.TransformToSDL_Point(_points[i].X, _points[i].Y);
                 i2++;
@@ -83,7 +83,7 @@ public class OrbitHyperbolicIcon2 : OrbitIconBase
         }
         else
         {
-            for (int i = _index+1; i < _index + _drawPoints.Length - 1; i++)
+            for (int i = _index + 1; i < _index + _drawPoints.Length - 1; i++)
             {
                 _drawPoints[i2] = mtrx.TransformToSDL_Point(_points[i].X, _points[i].Y);
                 i2++;
@@ -118,7 +118,7 @@ public class OrbitHyperbolicIcon2 : OrbitIconBase
         for (int i = 0; i < _drawPoints.Length - 1; i++)
         {
             SDL.SetRenderDrawColor(rendererPtr, _userSettings.Red, _userSettings.Grn, _userSettings.Blu, (byte)alpha);//we cast the alpha here to stop rounding errors creaping up.
-            SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i +1].Y);
+            SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i + 1].Y);
             alpha -= _alphaChangeAmount;
         }
     }

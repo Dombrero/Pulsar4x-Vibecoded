@@ -18,7 +18,7 @@ public class UnassignScientistOrder : EntityCommand
 
     internal override Entity EntityCommanding => _labEntity;
 
-    private Entity _labEntity;
+    private Entity _labEntity = Entity.InvalidEntity;
     private int _scientistId;
 
     private UnassignScientistOrder(Entity labEntity, int scientistId)
@@ -39,13 +39,13 @@ public class UnassignScientistOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+        if (!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
             return;
 
-        if(!_labEntity.Manager.TryGetGlobalEntityById(_scientistId, out var scientist))
+        if (!_labEntity.AttachedManager.TryGetGlobalEntityById(_scientistId, out var scientist))
             return;
 
-        if(!scientist.TryGetDataBlob<CommanderDB>(out var commanderDB))
+        if (!scientist.TryGetDataBlob<CommanderDB>(out var commanderDB))
             return;
 
         // Clear the assignments
@@ -59,7 +59,7 @@ public class UnassignScientistOrder : EntityCommand
                     atDateTime,
                     "Lab was unassigned a scientist",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _labEntity.Id));
 
         // From the scientist perspective
@@ -69,7 +69,7 @@ public class UnassignScientistOrder : EntityCommand
                     atDateTime,
                     "Scientist was unassigned from lab",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _scientistId));
     }
 

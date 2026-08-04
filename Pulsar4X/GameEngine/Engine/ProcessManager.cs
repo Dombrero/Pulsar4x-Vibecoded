@@ -22,7 +22,7 @@ namespace Pulsar4X.Engine
         public int RecalcCount => _recalcProcessors.Count;
         public int InstanceCount => _instanceProcessors.Count;
 
-        private Game _game;
+        private Game? _game;
         internal ProcessorManager(Game game)
         {
             _game = game;
@@ -111,7 +111,7 @@ namespace Pulsar4X.Engine
             foreach (var hotloopType in hotloopTypes)
             {
                 IHotloopProcessor? processor = (IHotloopProcessor?)Activator.CreateInstance(hotloopType);
-                if(processor == null) throw new NullReferenceException($"Unable to create instance of {hotloopType.Name}");
+                if (processor == null) throw new NullReferenceException($"Unable to create instance of {hotloopType.Name}");
                 processor.Init(game);
                 Type type = processor.GetParameterType;
                 HotloopProcessors.Add(type, processor);
@@ -121,7 +121,7 @@ namespace Pulsar4X.Engine
             foreach (var itemType in instanceTypes)
             {
                 IInstanceProcessor? processor = (IInstanceProcessor?)Activator.CreateInstance(itemType);
-                if(processor == null) throw new NullReferenceException($"Unable to create instance of {itemType.Name}");
+                if (processor == null) throw new NullReferenceException($"Unable to create instance of {itemType.Name}");
                 _instanceProcessors.Add(processor.TypeName, processor);
             }
 

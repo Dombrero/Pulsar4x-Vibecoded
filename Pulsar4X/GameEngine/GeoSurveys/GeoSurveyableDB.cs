@@ -15,5 +15,5 @@ public class GeoSurveyableDB : BaseDataBlob
     /// Value: the points remaining to complete the survey
     /// </summary>
     [JsonProperty]
-    public SafeDictionary<int, uint> GeoSurveyStatus { get; set; } = new ();
+    public SafeDictionary<int, uint> GeoSurveyStatus { get; set; } = new();
 }

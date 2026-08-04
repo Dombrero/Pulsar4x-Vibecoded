@@ -4,7 +4,7 @@ namespace Pulsar4X.Messaging;
 
 public class Message
 {
-    public MessageTypes MessageType { get; private set; }
+    public MessageTypes MessageType { get; set; }
     public int? EntityId { get; private set; }
     public string? SystemId { get; private set; }
     public int? FactionId { get; private set; }
@@ -13,10 +13,10 @@ public class Message
     private Message() { }
 
     public static Message Create(
-        MessageTypes messageType, 
-        int? entityId = null, 
-        string? systemId = null, 
-        int? factionId = null, 
+        MessageTypes messageType,
+        int? entityId = null,
+        string? systemId = null,
+        int? factionId = null,
         BaseDataBlob? dataBlob = null)
     {
         return new Message()

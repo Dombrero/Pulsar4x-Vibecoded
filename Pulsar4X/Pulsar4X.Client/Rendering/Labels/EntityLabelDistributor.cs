@@ -17,25 +17,25 @@ namespace Pulsar4X.Client
             bool[] alreadyGroupedItems = Enumerable.Repeat(false, labels.Count()).ToArray();
 
             int iterations = 0;
-            foreach(var nameIcon in labels)
+            foreach (var nameIcon in labels)
             {
-                if(!alreadyGroupedItems[iterations])
+                if (!alreadyGroupedItems[iterations])
                 {
                     nameIconGroupings.Add(new List<EntityLabel>());
-                    nameIconGroupings[nameIconGroupings.Count -1].Add(nameIcon);
+                    nameIconGroupings[nameIconGroupings.Count - 1].Add(nameIcon);
                     alreadyGroupedItems[iterations] = true;
                     int nestedIterations = 0;
-                    foreach(var nestedNameIcon in labels)
+                    foreach (var nestedNameIcon in labels)
                     {
-                        if(iterations != nestedIterations && !alreadyGroupedItems[nestedIterations])
+                        if (iterations != nestedIterations && !alreadyGroupedItems[nestedIterations])
                         {
                             //check if two names are within the same pixel of distance, if so groups them together into a single window to prevent name overlapping.
                             var xDistance = Helpers.GetSingleDistanceSquared(nameIcon.Rect.X, nestedNameIcon.Rect.X);
                             var yDistance = Helpers.GetSingleDistanceSquared(nameIcon.Rect.Y, nestedNameIcon.Rect.Y);
 
-                            if(yDistance < 256 && xDistance < 9216)
+                            if (yDistance < 256 && xDistance < 9216)
                             {
-                                nameIconGroupings[nameIconGroupings.Count -1].Add(nestedNameIcon);
+                                nameIconGroupings[nameIconGroupings.Count - 1].Add(nestedNameIcon);
                                 alreadyGroupedItems[nestedIterations] = true;
                             }
                         }
@@ -48,7 +48,7 @@ namespace Pulsar4X.Client
             var icons = new List<EntityLabel>();
 
             // FIXME: this feels inefficient
-            foreach(var nameIconGrouping in nameIconGroupings)
+            foreach (var nameIconGrouping in nameIconGroupings)
             {
                 var grp = nameIconGrouping
                     .GroupBy(x => x.BodyType)

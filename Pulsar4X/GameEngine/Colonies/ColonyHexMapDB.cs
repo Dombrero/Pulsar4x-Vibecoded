@@ -11,18 +11,18 @@ namespace Pulsar4X.Colonies
     /// </summary>
     public class ColonyHexMapDB : BaseDataBlob
     {
-        private Dictionary<HexCoordinate, HexTile> _hexTiles;
-        
+        private Dictionary<HexCoordinate, HexTile> _hexTiles = new();
+
         /// <summary>
         /// Maximum radius of the hex map (determined by administration building size)
         /// </summary>
         public int MaxRadius { get; private set; }
-        
+
         /// <summary>
         /// Current radius being used
         /// </summary>
         public int CurrentRadius { get; private set; }
-        
+
         /// <summary>
         /// All hex tiles in the map
         /// </summary>
@@ -51,7 +51,7 @@ namespace Pulsar4X.Colonies
         {
             // Formula: hex radius scales with square root of office space
             int newMaxRadius = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(officeSpace / 100.0)));
-            
+
             if (newMaxRadius != MaxRadius)
             {
                 MaxRadius = newMaxRadius;
@@ -90,11 +90,11 @@ namespace Pulsar4X.Colonies
             {
                 int r1 = Math.Max(-CurrentRadius, -q - CurrentRadius);
                 int r2 = Math.Min(CurrentRadius, -q + CurrentRadius);
-                
+
                 for (int r = r1; r <= r2; r++)
                 {
                     var coord = new HexCoordinate(q, r);
-                    
+
                     // Preserve existing tile data if it exists
                     if (oldTiles.TryGetValue(coord, out var existingTile))
                     {

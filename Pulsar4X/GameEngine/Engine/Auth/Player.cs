@@ -20,8 +20,7 @@ namespace Pulsar4X.Engine.Auth
 
         [PublicAPI]
         [JsonProperty]
-        public string Name { get; protected set; }
-
+        public string? Name { get; protected set; }
         //[JsonProperty]
         //public OrderQueue Orders;
 
@@ -177,10 +176,12 @@ namespace Pulsar4X.Engine.Auth
             info.AddValue(nameof(ID), ID);
             info.AddValue(nameof(Name), Name);
 
+#pragma warning disable SYSLIB0050 // ISerializable persistence gate uses legacy StreamingContext.State
             if (context.State != StreamingContextStates.Persistence)
             {
                 return;
             }
+#pragma warning restore SYSLIB0050
 
             info.AddValue(nameof(PasswordHash), PasswordHash);
             info.AddValue(nameof(Salt), Salt);
@@ -221,12 +222,12 @@ namespace Pulsar4X.Engine.Auth
 
         protected bool Equals(Player? other)
         {
-            return ID.Equals(other.ID);
+            return other is not null && ID.Equals(other.ID);
         }
 
         public override bool Equals(object? obj)
         {
-            if(obj == null) return false;
+            if (obj == null) return false;
             if (ReferenceEquals(null, obj))
             {
                 return false;
@@ -245,8 +246,8 @@ namespace Pulsar4X.Engine.Auth
 
         public static bool operator ==(Player? playerA, Player? playerB)
         {
-            if(playerA is null && playerB is null) return true;
-            if(playerA is null || playerB is null) return false;
+            if (playerA is null && playerB is null) return true;
+            if (playerA is null || playerB is null) return false;
             return Equals(playerA, playerB);
         }
 

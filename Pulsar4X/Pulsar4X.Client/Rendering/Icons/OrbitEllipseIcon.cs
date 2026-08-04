@@ -121,7 +121,7 @@ namespace Pulsar4X.Client
             //we find the point in the ellipse which is closest to the body so we can start drawing from the body.
             double minDist = (_bodyrelativePos - _points[_index]).Length();
 
-            for (int i =0; i < _points.Count(); i++)
+            for (int i = 0; i < _points.Count(); i++)
             {
                 double dist = (_bodyrelativePos - _points[i]).Length();
                 if (dist < minDist)
@@ -141,7 +141,7 @@ namespace Pulsar4X.Client
 
             var trns = Matrix.IDTranslate(foo.X, foo.Y);
             var scAU = Matrix.IDScale(6.6859E-12, 6.6859E-12);
-            var mtrx =  scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
+            var mtrx = scAU * matrix * trns; //scale to au, scale for camera zoom, and move to camera position and zoom
 
             // Transform full orbit points for ghost rendering
             for (int i = 0; i < _numberOfArcSegments + 1 && i < _fullOrbitDrawPoints.Length; i++)
@@ -155,10 +155,10 @@ namespace Pulsar4X.Client
             // Pin the ghost orbit point at the body's index to the actual body screen position
             // so the ghost and tail meet at the same spot on large orbits
             if (_index < _fullOrbitDrawPoints.Length)
-                _fullOrbitDrawPoints[_index] = new SDL.Point(){ X = (int)spos.X, Y = (int)spos.Y };
+                _fullOrbitDrawPoints[_index] = new SDL.Point() { X = (int)spos.X, Y = (int)spos.Y };
 
             //_drawPoints[0] = mtrx.TransformToSDL_Point(_bodyrelativePos.X, _bodyrelativePos.Y);
-            _drawPoints[0] = new SDL.Point(){ X = (int)spos.X, Y = (int)spos.Y};
+            _drawPoints[0] = new SDL.Point() { X = (int)spos.X, Y = (int)spos.Y };
             for (int i = 1; i < _numberOfDrawSegments; i++)
             {
                 if (index > 0)
@@ -194,7 +194,7 @@ namespace Pulsar4X.Client
             for (int i = 0; i < _numberOfDrawSegments - 1; i++)
             {
                 SDL.SetRenderDrawColor(rendererPtr, _userSettings.Red, _userSettings.Grn, _userSettings.Blu, (byte)alpha);//we cast the alpha here to stop rounding errors creaping up.
-                SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i +1].Y);
+                SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i + 1].Y);
                 alpha -= _alphaChangeAmount;
             }
         }

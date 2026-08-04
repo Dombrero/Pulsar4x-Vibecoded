@@ -25,8 +25,8 @@ namespace Pulsar4X.Fleets
 
         public override bool IsBlocking => true;
 
-        private Entity _entityCommanding = null!;
-        private Entity _colony = null!;
+        private Entity _entityCommanding = Entity.InvalidEntity;
+        private Entity _colony = Entity.InvalidEntity;
         private bool _transfersIssued;
 
         internal override Entity EntityCommanding => _entityCommanding;

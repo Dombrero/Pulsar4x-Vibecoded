@@ -22,7 +22,7 @@ namespace Pulsar4X.Galaxy
 {
     public class SystemBodyFactory
     {
-        private GalaxyFactory _galaxyGen;
+        private GalaxyFactory? _galaxyGen;
 
         public SystemBodyFactory(GalaxyFactory galaxyGen)
         {
@@ -71,8 +71,8 @@ namespace Pulsar4X.Galaxy
             double eccentricity = systemBodyBlueprint.Orbit.Eccentricity ?? 0;
 
             double eclipticInclination = systemBodyBlueprint.Orbit.EclipticInclination_r ??
-                                        systemBodyBlueprint.Orbit.EclipticInclination_d * Math.PI/180 ??
-                                        systemBodyBlueprint.Orbit.EclipticInclination * Math.PI/180 ??
+                                        systemBodyBlueprint.Orbit.EclipticInclination_d * Math.PI / 180 ??
+                                        systemBodyBlueprint.Orbit.EclipticInclination * Math.PI / 180 ??
                                         0;
 
             //flatten the inclination, we're only using inclination to define prograde vs retrograde orbits.
@@ -86,31 +86,31 @@ namespace Pulsar4X.Galaxy
 
 
             double loAN = systemBodyBlueprint.Orbit.LoAN_r ??
-                        systemBodyBlueprint.Orbit.LoAN_d * Math.PI/180 ??
-                        systemBodyBlueprint.Orbit.LoAN * Math.PI/180 ??
+                        systemBodyBlueprint.Orbit.LoAN_d * Math.PI / 180 ??
+                        systemBodyBlueprint.Orbit.LoAN * Math.PI / 180 ??
                         0;
 
             double AoP = systemBodyBlueprint.Orbit.AoP_r ??
-                        systemBodyBlueprint.Orbit.AoP_d * Math.PI/180 ??
-                        systemBodyBlueprint.Orbit.AoP * Math.PI/180 ??
+                        systemBodyBlueprint.Orbit.AoP_d * Math.PI / 180 ??
+                        systemBodyBlueprint.Orbit.AoP * Math.PI / 180 ??
                         0;
 
             double meanAnomaly = systemBodyBlueprint.Orbit.MeanAnomaly_r ??
-                                systemBodyBlueprint.Orbit.MeanAnomaly_d * Math.PI/180 ??
-                                systemBodyBlueprint.Orbit.MeanAnomaly * Math.PI/180 ??
+                                systemBodyBlueprint.Orbit.MeanAnomaly_d * Math.PI / 180 ??
+                                systemBodyBlueprint.Orbit.MeanAnomaly * Math.PI / 180 ??
                                 0;
 
             OrbitDB orbitDB;
             var parentBody = sun;
             var parentMassVolumeDB = sunMassVolumeDB;
 
-            if(systemBodyBlueprint.Parent != null)
+            if (systemBodyBlueprint.Parent != null)
             {
                 parentBody = NameLookup.GetFirstEntityWithName(system, systemBodyBlueprint.Parent);
                 parentMassVolumeDB = parentBody.GetDataBlob<MassVolumeDB>();
             }
 
-            switch(systemBodyInfoDB.BodyType)
+            switch (systemBodyInfoDB.BodyType)
             {
                 case BodyType.Comet:
                 case BodyType.Asteroid:
@@ -139,7 +139,7 @@ namespace Pulsar4X.Galaxy
                         AoP,
                         meanAnomaly,
                         epoch);
-                break;
+                    break;
             }
 
             // Prefer authored Sol temperatures. Auto-calc only when missing — and never use a
@@ -170,12 +170,12 @@ namespace Pulsar4X.Galaxy
             blobsToAdd.Add(positionDB);
             blobsToAdd.Add(orbitDB); // orbit needs to be added after position
 
-            if(systemBodyBlueprint.Atmosphere != null)
+            if (systemBodyBlueprint.Atmosphere != null)
             {
                 SystemBodyBlueprint.AtmosphereBlueprint atmosphere = systemBodyBlueprint.Atmosphere.Value;
                 var pressure = atmosphere.Pressure ?? 0;
                 var gases = new Dictionary<string, float>();
-                foreach(var gas in atmosphere.Gases)
+                foreach (var gas in atmosphere.Gases ?? [])
                 {
                     gases.Add(
                         game.GetGasBySymbol(gas.Symbol).UniqueID,
@@ -195,11 +195,11 @@ namespace Pulsar4X.Galaxy
                 blobsToAdd.Add(atmosphereDB);
             }
 
-            string? mineralMode = systemBodyBlueprint.GenerateMinerals ?? systemBodyBlueprint.MineralGeneration;
-            if(!string.IsNullOrEmpty(mineralMode))
+            string? mineralMode = systemBodyBlueprint.GenerateMinerals;
+            if (!string.IsNullOrEmpty(mineralMode))
             {
                 MineralsDB? mineralsDB = null;
-                switch(mineralMode)
+                switch (mineralMode)
                 {
                     case "randomHW":
                         mineralsDB = MineralDepositFactory.GenerateRandomHW(game.GalaxyGen.Settings, game.StartingGameData.Minerals.Values.ToList(), system, systemBodyInfoDB, massVolumeDB);
@@ -209,14 +209,14 @@ namespace Pulsar4X.Galaxy
                         break;
                 }
 
-                if(mineralsDB != null) blobsToAdd.Add(mineralsDB);
+                if (mineralsDB != null) blobsToAdd.Add(mineralsDB);
             }
-            else if(systemBodyBlueprint.Minerals != null)
+            else if (systemBodyBlueprint.Minerals != null)
             {
                 var mineralList = new List<(int, double, double)>();
-                foreach(var mineral in systemBodyBlueprint.Minerals)
+                foreach (var mineral in systemBodyBlueprint.Minerals)
                 {
-                    if(!game.StartingGameData.Minerals.ContainsKey(mineral.Id)) continue;
+                    if (!game.StartingGameData.Minerals.ContainsKey(mineral.Id)) continue;
 
                     var mineralBlueprint = game.StartingGameData.Minerals[mineral.Id];
                     mineralList.Add((mineralBlueprint.ID, mineral.Abundance, mineral.Accessibility));
@@ -224,7 +224,7 @@ namespace Pulsar4X.Galaxy
                 blobsToAdd.Add(MineralDepositFactory.Generate(game, mineralList, systemBodyInfoDB.BodyType));
             }
 
-            if(systemBodyBlueprint.GeoSurveyPointsRequired != null)
+            if (systemBodyBlueprint.GeoSurveyPointsRequired != null)
             {
                 var geoSurveyableDB = new GeoSurveyableDB()
                 {
@@ -234,14 +234,14 @@ namespace Pulsar4X.Galaxy
                 blobsToAdd.Add(geoSurveyableDB);
             }
 
-            if(systemBodyBlueprint.Colonizable != null)
+            if (systemBodyBlueprint.Colonizable != null)
             {
                 bool isColonizeable = systemBodyBlueprint.Colonizable ?? false;
-                if(isColonizeable)
+                if (isColonizeable)
                     blobsToAdd.Add(new ColonizeableDB());
             }
 
-            if(systemBodyInfoDB.BodyType == BodyType.Comet)
+            if (systemBodyInfoDB.BodyType == BodyType.Comet)
             {
                 blobsToAdd.Add(sensorProfileDB);
                 SensorTools.PlanetEmmisionSig(sensorProfileDB, systemBodyInfoDB, massVolumeDB);
@@ -260,26 +260,28 @@ namespace Pulsar4X.Galaxy
         {
             string fileContents = File.ReadAllText(filePath);
             var rootJson = JObject.Parse(fileContents);
-            var info = rootJson["info"];
+            var info = rootJson["info"] ?? throw new InvalidOperationException("System body JSON missing 'info'.");
 
             var blobsToAdd = new List<BaseDataBlob>();
             var sunMassVolumeDB = sun.GetDataBlob<MassVolumeDB>();
 
-            var nameDb = new NameDB(rootJson["name"].ToString());
+            var nameDb = new NameDB(rootJson["name"]?.ToString() ?? "Unknown");
             blobsToAdd.Add(nameDb);
 
             var systemBodyInfoDB = new SystemBodyInfoDB()
             {
                 Gravity = (double?)info["gravity"] ?? 0,
-                BodyType = info["type"] != null ? GetBodyType(info["type"].ToString()) : BodyType.Unknown,
-                Tectonics = info["tectonics"] != null ? GetTectonicsType(info["tectonics"].ToString()) : TectonicActivity.Unknown,
-                Albedo = info["albedo"] != null ? new PercentValue(float.Parse(info["albedo"].ToString())) : 0,
+                BodyType = info["type"]?.ToString() is { } typeToken ? GetBodyType(typeToken) : BodyType.Unknown,
+                Tectonics = info["tectonics"]?.ToString() is { } tectonicsToken ? GetTectonicsType(tectonicsToken) : TectonicActivity.Unknown,
+                Albedo = info["albedo"] != null ? new PercentValue(float.Parse(info["albedo"]!.ToString())) : 0,
                 AxialTilt = (float?)info["axialTilt"] ?? 0,
                 MagneticField = (float?)info["magneticField"] ?? 0,
                 BaseTemperature = (float?)info["baseTemperature"] ?? 0,
                 RadiationLevel = (float?)info["radiationLevel"] ?? 0,
                 AtmosphericDust = (float?)info["atmosphericDust"] ?? 0,
-                LengthOfDay = info["lengthOfDay"] != null ? TimeSpan.Parse(info["lengthOfDay"].ToString()) : TimeSpan.Zero
+                LengthOfDay = info["lengthOfDay"]?.ToString() is { } lengthOfDayToken
+                    ? TimeSpan.Parse(lengthOfDayToken)
+                    : TimeSpan.Zero
             };
             blobsToAdd.Add(systemBodyInfoDB);
 
@@ -293,7 +295,7 @@ namespace Pulsar4X.Galaxy
             if (systemBodyInfoDB.Gravity == 0)
                 systemBodyInfoDB.Gravity = massVolumeDB.SurfaceGravity;
 
-            var orbit = rootJson["orbit"];
+            var orbit = rootJson["orbit"] ?? new JObject();
 
             //double semiMajorAxis_AU = Distance.KmToAU((double?)orbit["semiMajorAxis_km"] ?? 0);
 
@@ -306,8 +308,8 @@ namespace Pulsar4X.Galaxy
             double eccentricity = (double?)orbit["eccentricity"] ?? 0;
 
             double eclipticInclination = (double?)orbit["eclipticInclination_r"] ??
-                                        (double?)orbit["eclipticInclination_d"] * Math.PI/180 ??
-                                        (double?)orbit["eclipticInclination"] * Math.PI/180 ??
+                                        (double?)orbit["eclipticInclination_d"] * Math.PI / 180 ??
+                                        (double?)orbit["eclipticInclination"] * Math.PI / 180 ??
                                         0;
 
             //flatten the inclination, we're only using inclination to define prograde vs retrograde orbits.
@@ -321,31 +323,33 @@ namespace Pulsar4X.Galaxy
 
 
             double loAN = (double?)orbit["LoAN_r"] ??
-                        (double?)orbit["LoAN_d"] * Math.PI/180 ??
-                        (double?)orbit["LoAN"] * Math.PI/180 ??
+                        (double?)orbit["LoAN_d"] * Math.PI / 180 ??
+                        (double?)orbit["LoAN"] * Math.PI / 180 ??
                         0;
 
             double AoP = (double?)orbit["AoP_r"] ??
-                        (double?)orbit["AoP_d"] * Math.PI/180 ??
-                        (double?)orbit["AoP"] * Math.PI/180 ??
+                        (double?)orbit["AoP_d"] * Math.PI / 180 ??
+                        (double?)orbit["AoP"] * Math.PI / 180 ??
                         0;
 
             double meanAnomaly = (double?)orbit["meanAnomaly_r"] ??
-                                (double?)orbit["meanAnomaly_d"] * Math.PI/180 ??
-                                (double?)orbit["meanAnomaly"] * Math.PI/180 ??
+                                (double?)orbit["meanAnomaly_d"] * Math.PI / 180 ??
+                                (double?)orbit["meanAnomaly"] * Math.PI / 180 ??
                                 0;
 
             OrbitDB orbitDB;
             var parentBody = sun;
             var parentMassVolumeDB = sunMassVolumeDB;
 
-            if(rootJson["parent"] != null)
+            if (rootJson["parent"] != null)
             {
-                parentBody = NameLookup.GetFirstEntityWithName(system, rootJson["parent"].ToString());
+                parentBody = NameLookup.GetFirstEntityWithName(system, rootJson["parent"]?.ToString() ?? string.Empty);
+                if (!parentBody.IsValid)
+                    throw new InvalidOperationException($"System body parent '{rootJson["parent"]}' not found.");
                 parentMassVolumeDB = parentBody.GetDataBlob<MassVolumeDB>();
             }
 
-            switch(systemBodyInfoDB.BodyType)
+            switch (systemBodyInfoDB.BodyType)
             {
                 case BodyType.Comet:
                 case BodyType.Asteroid:
@@ -374,11 +378,11 @@ namespace Pulsar4X.Galaxy
                         AoP,
                         meanAnomaly,
                         epoch);
-                break;
+                    break;
             }
 
-            if (info["baseTemperature"] != null)
-                systemBodyInfoDB.BaseTemperature = (float)info["baseTemperature"];
+            if (info?["baseTemperature"] != null)
+                systemBodyInfoDB.BaseTemperature = (float)info["baseTemperature"]!;
             else
             {
                 var starInfo = sun.GetDataBlob<StarInfoDB>();
@@ -403,15 +407,14 @@ namespace Pulsar4X.Galaxy
             blobsToAdd.Add(positionDB);
             blobsToAdd.Add(orbitDB); // orbit needs to be added after position
 
-            if(rootJson["atmosphere"] != null)
+            if (rootJson["atmosphere"] is JObject atmosphere)
             {
-                var atmosphere = rootJson["atmosphere"];
                 var pressure = (float?)atmosphere["pressure"] ?? 0;
                 var gasesJson = (JArray?)atmosphere["gases"];
                 var gases = new Dictionary<string, float>();
-                foreach(var gas in gasesJson)
+                foreach (var gas in gasesJson ?? [])
                 {
-                    string symbol = gas["symbol"].ToString();
+                    string symbol = gas["symbol"]?.ToString() ?? throw new InvalidOperationException("Gas entry missing symbol.");
                     float percent = (float?)gas["percent"] ?? 0;
                     gases.Add(
                         game.GetGasBySymbol(symbol).UniqueID,
@@ -431,34 +434,34 @@ namespace Pulsar4X.Galaxy
                 blobsToAdd.Add(atmosphereDB);
             }
 
-            if(rootJson["minerals"] != null)
+            if (rootJson["minerals"] != null)
             {
                 MineralsDB? mineralsDb = null;
                 JToken? mineralToken = rootJson["minerals"];
-                if(mineralToken.Type == JTokenType.String)
+                if (mineralToken is { Type: JTokenType.String })
                 {
                     var value = (string?)rootJson["minerals"] ?? "";
 
-                    if(value.Equals("random"))
+                    if (value.Equals("random"))
                     {
                         mineralsDb = MineralDepositFactory.GenerateRandom(game.GalaxyGen.Settings, game.StartingGameData.Minerals.Values.ToList(), system, systemBodyInfoDB, massVolumeDB);
                     }
-                    if(value.Equals("randomHW"))
+                    if (value.Equals("randomHW"))
                     {
                         mineralsDb = MineralDepositFactory.GenerateRandomHW(game.GalaxyGen.Settings, game.StartingGameData.Minerals.Values.ToList(), system, systemBodyInfoDB, massVolumeDB);
                     }
                 }
-                else if(mineralToken.Type == JTokenType.Array)
+                else if (mineralToken is { Type: JTokenType.Array })
                 {
                     var mineralList = new List<(int, double, double)>();
                     var minerals = (JArray?)rootJson["minerals"];
-                    foreach(var mineral in minerals)
+                    foreach (var mineral in minerals ?? [])
                     {
                         var id = (string?)mineral["id"] ?? "";
                         var abundance = (double?)mineral["abundance"] ?? 0.1;
                         var accessibility = (double?)mineral["accessibility"] ?? 0.1;
 
-                        if(!game.StartingGameData.Minerals.ContainsKey(id)) continue;
+                        if (!game.StartingGameData.Minerals.ContainsKey(id)) continue;
 
                         var mineralBlueprint = game.StartingGameData.Minerals[id];
                         mineralList.Add((mineralBlueprint.ID, abundance, accessibility));
@@ -467,30 +470,31 @@ namespace Pulsar4X.Galaxy
                     mineralsDb = MineralDepositFactory.Generate(game, mineralList, systemBodyInfoDB.BodyType);
                 }
 
-                if(mineralsDb != null)
+                if (mineralsDb != null)
                 {
                     blobsToAdd.Add(mineralsDb);
                 }
             }
 
-            if(rootJson["geoSurvey"] != null)
+            if (rootJson["geoSurvey"] != null)
             {
+                var geoSurvey = rootJson["geoSurvey"];
                 var geoSurveyableDB = new GeoSurveyableDB()
                 {
-                    PointsRequired = (uint?)rootJson["geoSurvey"]["pointsRequired"] ?? 1000
+                    PointsRequired = (uint?)geoSurvey?["pointsRequired"] ?? 1000
                 };
 
                 blobsToAdd.Add(geoSurveyableDB);
             }
 
-            if(rootJson["colonizeable"] != null)
+            if (rootJson["colonizeable"] != null)
             {
                 bool isColonizeable = (bool?)rootJson["colonizeable"] ?? false;
-                if(isColonizeable)
+                if (isColonizeable)
                     blobsToAdd.Add(new ColonizeableDB());
             }
 
-            if(systemBodyInfoDB.BodyType == BodyType.Comet)
+            if (systemBodyInfoDB.BodyType == BodyType.Comet)
             {
                 blobsToAdd.Add(sensorProfileDB);
                 SensorTools.PlanetEmmisionSig(sensorProfileDB, systemBodyInfoDB, massVolumeDB);
@@ -841,7 +845,7 @@ namespace Pulsar4X.Galaxy
             return bodies;
         }
 
-        public static Entity GenerateSingleBody(SystemGenSettingsBlueprint settings, StarSystem system, Entity parent, BodyType type, double radius )
+        public static Entity GenerateSingleBody(SystemGenSettingsBlueprint settings, StarSystem system, Entity parent, BodyType type, double radius)
         {
             var parentstar = parent;
             var starInfo = parent.GetDataBlob<StarInfoDB>();
@@ -856,7 +860,7 @@ namespace Pulsar4X.Galaxy
             }
             //if we're orbiting something, then the parents position from the sun is going tobe the average distance from the sun
             //this kinda breaks in multi star systems...
-            if(heirarchyDepth > 0)
+            if (heirarchyDepth > 0)
                 bandRadius = MoveMath.GetAbsoluteFuturePosition(parent, system.StarSysDateTime).Length();
 
             var zones = HabitibleZones(settings, starInfo);
@@ -1036,7 +1040,7 @@ namespace Pulsar4X.Galaxy
                 return null;
             }
 
-            double sma_m =  GeneralMath.Lerp(minDistance, maxDistance, system.RNGNextDouble());
+            double sma_m = GeneralMath.Lerp(minDistance, maxDistance, system.RNGNextDouble());
 
             // Calculate max eccentricity.
             // First calc max eccentricity for the apoapsis.
@@ -1125,6 +1129,8 @@ namespace Pulsar4X.Galaxy
         private static void FinalizeNameDB(IHasDataBlobs body, Entity? parent, int bodyCount, string suffix = "")
         {
             // Set this body's name.
+            if (parent is not { IsValid: true })
+                return;
             string parentName = parent.GetDataBlob<NameDB>().DefaultName;
             string bodyName = parentName + " - " + bodyCount + suffix;
             body.GetDataBlob<NameDB>().SetName(-1, bodyName);
@@ -1238,7 +1244,7 @@ namespace Pulsar4X.Galaxy
             // we will use the reference orbit + MaxAsteroidOrbitDeviation to constrain the orbit values:
             double deviation = _galaxyGen.Settings.MaxAsteroidOrbitDeviation;
 
-			// Creates orbital parameters by multiplying referenceOrbit
+            // Creates orbital parameters by multiplying referenceOrbit
             // parameters by a value between +/- MaxAsteroidOrbitDeviation
             // of the reference parameter
             double semiMajorAxis = Distance.MToAU(referenceOrbit.SemiMajorAxis) *
@@ -1250,7 +1256,7 @@ namespace Pulsar4X.Galaxy
             double argumentOfPeriapsis = referenceOrbit.ArgumentOfPeriapsis *
                 (1 + GeneralMath.Lerp(-deviation, deviation, system.RNGNextDouble()));
             double longitudeOfAscendingNode = referenceOrbit.LongitudeOfAscendingNode *
-				(1 + GeneralMath.Lerp(-deviation, deviation, system.RNGNextDouble()));
+                (1 + GeneralMath.Lerp(-deviation, deviation, system.RNGNextDouble()));
 
             // Keep the starting point of the orbit completely random.
             double meanAnomaly = system.RNGNextDouble() * 360;
@@ -1319,7 +1325,7 @@ namespace Pulsar4X.Galaxy
             bodyInfo.AxialTilt = (float)(system.RNGNextDouble() * _galaxyGen.Settings.MaxBodyInclination);
 
             // generate the planets day length:
-            //< @todo Should we do Tidally Locked bodies??? iirc bodies trend toward being tidally locked over time...
+            //< @todo Should we do Tidally Locked bodies?? iirc bodies trend toward being tidally locked over time...
             bodyInfo.LengthOfDay = new TimeSpan((int)Math.Round(GeneralMath.Lerp(0, bodyOrbit.OrbitalPeriod.TotalDays, system.RNGNextDouble())), system.RNGNext(0, 24), system.RNGNext(0, 60), 0);
             // just a basic sanity check to make sure we don't end up with a planet rotating once every 3 minutes, It'd pull itself apart!!
             if (bodyInfo.LengthOfDay < TimeSpan.FromHours(_galaxyGen.Settings.MiniumPossibleDayLength))
@@ -1466,10 +1472,10 @@ namespace Pulsar4X.Galaxy
             if (ReferenceEquals(parentBody, sun) || parentBody == null)
                 return bodyOrbit;
 
-            Entity current = parentBody;
+            Entity? current = parentBody;
             OrbitDB? heliocentric = null;
             int guard = 0;
-            while (current != null && !ReferenceEquals(current, sun) && guard++ < 12)
+            while (current is { IsValid: true } && !ReferenceEquals(current, sun) && guard++ < 12)
             {
                 if (!current.TryGetDataBlob<OrbitDB>(out var orb) || orb == null)
                     break;
@@ -1482,7 +1488,7 @@ namespace Pulsar4X.Galaxy
 
         /// <summary>
         /// This function generate ruins for the specified system Body.
-        /// @todo Make Ruins Generation take star age/type into consideration??
+        /// @todo Make Ruins Generation take star age/type into consideration?
         /// </summary>
         private void GenerateRuins(StarSystem system, IHasDataBlobs body)
         {
@@ -1543,7 +1549,7 @@ namespace Pulsar4X.Galaxy
                 return;
             }
 
-            if(mineralInfo == null)
+            if (mineralInfo == null)
             {
                 body.SetDataBlob(new MineralsDB());
                 mineralInfo = body.GetDataBlob<MineralsDB>();
@@ -1585,7 +1591,7 @@ namespace Pulsar4X.Galaxy
             var bodyInfo = body.GetDataBlob<SystemBodyInfoDB>();
             body.TryGetDataBlob<MineralsDB>(out var mineralInfo);
 
-            if(mineralInfo == null)
+            if (mineralInfo == null)
             {
                 body.SetDataBlob<MineralsDB>(new());
                 mineralInfo = body.GetDataBlob<MineralsDB>();
@@ -1664,7 +1670,7 @@ namespace Pulsar4X.Galaxy
         /// <summary>
         /// Works out how thick the atmosphere for the body should be, returns the value in atm.
         /// </summary>
-        double GenAtmosphereThickness(double bodyMass, SystemBodyInfoDB body, OrbitDB orbit,  double atmoModifer, double randomModifer)
+        double GenAtmosphereThickness(double bodyMass, SystemBodyInfoDB body, OrbitDB orbit, double atmoModifer, double randomModifer)
         {
             switch (body.BodyType)
             {
@@ -1690,13 +1696,21 @@ namespace Pulsar4X.Galaxy
                     {
                         // if moon get planet orbit, then star
                         var parentOrbitDB = orbit.ParentDB as OrbitDB;
-                        starInfo = parentOrbitDB.Parent.GetDataBlob<StarInfoDB>();
-                        ecosphereRatio = (parentOrbitDB.SemiMajorAxis / starInfo.EcoSphereRadius_m);
+                        if (parentOrbitDB?.Parent is { IsValid: true } moonParent)
+                        {
+                            starInfo = moonParent.GetDataBlob<StarInfoDB>();
+                            ecosphereRatio = (parentOrbitDB.SemiMajorAxis / starInfo.EcoSphereRadius_m);
+                        }
+                        else if (orbit.Parent is { IsValid: true } orbitParent)
+                        {
+                            starInfo = orbitParent.GetDataBlob<StarInfoDB>();
+                            ecosphereRatio = GeneralMath.Clamp(orbit.SemiMajorAxis / starInfo.EcoSphereRadius_m, 0.1, 2);
+                        }
                     }
-                    else
+                    else if (orbit.Parent is { IsValid: true } planetParent)
                     {
                         // if planet get star:
-                        starInfo = orbit.Parent.GetDataBlob<StarInfoDB>();
+                        starInfo = planetParent.GetDataBlob<StarInfoDB>();
                         ecosphereRatio = GeneralMath.Clamp(orbit.SemiMajorAxis / starInfo.EcoSphereRadius_m, 0.1, 2);
                     }
 

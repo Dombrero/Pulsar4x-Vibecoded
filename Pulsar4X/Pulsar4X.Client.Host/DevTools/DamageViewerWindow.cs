@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using GameEngine.Damage;
@@ -26,24 +26,6 @@ namespace Pulsar4X.Client
         //private ComponentDesign _componentDesign;
         private Entity? _selectedEntity;
 
-        int _newmatIDCode;
-        int _newmatHitPoints = 10;
-        float _newmatHeat = 1f;
-        float _newmatKinetic = 1f;
-        private float _newmatDensity = 5000;
-        int _newmatAmount = 50;
-
-
-        private float _projLen = 0.25f;
-        private float _projMass = 0.25f;
-        private float _projDensity = 4540f;
-
-        private int _selectedComponentIndex = 0;
-
-
-        private RawBmp _rawComponentImage;
-        private IntPtr _componentSDLtexture;
-
         private int _damageEventIndex = 0;
         private List<RawBmp>? _damageFrames = null;
         private int _showFrameNum = 0;
@@ -52,14 +34,13 @@ namespace Pulsar4X.Client
         private RawBmp _rawShipImage;
         private IntPtr _shipImgPtr;
 
-        DamageMap _damageMap;
+        DamageMap? _damageMap;
         IntPtr[] _damageMapPtr = new IntPtr[8];
         private IntPtr _hiResPtr = new IntPtr();
         private int _hiResSize = 128;
-        DamageMap _projectileDamageMap;
-        IntPtr _projectileDMapPtr;
+        DamageMap? _projectileDamageMap;
 
-        ComponentInstancesDB _componentInstances;
+        ComponentInstancesDB? _componentInstances;
 
         private DamageViewerWindow()
         {
@@ -77,11 +58,11 @@ namespace Pulsar4X.Client
 
         public static DamageViewerWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<DamageViewerWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<DamageViewerWindow>(out var window))
             {
-                if (_uiState.PrimaryEntity != null && _uiState.LastClickedEntity.GetEntity()! != window._selectedEntity)
+                if (_uiState.PrimaryEntity != null && _uiState.LastClickedEntity?.GetEntity() is { } clickedEntity && clickedEntity != window._selectedEntity)
                 {
-                    window.Init(_uiState.LastClickedEntity.GetEntity()!);
+                    window.Init(clickedEntity);
                 }
                 return window;
             }
@@ -100,12 +81,12 @@ namespace Pulsar4X.Client
         {
             _selectedEntity = damageableEntity;
 
-            if(damageableEntity.TryGetDataBlob<ShipInfoDB>(out var shdb))
+            if (damageableEntity.TryGetDataBlob<ShipInfoDB>(out var shdb))
             {
                 var design = shdb.Design;
                 _damageMap = new DamageMap(damageableEntity, design);
             }
-            if(damageableEntity.TryGetDataBlob<SystemBodyInfoDB>(out var sbdb))
+            if (damageableEntity.TryGetDataBlob<SystemBodyInfoDB>(out var sbdb))
             {
                 _damageMap = new DamageMap(damageableEntity, sbdb);
             }
@@ -117,18 +98,19 @@ namespace Pulsar4X.Client
             _dmProjectileSliderLhs = (int)(_dmHeight * 0.75);
             _dmProjectileSliderTop = 0;
             _dmProjectileSliderRhs = (int)(_dmHeight * 0.25);
-            if(damageableEntity.TryGetDataBlob<EntityDamageProfileDB>(out var _profile))
+            if (damageableEntity.TryGetDataBlob<EntityDamageProfileDB>(out var profile))
             {
-                _rawShipImage = _profile.DamageProfile;
-                if (_profile.DamageEvents.Count > 0)
+                _profile = profile;
+                _rawShipImage = profile.DamageProfile;
+                if (profile.DamageEvents.Count > 0)
                 {
-                    _damageEventIndex = _profile.DamageEvents.Count - 1;
+                    _damageEventIndex = profile.DamageEvents.Count - 1;
                     SetDamageEventFrames();
                 }
                 RawBmpTextures.CreateTexture(_uiState.ViewPort.Renderer, _rawShipImage, ref _shipImgPtr, SDL.PixelFormat.ARGB8888);
             }
-            if(damageableEntity.TryGetDataBlob<ComponentInstancesDB>(out var _componentInstances))
-            {}
+            if (damageableEntity.TryGetDataBlob<ComponentInstancesDB>(out var componentInstances))
+                _componentInstances = componentInstances;
             CanActive = true;
             /*
             else
@@ -151,10 +133,10 @@ namespace Pulsar4X.Client
         static class ExsistingWeapons
         {
             private static FactionInfoDB? _factionInfoDB;
-            private static List<ComponentDesign> _allShipComponents;
+            private static List<ComponentDesign> _allShipComponents = new();
             public static int SelectedWeaponIndex = 0;
-            public static List<ComponentDesign> AvailableShipComponents;
-            public static string[] WeaponNames;
+            public static List<ComponentDesign> AvailableShipComponents = new();
+            public static string[] WeaponNames = Array.Empty<string>();
 
             public static ComponentDesign SelectedWeapon
             {
@@ -172,7 +154,7 @@ namespace Pulsar4X.Client
 
             static void RefreshComponentDesigns()
             {
-                _allShipComponents = _factionInfoDB.ComponentDesigns.Values.ToList();
+                _allShipComponents = _factionInfoDB!.ComponentDesigns.Values.ToList();
                 _allShipComponents.Sort((a, b) => a.Name.CompareTo(b.Name));
 
                 var templatesByGroup = _allShipComponents.GroupBy(t => t.ComponentType);
@@ -193,9 +175,6 @@ namespace Pulsar4X.Client
         }
 
         //private int _beamTypeIndex = 5;
-        private double _momentum = 0;
-        DamageFragment _damageFrag;
-        private bool _typeIsBeam = true;
         private int _dmProjectileSpeed = 5000;
         private int _dmProjectileSliderTop = 0;
         private int _dmProjectileSliderBot = 0;
@@ -249,7 +228,7 @@ namespace Pulsar4X.Client
                     }
 
 
-                    if (_damageMapPtr[0] != IntPtr.Zero&& ImGui.CollapsingHeader("New Damage Map"))
+                    if (_damageMapPtr[0] != IntPtr.Zero && ImGui.CollapsingHeader("New Damage Map"))
                     {
                         var vsliderSize = new System.Numerics.Vector2(18, _dmHeight);
                         //var hsliderSize = new System.Numerics.Vector2(18, w);
@@ -266,7 +245,7 @@ namespace Pulsar4X.Client
 
                         if (ImGui.VSliderInt("###lhs", vsliderSize, ref _dmProjectileSliderLhs, _dmHeight, 0))
                         {
-                            if(_dmProjectileSliderTop > _dmWidth * 0.5)
+                            if (_dmProjectileSliderTop > _dmWidth * 0.5)
                                 _dmProjectileSliderTop = _dmWidth;
                             else
                                 _dmProjectileSliderTop = 0;
@@ -274,37 +253,37 @@ namespace Pulsar4X.Client
                         ImGui.SameLine();
                         _ImageStart = ImGui.GetCursorScreenPos();
                         var cpos = ImGui.GetCursorPos();
-                        if(_showCompIDMap)
+                        if (_showCompIDMap)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[0].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showPresMap)
+                        if (_showPresMap)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[1].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showVMap)
+                        if (_showVMap)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[2].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showPMap)
+                        if (_showPMap)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[3].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showTemp)
+                        if (_showTemp)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[4].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showPState)
+                        if (_showPState)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[5].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
                         }
-                        if(_showPhMap && _damageMapPtr[6] != IntPtr.Zero)
+                        if (_showPhMap && _damageMapPtr[6] != IntPtr.Zero)
                         {
                             ImGui.SetCursorPos(cpos);
                             ImGui.Image(_damageMapPtr[6].ToTextureRef(), new System.Numerics.Vector2(_dmWidth, _dmHeight));
@@ -321,7 +300,7 @@ namespace Pulsar4X.Client
                         ImGui.SameLine();
                         if (ImGui.VSliderInt("###rhs", vsliderSize, ref _dmProjectileSliderRhs, _dmHeight, 0))
                         {
-                            if(_dmProjectileSliderBot > _dmWidth * 0.5)
+                            if (_dmProjectileSliderBot > _dmWidth * 0.5)
                                 _dmProjectileSliderBot = _dmWidth;
                             else
                                 _dmProjectileSliderBot = 0;
@@ -419,10 +398,10 @@ namespace Pulsar4X.Client
                                 {
                                     //_momentum = (float)(UniversalConstants.Science.PlankConstant * Beam.BeamFreq);
                                 }
-                                if(ImGui.SliderInt("Range Km", ref _beamRange, 1, 100000))
-                                {}
-                                if(ImGui.SliderFloat("Length in seconds", ref _beamlifetime, 1, 60))
-                                {}
+                                if (ImGui.SliderInt("Range Km", ref _beamRange, 1, 100000))
+                                { }
+                                if (ImGui.SliderFloat("Length in seconds", ref _beamlifetime, 1, 60))
+                                { }
                             }
 
                             ImGui.Columns(1);
@@ -438,7 +417,8 @@ namespace Pulsar4X.Client
                                 _damageMap.MergeAndResize(_projectileDamageMap);
                                 DamageMapRendering.CreateSDLTextures(_uiState.ViewPort.Renderer, _damageMap, ref _damageMapPtr);
                                 var fpart = KineticMath.GetFastestPart(_damageMap);
-                                DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
+                                if (fpart != null)
+                                    DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
 
 
 
@@ -457,7 +437,7 @@ namespace Pulsar4X.Client
 
                             if (ImGui.Button("RunSimLoop"))
                             {
-                                _runSimLoop =! _runSimLoop;
+                                _runSimLoop = !_runSimLoop;
                             }
                             if (ImGui.Button("StepSim"))
                             {
@@ -465,7 +445,8 @@ namespace Pulsar4X.Client
                                 DamagePhysicsSim.PhysicsLoop(_damageMap);
                                 DamageMapRendering.CreateSDLTextures(_uiState.ViewPort.Renderer, _damageMap, ref _damageMapPtr);
                                 var fpart = KineticMath.GetFastestPart(_damageMap);
-                                DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
+                                if (fpart != null)
+                                    DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
                             }
 
                             if (_runSimLoop)
@@ -473,13 +454,14 @@ namespace Pulsar4X.Client
                                 DamagePhysicsSim.PhysicsLoop(_damageMap);
                                 DamageMapRendering.CreateSDLTextures(_uiState.ViewPort.Renderer, _damageMap, ref _damageMapPtr);
                                 var fpart = KineticMath.GetFastestPart(_damageMap);
-                                DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
+                                if (fpart != null)
+                                    DamageMapRendering.CreateTextureForFastestParticleRegion(_uiState.ViewPort.Renderer, _damageMap, fpart, ref _hiResPtr, _hiResSize);
                             }
                             ImGui.Text(Stringify.Energy(_damageMap.TotalEnergy));
                             ImGui.Text(_damageMap.RunTime.ToString());
-                            if(_componentInstances != null)
+                            if (_componentInstances != null)
                             {
-                                if(ImGui.Button("updateComponetnts"))
+                                if (ImGui.Button("updateComponetnts"))
                                     DamagePhysicsSim.UpdateComponetHealth(_damageMap, _componentInstances);
 
                                 foreach (var kvp in _componentInstances.ComponentsByDesign)
@@ -549,14 +531,14 @@ namespace Pulsar4X.Client
 
         void SetDMVectors()
         {
-            System.Numerics.Vector2 size = new (3,3);
+            System.Numerics.Vector2 size = new(3, 3);
             System.Numerics.Vector2 dmProjStart = new(_dmProjectileSliderTop, _dmProjectileSliderLhs);
             dmProjStart /= _dmSizeScaler;
             dmProjStart -= size;
             System.Numerics.Vector2 _dmProjEnd = new(_dmProjectileSliderBot, _dmProjectileSliderRhs);
             _dmProjEnd /= _dmSizeScaler;
             System.Numerics.Vector2 velocity = System.Numerics.Vector2.Normalize(_dmProjEnd - dmProjStart);
-            if(_projectileTypes == 0)
+            if (_projectileTypes == 0)
             {
                 velocity *= _dmProjectileSpeed;
                 ParticleMaterial dmMat = new ParticleMaterial()
@@ -577,7 +559,7 @@ namespace Pulsar4X.Client
                 velocity *= 2.998e+8f; //speed of light
                 Vector3 vel3 = new Vector3(velocity.X, velocity.Y, 0);
                 Vector3 lPos = vel3 * _beamRange;
-                BeamInfoDB bidb = new BeamInfoDB(000, _selectedEntity, true, 300)
+                BeamInfoDB bidb = new BeamInfoDB(000, _selectedEntity!, true, 300)
                 {
                     VelocityVector = vel3,
                     LaunchPosition = lPos,

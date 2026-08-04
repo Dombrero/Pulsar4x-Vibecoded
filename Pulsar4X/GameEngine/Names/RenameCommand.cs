@@ -14,10 +14,10 @@ namespace Pulsar4X.Names
 
         public override string Details { get; } = "Renames This Entity";
 
-        Entity _factionEntity;
-        Entity _entityCommanding;
+        Entity _factionEntity = Entity.InvalidEntity;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
-        string NewName;
+        string? NewName;
 
         public static bool CreateRenameCommand(Game game, Entity faction, Entity orderEntity, string newName)
         {
@@ -25,7 +25,7 @@ namespace Pulsar4X.Names
             {
                 RequestingFactionGuid = faction.Id,
                 EntityCommandingGuid = orderEntity.Id,
-                CreatedDate = orderEntity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = orderEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 NewName = newName,
                 UseActionLanes = false
             };

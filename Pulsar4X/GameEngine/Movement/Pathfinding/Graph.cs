@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Pulsar4X.Movement
 {
@@ -12,8 +12,7 @@ namespace Pulsar4X.Movement
     {
         public virtual NodeList Nodes => _nodes;
         public virtual int Count => _nodes.Count;
-        private readonly NodeList _nodes;
-
+        private readonly NodeList? _nodes;
         #region Constructors
 
         /// <summary>

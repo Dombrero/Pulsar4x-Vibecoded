@@ -9,7 +9,7 @@ namespace Pulsar4X.Industry
 {
     public class MineResourcesAtbDB : BaseDataBlob, IComponentDesignAttribute
     {
-        public Dictionary<string, double> ResourcesPerEconTick { get; internal set; }
+        public Dictionary<string, double> ResourcesPerEconTick { get; internal set; } = new();
 
         public MineResourcesAtbDB() { }
 
@@ -48,11 +48,11 @@ namespace Pulsar4X.Industry
 
         public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
         {
-            if(parentEntity.TryGetDataBlob<MiningDB>(out var miningDB))
+            if (parentEntity.TryGetDataBlob<MiningDB>(out var miningDB))
             {
                 miningDB.NumberOfMines--;
 
-                if(miningDB.NumberOfMines == 0)
+                if (miningDB.NumberOfMines == 0)
                 {
                     parentEntity.RemoveDataBlob<MiningDB>();
                 }

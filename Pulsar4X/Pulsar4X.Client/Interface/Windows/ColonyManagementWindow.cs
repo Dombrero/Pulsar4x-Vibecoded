@@ -23,7 +23,7 @@ namespace Pulsar4X.Client
 
         internal static ColonyManagementWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<ColonyManagementWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<ColonyManagementWindow>(out var window))
             {
                 return window;
             }
@@ -39,31 +39,31 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive) return;
+            if (!IsActive) return;
 
             var galaxy = _uiState.GameClient?.Galaxy;
-            if(galaxy == null) return;
+            if (galaxy == null) return;
 
-            if(Window.Begin("Manage Colonies", ref IsActive))
+            if (Window.Begin("Manage Colonies", ref IsActive))
             {
                 Vector2 windowContentSize = ImGui.GetContentRegionAvail();
-                if(ImGui.BeginChild("Colonies", new Vector2(Styles.LeftColumnWidth, windowContentSize.Y), ImGuiChildFlags.Borders))
+                if (ImGui.BeginChild("Colonies", new Vector2(Styles.LeftColumnWidth, windowContentSize.Y), ImGuiChildFlags.Borders))
                 {
                     DisplayHelpers.Header("Select Colony to Manage");
-                    foreach(var summary in galaxy.KnownSystems)
+                    foreach (var summary in galaxy.KnownSystems)
                     {
                         var system = galaxy.GetSystem(summary.SystemId);
-                        if(system == null) continue;
+                        if (system == null) continue;
 
-                        if(!isExpanded.ContainsKey(summary.SystemId)) isExpanded.Add(summary.SystemId, true);
+                        if (!isExpanded.ContainsKey(summary.SystemId)) isExpanded.Add(summary.SystemId, true);
                         ImGui.SetNextItemOpen(isExpanded[summary.SystemId], ImGuiCond.Appearing);
-                        if(ImGui.TreeNode(summary.Name + "###" + summary.SystemId))
+                        if (ImGui.TreeNode(summary.Name + "###" + summary.SystemId))
                         {
-                            foreach(var colony in system.Entities.Where(e => e.Kind == BodyKind.Colony && e.Relation == OwnerRelation.Owned))
+                            foreach (var colony in system.Entities.Where(e => e.Kind == BodyKind.Colony && e.Relation == OwnerRelation.Owned))
                             {
                                 var population = colony.GetView<ColonyView>()?.Population ?? 0;
 
-                                if(SelectedColonyId == colony.Id)
+                                if (SelectedColonyId == colony.Id)
                                 {
                                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.75f, 0.25f, 0.25f, 1f));
                                 }
@@ -73,7 +73,7 @@ namespace Pulsar4X.Client
                                 }
 
                                 var name = colony.GetView<NameView>()?.Name ?? "Unknown";
-                                if(ImGui.SmallButton(name + " (" + Stringify.Quantity(population) + ")###colony-" + colony.Id))
+                                if (ImGui.SmallButton(name + " (" + Stringify.Quantity(population) + ")###colony-" + colony.Id))
                                 {
                                     SelectColony(colony.Id, summary.SystemId);
                                 }
@@ -158,25 +158,25 @@ namespace Pulsar4X.Client
             var firstChildSize = new Vector2(windowContentSize.X * 0.33f, windowContentSize.Y);
             var secondChildSize = new Vector2(windowContentSize.X * 0.33f, windowContentSize.Y);
             var thirdChildSize = new Vector2(windowContentSize.X * 0.33f - (windowContentSize.X * 0.01f), windowContentSize.Y);
-            if(ImGui.BeginChild("ColonySummary1", firstChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("ColonySummary1", firstChildSize, ImGuiChildFlags.Borders))
             {
                 var planetName = planet?.GetView<NameView>()?.Name ?? "Unknown";
                 var body = planet?.GetView<BodyView>();
 
-                if(ImGui.CollapsingHeader(planetName + " Information", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader(planetName + " Information", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.Columns(2);
                     ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
                     ImGui.Text("Name");
                     ImGui.PopStyleColor();
                     ImGui.NextColumn();
-                    if(ImGui.SmallButton(planetName) && planet != null)
+                    if (ImGui.SmallButton(planetName) && planet != null)
                     {
                         _uiState.EntityClicked(planet.Id, _uiState.SelectedStarSystemId, MouseButtons.Primary);
                     }
                     ImGui.NextColumn();
                     ImGui.Separator();
-                    if(body != null)
+                    if (body != null)
                     {
                         DisplayHelpers.PrintRow("Type", body.BodyType);
                         DisplayHelpers.PrintRow("Tectonic Activity", body.Tectonics);
@@ -190,13 +190,13 @@ namespace Pulsar4X.Client
                     }
                 }
                 ImGui.Columns(1);
-                if(planet?.GetView<AtmosphereView>() is { } atmosphere)
+                if (planet?.GetView<AtmosphereView>() is { } atmosphere)
                 {
                     atmosphere.Display();
                 }
                 else
                 {
-                    if(ImGui.CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags.DefaultOpen))
+                    if (ImGui.CollapsingHeader("Atmosphere", ImGuiTreeNodeFlags.DefaultOpen))
                     {
                         ImGui.Text("No Atmosphere");
                     }
@@ -205,12 +205,12 @@ namespace Pulsar4X.Client
             ImGui.EndChild();
 
             ImGui.SameLine();
-            if(ImGui.BeginChild("ColonySummary2", secondChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("ColonySummary2", secondChildSize, ImGuiChildFlags.Borders))
             {
                 colonyView?.Display(colony.Id);
                 ImGui.Columns(1);
 
-                if(colony.GetView<InfrastructureView>() is { } infrastructure
+                if (colony.GetView<InfrastructureView>() is { } infrastructure
                     && ImGui.CollapsingHeader("Infrastructure", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     bool overCapacity = infrastructure.CapacityAvailable < 0;
@@ -225,7 +225,7 @@ namespace Pulsar4X.Client
                     // format, so a literal '%' would be parsed as a format specifier.
                     // One decimal: Provided/Required can be 99.7% which :0 wrongly showed as "100%".
                     string efficiencyPct = (infrastructure.Efficiency * 100).ToString("0.0");
-                    if(overCapacity)
+                    if (overCapacity)
                     {
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.4f, 0.4f, 1f));
                         ImGui.TextUnformatted(
@@ -240,9 +240,9 @@ namespace Pulsar4X.Client
                     }
                 }
 
-                if(ImGui.CollapsingHeader("Installations", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader("Installations", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    if(colony.GetView<InstallationsView>() is { } installations)
+                    if (colony.GetView<InstallationsView>() is { } installations)
                     {
                         installations.Display(colony.Id, _uiState);
                     }
@@ -251,17 +251,17 @@ namespace Pulsar4X.Client
             ImGui.EndChild();
 
             ImGui.SameLine();
-            if(ImGui.BeginChild("ColonySummary3", thirdChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("ColonySummary3", thirdChildSize, ImGuiChildFlags.Borders))
             {
-                if(ImGui.CollapsingHeader("Stockpile", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader("Stockpile", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    if(colony.GetView<CargoStorageView>() is { } storage)
+                    if (colony.GetView<CargoStorageView>() is { } storage)
                     {
                         var size = ImGui.GetContentRegionAvail();
                         ImGui.PushStyleColor(ImGuiCol.Button, Styles.Theme.Button.ToImVector4());
                         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Styles.Theme.ButtonHovered.ToImVector4());
                         ImGui.PushStyleColor(ImGuiCol.ButtonActive, Styles.Theme.ButtonActive.ToImVector4());
-                        if(ImGui.Button("Initiate Transfer", new Vector2(size.X - 8, 18)) && _selectedSystemId != null)
+                        if (ImGui.Button("Initiate Transfer", new Vector2(size.X - 8, 18)) && _selectedSystemId != null)
                         {
                             CreateTransferWindow.GetInstance().SetLeft(colony.Id, _selectedSystemId);
                             CreateTransferWindow.GetInstance().SetActive(true);
@@ -285,7 +285,7 @@ namespace Pulsar4X.Client
         private void DisplayNavalAcademy(int colonyId, NavalAcademyView academy)
         {
             Vector2 topSize = ImGui.GetContentRegionAvail();
-            if(ImGui.BeginChild("NumberOfAcademies" + colonyId, new Vector2(topSize.X, 28f), ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+            if (ImGui.BeginChild("NumberOfAcademies" + colonyId, new Vector2(topSize.X, 28f), ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
                 ImGui.Text("Academies:");
                 ImGui.SameLine();
@@ -296,9 +296,9 @@ namespace Pulsar4X.Client
             }
 
             Vector2 sizeAvailable = ImGui.GetContentRegionAvail();
-            if(ImGui.BeginChild("AcademyList", new Vector2(sizeAvailable.X * .25f, sizeAvailable.Y), ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("AcademyList", new Vector2(sizeAvailable.X * .25f, sizeAvailable.Y), ImGuiChildFlags.Borders))
             {
-                if(ImGui.BeginTable("AcademyListTable", 4, Styles.TableFlags))
+                if (ImGui.BeginTable("AcademyListTable", 4, Styles.TableFlags))
                 {
                     ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.None, 0.1f);
                     ImGui.TableSetupColumn("Class Size", ImGuiTableColumnFlags.None, 0.25f);
@@ -306,7 +306,7 @@ namespace Pulsar4X.Client
                     ImGui.TableSetupColumn("Graduation", ImGuiTableColumnFlags.None, 0.3f);
                     ImGui.TableHeadersRow();
 
-                    for(int i = 0; i < academy.Academies.Count; i++)
+                    for (int i = 0; i < academy.Academies.Count; i++)
                     {
                         ImGui.TableNextColumn();
                         ImGui.Text((i + 1).ToString());

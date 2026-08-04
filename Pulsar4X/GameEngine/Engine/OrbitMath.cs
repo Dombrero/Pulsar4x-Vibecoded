@@ -80,7 +80,7 @@ namespace Pulsar4X.Engine
             return fuelBurned;
         }
 
-               /// <summary>
+        /// <summary>
         /// the maximum deltaV availible (emtpy of cargo full of fuel).
         /// </summary>
         /// <param name="entity"></param>
@@ -90,7 +90,7 @@ namespace Pulsar4X.Engine
             var fuelTypeID = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelType;
             var fuelType = cargoLibrary.GetAny(fuelTypeID);
 
-            if(fuelType == null) throw new NullReferenceException("fuelType cannot be null");
+            if (fuelType == null) throw new NullReferenceException("fuelType cannot be null");
 
             //var burnRate = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelBurnRate;
             var exhaustVelocity = entity.GetDataBlob<NewtonThrustAbilityDB>().ExhaustVelocity;
@@ -119,7 +119,7 @@ namespace Pulsar4X.Engine
             var fuelTypeID = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelType;
             var fuelType = cargoLibrary.GetAny(fuelTypeID);
 
-            if(fuelType == null) throw new NullReferenceException("fuelType cannot be null");
+            if (fuelType == null) throw new NullReferenceException("fuelType cannot be null");
 
             //var burnRate = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelBurnRate;
             var exhaustVelocity = entity.GetDataBlob<NewtonThrustAbilityDB>().ExhaustVelocity;
@@ -170,7 +170,7 @@ namespace Pulsar4X.Engine
             var fuelTypeID = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelType;
             var fuelType = cargoLibrary.GetAny(fuelTypeID);
 
-            if(fuelType == null) throw new NullReferenceException("fuelType cannot be null");
+            if (fuelType == null) throw new NullReferenceException("fuelType cannot be null");
 
             var fuelMass = entity.GetDataBlob<CargoStorageDB>().GetMassStored(fuelType, false);
 
@@ -197,7 +197,7 @@ namespace Pulsar4X.Engine
             var fuelTypeID = entity.GetDataBlob<NewtonThrustAbilityDB>().FuelType;
             var fuelType = cargoLib.GetAny(fuelTypeID);
 
-            if(fuelType == null) throw new NullReferenceException("fuelType cannot be null");
+            if (fuelType == null) throw new NullReferenceException("fuelType cannot be null");
             var storage = entity.GetDataBlob<CargoStorageDB>();
             var totalCargo = storage.TotalStoredMass;
             var fuelMass = storage.GetMassStored(fuelType, false);
@@ -258,10 +258,11 @@ namespace Pulsar4X.Engine
         public static Vector3 GetAbsolutePosition(OrbitDB orbit, DateTime atDateTime)
         {
             var ta = GetTrueAnomaly(orbit, atDateTime);
-            if (orbit.Parent == null)//if we're the parent sun
+            if (orbit.Parent is not { IsValid: true })//if we're the parent sun
                 return OrbitMath.GetPosition(orbit, ta);
-            //else if we're a child
-            Vector3 rootPos = GetAbsolutePosition((OrbitDB)orbit.ParentDB, atDateTime);
+            if (orbit.ParentDB is not OrbitDB parentOrbit)
+                return OrbitMath.GetPosition(orbit, ta);
+            Vector3 rootPos = GetAbsolutePosition(parentOrbit, atDateTime);
 
             if (orbit.IsStationary)
             {
@@ -370,7 +371,7 @@ namespace Pulsar4X.Engine
             {
                 // Hyperbolic orbits don't have a period, so no normalization needed
                 double o_Mh = GetHyperbolicMeanAnomalyFromTime(orbit.MeanMotion, secondsFromEpoch);
-                double o_F =  GetHyperbolicAnomaly(orbit, o_Mh);
+                double o_F = GetHyperbolicAnomaly(orbit, o_Mh);
                 return TrueAnomalyFromHyperbolicAnomaly(orbit.Eccentricity, o_F);
             }
         }
@@ -383,9 +384,11 @@ namespace Pulsar4X.Engine
         /// <returns>E</returns>
         public static double GetEccentricAnomaly(OrbitDB orbit, double currentMeanAnomaly)
         {
-            if(!TryGetEccentricAnomaly(orbit.Eccentricity, currentMeanAnomaly, out double E))
+            if (!TryGetEccentricAnomaly(orbit.Eccentricity, currentMeanAnomaly, out double E))
             {
-                var datetime = orbit.Parent.StarSysDateTime;
+                var datetime = orbit.OwningEntity.IsValid
+                    ? orbit.OwningEntity.AttachedManager.ManagerSubpulses.StarSysDateTime
+                    : DateTime.MinValue;
                 var e = Event.Create(EventType.Opps, datetime, "Non-convergence of Newton's method while calculating Eccentric Anomaly.");
                 EventManager.Instance.Publish(e);
             }
@@ -400,9 +403,11 @@ namespace Pulsar4X.Engine
         /// <returns>F</returns>
         public static double GetHyperbolicAnomaly(OrbitDB orbit, double hyperbolicMeanAnomaly)
         {
-            if(!TryGetHyperbolicAnomaly(orbit.Eccentricity, hyperbolicMeanAnomaly, out double F))
+            if (!TryGetHyperbolicAnomaly(orbit.Eccentricity, hyperbolicMeanAnomaly, out double F))
             {
-                var datetime = orbit.Parent.StarSysDateTime;
+                var datetime = orbit.OwningEntity.IsValid
+                    ? orbit.OwningEntity.AttachedManager.ManagerSubpulses.StarSysDateTime
+                    : DateTime.MinValue;
                 var e = Event.Create(EventType.Opps, datetime, "Non-convergence of Newton's method while calculating Hyperbolic Anomaly.");
                 EventManager.Instance.Publish(e);
             }
@@ -476,7 +481,7 @@ namespace Pulsar4X.Engine
             return GetSOI(orbit.SemiMajorAxis, orbit._myMass, orbit._parentMass);
         }
 
-        public static OrbitDB FindSOIForOrbit(OrbitDB orbit, Vector3 AbsolutePosition)
+        public static OrbitDB? FindSOIForOrbit(OrbitDB orbit, Vector3 AbsolutePosition)
         {
             var soi = orbit.SOI_m;
             var pos = orbit.OwningEntity.GetDataBlob<PositionDB>();
@@ -484,7 +489,7 @@ namespace Pulsar4X.Engine
             {
                 foreach (OrbitDB? subOrbit in orbit.ChildrenDBs)
                 {
-                    if(subOrbit == null) continue;
+                    if (subOrbit == null) continue;
                     var suborbitb = FindSOIForOrbit(subOrbit, AbsolutePosition);
                     if (suborbitb != null)
                         return suborbitb;
@@ -498,7 +503,7 @@ namespace Pulsar4X.Engine
         {
             var entity = orbitDB.OwningEntity;
 
-            if(entity == null) throw new NullReferenceException("orbitDB.OwningEntity cannot be null");
+            if (!entity.IsValid) throw new InvalidOperationException("orbitDB.OwningEntity is not valid");
 
             var sgp = orbitDB.GravitationalParameter_m3S2;
             var state = MoveMath.GetRelativeState(entity);

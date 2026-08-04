@@ -76,7 +76,7 @@ namespace Pulsar4X.Client
 
             for (int i = 0; i < points.Length - 1; i++)
             {
-                SDL.RenderLine(renderer, points[i].X, points[i].Y, points[i+1].X, points[i+1].Y);
+                SDL.RenderLine(renderer, points[i].X, points[i].Y, points[i + 1].X, points[i + 1].Y);
             }
 
         }
@@ -131,11 +131,11 @@ namespace Pulsar4X.Client
         public const double ThreeQuarterCircle = HalfCircle + QuarterCircle;
 
 
-        private static Shape _centerWidget = null!;
+        private static Shape? _centerWidget;
 
         public static Shape CenterWidget(Matrix matrix)
         {
-            if(_centerWidget.Points == null)
+            if (_centerWidget?.Points == null)
             {
                 Orbital.Vector2[] drawpoints = new Orbital.Vector2[5];
                 drawpoints[0] = new Orbital.Vector2(0, -16);
@@ -147,18 +147,18 @@ namespace Pulsar4X.Client
                 byte g = 50;
                 byte b = 200;
                 byte a = 255;
-                SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a};
-                _centerWidget = new Shape() {Points = drawpoints, Color = colour};
+                SDL.Color colour = new SDL.Color() { R = r, G = g, B = b, A = a };
+                _centerWidget = new Shape() { Points = drawpoints, Color = colour };
             }
 
 
             Shape centerWidget = new Shape();
-            centerWidget.Points = matrix.TransformToVector2(_centerWidget.Points);
+            centerWidget.Points = matrix.TransformToVector2((_centerWidget ?? throw new InvalidOperationException("Center widget shape not initialized.")).Points);
             centerWidget.Color = _centerWidget.Color;
             return centerWidget;
         }
 
-                /// <summary>
+        /// <summary>
         /// Parametric ellipse taken from:
         /// "Drawing ellipses, hyperbolas or parabolas with a fixed number of points and maximum inscribed area"
         /// by L. B. Smith
@@ -174,7 +174,7 @@ namespace Pulsar4X.Client
         public static Vector2[] KeplerPoints(double loP, double a, double b, int n, double arcStart, double arcEnd)
         {
 
-            double linerEccentricity =  EllipseMath.LinearEccentricityFromAxies(a, b);
+            double linerEccentricity = EllipseMath.LinearEccentricityFromAxies(a, b);
 
             double dphi = 2 * Math.PI / (n - 1);
 
@@ -207,7 +207,7 @@ namespace Pulsar4X.Client
             double yc = -linerEccentricity * sinLoP;
 
             double alpha = cosdphi + sindphi * sinTheta * cosTheta * (a / b - b / a);
-            double bravo = - sindphi * ((b * sinTheta) * (b * sinTheta) + (a * cosTheta) * (a * cosTheta)) / (a * b);
+            double bravo = -sindphi * ((b * sinTheta) * (b * sinTheta) + (a * cosTheta) * (a * cosTheta)) / (a * b);
             double chrly = sindphi * ((b * cosTheta) * (b * cosTheta) + (a * sinTheta) * (a * sinTheta)) / (a * b);
             double delta = cosdphi + sindphi * sinTheta * cosTheta * (b / a - a / b);
             delta = delta - (chrly * bravo) / alpha;
@@ -215,7 +215,7 @@ namespace Pulsar4X.Client
             double x = a * cosStrt;
             double y = a * sinStrt;
             Vector2[] points = new Vector2[nPoints];
-            for (int i = 0; i < nPoints -1; i++)
+            for (int i = 0; i < nPoints - 1; i++)
             {
                 double xn = xc + x;
                 double yn = yc + y;
@@ -278,16 +278,16 @@ namespace Pulsar4X.Client
         {
 
             double startAng = Math.Atan2(startPnt.Y, startPnt.X);
-            double endAng =  Math.Atan2(endPnt.Y, endPnt.X);
+            double endAng = Math.Atan2(endPnt.Y, endPnt.X);
 
 
             double θ = 0;
             double x = 0;
             double y = 0;
             double r = EllipseMath.RadiusAtTrueAnomaly(semiMaj, eccentricity, loP, startAng);
-            double sweep = ( endAng - startAng);
+            double sweep = (endAng - startAng);
             double Δθ = 2 * Math.PI / (numPoints - 1) * Math.Sign(sweep);
-            if(eccentricity >= 1)
+            if (eccentricity >= 1)
             {
                 sweep = startAng - endAng;
                 Δθ = sweep / (numPoints - 1) * Math.Sign(sweep);
@@ -317,7 +317,7 @@ namespace Pulsar4X.Client
             return points;
         }
 
-                /// <summary>
+        /// <summary>
         /// Creates points for an ellipse.
         /// This formula creates more points at the periapsis and less at the apoapsis.
         /// </summary>
@@ -332,8 +332,8 @@ namespace Pulsar4X.Client
         {
 
             double startAng = Math.Atan2(startPnt.Y, startPnt.X);
-            double endAng =  Math.Atan2(endPnt.Y, endPnt.X);
-            double sweep = Angle.NormaliseRadiansPositive( endAng - startAng);
+            double endAng = Math.Atan2(endPnt.Y, endPnt.X);
+            double sweep = Angle.NormaliseRadiansPositive(endAng - startAng);
             var loP = ke.LoAN + ke.AoP;
             var numPoints = points.Length;
             double θ = 0;
@@ -417,7 +417,7 @@ namespace Pulsar4X.Client
                 double nextAngle = startAngleRadians + incrementAngle * i;
                 drawY = ctrPos.Y + radius * Math.Sin(nextAngle);
                 drawX = ctrPos.X + radius * Math.Cos(nextAngle);
-                points[i+1] = new Orbital.Vector2() { X = drawX, Y = drawY };
+                points[i + 1] = new Orbital.Vector2() { X = drawX, Y = drawY };
             }
 
             points[points.Length - 1] = new Orbital.Vector2()
@@ -466,7 +466,7 @@ namespace Pulsar4X.Client
         public static Vector2[] Rectangle(int posX, int posY, int width, int height, PosFrom positionFrom = PosFrom.TopLeft)
         {
 
-            var points = new Vector2[4] ;
+            var points = new Vector2[4];
             Vector2 tl;
             Vector2 tr;
             Vector2 br;
@@ -551,38 +551,38 @@ namespace Pulsar4X.Client
         /// <param name="yc">center</param>
         /// <param name="r">radius</param>
         /// <returns></returns>
-        public static List<SDL.Point> BresenhamCircle(int xc,int yc,int r)
+        public static List<SDL.Point> BresenhamCircle(int xc, int yc, int r)
         {
             List<SDL.Point> ret = new List<SDL.Point>();
-            int x,y,p;
+            int x, y, p;
 
-            x=0;
-            y=r;
+            x = 0;
+            y = r;
 
-            ret.Add(new SDL.Point(){ X = xc+x, Y = yc-y});
+            ret.Add(new SDL.Point() { X = xc + x, Y = yc - y });
 
-            p=3-(2*r);
+            p = 3 - (2 * r);
 
-            for(x=0;x<=y;x++)
+            for (x = 0; x <= y; x++)
             {
-                if (p<0)
+                if (p < 0)
                 {
-                    p=(p+(4*x)+6);
+                    p = (p + (4 * x) + 6);
                 }
                 else
                 {
-                    y-=1;
-                    p+=((4*(x-y)+10));
+                    y -= 1;
+                    p += ((4 * (x - y) + 10));
                 }
 
-                ret.Add(new SDL.Point(){X = xc+x, Y = yc-y});
-                ret.Add(new SDL.Point(){X = xc-x, Y = yc-y});
-                ret.Add(new SDL.Point(){X = xc+x, Y = yc+y});
-                ret.Add(new SDL.Point(){X = xc-x, Y = yc+y});
-                ret.Add(new SDL.Point(){X = xc+y, Y = yc-x});
-                ret.Add(new SDL.Point(){X = xc-y, Y = yc-x});
-                ret.Add(new SDL.Point(){X = xc+y, Y = yc+x});
-                ret.Add(new SDL.Point(){X = xc-y, Y = yc+x});
+                ret.Add(new SDL.Point() { X = xc + x, Y = yc - y });
+                ret.Add(new SDL.Point() { X = xc - x, Y = yc - y });
+                ret.Add(new SDL.Point() { X = xc + x, Y = yc + y });
+                ret.Add(new SDL.Point() { X = xc - x, Y = yc + y });
+                ret.Add(new SDL.Point() { X = xc + y, Y = yc - x });
+                ret.Add(new SDL.Point() { X = xc - y, Y = yc - x });
+                ret.Add(new SDL.Point() { X = xc + y, Y = yc + x });
+                ret.Add(new SDL.Point() { X = xc - y, Y = yc + x });
             }
             return ret;
         }
@@ -630,13 +630,13 @@ namespace Pulsar4X.Client
         {
             var arrowPoints = new Orbital.Vector2[7];
 
-            arrowPoints[0] = new Orbital.Vector2() { X =  0, Y = 0 };
-            arrowPoints[1] = new Orbital.Vector2() { X =  0, Y = len -2 };
-            arrowPoints[2] = new Orbital.Vector2() { X =  3, Y = len -3 };
-            arrowPoints[3] = new Orbital.Vector2() { X =  0, Y = len };
-            arrowPoints[4] = new Orbital.Vector2() { X = -3, Y = len -3 };
-            arrowPoints[5] = new Orbital.Vector2() { X =  0, Y = len -2 };
-            arrowPoints[6] = new Orbital.Vector2() { X =  0, Y = 0  };
+            arrowPoints[0] = new Orbital.Vector2() { X = 0, Y = 0 };
+            arrowPoints[1] = new Orbital.Vector2() { X = 0, Y = len - 2 };
+            arrowPoints[2] = new Orbital.Vector2() { X = 3, Y = len - 3 };
+            arrowPoints[3] = new Orbital.Vector2() { X = 0, Y = len };
+            arrowPoints[4] = new Orbital.Vector2() { X = -3, Y = len - 3 };
+            arrowPoints[5] = new Orbital.Vector2() { X = 0, Y = len - 2 };
+            arrowPoints[6] = new Orbital.Vector2() { X = 0, Y = 0 };
 
             return arrowPoints;
         }
@@ -649,7 +649,7 @@ namespace Pulsar4X.Client
                 var x = BezCalc(t, p0.X, p1.X, p2.X, p3.X);
                 var y = BezCalc(t, p0.Y, p1.Y, p2.Y, p3.Y);
 
-                _linePoints.Add(new Vector2() {X = x, Y = y});
+                _linePoints.Add(new Vector2() { X = x, Y = y });
             }
             _linePoints.Add(p3);
             return _linePoints.ToArray();

@@ -6,7 +6,7 @@ using Pulsar4X.Components;
 namespace Pulsar4X.Storage;
 public class CargoStorageAtb : IComponentDesignAttribute
 {
-    public string StoreTypeID;
+    public string? StoreTypeID;
     public double MaxVolume;
 
     public CargoStorageAtb(string storeTypeID, double maxVolume)

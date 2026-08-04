@@ -14,9 +14,7 @@ namespace Pulsar4X.Engine.Orders
         public override string Details => "Add a component to an entity";
 
         internal override Entity EntityCommanding { get; }
-        public ComponentInstance ComponentInstance { get; private set; }
-
-
+        public ComponentInstance? ComponentInstance { get; set; }
         internal InstallComponentInstanceOrder(Entity entity, ComponentInstance componentInstance)
         {
             EntityCommanding = entity;
@@ -29,7 +27,7 @@ namespace Pulsar4X.Engine.Orders
             {
                 RequestingFactionGuid = entity.FactionOwnerID,
                 EntityCommandingGuid = entity.Id,
-                CreatedDate = entity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = entity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 UseActionLanes = false
             };
 

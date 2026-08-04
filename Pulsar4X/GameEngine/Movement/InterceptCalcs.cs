@@ -55,7 +55,7 @@ namespace Pulsar4X.Movement
             var gpSGP = GeneralMath.StandardGravitationalParameter(meMass + gpMass);
 
             var gpHomman = OrbitalMath.Hohmann2(gpSGP, cpSMA, tpSMA);
-            var gpHommanAngle = Math.PI*( (1-1/2*Math.Sqrt(2))*Math.Sqrt( Math.Pow((cpSMA / tpSMA +1),3)));
+            var gpHommanAngle = Math.PI * ((1 - 1 / 2 * Math.Sqrt(2)) * Math.Sqrt(Math.Pow((cpSMA / tpSMA + 1), 3)));
 
 
 
@@ -83,7 +83,7 @@ namespace Pulsar4X.Movement
             }
 
             var manuvers = new (Vector3 burn, double time)[3];
-            manuvers[0] = (new Vector3(0,dva, 0), soiBurnstart);
+            manuvers[0] = (new Vector3(0, dva, 0), soiBurnstart);
             manuvers[1] = (gpHomman[0].deltaV, ttsoi);
             manuvers[2] = (gpHomman[1].deltaV, gpHomman[1].timeInSeconds);
 
@@ -188,12 +188,12 @@ namespace Pulsar4X.Movement
             double phaseOrbitApsis2 = phaseOrbitMA - phaseOrbitApsis1;
 
 
-            double wc7 = Math.Sqrt( (phaseOrbitApsis1 * phaseOrbitApsis2) / (phaseOrbitMA));
+            double wc7 = Math.Sqrt((phaseOrbitApsis1 * phaseOrbitApsis2) / (phaseOrbitMA));
             double wc8 = Math.Sqrt(2 * sgp);
             double phaseOrbitAngularMomentum = wc8 * wc7;
 
 
-            double wc9 = Math.Sqrt( (orbit.Apoapsis * orbit.Periapsis) / (orbit.Apoapsis + orbit.Periapsis));
+            double wc9 = Math.Sqrt((orbit.Apoapsis * orbit.Periapsis) / (orbit.Apoapsis + orbit.Periapsis));
             double wc10 = Math.Sqrt(2 * sgp);
             double orbitAngularMomentum = wc9 * wc10;
 
@@ -239,12 +239,12 @@ namespace Pulsar4X.Movement
             double phaseOrbitApsis2 = phaseOrbitMA - phaseOrbitApsis1;
 
 
-            double wc7 = Math.Sqrt( (phaseOrbitApsis1 * phaseOrbitApsis2) / (phaseOrbitMA));
+            double wc7 = Math.Sqrt((phaseOrbitApsis1 * phaseOrbitApsis2) / (phaseOrbitMA));
             double wc8 = Math.Sqrt(2 * sgp);
             double phaseOrbitAngularMomentum = wc8 * wc7;
 
 
-            double wc9 = Math.Sqrt( (orbit.Apoapsis * orbit.Periapsis) / (orbit.Apoapsis + orbit.Periapsis));
+            double wc9 = Math.Sqrt((orbit.Apoapsis * orbit.Periapsis) / (orbit.Apoapsis + orbit.Periapsis));
             double wc10 = Math.Sqrt(2 * sgp);
             double orbitAngularMomentum = wc9 * wc10;
 

@@ -25,16 +25,16 @@ public partial class DamageMap
         float radius = (float)Math.Sqrt(area / Math.PI);
         float jitter = 0.5f;
         int numPoints = 32;
-        var seed = entity.Manager.RNG.Next();
+        var seed = entity.AttachedManager.RNG.Next();
         Width = Height = (int)(radius * 2) + 1; // Ensure the map is large enough to contain the asteroid
 
         PMap = new PhysicalParticle[Width * Height];
         compIDMap = new int[Width * Height];
         PresMap = new float[Width * Height];
-        
+
         // Generate the asteroid shape
         List<Vector2> vertices = AsteroidHelpers.GenerateAsteroidShape(radius, jitter, numPoints);
-        AsteroidHelpers.AsteroidDamageProfile(this, radius, 30, entity.Manager.RNG);
+        AsteroidHelpers.AsteroidDamageProfile(this, radius, 30, entity.AttachedManager.RNG);
         //AsteroidHelpers.FillAsteroidShape(this, vertices, radius, AsteroidHelpers.GetMats(seed));
     }
 }
@@ -57,7 +57,7 @@ public static class AsteroidHelpers
 
         // Materials
         List<(ParticleMaterial partMat, float percent)> mats = new();
-        
+
         // Add water (ice)
         mats.Add((new ParticleMaterial
         {
@@ -158,14 +158,14 @@ public static class AsteroidHelpers
 
         return vertices;
     }
-    
+
 
     public static void AsteroidDamageProfile(DamageMap map, double avgRadius, int irregularity, Random rng)
     {
         int segments = 8;
-        double avgAngle = Math.PI  / segments;
+        double avgAngle = Math.PI / segments;
         double angle = Math.PI;
-        
+
         List<(int x, int y)> lineL = new List<(int x, int y)>();
         List<(int x, int y)> lineR = new List<(int x, int y)>();
 
@@ -206,7 +206,7 @@ public static class AsteroidHelpers
         byte a = byte.MaxValue;
 
         //fill an array with the same colour for buffer.blockcopy.
-        byte[] px = new byte[4]{r,g,b,a};
+        byte[] px = new byte[4] { r, g, b, a };
         byte[] pxarray = new byte[map.Width * 4];
         for (int i = 0; i < map.Width; i++)
         {
@@ -221,10 +221,10 @@ public static class AsteroidHelpers
         {
             int ypos = i;
 
-            while (indexl < lineL.Count -1  && lineL[indexl].y == ypos)
+            while (indexl < lineL.Count - 1 && lineL[indexl].y == ypos)
                 indexl++;
 
-            while (indexr < lineR.Count -1 && lineR[indexr].y == ypos)
+            while (indexr < lineR.Count - 1 && lineR[indexr].y == ypos)
                 indexr++;
 
 
@@ -237,7 +237,7 @@ public static class AsteroidHelpers
 
 
             //below is a slower but easier to write way of filling the wanted line with colour.
-            for (int j = 0; j <  width; j++)
+            for (int j = 0; j < width; j++)
             {
                 int xpos = leftx + j;
                 Vector2 pos = new Vector2(xpos, ypos);
@@ -262,45 +262,49 @@ public static class AsteroidHelpers
 
             }
         }
-        
+
     }
 
-    private static void BresenhamPoints((int x, int y) start,(int x, int y) end, ref List<(int x, int y)> list)
+    private static void BresenhamPoints((int x, int y) start, (int x, int y) end, ref List<(int x, int y)> list)
     {
         int x = start.x;
         int y = start.y;
         int x2 = end.x;
         int y2 = end.y;
 
-        int w = x2 - x ;
-        int h = y2 - y ;
-        int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0 ;
-        if (w<0) dx1 = -1 ; else if (w>0) dx1 = 1 ;
-        if (h<0) dy1 = -1 ; else if (h>0) dy1 = 1 ;
-        if (w<0) dx2 = -1 ; else if (w>0) dx2 = 1 ;
-        int longest = Math.Abs(w) ;
-        int shortest = Math.Abs(h) ;
-        if (!(longest>shortest))
+        int w = x2 - x;
+        int h = y2 - y;
+        int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+        if (w < 0) dx1 = -1; else if (w > 0) dx1 = 1;
+        if (h < 0) dy1 = -1; else if (h > 0) dy1 = 1;
+        if (w < 0) dx2 = -1; else if (w > 0) dx2 = 1;
+        int longest = Math.Abs(w);
+        int shortest = Math.Abs(h);
+        if (!(longest > shortest))
         {
-            longest = Math.Abs(h) ;
-            shortest = Math.Abs(w) ;
-            if (h<0)
-                dy2 = -1 ;
-            else if (h>0)
-                dy2 = 1 ;
-            dx2 = 0 ;
+            longest = Math.Abs(h);
+            shortest = Math.Abs(w);
+            if (h < 0)
+                dy2 = -1;
+            else if (h > 0)
+                dy2 = 1;
+            dx2 = 0;
         }
-        int numerator = longest >> 1 ;
-        for (int i=0;i<=longest;i++) {
-            list.Add((x,y));
-            numerator += shortest ;
-            if (!(numerator<longest)) {
-                numerator -= longest ;
-                x += dx1 ;
-                y += dy1 ;
-            } else {
-                x += dx2 ;
-                y += dy2 ;
+        int numerator = longest >> 1;
+        for (int i = 0; i <= longest; i++)
+        {
+            list.Add((x, y));
+            numerator += shortest;
+            if (!(numerator < longest))
+            {
+                numerator -= longest;
+                x += dx1;
+                y += dy1;
+            }
+            else
+            {
+                x += dx2;
+                y += dy2;
             }
         }
     }

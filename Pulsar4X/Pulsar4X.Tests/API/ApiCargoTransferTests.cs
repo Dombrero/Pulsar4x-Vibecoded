@@ -20,7 +20,7 @@ namespace Pulsar4X.Tests
     [TestFixture]
     public class ApiCargoTransferTests : ApiTestBase
     {
-        private Mineral _mineral = null!;
+        private Mineral _mineral;
 
         /// <summary>The test faction starts with everything locked; unlock one mineral to trade.</summary>
         private Mineral FactionMineral(PlayerSession session)

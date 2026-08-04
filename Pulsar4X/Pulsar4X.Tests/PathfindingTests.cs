@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Pulsar4X.Movement;
@@ -8,16 +8,16 @@ namespace Pulsar4X.Tests
     [TestFixture]
     class PathfindingTests
     {
-        // private Game _game;
+        // private Game _game = null;
         private PathfindingManager _pathfindingManager;
-        // private Entity _humanFaction;
+        // private Entity _humanFaction = Entity.InvalidEntity;
         // private Player _testPlayer;
         // private AuthenticationToken _authToken;
 
         [Test]
         public void GraphTest()
         {
-            _pathfindingManager = new PathfindingManager(null);
+            _pathfindingManager = new PathfindingManager(TestingUtilities.CreateTestUniverse(1));
 
             var graph = new Graph();
 

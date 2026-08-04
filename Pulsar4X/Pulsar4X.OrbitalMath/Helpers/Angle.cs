@@ -39,9 +39,9 @@ namespace Pulsar4X.Orbital
         /// <returns></returns>
         public static double NormaliseRadiansPositive(double radians)
         {
-			radians %= 2 * Math.PI;
-			radians = (radians + 2 * Math.PI) % (2 * Math.PI);
-			return radians;
+            radians %= 2 * Math.PI;
+            radians = (radians + 2 * Math.PI) % (2 * Math.PI);
+            return radians;
         }
 
         /// <summary>

@@ -16,7 +16,7 @@ namespace Pulsar4X.Logistics
     {
         public static double TravelTimeToSource(Entity shippingEntity, LogiBaseDB tbase, OrbitDB odb, DateTime currentDateTime)
         {
-            if(tbase.OwningEntity == null) throw new ArgumentNullException("LogiBaseDB cannot be null");
+            if (!tbase.OwningEntity.IsValid) throw new ArgumentException("LogiBaseDB owning entity is not valid");
 
             double travelTimeToSource = 0;
             (Vector3 position, DateTime atDateTime) sourceIntercept;
@@ -33,23 +33,23 @@ namespace Pulsar4X.Logistics
             else
             {
                 List<Entity> shipparents = new List<Entity>();
-                Entity? soiParent = shippingEntity.GetSOIParentEntity();
+                Entity soiParent = shippingEntity.GetSOIParentEntity();
                 Entity soiroot = shippingEntity.GetDataBlob<PositionDB>().Root;
 
-                if(soiParent == null) throw new NullReferenceException("soiParent cannot be null");
+                if (!soiParent.IsValid) throw new NullReferenceException("soiParent cannot be null");
                 shipparents.Add(soiParent);
                 while (soiParent != soiroot)
                 {
                     soiParent = soiParent.GetSOIParentEntity();
-                    if(soiParent == null) throw new NullReferenceException("soiParent cannot be null");
+                    if (!soiParent.IsValid) throw new NullReferenceException("soiParent cannot be null");
                     shipparents.Add(soiParent);
                 }
 
 
-                Entity? soiTargetParent = tbase.OwningEntity.GetSOIParentEntity();
+                Entity soiTargetParent = tbase.OwningEntity.GetSOIParentEntity();
                 Entity soiTargetRoot = tbase.OwningEntity.GetDataBlob<PositionDB>().Root;
 
-                if(soiTargetParent == null) throw new NullReferenceException("soiTargetParent cannot be null");
+                if (!soiTargetParent.IsValid) throw new NullReferenceException("soiTargetParent cannot be null");
 
                 if (soiroot != soiTargetRoot)
                     throw new Exception("Impossibru!");//this should only happen if we're in different systems, need to eventualy handle that. else the tree has gotten fucked up
@@ -58,7 +58,7 @@ namespace Pulsar4X.Logistics
                 while (soiTargetParent != soiroot)
                 {
                     soiTargetParent = soiTargetParent.GetSOIParentEntity();
-                    if(soiTargetParent == null) throw new NullReferenceException("soiTargetParent cannot be null");
+                    if (!soiTargetParent.IsValid) throw new NullReferenceException("soiTargetParent cannot be null");
                     soiTargetParents.Add(soiTargetParent);
 
                 }
@@ -79,7 +79,7 @@ namespace Pulsar4X.Logistics
                 // double TotalSeconds = 0;
 
                 var time = shippingEntity.StarSysDateTime;
-                var pos = MoveMath.GetRelativeFuturePosition(shippingEntity,time);
+                var pos = MoveMath.GetRelativeFuturePosition(shippingEntity, time);
                 List<(double deltav, double secTillNextManuver)> dvandTimes = new List<(double deltav, double secTillNextManuver)>();
                 double totalTimeInSeconds = 0;
                 for (int k = 0; k < i; k++)
@@ -134,7 +134,7 @@ namespace Pulsar4X.Logistics
             Vector3 pos = startState.Position;
             Vector3 vel = startState.Velocity;
             var targetBody = target.GetSOIParentEntity();
-            if(targetBody == null) throw new NullReferenceException("targetBody cannot be null");
+            if (targetBody == null) throw new NullReferenceException("targetBody cannot be null");
 
             //var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
             var tgtBdyMass = target.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
@@ -279,7 +279,7 @@ namespace Pulsar4X.Logistics
             Vector3 vel = startState.Velocity;
             var targetBody = target.GetSOIParentEntity();
 
-            if(targetBody == null) throw new NullReferenceException("targetBody cannot be null");
+            if (targetBody == null) throw new NullReferenceException("targetBody cannot be null");
 
             //var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
             var tgtBdyMass = target.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
@@ -325,7 +325,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
 
             var dv = cmd.EndpointTargetExpendDeltaV.Length();
             double ve = ship.GetDataBlob<NewtonThrustAbilityDB>().ExhaustVelocity;

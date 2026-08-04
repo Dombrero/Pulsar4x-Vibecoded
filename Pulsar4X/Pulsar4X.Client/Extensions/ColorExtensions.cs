@@ -24,7 +24,8 @@ namespace Pulsar4X.Client
 
         public static SDL.Color ToSDLColor(this System.Numerics.Vector4 vec)
         {
-            return new () {
+            return new()
+            {
                 R = ColorExtensions.FloatToByte(vec.X),
                 G = ColorExtensions.FloatToByte(vec.Y),
                 B = ColorExtensions.FloatToByte(vec.Z),
@@ -35,7 +36,8 @@ namespace Pulsar4X.Client
         // Color convert
         public static SDL.Color ToSDLColor(this Color color)
         {
-            return new () {
+            return new()
+            {
                 R = color.R,
                 G = color.G,
                 B = color.B,
@@ -45,7 +47,7 @@ namespace Pulsar4X.Client
 
         public static System.Numerics.Vector4 ToImVector4(this Color color)
         {
-            return new (
+            return new(
                     ColorExtensions.ByteToFloat(color.R),
                     ColorExtensions.ByteToFloat(color.G),
                     ColorExtensions.ByteToFloat(color.B),
@@ -64,7 +66,7 @@ namespace Pulsar4X.Client
 
         public static System.Numerics.Vector4 ToImVector4(this SDL.Color color)
         {
-            return new (
+            return new(
                     ColorExtensions.ByteToFloat(color.R),
                     ColorExtensions.ByteToFloat(color.G),
                     ColorExtensions.ByteToFloat(color.B),

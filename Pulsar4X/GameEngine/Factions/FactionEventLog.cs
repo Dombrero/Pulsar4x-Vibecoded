@@ -8,12 +8,11 @@ namespace Pulsar4X.Factions;
 public class FactionEventLog : IEventLog
 {
     [JsonProperty]
-    private SafeList<Event> _events = new ();
+    private SafeList<Event> _events = new();
 
     [JsonProperty]
     private int _factionId;
-    private MasterTimePulse _masterTimePulse;
-    
+    private MasterTimePulse? _masterTimePulse;
     [JsonProperty]
     private SafeList<EventType> _haltsOn = new();
     private FactionEventLog() { }
@@ -50,7 +49,7 @@ public class FactionEventLog : IEventLog
     public void OnEvent(Event e)
     {
         // We only care about events with _factionId present in some way
-        if((e.FactionId == null || _factionId != e.FactionId) && !e.ConcernedFactions.Contains(_factionId))
+        if ((e.FactionId == null || _factionId != e.FactionId) && !e.ConcernedFactions.Contains(_factionId))
         {
             return;
         }
@@ -71,7 +70,7 @@ public class FactionEventLog : IEventLog
         }
         else
         {
-            _haltsOn.Add(eventType);    
+            _haltsOn.Add(eventType);
         }
     }
 

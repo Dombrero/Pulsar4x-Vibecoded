@@ -30,15 +30,15 @@ namespace Pulsar4X.Tests
             Assert.AreEqual(2d, vector.Z);
 
             vector = new Vector3(1d, 3d, -4d); // Should be equal as shown
-			Assert.AreEqual(1d, vector.X);
-			Assert.AreEqual(3d, vector.Y);
-			Assert.AreEqual(-4d, vector.Z);
+            Assert.AreEqual(1d, vector.X);
+            Assert.AreEqual(3d, vector.Y);
+            Assert.AreEqual(-4d, vector.Z);
 
             vector = new Vector3(vector); // Should be the same as previous case
-			Assert.AreEqual(1d, vector.X);
-			Assert.AreEqual(3d, vector.Y);
-			Assert.AreEqual(-4d, vector.Z);
-		}
+            Assert.AreEqual(1d, vector.X);
+            Assert.AreEqual(3d, vector.Y);
+            Assert.AreEqual(-4d, vector.Z);
+        }
 
         [Test]
         public void StaticConstructorsReturnCorrectValues()
@@ -48,31 +48,31 @@ namespace Pulsar4X.Tests
             Assert.AreEqual(double.NaN, vector.Y);
             Assert.AreEqual(double.NaN, vector.Z);
 
-			vector = Vector3.One;
-			Assert.AreEqual(1d, vector.X);
-			Assert.AreEqual(1d, vector.Y);
-			Assert.AreEqual(1d, vector.Z);
+            vector = Vector3.One;
+            Assert.AreEqual(1d, vector.X);
+            Assert.AreEqual(1d, vector.Y);
+            Assert.AreEqual(1d, vector.Z);
 
-			vector = Vector3.Zero;
-			Assert.AreEqual(0d, vector.X);
-			Assert.AreEqual(0d, vector.Y);
-			Assert.AreEqual(0d, vector.Z);
+            vector = Vector3.Zero;
+            Assert.AreEqual(0d, vector.X);
+            Assert.AreEqual(0d, vector.Y);
+            Assert.AreEqual(0d, vector.Z);
 
-			vector = Vector3.UnitX;
-			Assert.AreEqual(1d, vector.X);
-			Assert.AreEqual(0d, vector.Y);
-			Assert.AreEqual(0d, vector.Z);
+            vector = Vector3.UnitX;
+            Assert.AreEqual(1d, vector.X);
+            Assert.AreEqual(0d, vector.Y);
+            Assert.AreEqual(0d, vector.Z);
 
-			vector = Vector3.UnitY;
-			Assert.AreEqual(0d, vector.X);
-			Assert.AreEqual(1d, vector.Y);
-			Assert.AreEqual(0d, vector.Z);
+            vector = Vector3.UnitY;
+            Assert.AreEqual(0d, vector.X);
+            Assert.AreEqual(1d, vector.Y);
+            Assert.AreEqual(0d, vector.Z);
 
-			vector = Vector3.UnitZ;
-			Assert.AreEqual(0d, vector.X);
-			Assert.AreEqual(0d, vector.Y);
-			Assert.AreEqual(1d, vector.Z);
-		}
+            vector = Vector3.UnitZ;
+            Assert.AreEqual(0d, vector.X);
+            Assert.AreEqual(0d, vector.Y);
+            Assert.AreEqual(1d, vector.Z);
+        }
 
         [Test]
         public void EqualCorrectlyReturnsTrue()
@@ -92,17 +92,17 @@ namespace Pulsar4X.Tests
         [Test]
         public void NotEqualCorrectlyReturnsTrue()
         {
-			Assert.That(vec1 != new Vector3(vec1.X, vec1.Y, vec1.Z + 1), Is.True);
-			Assert.That(vec1 != new Vector3(vec1.X, vec1.Y + 1, vec1.Z), Is.True);
-			Assert.That(vec1 != new Vector3(vec1.X + 1, vec1.Y, vec1.Z), Is.True);
-		}
+            Assert.That(vec1 != new Vector3(vec1.X, vec1.Y, vec1.Z + 1), Is.True);
+            Assert.That(vec1 != new Vector3(vec1.X, vec1.Y + 1, vec1.Z), Is.True);
+            Assert.That(vec1 != new Vector3(vec1.X + 1, vec1.Y, vec1.Z), Is.True);
+        }
 
         [Test]
         public void NotEqualCorrectlyReturnsFalse()
         {
-			Assert.That(vec1 != new Vector3(vec1), Is.False);
-			Assert.That(vec2 != new Vector3(vec2.X, vec2.Y, vec2.Z), Is.False);
-		}
+            Assert.That(vec1 != new Vector3(vec1), Is.False);
+            Assert.That(vec2 != new Vector3(vec2.X, vec2.Y, vec2.Z), Is.False);
+        }
 
         [Test]
         public void AdditionReturnsCorrectValue()
@@ -163,8 +163,8 @@ namespace Pulsar4X.Tests
             Assert.AreEqual(29d, vector.LengthSquared());
 
             vector = new Vector3(2d, -3d, 4d); // Same value, despite the negative coordinate
-			Assert.AreEqual(29d, vector.LengthSquared());
-		}
+            Assert.AreEqual(29d, vector.LengthSquared());
+        }
 
         [Test]
         public void LengthReturnsCorrectValue()

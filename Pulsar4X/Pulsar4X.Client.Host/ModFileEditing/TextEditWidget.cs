@@ -10,7 +10,7 @@ public static class TextEditWidget
 
     public static uint BufferSize
     {
-        get { return _buffSize ;}
+        get { return _buffSize; }
         set
         {
             _buffSize = value;
@@ -20,14 +20,13 @@ public static class TextEditWidget
 
     public static bool Display(string label, ref string text, bool exitEditOnFocusLoss = true)
     {
-        bool hasChanged = false;
         bool doneEditing = false;
-        if(string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text))
             text = "null";
-        if(label != _editingID)
+        if (label != _editingID)
         {
             ImGui.Text(text);
-            if(ImGui.IsItemClicked())
+            if (ImGui.IsItemClicked())
             {
                 _editingID = label;
                 _strInputBuffer = Utils.BytesFromString(text);
@@ -39,7 +38,6 @@ public static class TextEditWidget
             if (ImGui.InputText(label, _strInputBuffer, _buffSize))
             {
                 text = Utils.StringFromBytes(_strInputBuffer);
-                hasChanged = true;
             }
             // Exit editing mode only on Enter or KeypadEnter
             if (ImGui.IsKeyPressed(ImGuiKey.Enter) || ImGui.IsKeyPressed(ImGuiKey.KeypadEnter))

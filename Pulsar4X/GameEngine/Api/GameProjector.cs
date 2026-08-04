@@ -35,8 +35,7 @@ namespace Pulsar4X.Engine.Api
     /// </summary>
     internal sealed class GameProjector
     {
-        private readonly Game _game;
-
+        private readonly Game? _game;
         public GameProjector(Game game) => _game = game;
 
         // ----- top-level projections -----
@@ -312,8 +311,8 @@ namespace Pulsar4X.Engine.Api
             if (pending == null)
                 return null;
 
-            if (!entity.Manager.TryGetEntityById(pending.TargetEntityGuid, out var target)
-                && !(entity.Manager.Game?.GlobalManager.TryGetGlobalEntityById(pending.TargetEntityGuid, out target) ?? false))
+            if (!entity.AttachedManager.TryGetEntityById(pending.TargetEntityGuid, out var target)
+                && !(entity.AttachedManager.Game?.GlobalManager.TryGetGlobalEntityById(pending.TargetEntityGuid, out target) ?? false))
                 return null;
 
             string actionName = pending.Name;
@@ -415,7 +414,7 @@ namespace Pulsar4X.Engine.Api
 
             if (colony.Manager != null)
             {
-                foreach (var ship in colony.Manager.GetAllEntitiesWithDataBlob<Pulsar4X.Energy.EnergyRechargeDB>())
+                foreach (var ship in colony.AttachedManager.GetAllEntitiesWithDataBlob<Pulsar4X.Energy.EnergyRechargeDB>())
                 {
                     if (!ship.TryGetDataBlob<Pulsar4X.Energy.EnergyRechargeDB>(out var recharge))
                         continue;
@@ -582,7 +581,7 @@ namespace Pulsar4X.Engine.Api
         {
             string? commander = null;
             if (shipInfo.CommanderID >= 0 && ship.Manager != null
-                && ship.Manager.TryGetEntityById(shipInfo.CommanderID, out var commanderEntity))
+                && ship.AttachedManager.TryGetEntityById(shipInfo.CommanderID, out var commanderEntity))
             {
                 commander = commanderEntity.GetName(factionId);
             }
@@ -667,7 +666,7 @@ namespace Pulsar4X.Engine.Api
             foreach (var (speciesId, speciesPop) in c.Population)
             {
                 population += speciesPop;
-                string name = colony.Manager != null && colony.Manager.TryGetGlobalEntityById(speciesId, out var speciesEntity)
+                string name = colony.Manager != null && colony.AttachedManager.TryGetGlobalEntityById(speciesId, out var speciesEntity)
                     ? speciesEntity.GetName(factionId)
                     : "Unknown";
                 species.Add(new SpeciesPopulation(name, speciesPop));
@@ -1056,7 +1055,7 @@ namespace Pulsar4X.Engine.Api
             return name.Length > 0 ? name : resourceId;
         }
 
-        private static bool TryResolveCargoable(FactionInfoDB factionInfo, string resourceId, out ICargoable cargoable)
+        private static bool TryResolveCargoable(FactionInfoDB factionInfo, string resourceId, out ICargoable? cargoable)
         {
             if (factionInfo.Data.CargoGoods.Contains(resourceId))
             {
@@ -1068,7 +1067,7 @@ namespace Pulsar4X.Engine.Api
                 cargoable = design;
                 return true;
             }
-            cargoable = null!;
+            cargoable = null;
             return false;
         }
 
@@ -1137,12 +1136,12 @@ namespace Pulsar4X.Engine.Api
             }
 
             string locationName = "";
-            if (lab.Manager != null && lab.Manager.TryGetEntityById(r.LocationId, out var location))
+            if (lab.Manager != null && lab.AttachedManager.TryGetEntityById(r.LocationId, out var location))
                 locationName = location.GetName(factionId);
 
             string? scientistName = null;
             if (r.ScientistId >= 0 && lab.Manager != null
-                && lab.Manager.TryGetGlobalEntityById(r.ScientistId, out var scientist))
+                && lab.AttachedManager.TryGetGlobalEntityById(r.ScientistId, out var scientist))
             {
                 scientistName = scientist.GetName(factionId);
             }
@@ -1289,7 +1288,7 @@ namespace Pulsar4X.Engine.Api
             // the client never has to look the posting up.
             string? assignment = null;
             if (commanderDB.AssignedTo >= 0 && commander.Manager != null
-                && commander.Manager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var post))
+                && commander.AttachedManager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var post))
             {
                 assignment = post.GetName(factionId);
             }
@@ -1405,7 +1404,7 @@ namespace Pulsar4X.Engine.Api
 
             Entity? flagship = null;
             if (flagshipId >= 0 && fleet.Manager != null)
-                fleet.Manager.TryGetEntityById(flagshipId, out flagship);
+                fleet.AttachedManager.TryGetEntityById(flagshipId, out flagship);
 
             // The fleet entity lives in its flagship's manager, so this is the fleet's current system.
             var system = fleet.Manager as StarSystem;
@@ -1434,7 +1433,7 @@ namespace Pulsar4X.Engine.Api
             string? commander = null;
             if (flagship != null && flagship.TryGetDataBlob<ShipInfoDB>(out var flagInfo)
                 && flagInfo.CommanderID != -1 && flagship.Manager != null
-                && flagship.Manager.TryGetEntityById(flagInfo.CommanderID, out var commanderEntity))
+                && flagship.AttachedManager.TryGetEntityById(flagInfo.CommanderID, out var commanderEntity))
             {
                 commander = commanderEntity.GetName(factionId);
             }
@@ -1542,7 +1541,7 @@ namespace Pulsar4X.Engine.Api
 
             string? commander = null;
             if (shipInfo != null && shipInfo.CommanderID != -1 && ship.Manager != null
-                && ship.Manager.TryGetEntityById(shipInfo.CommanderID, out var commanderEntity))
+                && ship.AttachedManager.TryGetEntityById(shipInfo.CommanderID, out var commanderEntity))
             {
                 commander = commanderEntity.GetName(factionId);
             }
@@ -1569,7 +1568,7 @@ namespace Pulsar4X.Engine.Api
                 if (recharge.ColonyEntity != null)
                     colonyName = recharge.ColonyEntity.GetName(factionId);
                 else if (ship.Manager != null
-                         && ship.Manager.TryGetEntityById(recharge.ColonyEntityId, out var colonyEnt))
+                         && ship.AttachedManager.TryGetEntityById(recharge.ColonyEntityId, out var colonyEnt))
                     colonyName = colonyEnt.GetName(factionId);
 
                 string pct = "";
@@ -1587,7 +1586,7 @@ namespace Pulsar4X.Engine.Api
 
             if (ship.TryGetDataBlob<GeoSurveyingDB>(out var geoSurveying)
                 && ship.Manager != null
-                && ship.Manager.TryGetEntityById(geoSurveying.TargetId, out var geoTarget))
+                && ship.AttachedManager.TryGetEntityById(geoSurveying.TargetId, out var geoTarget))
             {
                 return new ActivityView(
                     "Geo Survey " + geoTarget.GetName(factionId),
@@ -1596,7 +1595,7 @@ namespace Pulsar4X.Engine.Api
 
             if (ship.TryGetDataBlob<JPSurveyDB>(out var jpSurvey)
                 && ship.Manager != null
-                && ship.Manager.TryGetEntityById(jpSurvey.TargetId, out var jpTarget))
+                && ship.AttachedManager.TryGetEntityById(jpSurvey.TargetId, out var jpTarget))
             {
                 return new ActivityView(
                     "Jump Point Survey " + jpTarget.GetName(factionId),

@@ -12,10 +12,9 @@ namespace Pulsar4X.Weapons
     public class FireControlAbilityState : ComponentTreeHeirarchyAbilityState
     {
         [JsonProperty]
-        public Entity Target { get; private set; }
+        public Entity Target { get; set; } = Entity.InvalidEntity;
         [JsonProperty]
         private NameDB? _TargetNameDB;
-
         internal void SetTarget(Entity target)
         {
             Target = target;
@@ -44,7 +43,7 @@ namespace Pulsar4X.Weapons
         public bool IsEngaging { get; internal set; } = false;
 
         [JsonConstructor]
-        private FireControlAbilityState(){}
+        private FireControlAbilityState() { }
         public FireControlAbilityState(ComponentInstance componentInstance) : base(componentInstance)
         {
             _factionOwner = componentInstance.ParentInstances.OwningEntity.FactionOwnerID;

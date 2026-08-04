@@ -12,7 +12,7 @@ namespace Pulsar4X.People
         public new static List<Type> GetDependencies() => new List<Type>() { typeof(NameDB) };
 
         [JsonProperty]
-        public string Name { get; internal set; }
+        public string? Name { get; internal set; }
         [JsonProperty]
         public int Rank { get; internal set; }
         [JsonProperty]
@@ -57,7 +57,7 @@ namespace Pulsar4X.People
 
         public override string ToString()
         {
-            switch(Type)
+            switch (Type)
             {
                 // FIXME: need to get rid of staticreflib references
                 // case CommanderTypes.Navy:

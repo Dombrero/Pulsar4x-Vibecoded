@@ -21,11 +21,11 @@ namespace Pulsar4X.Client
         {
             ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
             ImGui.Text(text);
-            if(!string.IsNullOrEmpty(tooltip))
+            if (!string.IsNullOrEmpty(tooltip))
             {
                 ImGui.SameLine();
                 ImGui.Text("[?]");
-                if(ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(tooltip);
             }
             ImGui.PopStyleColor();
@@ -37,7 +37,7 @@ namespace Pulsar4X.Client
             PrintFormattedCell(one, tooltipOne);
             PrintCell(two, tooltipTwo);
 
-            if(separator)
+            if (separator)
                 ImGui.Separator();
         }
 
@@ -46,9 +46,9 @@ namespace Pulsar4X.Client
             ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
             ImGui.Text(text);
             ImGui.PopStyleColor();
-            if(!string.IsNullOrEmpty(tooltip))
+            if (!string.IsNullOrEmpty(tooltip))
             {
-                if(ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
             }
             ImGui.NextColumn();
         }
@@ -56,9 +56,9 @@ namespace Pulsar4X.Client
         public static void PrintCell(string text, string? tooltip = null)
         {
             ImGui.Text(text);
-            if(!string.IsNullOrEmpty(tooltip))
+            if (!string.IsNullOrEmpty(tooltip))
             {
-                if(ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
             }
             ImGui.NextColumn();
         }
@@ -67,10 +67,10 @@ namespace Pulsar4X.Client
         public static void ShipTooltip(Pulsar4X.Api.ShipSnapshot ship)
         {
             var description = "No orders";
-            if(ship.Orders.Count > 0)
+            if (ship.Orders.Count > 0)
             {
                 description = "Orders: ";
-                foreach(var order in ship.Orders)
+                foreach (var order in ship.Orders)
                 {
                     description += order.Name;
                     description += order.IsRunning ? " (running)" : " (not running)";
@@ -87,7 +87,7 @@ namespace Pulsar4X.Client
             ImGui.SetNextWindowSize(Styles.ToolTipsize);
             ImGui.BeginTooltip();
             ImGui.Text(Utils.Truncate(name, 32));
-            if(type.IsNotNullOrEmpty() && (!hideTypeIfSameAsName || (hideTypeIfSameAsName && !type.Equals(name))))
+            if (type.IsNotNullOrEmpty() && (!hideTypeIfSameAsName || (hideTypeIfSameAsName && !type.Equals(name))))
             {
                 var size = ImGui.GetContentRegionAvail();
                 var text = Utils.Truncate(type, 21);
@@ -100,24 +100,24 @@ namespace Pulsar4X.Client
             }
             var showDescription = description.IsNotNullOrEmpty();
 
-            if(showDescription || callback != null)
+            if (showDescription || callback != null)
             {
                 ImGui.Separator();
             }
 
-            if(!hideDescriptionColor) ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
-            if(showDescription)
+            if (!hideDescriptionColor) ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+            if (showDescription)
             {
                 ImGui.TextWrapped(description);
             }
             callback?.Invoke();
-            if(!hideDescriptionColor) ImGui.PopStyleColor();
+            if (!hideDescriptionColor) ImGui.PopStyleColor();
             ImGui.EndTooltip();
         }
 
         public static void DescriptiveTooltip(string name, string type, string description, Action? callback = null, bool hideTypeIfSameAsName = false, bool hideDescriptionColor = false)
         {
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 DescriptiveTooltipRaw(name, type, description, callback, hideTypeIfSameAsName, hideDescriptionColor);
         }
 
@@ -150,7 +150,7 @@ namespace Pulsar4X.Client
         {
             // Track which person is selected in the UI (not yet assigned)
             string selectionKey = $"{instanceKey}_snapshot";
-            if(!_peopleChooserSelections.ContainsKey(selectionKey))
+            if (!_peopleChooserSelections.ContainsKey(selectionKey))
             {
                 _peopleChooserSelections[selectionKey] = -1;
             }
@@ -166,33 +166,33 @@ namespace Pulsar4X.Client
             int returnValue = currentlySelectedId;
 
             // Left side - scrollable list of people
-            if(ImGui.BeginChild("PeopleList", new Vector2(leftWidth, panelHeight), ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("PeopleList", new Vector2(leftWidth, panelHeight), ImGuiChildFlags.Borders))
             {
                 Header("Available");
 
                 // Option to unassign (select "None")
-                if(currentlySelectedId >= 0)
+                if (currentlySelectedId >= 0)
                 {
                     bool isNoneSelected = uiSelectedId == 0; // Use 0 as special "None" marker
-                    if(ImGui.Selectable("None (Unassign)", isNoneSelected))
+                    if (ImGui.Selectable("None (Unassign)", isNoneSelected))
                     {
                         _peopleChooserSelections[selectionKey] = 0;
                     }
                 }
 
-                foreach(var person in available)
+                foreach (var person in available)
                 {
                     bool isSelected = uiSelectedId == person.Id;
 
                     // Show assignment status
                     string displayName = person.IsAssigned ? person.Name + " *" : person.Name;
 
-                    if(ImGui.Selectable(displayName + $"###{person.Id}", isSelected))
+                    if (ImGui.Selectable(displayName + $"###{person.Id}", isSelected))
                     {
                         _peopleChooserSelections[selectionKey] = person.Id;
                     }
 
-                    if(ImGui.IsItemHovered() && person.IsAssigned)
+                    if (ImGui.IsItemHovered() && person.IsAssigned)
                     {
                         ImGui.SetTooltip("Currently assigned elsewhere");
                     }
@@ -203,24 +203,24 @@ namespace Pulsar4X.Client
             ImGui.SameLine();
 
             // Right side - details of selected person with buttons at bottom
-            if(ImGui.BeginChild("PersonDetails", new Vector2(rightWidth, panelHeight), ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("PersonDetails", new Vector2(rightWidth, panelHeight), ImGuiChildFlags.Borders))
             {
                 float buttonHeight = 30f;
                 float buttonSpacing = 8f;
                 float availableHeight = ImGui.GetContentRegionAvail().Y;
                 float detailsHeight = availableHeight - buttonHeight - buttonSpacing;
 
-                if(ImGui.BeginChild("PersonDetailsContent", new Vector2(0, detailsHeight)))
+                if (ImGui.BeginChild("PersonDetailsContent", new Vector2(0, detailsHeight)))
                 {
                     var selectedPerson = available.FirstOrDefault(p => p.Id == uiSelectedId);
-                    if(uiSelectedId == 0)
+                    if (uiSelectedId == 0)
                     {
                         Header("Unassign");
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
                         ImGui.TextWrapped("Select this to remove the current assignment.");
                         ImGui.PopStyleColor();
                     }
-                    else if(selectedPerson != null)
+                    else if (selectedPerson != null)
                     {
                         // Portrait and name header with background
                         float portraitSize = 32f;
@@ -239,7 +239,7 @@ namespace Pulsar4X.Client
                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + headerPadding);
 
                         IntPtr portraitTexture = state.Img_Character();
-                        if(portraitTexture != IntPtr.Zero)
+                        if (portraitTexture != IntPtr.Zero)
                         {
                             ImGui.Image(portraitTexture.ToTextureRef(), new Vector2(portraitSize, portraitSize));
                             ImGui.SameLine();
@@ -271,19 +271,19 @@ namespace Pulsar4X.Client
 
                         ImGui.Columns(1);
 
-                        if(selectedPerson.Bonuses.Count > 0)
+                        if (selectedPerson.Bonuses.Count > 0)
                         {
                             ImGui.NewLine();
                             Header("Bonuses");
 
-                            foreach(var bonus in selectedPerson.Bonuses)
+                            foreach (var bonus in selectedPerson.Bonuses)
                             {
                                 string valueStr = bonus.IsPercentage
                                     ? $"{bonus.Value * 100:+0.#;-0.#}%"
                                     : $"{bonus.Value:+0.#;-0.#}";
 
                                 string bonusText = bonus.Name;
-                                if(!string.IsNullOrEmpty(bonus.FilterName))
+                                if (!string.IsNullOrEmpty(bonus.FilterName))
                                 {
                                     bonusText += $" ({bonus.FilterName})";
                                 }
@@ -311,26 +311,26 @@ namespace Pulsar4X.Client
                 float buttonWidth = hasCancel ? (availableWidth - 8) / 2 : availableWidth;
 
                 bool canAssign = uiSelectedId != -1;
-                if(!canAssign)
+                if (!canAssign)
                 {
                     ImGui.BeginDisabled();
                 }
 
-                if(ImGui.Button("Assign", new Vector2(buttonWidth, buttonHeight)))
+                if (ImGui.Button("Assign", new Vector2(buttonWidth, buttonHeight)))
                 {
                     returnValue = uiSelectedId == 0 ? -1 : uiSelectedId; // Convert "None" (0) back to -1
                     _peopleChooserSelections[selectionKey] = -1; // Reset selection
                 }
 
-                if(!canAssign)
+                if (!canAssign)
                 {
                     ImGui.EndDisabled();
                 }
 
-                if(hasCancel)
+                if (hasCancel)
                 {
                     ImGui.SameLine();
-                    if(ImGui.Button("Cancel", new Vector2(buttonWidth, buttonHeight)))
+                    if (ImGui.Button("Cancel", new Vector2(buttonWidth, buttonHeight)))
                     {
                         _peopleChooserSelections[selectionKey] = -1; // Reset selection
                         onCancel?.Invoke();

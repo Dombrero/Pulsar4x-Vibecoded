@@ -17,19 +17,19 @@ namespace Pulsar4X.Datablobs
     public class ComponentInstancesDB : BaseDataBlob
     {
         [JsonProperty]
-        internal readonly Dictionary<string, ComponentInstance> AllComponents = new ();
-        
+        internal readonly Dictionary<string, ComponentInstance> AllComponents = new();
+
         //the below are JsonIgnore, we re-populate these collections useing the [OnDeserialised] Deserialized function, from AllComponents collection.
         [JsonIgnore]
-        internal readonly Dictionary<string, ComponentDesign> AllDesigns = new ();
+        internal readonly Dictionary<string, ComponentDesign> AllDesigns = new();
         [JsonIgnore]
         public readonly Dictionary<ComponentDesign, int> DesignsAndComponentCount = new Dictionary<ComponentDesign, int>();
         [JsonIgnore]
-        Dictionary<Type, List<ComponentDesign>> _designsByAtbType = new ();
+        Dictionary<Type, List<ComponentDesign>> _designsByAtbType = new();
         [JsonIgnore]
-        public Dictionary<string, List<ComponentInstance>> ComponentsByDesign = new ();
+        public Dictionary<string, List<ComponentInstance>> ComponentsByDesign = new();
         [JsonIgnore]
-        public Dictionary<Type, List<ComponentInstance>> ComponentsByAttribute = new ();
+        public Dictionary<Type, List<ComponentInstance>> ComponentsByAttribute = new();
 
 
         /* Maybe flat arrays would be better? need to test see the mem size difference and speed difference.
@@ -46,7 +46,13 @@ namespace Pulsar4X.Datablobs
         public bool TryGetComponentsByAttribute<T>(out List<ComponentInstance> components)
             where T : IComponentDesignAttribute
         {
-            return ComponentsByAttribute.TryGetValue(typeof(T), out components);
+            if (ComponentsByAttribute.TryGetValue(typeof(T), out List<ComponentInstance>? found) && found is not null)
+            {
+                components = found;
+                return true;
+            }
+            components = new List<ComponentInstance>();
+            return false;
         }
 
         public bool TryGetComponentStates<T>(out List<T> componentStates)
@@ -70,7 +76,7 @@ namespace Pulsar4X.Datablobs
             instances = new List<ComponentInstance>();
             foreach (var comp in AllComponents.Values)
             {
-                if( comp.HasAblity<T>())
+                if (comp.HasAblity<T>())
                     instances.Add(comp);
             }
 
@@ -110,7 +116,7 @@ namespace Pulsar4X.Datablobs
 
         internal void AddComponentInstance(ComponentInstance instance)
         {
-            if(!AllComponents.ContainsKey(instance.UniqueID))//we do this check because we're using All components to re-populate after loading.
+            if (!AllComponents.ContainsKey(instance.UniqueID))//we do this check because we're using All components to re-populate after loading.
                 AllComponents.Add(instance.UniqueID, instance);
 
             var design = instance.Design;
@@ -141,7 +147,7 @@ namespace Pulsar4X.Datablobs
 
             foreach (var atbkvp in instance.Design.AttributesByType)
             {
-                if(!ComponentsByAttribute.ContainsKey(atbkvp.Key))
+                if (!ComponentsByAttribute.ContainsKey(atbkvp.Key))
                     ComponentsByAttribute.Add(atbkvp.Key, new List<ComponentInstance>());
 
                 ComponentsByAttribute[atbkvp.Key].Add(instance);
@@ -169,7 +175,7 @@ namespace Pulsar4X.Datablobs
                 DesignsAndComponentCount.Remove(design);
                 AllDesigns.Remove(design.UniqueID);
             }
-                
+
 
             foreach (var atbkvp in instance.Design.AttributesByType)
             {

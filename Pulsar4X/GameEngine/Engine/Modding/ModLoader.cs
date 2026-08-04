@@ -18,9 +18,10 @@ namespace Pulsar4X.Modding
         public void LoadModManifest(string modManifestPath, ModDataStore baseData)
         {
             var manifestJson = File.ReadAllText(modManifestPath);
-            var modManifest = JsonConvert.DeserializeObject<ModManifest>(manifestJson);
+            var modManifest = JsonConvert.DeserializeObject<ModManifest>(manifestJson)
+                ?? throw new JsonException($"Failed to deserialize mod manifest at {modManifestPath}.");
 
-            if(LoadedMods.ContainsKey(modManifest.Namespace))
+            if (LoadedMods.ContainsKey(modManifest.Namespace))
             {
                 throw new DuplicateNameException("A mod with the namespace " + modManifest.Namespace + " has already been loaded.");
             }
@@ -28,7 +29,7 @@ namespace Pulsar4X.Modding
             // Get the directory of the mod manifest
             string? modDirectory = Path.GetDirectoryName(modManifestPath);
 
-            if(string.IsNullOrEmpty(modDirectory)) throw new DirectoryNotFoundException($"Could not find {modManifestPath}");
+            if (string.IsNullOrEmpty(modDirectory)) throw new DirectoryNotFoundException($"Could not find {modManifestPath}");
 
             modManifest.ModDirectory = modDirectory;
 
@@ -39,11 +40,12 @@ namespace Pulsar4X.Modding
 
                 var modInstructions = JsonConvert.DeserializeObject<List<ModInstruction>>(
                     File.ReadAllText(modDataFilePath),
-                    new JsonSerializerSettings { Converters = new List<JsonConverter> { new ModInstructionJsonConverter(), new WeightedListConverter() } });
+                    new JsonSerializerSettings { Converters = new List<JsonConverter> { new ModInstructionJsonConverter(), new WeightedListConverter() } })
+                    ?? throw new JsonException($"Failed to deserialize mod instructions at {modDataFilePath}.");
 
                 foreach (var mod in modInstructions)
                 {
-                    mod.Data.JsonFileName =  modDataFile;
+                    mod.Data.JsonFileName = modDataFile;
                     ApplyMod(baseData, mod, modManifest.Namespace);
                 }
             }
@@ -144,18 +146,18 @@ namespace Pulsar4X.Modding
                                 var originalList = (IList?)property.GetValue(existingData);
                                 var modList = (IList)modValue;
 
-                                if(originalList == null) throw new NullReferenceException($"Unable to resolve List for {existingData.FullIdentifier}");
+                                if (originalList == null) throw new NullReferenceException($"Unable to resolve List for {existingData.FullIdentifier}");
 
-                                switch(instruction.CollectionOperation.Value)
+                                switch (instruction.CollectionOperation.Value)
                                 {
                                     case ModInstruction.CollectionOperationType.Add:
-                                        foreach(var item in modList)
+                                        foreach (var item in modList)
                                         {
                                             originalList.Add(item);
                                         }
                                         break;
                                     case ModInstruction.CollectionOperationType.Remove:
-                                        foreach(var item in modList)
+                                        foreach (var item in modList)
                                         {
                                             originalList.Remove(item);
                                         }
@@ -173,18 +175,18 @@ namespace Pulsar4X.Modding
                                 var originalDict = (IDictionary?)property.GetValue(existingData);
                                 var modDict = (IDictionary)modValue;
 
-                                if(originalDict == null) throw new NullReferenceException($"Unable to resolve Dictionary for {existingData.FullIdentifier}");
+                                if (originalDict == null) throw new NullReferenceException($"Unable to resolve Dictionary for {existingData.FullIdentifier}");
 
-                                switch(instruction.CollectionOperation.Value)
+                                switch (instruction.CollectionOperation.Value)
                                 {
                                     case ModInstruction.CollectionOperationType.Add:
-                                        foreach(DictionaryEntry entry in modDict)
+                                        foreach (DictionaryEntry entry in modDict)
                                         {
                                             originalDict[entry.Key] = entry.Value;
                                         }
                                         break;
                                     case ModInstruction.CollectionOperationType.Remove:
-                                        foreach(DictionaryEntry entry in modDict)
+                                        foreach (DictionaryEntry entry in modDict)
                                         {
                                             originalDict.Remove(entry.Key);
                                         }

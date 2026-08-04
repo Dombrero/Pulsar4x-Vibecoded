@@ -15,7 +15,7 @@ namespace Pulsar4X.Client
 
         internal static GameLogWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<GameLogWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<GameLogWindow>(out var window))
             {
                 return window;
             }

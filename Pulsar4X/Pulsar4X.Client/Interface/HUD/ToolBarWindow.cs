@@ -12,8 +12,8 @@ namespace Pulsar4X.Client
         public Vector2 ButtonSize = new Vector2(32, 32);
         private uint UnClickedColour;
         private uint ClickedColour;
-        private List<ToolBarOption> ToolButtons = new ();      //Stores the data for each button
-        private List<ToolBarOption> SMToolButtons = new ();    //Stores the data for each button
+        private List<ToolBarOption> ToolButtons = new();      //Stores the data for each button
+        private List<ToolBarOption> SMToolButtons = new();    //Stores the data for each button
 
         public class ToolBarOption
         //data for a toolbar button, requires an SDL image(for Picture)
@@ -53,7 +53,7 @@ namespace Pulsar4X.Client
             };
             orderedButtons.Add((130, btn));
 
-            btn =  new ToolBarOption()
+            btn = new ToolBarOption()
             {
                 Picture = _uiState.Img_Research(),
                 TooltipText = "Research",
@@ -63,7 +63,7 @@ namespace Pulsar4X.Client
             };
             orderedButtons.Add((140, btn));
 
-            btn =  new ToolBarOption()
+            btn = new ToolBarOption()
             {
                 Picture = _uiState.Img_Fleet(),
                 TooltipText = "Fleet Management",
@@ -73,7 +73,7 @@ namespace Pulsar4X.Client
             };
             orderedButtons.Add((150, btn));
 
-            btn =  new ToolBarOption()
+            btn = new ToolBarOption()
             {
                 Picture = _uiState.Img_Commanders(),
                 TooltipText = "Commanders",
@@ -146,7 +146,7 @@ namespace Pulsar4X.Client
 
         internal static ToolBarWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<ToolBarWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<ToolBarWindow>(out var window))
             {
                 return window;
             }

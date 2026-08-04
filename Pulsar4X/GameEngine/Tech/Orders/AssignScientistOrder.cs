@@ -18,7 +18,7 @@ public class AssignScientistOrder : EntityCommand
 
     internal override Entity EntityCommanding => _labEntity;
 
-    private Entity _labEntity;
+    private Entity _labEntity = Entity.InvalidEntity;
     private int _scientistId;
 
     private AssignScientistOrder(Entity labEntity, int scientistId)
@@ -39,22 +39,22 @@ public class AssignScientistOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+        if (!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
             return;
 
-        if(!_labEntity.Manager.TryGetGlobalEntityById(_scientistId, out var scientist))
+        if (!_labEntity.AttachedManager.TryGetGlobalEntityById(_scientistId, out var scientist))
             return;
 
-        if(!scientist.TryGetDataBlob<CommanderDB>(out var commanderDB))
+        if (!scientist.TryGetDataBlob<CommanderDB>(out var commanderDB))
             return;
 
         // Need to find the current assignment and unassign them
-        if(commanderDB.AssignedTo >= 0)
+        if (commanderDB.AssignedTo >= 0)
         {
-            if(_labEntity.Manager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var previousLab))
+            if (_labEntity.AttachedManager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var previousLab))
             {
                 var unassignOrder = UnassignScientistOrder.Create(previousLab, scientist.Id);
-                _labEntity.Manager.Game.OrderHandler.HandleOrder(unassignOrder);
+                _labEntity.AttachedManager.Game.OrderHandler.HandleOrder(unassignOrder);
             }
         }
 
@@ -69,7 +69,7 @@ public class AssignScientistOrder : EntityCommand
                     atDateTime,
                     "Lab was assigned a scientist",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _labEntity.Id));
 
         // From the scientist perspective
@@ -79,7 +79,7 @@ public class AssignScientistOrder : EntityCommand
                     atDateTime,
                     "Scientist assigned to lab",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _scientistId));
     }
 

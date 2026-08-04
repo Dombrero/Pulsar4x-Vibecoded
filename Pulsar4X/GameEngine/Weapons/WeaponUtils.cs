@@ -50,7 +50,7 @@ public class WeaponUtils
         //var ttt = BeamWeapnProcessor.TimeToTarget(range, launchingEntity.))
         //tempory timetotarget
         double ttt = range / projectileSpeed; //this should be the closing speed (ie the velocity of the two, the beam speed and the range)
-        double missChance = ttt * ( 1 - baseHitChance);
+        double missChance = ttt * (1 - baseHitChance);
         return Math.Max(0, 1 - missChance); // avoid negative hit chances
     }
 
@@ -60,13 +60,13 @@ public class WeaponUtils
         Entity targetEntity,
         (Vector3 pos, Vector3 Velocity) ourState,
         (Vector3 pos, Vector3 Velocity) tgtState,
-        DateTime atDateTime )
+        DateTime atDateTime)
     {
         var distanceToTgt = (ourState.pos - tgtState.pos).Length();
         var tgtBearing = tgtState.pos - ourState.pos;
 
         Vector3 leadToTgt = tgtState.Velocity - ourState.Velocity;
-        var closingSpeed = leadToTgt.Length() ;
+        var closingSpeed = leadToTgt.Length();
         double newttt = distanceToTgt / closingSpeed;
         double oldttt = 0;
         int itterations = 0;
@@ -87,7 +87,7 @@ public class WeaponUtils
             distanceToTgt = (tgtBearing).Length();
 
             leadToTgt = tgtState.Velocity - ourState.Velocity;
-            closingSpeed = leadToTgt.Length() ;
+            closingSpeed = leadToTgt.Length();
             newttt = distanceToTgt / closingSpeed;
 
             itterations++;

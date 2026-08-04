@@ -7,8 +7,8 @@ namespace Pulsar4X.Technology
 {
     public class Tech : TechBlueprint
     {
-        public ComponentDesign Design { get; set; }
-        public Entity Faction { get; set; }
+        public ComponentDesign? Design { get; set; }
+        public Entity Faction { get; set; } = Entity.InvalidEntity;
         public int Level { get; set; } = 0;
         public int ResearchProgress { get; set; } = 0;
         public int ResearchCost { get; set; } = 0;

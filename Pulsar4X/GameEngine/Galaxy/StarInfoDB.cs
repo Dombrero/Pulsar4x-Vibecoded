@@ -41,8 +41,7 @@ namespace Pulsar4X.Galaxy
         /// </summary>
         [PublicAPI]
         [JsonProperty]
-        public string Class { get; internal set; }
-
+        public string? Class { get; internal set; }
         /// <summary>
         /// Main Type. Mostly fluff (affects SystemGeneration).
         /// </summary>
@@ -64,7 +63,6 @@ namespace Pulsar4X.Galaxy
         [PublicAPI]
         [JsonProperty]
         public LuminosityClass LuminosityClass { get; internal set; }
-
         /// <summary>
         /// Calculates and sets the Habitable Zone of this star based on it Luminosity.
         /// calculated according to this site: http://www.planetarybiology.com/calculating_habitable_zone.html
@@ -126,7 +124,7 @@ namespace Pulsar4X.Galaxy
 
         void Update(StarInfoDB db, SensorInfoDB sensorInfo)
         {
-            Random rng = db.OwningEntity.Manager.RNG;
+            Random rng = db.OwningEntity.AttachedManager.RNG;
             float accuracy = sensorInfo.HighestDetectionQuality.SignalQuality;
 
             Age = SensorTools.RndSigmoid(db.Age, accuracy, rng);

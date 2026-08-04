@@ -1,4 +1,4 @@
-﻿/*using System;
+/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
@@ -18,14 +18,14 @@ namespace Pulsar4X.Tests
     [TestFixture, Description("Population Growth Test")]
     public class PopulationProcessorTest
     {
-        private TestGame _game;
-        private EntityManager _entityManager;
+        private TestGame _game = null;
+        private EntityManager _entityManager = null;
 
 
 
         private Dictionary<string, GasBlueprint> _gasDictionary;
-        private List<Entity> _planetsList;
-        private List<Entity> _speciesList;
+        private List<Entity> _planetsList = new();
+        private List<Entity> _speciesList = new();
 
         [SetUp]
         public void Init()

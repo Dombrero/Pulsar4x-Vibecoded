@@ -24,23 +24,23 @@ namespace Pulsar4X.Client
         private readonly double _radiusAU;
         private readonly bool _showOrders;
 
-        protected virtual void DrawExt(IntPtr rendererPtr, Camera camera) {}
-        protected virtual void OnFrameUpdateExt(Matrix matrix, Camera camera) {}
+        protected virtual void DrawExt(IntPtr rendererPtr, Camera camera) { }
+        protected virtual void OnFrameUpdateExt(Matrix matrix, Camera camera) { }
 
         private SDL.Color _color;
         private SDL.Color _orderColor;
         protected string _name = "??";
 
         private IntPtr _nameTexture = IntPtr.Zero;
-        protected SDL.FRect _nameRect = new ();
+        protected SDL.FRect _nameRect = new();
 
         private string _orderText = "";
         private IntPtr _orderTexture = IntPtr.Zero;
-        private SDL.FRect _orderRect = new ();
+        private SDL.FRect _orderRect = new();
         private float _shipScreenX;
         private float _shipScreenY;
 
-        public RectangleF Rect = new ();
+        public RectangleF Rect = new();
 
         // Start of the diagonal leader (just outside the body) and the elbow
         // where the 45° leader meets the horizontal underline beneath the label.
@@ -59,12 +59,15 @@ namespace Pulsar4X.Client
         private const float OrderAboveShipGap = 14f;
 
         private uint _padding = 0;
-        public uint Padding {
-            set {
+        public uint Padding
+        {
+            set
+            {
                 _padding = value;
                 OnPaddingUpdate();
             }
-            get {
+            get
+            {
                 return _padding;
             }
         }
@@ -210,7 +213,7 @@ namespace Pulsar4X.Client
             _nameRect.X = (int)_elbowX;
             _nameRect.Y = (int)(_elbowY - _nameRect.H);
 
-            Rect.Location = new (_nameRect.X - Padding, _nameRect.Y - Padding);
+            Rect.Location = new(_nameRect.X - Padding, _nameRect.Y - Padding);
 
             if (_showOrders)
                 UpdateOrderLayout();
@@ -267,14 +270,16 @@ namespace Pulsar4X.Client
                     0,
                     _color);
 
-            if (textSurface == IntPtr.Zero) {
+            if (textSurface == IntPtr.Zero)
+            {
                 Trace.WriteLine("EntityLabel: failed to create surface");
                 return false;
             }
 
             _nameTexture = SDL.CreateTextureFromSurface(rendererPtr, textSurface);
 
-            if (_nameTexture == IntPtr.Zero) {
+            if (_nameTexture == IntPtr.Zero)
+            {
                 SDL.DestroySurface(textSurface);
 
                 Trace.WriteLine("EntityLabel: failed to create texture from surface");
@@ -297,7 +302,8 @@ namespace Pulsar4X.Client
                     0,
                     _orderColor);
 
-            if (textSurface == IntPtr.Zero) {
+            if (textSurface == IntPtr.Zero)
+            {
                 Trace.WriteLine("EntityLabel: failed to create order surface");
                 return false;
             }
@@ -305,7 +311,8 @@ namespace Pulsar4X.Client
             _orderTexture = SDL.CreateTextureFromSurface(rendererPtr, textSurface);
             SDL.DestroySurface(textSurface);
 
-            if (_orderTexture == IntPtr.Zero) {
+            if (_orderTexture == IntPtr.Zero)
+            {
                 Trace.WriteLine("EntityLabel: failed to create order texture");
                 return false;
             }
@@ -341,7 +348,8 @@ namespace Pulsar4X.Client
                     SDL.SetRenderDrawColor(rendererPtr, c.R, c.G, c.B, c.A);
                 }
 
-                SDL.FRect frect = new () {
+                SDL.FRect frect = new()
+                {
                     X = Rect.X,
                     Y = Rect.Y,
                     W = Rect.Width,
@@ -350,7 +358,7 @@ namespace Pulsar4X.Client
 
                 SDL.RenderFillRect(rendererPtr, frect);
 
-                SDL.SetRenderDrawColor(rendererPtr, r, g, b ,a);
+                SDL.SetRenderDrawColor(rendererPtr, r, g, b, a);
             }
 
             if (nameOnScreen && (_nameTexture != IntPtr.Zero || RenderName(rendererPtr)))

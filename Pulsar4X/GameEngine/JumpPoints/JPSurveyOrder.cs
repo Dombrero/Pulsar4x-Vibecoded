@@ -39,10 +39,10 @@ public class JPSurveyOrder : EntityCommand
         ? "Surveying at target."
         : "Moving to grav anomaly before scanning.";
 
-    public Entity Target { get; private set; }
+    public Entity Target { get; set; } = Entity.InvalidEntity;
     public JPSurveyableDB? TargetSurveyDB { get; private set; } = null;
 
-    private Entity _entityCommanding;
+    private Entity _entityCommanding = Entity.InvalidEntity;
     private readonly List<WarpMoveCommand> _travelCommands = new();
     private bool _surveyStarted;
 
@@ -159,7 +159,7 @@ public class JPSurveyOrder : EntityCommand
                 {
                     var cmd = WarpMoveCommand.CreateCommandEZ(_entityCommanding, Target, atDateTime);
                     _travelCommands.Add(cmd);
-                    _entityCommanding.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 }
                 catch (Exception ex)
                 {
@@ -193,13 +193,18 @@ public class JPSurveyOrder : EntityCommand
         FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
         _travelCommands.Clear();
 
+        if (!Target.IsValid)
+            return;
+
+        Entity surveyTarget = Target;
+
         foreach (var ship in shipsNeedingTravel)
         {
             try
             {
-                var cmd = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
+                var cmd = WarpMoveCommand.CreateCommandEZ(ship, surveyTarget, atDateTime);
                 _travelCommands.Add(cmd);
-                if (!ship.Manager.Game.OrderHandler.HandleOrder(cmd))
+                if (!ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd))
                 {
                     System.Diagnostics.Debug.WriteLine(
                         $"JPSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");

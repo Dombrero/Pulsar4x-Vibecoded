@@ -12,7 +12,7 @@ namespace Pulsar4X.Movement
         [JsonProperty]
         public double ExhaustVelocity = 0;
         [JsonProperty]
-        public string FuelType; //todo: change this to a list and enable multple fuel types.
+        public string? FuelType; //todo: change this to a list and enable multple fuel types.
 
         /// <summary>
         /// in Kg/s

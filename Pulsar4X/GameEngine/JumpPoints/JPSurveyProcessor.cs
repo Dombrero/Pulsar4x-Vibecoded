@@ -20,7 +20,7 @@ public class JPSurveyProcessor : IHotloopProcessor
     public TimeSpan FirstRunOffset { get; } = TimeSpan.FromHours(1);
     public Type GetParameterType { get; } = typeof(JPSurveyDB);
 
-    public JPSurveyProcessor() {}
+    public JPSurveyProcessor() { }
 
     public void Init(Game game)
     {
@@ -30,10 +30,11 @@ public class JPSurveyProcessor : IHotloopProcessor
     {
         if (entity.TryGetDataBlob<JPSurveyDB>(out var jpSurveyDB)
             && entity.TryGetDataBlob<JPSurveyAbilityDB>(out var jpSurveyAbilityDB)
-            && entity.Manager.TryGetDataBlob<JPSurveyableDB>(jpSurveyDB.TargetId, out var jpSurveyableDB))
+            && entity.AttachedManager.TryGetDataBlob<JPSurveyableDB>(jpSurveyDB.TargetId, out JPSurveyableDB? jpSurveyableDB)
+            && jpSurveyableDB is not null)
         {
             // Factions are lazily added to the surveys
-            if(!jpSurveyableDB.SurveyPointsRemaining.ContainsKey(entity.FactionOwnerID))
+            if (!jpSurveyableDB.SurveyPointsRemaining.ContainsKey(entity.FactionOwnerID))
                 jpSurveyableDB.SurveyPointsRemaining[entity.FactionOwnerID] = jpSurveyableDB.PointsRequired;
 
             // Check if the survey has been completed (possibly some other entity completed the survey already
@@ -45,7 +46,7 @@ public class JPSurveyProcessor : IHotloopProcessor
             }
 
             // Make sure the surveyor is within distance of the target
-            var distance =  MoveMath.GetDistanceBetween(entity, jpSurveyableDB.OwningEntity);
+            var distance = MoveMath.GetDistanceBetween(entity, jpSurveyableDB.OwningEntity);
             if (distance < 100000) // FIXME: needs to be an attribute of the JPSurveyAbilityDB
             {
                 if (jpSurveyAbilityDB.Speed >= jpSurveyableDB.SurveyPointsRemaining[entity.FactionOwnerID])
@@ -79,7 +80,7 @@ public class JPSurveyProcessor : IHotloopProcessor
         jpSurveyableDB.SurveyPointsRemaining[surveyingEntity.FactionOwnerID] = 0;
 
         // Hide the survey location from the faction that just completed the survey
-        jpSurveyableDB.OwningEntity.Manager.HideNeutralEntityFromFaction(surveyingEntity.FactionOwnerID, jpSurveyableDB.OwningEntity.Id);
+        jpSurveyableDB.OwningEntity.AttachedManager.HideNeutralEntityFromFaction(surveyingEntity.FactionOwnerID, jpSurveyableDB.OwningEntity.Id);
 
         EventManager.Instance.Publish(
             Event.Create(
@@ -87,7 +88,7 @@ public class JPSurveyProcessor : IHotloopProcessor
                 atDateTime,
                 $"Survey of {jpSurveyableDB.OwningEntity.GetName(surveyingEntity.FactionOwnerID)} complete",
                 surveyingEntity.FactionOwnerID,
-                jpSurveyableDB.OwningEntity.Manager.ManagerID,
+                jpSurveyableDB.OwningEntity.AttachedManager.ManagerID,
                 jpSurveyableDB.OwningEntity.Id));
     }
 
@@ -95,10 +96,10 @@ public class JPSurveyProcessor : IHotloopProcessor
     {
         // Chance = undiscovered JPs / remaining unsurveyed anomalies (including this one).
         // On success the JP is moved to this anomaly — the anomaly *is* the grav signature.
-        var surveyLocationsRemaining = discoveringEntity.Manager.GetAllDataBlobsOfType<JPSurveyableDB>()
+        var surveyLocationsRemaining = discoveringEntity.AttachedManager.GetAllDataBlobsOfType<JPSurveyableDB>()
                                                         .Where(db => !db.IsSurveyComplete(discoveringEntity.FactionOwnerID))
                                                         .ToList();
-        var jpRemaining = discoveringEntity.Manager.GetAllDataBlobsOfType<JumpPointDB>()
+        var jpRemaining = discoveringEntity.AttachedManager.GetAllDataBlobsOfType<JumpPointDB>()
                                            .Where(db => !db.IsDiscovered.Contains(discoveringEntity.FactionOwnerID))
                                            .ToList();
 
@@ -120,16 +121,16 @@ public class JPSurveyProcessor : IHotloopProcessor
         }
 
         var chance = (double)jpRemaining.Count / (double)surveyLocationsRemaining.Count;
-        var roll = anomaly.Manager.RNGNextDouble();
+        var roll = anomaly.AttachedManager.RNGNextDouble();
 
         if (chance >= roll)
         {
-            var jp = jpRemaining[anomaly.Manager.RNGNext(0, jpRemaining.Count)];
+            var jp = jpRemaining[anomaly.AttachedManager.RNGNext(0, jpRemaining.Count)];
             PlaceJumpPointAtAnomaly(jp.OwningEntity, anomaly, discoveringEntity.FactionOwnerID);
             jp.IsDiscovered.Add(discoveringEntity.FactionOwnerID);
 
             // Show the jump point to the faction that just completed the survey
-            jp.OwningEntity.Manager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, jp.OwningEntity.Id);
+            jp.OwningEntity.AttachedManager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, jp.OwningEntity.Id);
 
             DebugTraceLog.Info("Standing",
                 $"Jump Point discovered at anomaly (chance={chance:0.##}, roll={roll:0.##}, " +
@@ -142,13 +143,13 @@ public class JPSurveyProcessor : IHotloopProcessor
                     atDateTime,
                     $"Jump Point discovered",
                     discoveringEntity.FactionOwnerID,
-                    jp.OwningEntity.Manager.ManagerID,
+                    jp.OwningEntity.AttachedManager.ManagerID,
                     jp.OwningEntity.Id));
 
-            MessagePublisher.Instance.Publish(Message.Create(
+            _ = MessagePublisher.Instance.Publish(Message.Create(
                 MessageTypes.EntityChanged,
                 entityId: jp.OwningEntity.Id,
-                systemId: jp.OwningEntity.Manager.ManagerID,
+                systemId: jp.OwningEntity.AttachedManager.ManagerID,
                 factionId: discoveringEntity.FactionOwnerID));
 
             // If this was the last jump point, hide the rest of the survey locations
@@ -158,7 +159,7 @@ public class JPSurveyProcessor : IHotloopProcessor
                 {
                     if (surveyLocation.OwningEntity.Id == anomaly.Id) continue;
 
-                    surveyLocation.OwningEntity.Manager.HideNeutralEntityFromFaction(
+                    surveyLocation.OwningEntity.AttachedManager.HideNeutralEntityFromFaction(
                         discoveringEntity.FactionOwnerID, surveyLocation.OwningEntity.Id);
                 }
             }
@@ -200,18 +201,18 @@ public class JPSurveyProcessor : IHotloopProcessor
     private void RevealOtherSide(JumpPointDB jumpPointDB, DateTime atDateTime, Entity discoveringEntity)
     {
         // Skip if no destination is linked (DestinationId defaults to 0 which could match an unrelated entity)
-        if(jumpPointDB.DestinationId <= 0)
+        if (jumpPointDB.DestinationId <= 0)
             return;
 
-        if(discoveringEntity.Manager.TryGetGlobalEntityById(jumpPointDB.DestinationId, out var destinationEntity)
+        if (discoveringEntity.AttachedManager.TryGetGlobalEntityById(jumpPointDB.DestinationId, out var destinationEntity)
             && destinationEntity.HasDataBlob<JumpPointDB>())
         {
-            var factionInfoDB = discoveringEntity.Manager.Game.Factions[discoveringEntity.FactionOwnerID].GetDataBlob<FactionInfoDB>();
+            var factionInfoDB = discoveringEntity.AttachedManager.Game.Factions[discoveringEntity.FactionOwnerID].GetDataBlob<FactionInfoDB>();
 
             // Check to see if the system has been discovered yet
-            if(!factionInfoDB.KnownSystems.Contains(destinationEntity.Manager.ManagerID))
+            if (!factionInfoDB.KnownSystems.Contains(destinationEntity.AttachedManager.ManagerID))
             {
-                factionInfoDB.KnownSystems.Add(destinationEntity.Manager.ManagerID);
+                factionInfoDB.KnownSystems.Add(destinationEntity.AttachedManager.ManagerID);
 
                 EventManager.Instance.Publish(
                     Event.Create(
@@ -219,22 +220,22 @@ public class JPSurveyProcessor : IHotloopProcessor
                         atDateTime,
                         $"New system discovered",
                         discoveringEntity.FactionOwnerID,
-                        destinationEntity.Manager.ManagerID,
+                        destinationEntity.AttachedManager.ManagerID,
                         destinationEntity.Id));
 
-                MessagePublisher.Instance.Publish(
+                _ = MessagePublisher.Instance.Publish(
                     Message.Create(
                         MessageTypes.StarSystemRevealed,
                         destinationEntity.Id,
-                        destinationEntity.Manager.ManagerID,
+                        destinationEntity.AttachedManager.ManagerID,
                         discoveringEntity.FactionOwnerID));
             }
 
             // Reveal the JP
-            if(destinationEntity.TryGetDataBlob<JumpPointDB>(out var destinationDB))
+            if (destinationEntity.TryGetDataBlob<JumpPointDB>(out var destinationDB))
             {
                 destinationDB.IsDiscovered.Add(discoveringEntity.FactionOwnerID);
-                destinationEntity.Manager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, destinationEntity.Id);
+                destinationEntity.AttachedManager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, destinationEntity.Id);
 
                 EventManager.Instance.Publish(
                     Event.Create(
@@ -242,7 +243,7 @@ public class JPSurveyProcessor : IHotloopProcessor
                         atDateTime,
                         $"Jump Point discovered",
                         discoveringEntity.FactionOwnerID,
-                        destinationEntity.Manager.ManagerID,
+                        destinationEntity.AttachedManager.ManagerID,
                         destinationEntity.Id));
             }
 

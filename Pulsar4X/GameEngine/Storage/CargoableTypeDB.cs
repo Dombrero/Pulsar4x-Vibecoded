@@ -13,19 +13,19 @@ namespace Pulsar4X.Storage
     /// Contains info on how an entitiy can be stored.
     /// NOTE an entity with this datablob must also have a MassVolumeDB
     /// </summary>
-    public class CargoAbleTypeDB : BaseDataBlob , ICargoable, IComponentDesignAttribute
+    public class CargoAbleTypeDB : BaseDataBlob, ICargoable, IComponentDesignAttribute
     {
         [JsonProperty]
         public int ID { get; private set; } = Game.GetEntityID();
 
         [JsonProperty]
-        public string CargoTypeID { get; internal set; }
-
+        public string? CargoTypeID { get; internal set; }
         /// <summary>
         /// NOTE! this is an entites *Design* ID, not the EntitesID.
         /// </summary>
         [JsonIgnore]
-        public string UniqueID {
+        public string UniqueID
+        {
             get
             {
                 if (OwningEntity.HasDataBlob<DesignInfoDB>())
@@ -52,8 +52,8 @@ namespace Pulsar4X.Storage
 
             get
             {
-                if(OwningEntity == null) return UNKNOWN;
-                if(OwningEntity.TryGetDataBlob<NameDB>(out var nameDB))
+                if (!OwningEntity.IsValid) return UNKNOWN;
+                if (OwningEntity.TryGetDataBlob<NameDB>(out var nameDB))
                 {
                     return nameDB.GetName(OwningEntity.FactionOwnerID);
                 }

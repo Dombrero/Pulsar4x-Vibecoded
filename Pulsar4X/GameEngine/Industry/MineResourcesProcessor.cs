@@ -14,7 +14,7 @@ namespace Pulsar4X.Industry
 {
     internal class MineResourcesProcessor : IHotloopProcessor, IRecalcProcessor
     {
-        private Dictionary<int, Mineral> _minerals;
+        private Dictionary<int, Mineral> _minerals = new();
         public TimeSpan RunFrequency => TimeSpan.FromDays(1);
 
         public TimeSpan FirstRunOffset => TimeSpan.FromHours(1);
@@ -24,11 +24,11 @@ namespace Pulsar4X.Industry
 
         public void Init(Game game)
         {
-            _minerals = new ();
+            _minerals = new();
 
             EventManager.Instance.Subscribe(EventType.ColonyAdministratorAssigned, OnAdminAssigned);
 
-            foreach(var (uniqueID, mineral) in game.StartingGameData.Minerals)
+            foreach (var (uniqueID, mineral) in game.StartingGameData.Minerals)
             {
                 _minerals.Add(mineral.ID, mineral);
             }
@@ -36,7 +36,7 @@ namespace Pulsar4X.Industry
 
         public void ProcessEntity(Entity entity, int deltaSeconds)
         {
-            if(entity.TryGetDataBlob<ColonyInfoDB>(out var colonyInfoDB)
+            if (entity.TryGetDataBlob<ColonyInfoDB>(out var colonyInfoDB)
                 && colonyInfoDB.PlanetEntity.TryGetDataBlob<MineralsDB>(out var mineralsDB)
                 && entity.TryGetDataBlob<MiningDB>(out var miningDB)
                 && entity.TryGetDataBlob<CargoStorageDB>(out var stockpile))
@@ -46,7 +46,7 @@ namespace Pulsar4X.Industry
         public int ProcessManager(EntityManager manager, int deltaSeconds)
         {
             var entities = manager.GetAllEntitiesWithDataBlob<MiningDB>();
-            foreach(var entity in entities)
+            foreach (var entity in entities)
             {
                 ProcessEntity(entity, deltaSeconds);
             }

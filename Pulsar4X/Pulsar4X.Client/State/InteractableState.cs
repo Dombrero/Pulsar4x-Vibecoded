@@ -2,8 +2,10 @@ using Pulsar4X.Input;
 
 namespace Pulsar4X.Client
 {
-    public interface IInteractable : IShape, IPointerHandler {
-        byte Priority {
+    public interface IInteractable : IShape, IPointerHandler
+    {
+        byte Priority
+        {
             get { return 0; } // default priority is 0
         }
     }

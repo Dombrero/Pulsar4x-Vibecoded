@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json.Linq;
@@ -16,7 +17,7 @@ public static class ShipDesignFromJson
         var factionInfoDB = faction.GetDataBlob<FactionInfoDB>();
         var shipComponents = new List<(ComponentDesign, int)>();
 
-        foreach(var component in shipDesignBlueprint.Components)
+        foreach (var component in shipDesignBlueprint.Components)
         {
             shipComponents.Add((
                 factionInfoDB.InternalComponentDesigns[component.Id],
@@ -42,14 +43,14 @@ public static class ShipDesignFromJson
         var shipComponents = new List<(ComponentDesign, int)>();
 
         var id = (string?)rootJson["id"] ?? null;
-        var designName = rootJson["name"].ToString();
+        var designName = rootJson["name"]?.ToString() ?? throw new InvalidOperationException("Ship design json missing name.");
 
         var components = (JArray?)rootJson["components"];
-        if(components != null)
+        if (components != null)
         {
-            foreach(var component in components)
+            foreach (var component in components)
             {
-                var designId = component["id"].ToString();
+                var designId = component["id"]?.ToString() ?? throw new InvalidOperationException("Ship component missing id.");
                 var amount = (int?)component["amount"] ?? 0;
 
                 shipComponents.Add((
@@ -59,13 +60,14 @@ public static class ShipDesignFromJson
             }
         }
 
-        var armorId = rootJson["armor"]["id"].ToString();
-        var armorThickness = (int?)rootJson["armor"]["thickness"] ?? 1;
+        var armorObj = rootJson["armor"] as JObject ?? throw new InvalidOperationException("Ship design json missing armor.");
+        var armorId = armorObj["id"]?.ToString() ?? throw new InvalidOperationException("Ship armor missing id.");
+        var armorThickness = (float)((int?)armorObj["thickness"] ?? 1);
 
         var armor = factionDataStore.Armor[armorId];
         var design = new ShipDesign(factionInfoDB, designName, shipComponents, (armor, armorThickness), id)
         {
-          DamageProfileDB = new EntityDamageProfileDB(shipComponents, (armor, armorThickness))
+            DamageProfileDB = new EntityDamageProfileDB(shipComponents, (armor, armorThickness))
         };
         design.Initialise(factionInfoDB);
         return design;

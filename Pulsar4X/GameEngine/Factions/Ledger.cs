@@ -15,7 +15,7 @@ public class Transaction
 {
     public DateTime Date { get; set; }
     public TransactionCategory Category { get; set; }
-    public string Description { get; set; }
+    public string? Description { get; set; }
     public decimal Amount { get; set; }
     public bool IsExpense => Amount < 0;
     public bool IsIncome => Amount > 0;
@@ -39,7 +39,7 @@ public class Transaction
 public class Ledger
 {
     [JsonProperty]
-    private List<Transaction> _transactions;
+    private List<Transaction> _transactions = new();
     [JsonProperty]
     private decimal _currentFunds;
 

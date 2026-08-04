@@ -45,15 +45,15 @@ public sealed class BodyVisualComposer
             ? (p.Type == BodyVisualType.Ice ? new BodyRgb(160, 210, 230) : new BodyRgb(18, 75, 160))
             : p.Primary.Mix(p.Secondary, 0.35);
         for (int y = -irad; y <= irad; y++)
-        for (int x = -irad; x <= irad; x++)
-        {
-            double d2 = x * x + y * y;
-            if (d2 > rad * rad) continue;
-            double d = Math.Sqrt(d2) / rad;
-            double shade = 1.0 - d * 0.55;
-            var col = baseCol.Shade(shade);
-            canvas.SetPixel((int)cx + x, (int)cy + y, col.R, col.G, col.B, 255);
-        }
+            for (int x = -irad; x <= irad; x++)
+            {
+                double d2 = x * x + y * y;
+                if (d2 > rad * rad) continue;
+                double d = Math.Sqrt(d2) / rad;
+                double shade = 1.0 - d * 0.55;
+                var col = baseCol.Shade(shade);
+                canvas.SetPixel((int)cx + x, (int)cy + y, col.R, col.G, col.B, 255);
+            }
 
         if (p.Type == BodyVisualType.Gas)
         {
@@ -139,15 +139,15 @@ public sealed class BodyVisualComposer
         {
             double lightT = (p.Light + 100) / 200.0; // 0..1
             for (int y = -irad; y <= irad; y++)
-            for (int x = -irad; x <= irad; x++)
-            {
-                if (x * x + y * y > rad * rad) continue;
-                double nx = (x / rad + 1) * 0.5; // 0 left .. 1 right
-                double shade = Math.Clamp((nx - lightT) * 2.2, 0, 1);
-                if (shade <= 0) continue;
-                byte a = (byte)(shade * 160);
-                Blend(canvas, (int)cx + x, (int)cy + y, 5, 8, 18, a);
-            }
+                for (int x = -irad; x <= irad; x++)
+                {
+                    if (x * x + y * y > rad * rad) continue;
+                    double nx = (x / rad + 1) * 0.5; // 0 left .. 1 right
+                    double shade = Math.Clamp((nx - lightT) * 2.2, 0, 1);
+                    if (shade <= 0) continue;
+                    byte a = (byte)(shade * 160);
+                    Blend(canvas, (int)cx + x, (int)cy + y, 5, 8, 18, a);
+                }
         }
 
         // Atmosphere rim
@@ -205,11 +205,11 @@ public sealed class BodyVisualComposer
             minY = Math.Min(minY, y); maxY = Math.Max(maxY, y);
         }
         for (int py = (int)Math.Floor(minY); py <= (int)Math.Ceiling(maxY); py++)
-        for (int px = (int)Math.Floor(minX); px <= (int)Math.Ceiling(maxX); px++)
-        {
-            if (PointInPoly(px + 0.5, py + 0.5, pts))
-                canvas.SetPixel((int)cx + px, (int)cy + py, p.Primary.R, p.Primary.G, p.Primary.B, 255);
-        }
+            for (int px = (int)Math.Floor(minX); px <= (int)Math.Ceiling(maxX); px++)
+            {
+                if (PointInPoly(px + 0.5, py + 0.5, pts))
+                    canvas.SetPixel((int)cx + px, (int)cy + py, p.Primary.R, p.Primary.G, p.Primary.B, 255);
+            }
 
         for (int i = 0; i < 14; i++)
         {
@@ -236,19 +236,19 @@ public sealed class BodyVisualComposer
         double cx = 128, cy = 132, rad = p.Size * 0.42;
         int outer = (int)(rad * 1.55);
         for (int y = -outer; y <= outer; y++)
-        for (int x = -outer; x <= outer; x++)
-        {
-            double d = Math.Sqrt(x * x + y * y);
-            if (d > outer) continue;
-            double t = d / outer;
-            BodyRgb col;
-            if (t < 0.15) col = new BodyRgb(255, 255, 255);
-            else if (t < 0.35) col = p.GlowColor;
-            else if (t < 0.7) col = p.Primary.Mix(p.GlowColor, 0.3);
-            else col = p.Primary;
-            byte a = (byte)Math.Clamp((1.0 - t) * 255, 0, 255);
-            Blend(canvas, (int)cx + x, (int)cy + y, col.R, col.G, col.B, a);
-        }
+            for (int x = -outer; x <= outer; x++)
+            {
+                double d = Math.Sqrt(x * x + y * y);
+                if (d > outer) continue;
+                double t = d / outer;
+                BodyRgb col;
+                if (t < 0.15) col = new BodyRgb(255, 255, 255);
+                else if (t < 0.35) col = p.GlowColor;
+                else if (t < 0.7) col = p.Primary.Mix(p.GlowColor, 0.3);
+                else col = p.Primary;
+                byte a = (byte)Math.Clamp((1.0 - t) * 255, 0, 255);
+                Blend(canvas, (int)cx + x, (int)cy + y, col.R, col.G, col.B, a);
+            }
         FillEllipse(canvas, cx, cy, rad, rad, p.GlowColor.R, p.GlowColor.G, p.GlowColor.B, 255, cx, cy, rad * 2);
         for (int i = 0; i < 10; i++)
         {
@@ -272,24 +272,24 @@ public sealed class BodyVisualComposer
 
         int irad = Math.Max(4, (int)Math.Round(rad));
         for (int y = -irad; y <= irad; y++)
-        for (int x = -irad; x <= irad; x++)
-        {
-            double d2 = x * x + y * y;
-            if (d2 > rad * rad) continue;
+            for (int x = -irad; x <= irad; x++)
+            {
+                double d2 = x * x + y * y;
+                if (d2 > rad * rad) continue;
 
-            // Soft falloff toward the limb so the disk stays a sphere, not a flat tint.
-            double d = Math.Sqrt(d2) / rad;
-            double n = Math.Sin((cx + x) * 0.11 + (cy + y) * 0.09 + p.Seed * 0.002)
-                     + Math.Sin((cx + x) * 0.05 - (cy + y) * 0.14);
-            double mottled = 0.55 + 0.45 * Math.Clamp(0.5 + n * 0.28, 0, 1);
-            // Keep emission stronger across the face (not only limb), so map-scale icons read heat/cold.
-            double face = 1.0 - d * 0.35;
-            double amount = strength * mottled * face;
-            byte a = (byte)Math.Clamp(amount * (heat ? 195 : 170), 0, 220);
-            if (a < 6)
-                continue;
-            Blend(canvas, (int)cx + x, (int)cy + y, tint.R, tint.G, tint.B, a);
-        }
+                // Soft falloff toward the limb so the disk stays a sphere, not a flat tint.
+                double d = Math.Sqrt(d2) / rad;
+                double n = Math.Sin((cx + x) * 0.11 + (cy + y) * 0.09 + p.Seed * 0.002)
+                         + Math.Sin((cx + x) * 0.05 - (cy + y) * 0.14);
+                double mottled = 0.55 + 0.45 * Math.Clamp(0.5 + n * 0.28, 0, 1);
+                // Keep emission stronger across the face (not only limb), so map-scale icons read heat/cold.
+                double face = 1.0 - d * 0.35;
+                double amount = strength * mottled * face;
+                byte a = (byte)Math.Clamp(amount * (heat ? 195 : 170), 0, 220);
+                if (a < 6)
+                    continue;
+                Blend(canvas, (int)cx + x, (int)cy + y, tint.R, tint.G, tint.B, a);
+            }
     }
 
     private static bool PointInPoly(double x, double y, (double x, double y)[] pts)
@@ -311,25 +311,25 @@ public sealed class BodyVisualComposer
         int minY = (int)Math.Floor(cy - ry), maxY = (int)Math.Ceiling(cy + ry);
         double rx2 = rx * rx, ry2 = ry * ry;
         for (int y = minY; y <= maxY; y++)
-        for (int x = minX; x <= maxX; x++)
-        {
-            double dx = x - cx, dy = y - cy;
-            if (dx * dx / rx2 + dy * dy / ry2 > 1) continue;
-            if ((x - clipCx) * (x - clipCx) + (y - clipCy) * (y - clipCy) > clipRad * clipRad) continue;
-            Blend(img, x, y, r, g, b, a);
-        }
+            for (int x = minX; x <= maxX; x++)
+            {
+                double dx = x - cx, dy = y - cy;
+                if (dx * dx / rx2 + dy * dy / ry2 > 1) continue;
+                if ((x - clipCx) * (x - clipCx) + (y - clipCy) * (y - clipCy) > clipRad * clipRad) continue;
+                Blend(img, x, y, r, g, b, a);
+            }
     }
 
     private static void DrawRing(RgbaImage img, double cx, double cy, double r0, double r1, byte r, byte g, byte b, byte a)
     {
         int max = (int)Math.Ceiling(r1);
         for (int y = -max; y <= max; y++)
-        for (int x = -max; x <= max; x++)
-        {
-            double d = Math.Sqrt(x * x + y * y);
-            if (d < r0 || d > r1) continue;
-            Blend(img, (int)cx + x, (int)cy + y, r, g, b, a);
-        }
+            for (int x = -max; x <= max; x++)
+            {
+                double d = Math.Sqrt(x * x + y * y);
+                if (d < r0 || d > r1) continue;
+                Blend(img, (int)cx + x, (int)cy + y, r, g, b, a);
+            }
     }
 
     private static void DrawRotatedEllipse(RgbaImage img, double cx, double cy, double rx, double ry, double rot, byte r, byte g, byte b, byte a)
@@ -337,14 +337,14 @@ public sealed class BodyVisualComposer
         int max = (int)Math.Ceiling(Math.Max(rx, ry) + 2);
         double cos = Math.Cos(rot), sin = Math.Sin(rot);
         for (int y = -max; y <= max; y++)
-        for (int x = -max; x <= max; x++)
-        {
-            double lx = x * cos + y * sin;
-            double ly = -x * sin + y * cos;
-            double d = (lx * lx) / (rx * rx) + (ly * ly) / (ry * ry);
-            if (d < 0.92 || d > 1.08) continue;
-            Blend(img, (int)cx + x, (int)cy + y, r, g, b, a);
-        }
+            for (int x = -max; x <= max; x++)
+            {
+                double lx = x * cos + y * sin;
+                double ly = -x * sin + y * cos;
+                double d = (lx * lx) / (rx * rx) + (ly * ly) / (ry * ry);
+                if (d < 0.92 || d > 1.08) continue;
+                Blend(img, (int)cx + x, (int)cy + y, r, g, b, a);
+            }
     }
 
     private static void Blend(RgbaImage dst, int x, int y, byte r, byte g, byte b, byte a)

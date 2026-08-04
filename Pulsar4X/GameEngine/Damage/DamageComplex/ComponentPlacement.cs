@@ -61,13 +61,13 @@ namespace Pulsar4X.Damage
             {
                 for (int iy = 0; iy < height; iy++)
                 {
-                    RawBmp.SetPixel(ref buffer, stride, imagedepth, ix, iy, damageResistanceID, 255,255, 255);
+                    RawBmp.SetPixel(ref buffer, stride, imagedepth, ix, iy, damageResistanceID, 255, 255, 255);
                 }
             }
 
             RawBmp bmp = new RawBmp()
             {
-                ByteArray =  buffer,
+                ByteArray = buffer,
                 Stride = stride,
                 Depth = imagedepth,
                 Width = width,
@@ -123,7 +123,7 @@ namespace Pulsar4X.Damage
             {
                 ByteArray = new byte[size],
                 Stride = stride,
-                Depth =  4,
+                Depth = 4,
                 Width = canvasLen,
                 Height = canvasWidth,
             };
@@ -184,15 +184,15 @@ namespace Pulsar4X.Damage
             // float addedLineThickness = 5;
 
             //adding margins to the bitmap(white space around its edges to make it look cleaner once displayed)
-            Vector2 shipbmpMargins = new Vector2(shipBmp.Width*0.1,shipBmp.Height*0.1);
-            RawBmp finalShipBmp = new RawBmp(shipBmp.Width + (int)shipbmpMargins.X*2, shipBmp.Height+ (int)shipbmpMargins.Y*2, shipBmp.Depth);
+            Vector2 shipbmpMargins = new Vector2(shipBmp.Width * 0.1, shipBmp.Height * 0.1);
+            RawBmp finalShipBmp = new RawBmp(shipBmp.Width + (int)shipbmpMargins.X * 2, shipBmp.Height + (int)shipbmpMargins.Y * 2, shipBmp.Depth);
             //shifting
             for (int x = 0; x < shipBmp.Width; x++)
             {
                 for (int y = 0; y < shipBmp.Height; y++)
                 {
-                    var srsClr = shipBmp.GetPixel(x,y);
-                    finalShipBmp.SetPixel(x+(int)shipbmpMargins.X, y+(int)shipbmpMargins.Y, srsClr.r, srsClr.g, srsClr.b, srsClr.a);
+                    var srsClr = shipBmp.GetPixel(x, y);
+                    finalShipBmp.SetPixel(x + (int)shipbmpMargins.X, y + (int)shipbmpMargins.Y, srsClr.r, srsClr.g, srsClr.b, srsClr.a);
                 }
             }
 
@@ -242,7 +242,7 @@ namespace Pulsar4X.Damage
             {
                 //Draws the bottom line
                 var bottomcoordEnd = linePoints[i];
-                
+
                 bottomcoordEnd = (bottomcoordEnd.x, halfwidth + bottomcoordEnd.y);
 
                 DrawLine(shipBmp, bottomcoordStart, bottomcoordEnd, thickness, armorcolor, 255, 255, 255, shipbmpMargins);
@@ -279,8 +279,8 @@ namespace Pulsar4X.Damage
             //double dwidth = (double)(width);
 
             int vmargin = (int)(width / 2);
-            double dwidth = (double)(width) / Math.Sin(Math.Atan(1/slope));
-            
+            double dwidth = (double)(width) / Math.Sin(Math.Atan(1 / slope));
+
             for (int yoffset = -(int)(dwidth / 2); yoffset < (int)(dwidth / 2); yoffset++)
             {
 
@@ -317,32 +317,32 @@ namespace Pulsar4X.Damage
 
             int dx = Math.Abs(x1 - x0);
             int sx = x0 < x1 ? 1 : -1;
-            int dy = Math.Abs(y1-y0), sy = y0 < y1 ? 1 : -1;
-            int err = dx-dy, e2, x2, y2;                          /* error value e_xy */
-            float ed = (float)( dx+dy == 0 ? 1 : Math.Sqrt((float)dx*dx+(float)dy*dy));
+            int dy = Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+            int err = dx - dy, e2, x2, y2;                          /* error value e_xy */
+            float ed = (float)(dx + dy == 0 ? 1 : Math.Sqrt((float)dx * dx + (float)dy * dy));
             byte alph = a;
-            for (wd = (wd+1)/2; ; )
+            for (wd = (wd + 1) / 2; ;)
             {                                   /* pixel loop */
-                alph = (byte)Math.Max(0, r * Math.Abs(err-dx+dy)/ed-wd+1);
+                alph = (byte)Math.Max(0, r * Math.Abs(err - dx + dy) / ed - wd + 1);
                 bmp.SetPixel(x0 + (int)margins.X, y0 + (int)margins.Y, r, g, b, alph);
                 e2 = err; x2 = x0;
-                if (2*e2 >= -dx)
+                if (2 * e2 >= -dx)
                 {                                           /* x step */
                     for (e2 += dy, y2 = y0; e2 < ed * wd && (y1 != y2 || dx > dy); e2 += dx)
                     {
                         alph = (byte)Math.Max(0, a * (Math.Abs(e2) / ed - wd + 1));
-                        bmp.SetPixel(x0+(int)margins.X, (y2 += sy)+(int)margins.Y, r, g, b, alph);
+                        bmp.SetPixel(x0 + (int)margins.X, (y2 += sy) + (int)margins.Y, r, g, b, alph);
                     }
 
                     if (x0 == x1) break;
                     e2 = err; err -= dy; x0 += sx;
                 }
-                if (2*e2 <= dy)
+                if (2 * e2 <= dy)
                 {                                            /* y step */
                     for (e2 = dx - e2; e2 < ed * wd && (x1 != x2 || dx < dy); e2 += dy)
                     {
                         alph = (byte)Math.Max(0, a * (Math.Abs(e2) / ed - wd + 1));
-                        bmp.SetPixel((x2 += sx)+(int)margins.X, y0+(int)margins.Y, r, g, b, alph);
+                        bmp.SetPixel((x2 += sx) + (int)margins.X, y0 + (int)margins.Y, r, g, b, alph);
                     }
 
                     if (y0 == y1) break;

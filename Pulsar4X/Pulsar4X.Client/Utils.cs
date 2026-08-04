@@ -25,7 +25,7 @@ public static class Utils
         // Get the string and trim off any trailing null characters
         string result = System.Text.Encoding.UTF8.GetString(byteArray);
         int nullIndex = result.IndexOf('\0');
-        if(nullIndex >= 0)
+        if (nullIndex >= 0)
         {
             result = result.Substring(0, nullIndex);
         }
@@ -149,9 +149,9 @@ public static class Utils
     }
     static uint ColourFromRGBA(byte r, byte g, byte b, byte a, ColourOrder order = ColourOrder.RGBA)
     {
-        if(order == ColourOrder.RGBA)
+        if (order == ColourOrder.RGBA)
             return (uint)((r << 24) | (g << 16) | (b << 8) | a);
-        else if(order == ColourOrder.ARGB)
+        else if (order == ColourOrder.ARGB)
             return (uint)((a << 24) | (r << 16) | (g << 8) | b);
         else throw new Exception("Invalid ColourOrder");
     }

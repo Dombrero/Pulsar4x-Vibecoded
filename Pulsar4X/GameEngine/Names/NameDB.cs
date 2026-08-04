@@ -16,7 +16,7 @@ namespace Pulsar4X.Names
         /// Each faction can have a different name for whatever entity has this blob.
         /// </summary>
         [JsonProperty("Names")]
-        private Dictionary<int, string> _names = new ();
+        private Dictionary<int, string> _names = new();
 
         [PublicAPI]
         public string DefaultName => _names[-1];
@@ -31,7 +31,7 @@ namespace Pulsar4X.Names
             }
         }
 
-        public NameDB() { _names.Add(-1, "Un-Named");}
+        public NameDB() { _names.Add(-1, "Un-Named"); }
 
         public NameDB(string defaultName)
         {
@@ -81,7 +81,7 @@ namespace Pulsar4X.Names
         {
             _names[requestingFaction] = specifiedName;
 
-            MessagePublisher.Instance.Publish(
+            _ = MessagePublisher.Instance.Publish(
                 Message.Create(
                     MessageTypes.EntityRenamed,
                     OwningEntity?.Id,
@@ -102,7 +102,7 @@ namespace Pulsar4X.Names
         {
             _names[-1] = name;
 
-            MessagePublisher.Instance.Publish(
+            _ = MessagePublisher.Instance.Publish(
                 Message.Create(
                     MessageTypes.EntityRenamed,
                     OwningEntity?.Id));

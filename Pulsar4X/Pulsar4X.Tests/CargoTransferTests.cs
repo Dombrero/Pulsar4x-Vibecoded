@@ -20,14 +20,14 @@ namespace Pulsar4X.Tests
     [TestFixture, Description("Cargo Transfer Processor Tests")]
     public class CargoTransferTests
     {
-        private Game _game;
-        private EntityManager _manager;
-        private Entity _station;
-        private Entity _ship;
-        private Entity _parentStar;
+        private Game _game = null;
+        private EntityManager _manager = null;
+        private Entity _station = Entity.InvalidEntity;
+        private Entity _ship = Entity.InvalidEntity;
+        private Entity _parentStar = Entity.InvalidEntity;
         private TestCargoItem _lightCargo;
         private TestCargoItem _heavyCargo;
-        private Entity _faction;
+        private Entity _faction = Entity.InvalidEntity;
         private const string CARGO_TYPE_ID = "test-cargo-type";
 
         [SetUp]
@@ -124,8 +124,8 @@ namespace Pulsar4X.Tests
         {
             _game = null;
             _manager = null;
-            _station = null;
-            _ship = null;
+            _station = Entity.InvalidEntity;
+            _ship = Entity.InvalidEntity;
         }
 
         private void ExecuteOrders(params Entity[] entities)
@@ -391,9 +391,9 @@ namespace Pulsar4X.Tests
     public class TestCargoItem : ICargoable
     {
         public int ID { get; set; }
-        public string UniqueID { get; set; }
-        public string Name { get; set; }
-        public string CargoTypeID { get; set; }
+        public string UniqueID { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string CargoTypeID { get; set; } = "";
         public long MassPerUnit { get; set; }
         public double VolumePerUnit { get; set; }
     }

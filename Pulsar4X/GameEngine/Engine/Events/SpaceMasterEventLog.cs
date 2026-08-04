@@ -6,7 +6,7 @@ namespace Pulsar4X.Events;
 public class SpaceMasterEventLog : IEventLog
 {
     [JsonProperty]
-    private SafeList<Event> _events = new ();
+    private SafeList<Event> _events = new();
 
     private SpaceMasterEventLog() { }
 

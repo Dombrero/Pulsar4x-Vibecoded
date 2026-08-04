@@ -19,7 +19,7 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
 
     internal static CreateTransferWindow GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<CreateTransferWindow>(out var window))
+        if (_uiState.TryGetUniqueWindow<CreateTransferWindow>(out var window))
         {
             return window;
         }
@@ -42,9 +42,9 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
 
-        if(Window.Begin("Create Transfer Order", ref IsActive))
+        if (Window.Begin("Create Transfer Order", ref IsActive))
         {
             var system = _systemId != null ? _uiState.GameClient?.Galaxy.GetSystem(_systemId) : null;
             var left = _leftId is int leftId ? system?.GetEntity(leftId) : null;
@@ -54,14 +54,14 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
             var firstChildSize = new Vector2(Styles.LeftColumnWidthLg, windowContentSize.Y);
             var secondChildSize = new Vector2(windowContentSize.X - (Styles.LeftColumnWidthLg * 2) - (windowContentSize.X * 0.01f), windowContentSize.Y);
             var thirdChildSize = new Vector2(Styles.LeftColumnWidthLg - (windowContentSize.X * 0.01f), windowContentSize.Y);
-            if(ImGui.BeginChild(GetTitle(left) + "###left", firstChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild(GetTitle(left) + "###left", firstChildSize, ImGuiChildFlags.Borders))
             {
                 DisplayTransferTarget(system, left, right, isLeft: true);
             }
             ImGui.EndChild();
             ImGui.SameLine();
 
-            if(ImGui.BeginChild("Transfer Details", secondChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("Transfer Details", secondChildSize, ImGuiChildFlags.Borders))
             {
 
                 ImGui.Columns(2);
@@ -72,20 +72,20 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
                 ImGui.Separator();
                 ImGui.NextColumn();
 
-                if(left != null)
+                if (left != null)
                     DisplayTradeList(_leftSelected, left);
 
                 ImGui.NextColumn();
 
-                if(right != null)
+                if (right != null)
                     DisplayTradeList(_rightSelected, right);
 
                 ImGui.Columns(1);
 
-                if(_leftSelected.Count > 0 || _rightSelected.Count > 0)
+                if (_leftSelected.Count > 0 || _rightSelected.Count > 0)
                 {
                     ImGui.Separator();
-                    if(ImGui.Button("Create") && left != null && right != null)
+                    if (ImGui.Button("Create") && left != null && right != null)
                     {
                         SubmitTransfer(left.Id, right.Id, _leftSelected);
                         SubmitTransfer(right.Id, left.Id, _rightSelected);
@@ -97,7 +97,7 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
             ImGui.EndChild();
             ImGui.SameLine();
 
-            if(ImGui.BeginChild(GetTitle(right) + "###right", thirdChildSize, ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild(GetTitle(right) + "###right", thirdChildSize, ImGuiChildFlags.Borders))
             {
                 DisplayTransferTarget(system, right, left, isLeft: false);
             }
@@ -114,7 +114,7 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
             .Select(kvp => new CargoTransferItem(kvp.Key, kvp.Value))
             .ToList();
 
-        if(items.Count > 0)
+        if (items.Count > 0)
             _uiState.GameClient?.SubmitCommandAsync(new TransferCargoCommand(fromId, toId, items));
     }
 
@@ -131,7 +131,7 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
         if (ImGui.BeginCombo("###selector", GetName(entity) ?? "Select transfer partner"))
         {
             // Find storages in range and populate list.
-            if(other is not null && system is not null)
+            if (other is not null && system is not null)
             {
                 foreach (var potentialTarget in system.Entities)
                 {
@@ -166,26 +166,26 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
 
     private void DisplayStorageList(EntitySnapshot entity, Dictionary<int, long> selected)
     {
-        if(entity.GetView<CargoStorageView>() is not { } storage)
+        if (entity.GetView<CargoStorageView>() is not { } storage)
             return;
 
-        foreach(var store in storage.Stores)
+        foreach (var store in storage.Stores)
         {
             string header = store.TypeName + " Storage";
-            if(ImGui.CollapsingHeader(header + "###" + store.TypeId, ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader(header + "###" + store.TypeId, ImGuiTreeNodeFlags.DefaultOpen))
             {
                 var contentSize = ImGui.GetContentRegionAvail();
 
-                foreach(var item in store.Items)
+                foreach (var item in store.Items)
                 {
-                    if(ImGui.SmallButton("+###add" + item.Name))
+                    if (ImGui.SmallButton("+###add" + item.Name))
                     {
-                        if(!selected.ContainsKey(item.Id))
+                        if (!selected.ContainsKey(item.Id))
                             selected.Add(item.Id, 0);
                     }
                     ImGui.SameLine();
                     ImGui.Text(item.Name);
-                    if(ImGui.IsItemHovered() && item.Description.Length > 0)
+                    if (ImGui.IsItemHovered() && item.Description.Length > 0)
                         DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
                     ImGui.SameLine();
 
@@ -207,17 +207,17 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
         var contentSize = ImGui.GetContentRegionAvail();
         var currentX = ImGui.GetCursorPosX();
         var toRemove = new List<int>();
-        foreach(var (itemId, units) in selected)
+        foreach (var (itemId, units) in selected)
         {
             // The item may have left storage since it was selected (transferred away, consumed).
-            if(!itemsById.TryGetValue(itemId, out var item))
+            if (!itemsById.TryGetValue(itemId, out var item))
             {
                 toRemove.Add(itemId);
                 continue;
             }
 
             var amount = (int)units;
-            if(ImGui.SmallButton("-###remove" + item.Name))
+            if (ImGui.SmallButton("-###remove" + item.Name))
             {
                 toRemove.Add(itemId);
             }
@@ -227,18 +227,18 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
             ImGui.SetNextItemWidth(96);
             ImGui.SetCursorPosX(currentX + contentSize.X - 96);
             ImGui.InputInt("###input" + item.Name, ref amount);
-            if(ImGui.IsItemHovered() && item.Description.Length > 0)
+            if (ImGui.IsItemHovered() && item.Description.Length > 0)
                 DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
 
-            if(amount > item.Units)
+            if (amount > item.Units)
                 amount = (int)item.Units;
-            if(amount < 0)
+            if (amount < 0)
                 amount = 0;
 
             selected[itemId] = amount;
         }
 
-        foreach(var itemId in toRemove)
+        foreach (var itemId in toRemove)
         {
             selected.Remove(itemId);
         }
@@ -247,9 +247,9 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
     private static Dictionary<int, CargoItemView> ItemsById(EntitySnapshot entity)
     {
         var items = new Dictionary<int, CargoItemView>();
-        if(entity.GetView<CargoStorageView>() is { } storage)
-            foreach(var store in storage.Stores)
-                foreach(var item in store.Items)
+        if (entity.GetView<CargoStorageView>() is { } storage)
+            foreach (var store in storage.Stores)
+                foreach (var item in store.Items)
                     items[item.Id] = item;
         return items;
     }

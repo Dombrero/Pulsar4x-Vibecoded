@@ -26,11 +26,11 @@ namespace Pulsar4X.Components
             TemplateName = componentSD.Name;
             TemplateID = componentSD.UniqueID;
             Name = componentSD.Name;
-            if(!string.IsNullOrEmpty( componentSD.ComponentType))
+            if (!string.IsNullOrEmpty(componentSD.ComponentType))
                 _design.ComponentType = componentSD.ComponentType;
             _design.UniqueID = uniqueId ?? Guid.NewGuid().ToString();
 
-            if(componentSD.Formulas.ContainsKey("Description")
+            if (componentSD.Formulas.ContainsKey("Description")
                 && componentSD.Formulas["Description"].IsNotNullOrEmpty()
                 && componentSD.Formulas["Description"][0] == '\'')
             {
@@ -53,14 +53,14 @@ namespace Pulsar4X.Components
             _design.CargoTypeID = componentSD.CargoTypeID;
             if (componentSD.MountType.HasFlag(ComponentMountType.PlanetInstallation))
                 _design.GuiHints = ConstructableGuiHints.CanBeInstalled;
-            if(!string.IsNullOrEmpty(componentSD.Formulas["Description"]))
+            if (!string.IsNullOrEmpty(componentSD.Formulas["Description"]))
                 DescriptionFormula = new ChainedExpression(componentSD.Formulas["Description"], this, factionDataStore, factionTech);
 
             var resourceCostForulas = new Dictionary<string, ChainedExpression>();
 
             foreach (var kvp in componentSD.ResourceCost)
             {
-                if(factionDataStore.CargoGoods.GetAny(kvp.Key) != null)
+                if (factionDataStore.CargoGoods.GetAny(kvp.Key) != null)
                     resourceCostForulas.Add(kvp.Key, new ChainedExpression(kvp.Value, this, factionDataStore, factionTech));
                 else //TODO: log don't crash.
                     throw new Exception("GUID object {" + kvp.Key + "} not found in resourceCosting for " + this.TemplateName + " This object needs to be either a mineral, material or component defined in the Data folder");
@@ -92,6 +92,8 @@ namespace Pulsar4X.Components
                     try
                     {
                         dynamic? attrbute = (IComponentDesignAttribute?)Activator.CreateInstance(designAttribute.AttributeType, constructorArgs);
+                        if (attrbute is null)
+                            throw new InvalidOperationException($"Failed to create attribute {designAttribute.AttributeType} for {_design.Name}.");
                         _design.AttributesByType[attrbute.GetType()] = attrbute;
                     }
                     catch (MissingMethodException e)
@@ -105,7 +107,7 @@ namespace Pulsar4X.Components
                             i++;
                         }
 
-                        string exstr = "The Attribute: " + designAttribute.AttributeType + " in "+ _design.Name + " was found, but the arguments did not match any constructors.\nThe given arguments are:\n"
+                        string exstr = "The Attribute: " + designAttribute.AttributeType + " in " + _design.Name + " was found, but the arguments did not match any constructors.\nThe given arguments are:\n"
                                        + argTypes
                                        + "The full exception is as follows:\n" + e;
                         throw new Exception(exstr);
@@ -156,54 +158,54 @@ namespace Pulsar4X.Components
                 switch (hint)
                 {
                     case GuiHint.GuiSelectionMaxMin:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(double), designAttribute.Value));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(double), designAttribute.Value));
+                            break;
+                        }
                     case GuiHint.GuiSelectionMaxMinInt:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(int), designAttribute.Value));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(int), designAttribute.Value));
+                            break;
+                        }
                     case GuiHint.GuiSelectionMinMaxRange:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(double), designAttribute.Value));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(double), designAttribute.Value));
+                            break;
+                        }
                     case GuiHint.GuiFuelTypeSelection:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.ValueString));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.ValueString));
+                            break;
+                        }
                     case GuiHint.GuiTextDisplay:
-                    {
-                        //ignore it, it's not player settable.
-                        break;
-                    }
+                        {
+                            //ignore it, it's not player settable.
+                            break;
+                        }
                     case GuiHint.None:
-                    {
-                        //ignore it, it's not player settable.
-                        break;
-                    }
+                        {
+                            //ignore it, it's not player settable.
+                            break;
+                        }
                     case 0:
-                    {
-                        //ignore it, it's not player settable.
-                        break;
-                    }
+                        {
+                            //ignore it, it's not player settable.
+                            break;
+                        }
                     case GuiHint.GuiEnumSelectionList:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.Value));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.Value));
+                            break;
+                        }
                     default:
-                    {
-                        _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.ValueString));
-                        break;
-                    }
+                        {
+                            _design.TemplatePropertyValues.Add((designAttribute.Name, typeof(string), designAttribute.ValueString));
+                            break;
+                        }
                 }
-                
+
             }
-            if(_design.ResearchCostValue == 0 || StartResearched)
+            if (_design.ResearchCostValue == 0 || StartResearched)
             {
                 tech.Level = tech.MaxLevel;
                 faction.IndustryDesigns[_design.UniqueID] = _design;
@@ -251,8 +253,7 @@ namespace Pulsar4X.Components
         }
 
 
-        internal ChainedExpression DescriptionFormula { get; set; }
-
+        internal ChainedExpression? DescriptionFormula { get; set; }
         public string Description
         {
             get
@@ -270,7 +271,7 @@ namespace Pulsar4X.Components
         {
             get { return _design.MassPerUnit; }
         }
-        internal ChainedExpression MassFormula { get; set; }
+        internal ChainedExpression? MassFormula { get; set; }
         public void SetMass()
         {
             MassFormula.Evaluate();
@@ -279,7 +280,7 @@ namespace Pulsar4X.Components
         }
 
         public double VolumeM3Value { get { return _design.VolumePerUnit; } }//TODO: check units are @SI UNITS kg/m^3
-        internal ChainedExpression VolumeFormula { get; set; }
+        internal ChainedExpression? VolumeFormula { get; set; }
         public void SetVolume()
         {
             VolumeFormula.Evaluate();
@@ -289,15 +290,15 @@ namespace Pulsar4X.Components
 
 
         public float DestructionPercentValue { get { return _design.DestructionPercent; } }
-        internal ChainedExpression DestructionPercentFormula { get; set; }
+        internal ChainedExpression? DestructionPercentFormula { get; set; }
         public void SetHTK()
         {
             DestructionPercentFormula.Evaluate();
             _design.DestructionPercent = (float)DestructionPercentFormula.DResult;
         }
 
-        public int CrewReqValue { get { return _design.CrewReq ; } }
-        internal ChainedExpression CrewFormula { get; set; }
+        public int CrewReqValue { get { return _design.CrewReq; } }
+        internal ChainedExpression? CrewFormula { get; set; }
         public void SetCrew()
         {
             CrewFormula.Evaluate();
@@ -305,7 +306,7 @@ namespace Pulsar4X.Components
         }
 
         public long ResearchCostValue { get { return _design.ResearchCostValue; } }
-        internal ChainedExpression ResearchCostFormula { get; set; }
+        internal ChainedExpression? ResearchCostFormula { get; set; }
         public void SetResearchCost()
         {
             ResearchCostFormula.Evaluate();
@@ -313,7 +314,7 @@ namespace Pulsar4X.Components
         }
 
         public long IndustryPointCostsValue { get { return _design.IndustryPointCosts; } }
-        internal ChainedExpression BuildCostFormula { get; set; }
+        internal ChainedExpression? BuildCostFormula { get; set; }
         public void SetBuildCost()
         {
             BuildCostFormula.Evaluate();
@@ -375,7 +376,7 @@ namespace Pulsar4X.Components
         */
 
         public int CreditCostValue => _design.CreditCost;
-        internal ChainedExpression CreditCostFormula { get; set; }
+        internal ChainedExpression? CreditCostFormula { get; set; }
         public void SetCreditCost()
         {
             CreditCostFormula.Evaluate();
@@ -384,8 +385,9 @@ namespace Pulsar4X.Components
 
         public ComponentMountType ComponentMountType
         {
-            get { return _design.ComponentMountType;}
-            internal set { _design.ComponentMountType = value; } }
+            get { return _design.ComponentMountType; }
+            internal set { _design.ComponentMountType = value; }
+        }
         public string IndustryType
         {
             get { return _design.IndustryTypeID; }
@@ -423,7 +425,7 @@ namespace Pulsar4X.Components
                 attribute = (T)_design.AttributesByType[typeof(T)];
                 return true;
             }
-            attribute = default(T);
+            attribute = default!;
             return false;
         }
 

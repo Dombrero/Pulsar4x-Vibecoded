@@ -10,9 +10,9 @@ public class SystemBlueprint : Blueprint
         public uint Count { get; set; }
     }
 
-    public string Name { get; set; }
+    public string? Name { get; set; }
     public int? Seed { get; set; }
-    public List<string> Stars { get; set; }
-    public List<string> Bodies { get; set; }
-    public List<SurveyRingValue> SurveyRings { get; set; }
+    public List<string> Stars { get; set; } = new();
+    public List<string> Bodies { get; set; } = new();
+    public List<SurveyRingValue> SurveyRings { get; set; } = new();
 }

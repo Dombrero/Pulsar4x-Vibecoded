@@ -13,14 +13,11 @@ public static class DictEditWidget
 {
     private static string? _editingID;
     private static int _editInt;
-    private static string _editStr;
-    private static long _editLong;
+    private static string _editStr = "";
     private static double _editDouble;
-    private static uint _buffSize = 128;
     private static byte[] _strInputBuffer = new byte[128];
     private static int _techIndex = 0;
     private static int _addKey = -1;
-    private static int _addVal = -1;
     public static bool Display(string label, ref Dictionary<int, List<string>> dict, string[] techs)
     {
         ImGui.BeginChild("##dic");
@@ -36,7 +33,7 @@ public static class DictEditWidget
             if (IntEditWidget.Display(label + _editInt, ref _editInt))
             {
                 isChanged = true;
-                if(!dict.ContainsKey(_editInt))
+                if (!dict.ContainsKey(_editInt))
                 {
                     dict.Add(_editInt, kvp.Value);
                     dict.Remove(oldVal);
@@ -48,23 +45,23 @@ public static class DictEditWidget
             foreach (var item in kvp.Value.ToArray())
             {
                 _techIndex = Array.IndexOf(techs, item);
-                if(SelectFromListWiget.Display(label+"chValue", techs, ref _techIndex))
+                if (SelectFromListWiget.Display(label + "chValue", techs, ref _techIndex))
                 {
                     dict[kvp.Key][valIndex] = techs[_techIndex];
                 }
                 valIndex++;
             }
 
-            if(_editingID != label+"addValue")
+            if (_editingID != label + "addValue")
             {
                 if (ImGui.Button("+##addval" + label))
                 {
-                    _editingID = label+"addValue";
+                    _editingID = label + "addValue";
                 }
             }
             else
             {
-                if (SelectFromListWiget.Display(label+"addValue", techs, ref _techIndex))
+                if (SelectFromListWiget.Display(label + "addValue", techs, ref _techIndex))
                 {
                     dict[kvp.Key].Add(techs[_techIndex]);
                     _editingID = null;
@@ -76,11 +73,11 @@ public static class DictEditWidget
 
         //if (dict.Count == 0)
         {
-            if(_editingID != label+"addKey")
+            if (_editingID != label + "addKey")
             {
                 if (ImGui.Button("+"))
                 {
-                    _editingID = label+"addKey";
+                    _editingID = label + "addKey";
                 }
             }
             else
@@ -99,7 +96,7 @@ public static class DictEditWidget
 
     public static bool Display(string label, ref Dictionary<string, string> dict)
     {
-        ImGui.BeginChild("##dic" + label, new Vector2(800,160), ImGuiChildFlags.Borders);
+        ImGui.BeginChild("##dic" + label, new Vector2(800, 160), ImGuiChildFlags.Borders);
         ImGui.Columns(2);
         ImGui.SetColumnWidth(0, 150);
         ImGui.SetColumnWidth(1, 500);
@@ -113,19 +110,19 @@ public static class DictEditWidget
             if (TextEditWidget.Display(label + kvp.Key + "k", ref _editStr))
             {
                 isChanged = true;
-                if(!dict.ContainsKey(_editStr))
-                    dict.Add(_editStr,kvp.Value);
+                if (!dict.ContainsKey(_editStr))
+                    dict.Add(_editStr, kvp.Value);
             }
             ImGui.NextColumn();
 
             //values
             _editStr = kvp.Value;
-            
-            if(TextEditWidget.Display(label+kvp.Key + "v", ref _editStr))
+
+            if (TextEditWidget.Display(label + kvp.Key + "v", ref _editStr))
             {
                 dict[kvp.Key] = _editStr;
             }
-            
+
             ImGui.NextColumn();
         }
         ImGui.Columns(1);
@@ -134,14 +131,14 @@ public static class DictEditWidget
 
         return isChanged;
     }
-    
-    public static bool Display(string label, ref Dictionary<string, string> dict, ModDataStore  modDataStore,  ComponentTemplateBlueprint selectedItem)
+
+    public static bool Display(string label, ref Dictionary<string, string> dict, ModDataStore modDataStore, ComponentTemplateBlueprint selectedItem)
     {
         //TODO: building this each frame is not ideal
         var propertyNames = new string[selectedItem.Properties.Count];
-        for(int i = 0; i < selectedItem.Properties.Count; i++)
+        for (int i = 0; i < selectedItem.Properties.Count; i++)
             propertyNames[i] = selectedItem.Properties[i].Name;
-        ImGui.BeginChild("##dic" + label, new Vector2(800,160), ImGuiChildFlags.Borders);
+        ImGui.BeginChild("##dic" + label, new Vector2(800, 160), ImGuiChildFlags.Borders);
         ImGui.Columns(2);
         ImGui.SetColumnWidth(0, 150);
         ImGui.SetColumnWidth(1, 500);
@@ -155,19 +152,19 @@ public static class DictEditWidget
             if (TextEditWidget.Display(label + kvp.Key + "k", ref _editStr))
             {
                 isChanged = true;
-                if(!dict.ContainsKey(_editStr))
-                    dict.Add(_editStr,kvp.Value);
+                if (!dict.ContainsKey(_editStr))
+                    dict.Add(_editStr, kvp.Value);
             }
             ImGui.NextColumn();
 
             //values
             _editStr = kvp.Value;
-    
-            if (FunctionEditWidget.Display(label+kvp.Key + "v", ref _editStr,  modDataStore, propertyNames))
+
+            if (FunctionEditWidget.Display(label + kvp.Key + "v", ref _editStr, modDataStore, propertyNames))
             {
                 dict[kvp.Key] = _editStr;
             }
-            
+
             ImGui.NextColumn();
         }
         ImGui.Columns(1);
@@ -185,7 +182,7 @@ public static class DictEditWidget
     /// <returns></returns>
     public static bool Display(string label, ref Dictionary<string, long> dict)
     {
-        ImGui.BeginChild("##dic" + label, new Vector2(800,160), ImGuiChildFlags.Borders);
+        ImGui.BeginChild("##dic" + label, new Vector2(800, 160), ImGuiChildFlags.Borders);
         ImGui.Columns(2);
         ImGui.SetColumnWidth(0, 150);
         ImGui.SetColumnWidth(1, 500);
@@ -199,14 +196,14 @@ public static class DictEditWidget
             if (TextEditWidget.Display(label + kvp.Key + "k", ref _editStr))
             {
                 isChanged = true;
-                if(!dict.ContainsKey(_editStr))
-                    dict.Add(_editStr,kvp.Value);
+                if (!dict.ContainsKey(_editStr))
+                    dict.Add(_editStr, kvp.Value);
             }
             ImGui.NextColumn();
 
             //values
             _editInt = (int)kvp.Value;
-            if(IntEditWidget.Display(label+kvp.Key + "v", ref _editInt))
+            if (IntEditWidget.Display(label + kvp.Key + "v", ref _editInt))
             {
                 dict[kvp.Key] = _editInt;
             }
@@ -228,7 +225,7 @@ public static class DictEditWidget
 
     public static bool Display(string label, ref Dictionary<BodyType, double> dict)
     {
-        ImGui.BeginChild("##dic" + label, new Vector2(400,160), ImGuiChildFlags.Borders);
+        ImGui.BeginChild("##dic" + label, new Vector2(400, 160), ImGuiChildFlags.Borders);
         ImGui.Columns(2);
         ImGui.SetColumnWidth(0, 150);
         ImGui.SetColumnWidth(1, 500);
@@ -244,13 +241,13 @@ public static class DictEditWidget
         _addKey = -1;
         foreach (var kvp in dict)
         {
-            _editStr = Enum.GetName(kvp.Key);
+            _editStr = Enum.GetName(kvp.Key) ?? kvp.Key.ToString();
             _editDouble = kvp.Value;
 
             ImGui.Text(_editStr);
             ImGui.NextColumn();
 
-            if(DoubleEditWidget.Display(label+_editStr,ref _editDouble))
+            if (DoubleEditWidget.Display(label + _editStr, ref _editDouble))
             {
                 dict[kvp.Key] = _editDouble;
             }

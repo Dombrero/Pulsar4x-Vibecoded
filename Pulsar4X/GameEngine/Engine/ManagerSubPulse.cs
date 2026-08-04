@@ -20,25 +20,27 @@ namespace Pulsar4X.Engine
     [JsonObject(MemberSerialization.OptIn)]
     public class ManagerSubPulse
     {
-        private Game _game;
+        private Game? _game;
 
         public PerformanceStopwatch Performance { get; private set; } = new PerformanceStopwatch();
 
         private readonly object _lock = new();
         [JsonProperty]
         private TimeQueue<(string, Entity)> _instanceProcessorsQueue = new();
-        public TimeQueue<(string, Entity)> InstanceProcessorsQueue {
-            get {
+        public TimeQueue<(string, Entity)> InstanceProcessorsQueue
+        {
+            get
+            {
                 lock (_lock)
                 {
                     return new TimeQueue<(string, Entity)>(_instanceProcessorsQueue);
                 }
             }
-            private set {}
+            private set { }
         }
 
         [JsonProperty]
-        public SafeDictionary<Type , DateTime?> HotLoopProcessorsNextRun { get; private set;} = new();
+        public SafeDictionary<Type, DateTime?> HotLoopProcessorsNextRun { get; private set; } = new();
 
         /// <summary>
         /// Multiplier applied to hotloop processor RunFrequency.
@@ -51,26 +53,29 @@ namespace Pulsar4X.Engine
         public bool IsProcessing = false;
         public string CurrentProcess = "Waiting";
 
-        private ProcessorManager _processManager;
+        private ProcessorManager? _processManager;
+        private EntityManager? _entityManager;
 
-        private EntityManager _entityManager;
+        private EntityManager RequireManager() => _entityManager
+            ?? throw new InvalidOperationException("ManagerSubPulse has no EntityManager (not initialized).");
+        private ProcessorManager RequireProcessors() => _processManager
+            ?? throw new InvalidOperationException("ManagerSubPulse has no ProcessorManager (not initialized).");
 
         /// <summary>
         /// Fires when the system date is updated,
         /// Any entitys that have move (though not neccicarly orbits) will have updated
         /// other systems may not be in sync on this event.
         /// </summary>
-        public event DateChangedEventHandler SystemDateChangedEvent;
-
+        public event DateChangedEventHandler? SystemDateChangedEvent;
         /// <summary>
         /// Invoke the SystemDateChangedEvent
         /// </summary>
         /// <param name="state"></param>
         private void InvokeDateChange(object state)
         {
-            //Event logevent = new Event(_systemLocalDateTime, "System Date Change", _entityManager.ID, null, null, null);
+            //Event logevent = new Event(_systemLocalDateTime, "System Date Change", RequireManager().ID, null, null, null);
             //logevent.EventType = EventType.SystemDateChange;
-            //_entityManager.Game.EventLog.AddEvent(logevent);
+            //RequireManager().Game.EventLog.AddEvent(logevent);
             int threadID = Thread.CurrentThread.ManagedThreadId;
             SystemDateChangedEvent?.Invoke(StarSysDateTime);
         }
@@ -142,7 +147,7 @@ namespace Pulsar4X.Engine
 
         private void InitHotloopProcessors()
         {
-            foreach (var item in _processManager.HotloopProcessors)
+            foreach (var item in RequireProcessors().HotloopProcessors)
             {
                 //the date time here is going to be inconsistant when a game is saved then loaded, vs running without a save/load. needs fixing.
                 //also we may want to run many of these before the first turn, and still have this offset.
@@ -182,11 +187,11 @@ namespace Pulsar4X.Engine
         /// <param name="action"></param>
         internal void AddSystemInterupt(DateTime nextDateTime, Type dbType)
         {
-            if(!dbType.IsSubclassOf(typeof(BaseDataBlob)))
+            if (!dbType.IsSubclassOf(typeof(BaseDataBlob)))
             {
                 throw new Exception("Trying to add non datablob type");
             }
-            if(!HotLoopProcessorsNextRun.ContainsKey((dbType)))
+            if (!HotLoopProcessorsNextRun.ContainsKey((dbType)))
             {
                 HotLoopProcessorsNextRun.Add((dbType), nextDateTime);
             }
@@ -194,7 +199,7 @@ namespace Pulsar4X.Engine
             {
                 // We only want to set the next run time if it is currently null
                 // if it isn't null then it will already be queued to run!
-                if(HotLoopProcessorsNextRun[(dbType)] == null)
+                if (HotLoopProcessorsNextRun[(dbType)] == null)
                     HotLoopProcessorsNextRun[(dbType)] = nextDateTime;
             }
         }
@@ -206,7 +211,7 @@ namespace Pulsar4X.Engine
         /// <returns>The run frequency TimeSpan, or null if the processor is not found</returns>
         public TimeSpan? GetProcessorRunFrequency(Type dbType)
         {
-            if (_processManager != null && _processManager.HotloopProcessors.TryGetValue(dbType, out var processor))
+            if (RequireProcessors().HotloopProcessors.TryGetValue(dbType, out var processor))
                 return processor.RunFrequency;
             return null;
         }
@@ -301,7 +306,7 @@ namespace Pulsar4X.Engine
             {
                 if (HotLoopProcessorsNextRun[type] == null)
                     continue;
-                var proc = _processManager.HotloopProcessors[type];
+                var proc = RequireProcessors().HotloopProcessors[type];
                 HotLoopProcessorsNextRun[type] = targetDateTime + proc.FirstRunOffset;
             }
 
@@ -313,7 +318,7 @@ namespace Pulsar4X.Engine
 
         internal void ProcessSystem(DateTime targetDateTime)
         {
-            if(targetDateTime < StarSysDateTime)
+            if (targetDateTime < StarSysDateTime)
                 throw new Exception("Temproal Anomaly Exception. Cannot go back in time!"); //because this was actualy happening somehow.
             //the system may need to run several times for a target datetime
             //keep processing the system till we've reached the wanted datetime
@@ -321,10 +326,10 @@ namespace Pulsar4X.Engine
             IsProcessing = true;
 
             // TODO: fix this. it doesn't let time progress in SM mode
-            // if (!SpinWait.SpinUntil(_entityManager.HaveAllListnersProcessed, TimeSpan.FromMilliseconds(500)))
+            // if (!SpinWait.SpinUntil(RequireManager().HaveAllListnersProcessed, TimeSpan.FromMilliseconds(500)))
             //     throw new Exception("timeout on listnerProcessing.");
 
-            _entityManager.RemoveTaggedEntitys();
+            RequireManager().RemoveTaggedEntitys();
             while (StarSysDateTime < targetDateTime)
             {
                 Performance.BeingSubInterval();
@@ -334,9 +339,9 @@ namespace Pulsar4X.Engine
 
                 //this bit is a bit messy, we're storing this as a class variable
                 //the reason we're storing it, is because one of the functions (AddSystemInterupt)
-                    //is called from elsewhere, possibly during the processing loop.
-                    //we may need to make this more flexable and shorten the processing loop if this happens?
-                    //that might cause issues elsewhere.
+                //is called from elsewhere, possibly during the processing loop.
+                //we may need to make this more flexable and shorten the processing loop if this happens?
+                //that might cause issues elsewhere.
                 _processToDateTime = GetNextInterupt(timeDeltaMax);
                 _subStepDateTime = _processToDateTime;
                 ProcessToNextInterupt();
@@ -405,19 +410,19 @@ namespace Pulsar4X.Engine
                         continue;
 
                     Trace.WriteLine(String.Format("[{0:u}|{1:u}] running hotloop processor: {2} with entity manager: {3}",
-                                StarSysDateTime, _subStepDateTime, type.Name, _entityManager.ManagerID));
+                                StarSysDateTime, _subStepDateTime, type.Name, RequireManager().ManagerID));
 
-                    Performance.Start(_entityManager.ManagerID + "-" + type.Name);
+                    Performance.Start(RequireManager().ManagerID + "-" + type.Name);
                     CurrentProcess = type.ToString();
                     var proc = _game.ProcessorManager.HotloopProcessors[type];
-                    int count = proc.ProcessManager(_entityManager, deltaSeconds);
-                    Performance.Stop(_entityManager.ManagerID + "-" + type.Name);
+                    int count = proc.ProcessManager(RequireManager(), deltaSeconds);
+                    Performance.Stop(RequireManager().ManagerID + "-" + type.Name);
 
                     if (count == 0)
                         HotLoopProcessorsNextRun[type] = null;
                     else
                     {
-                        var baseFrequency = _processManager.HotloopProcessors[type].RunFrequency;
+                        var baseFrequency = RequireProcessors().HotloopProcessors[type].RunFrequency;
                         var scaledFrequency = TimeSpan.FromTicks((long)(baseFrequency.Ticks * FrequencyMultiplier));
                         HotLoopProcessorsNextRun[type] = _subStepDateTime + scaledFrequency;
                     }
@@ -435,7 +440,7 @@ namespace Pulsar4X.Engine
                     var s = itm.Item1;
                     var e = itm.Item2;
 
-                    var processor = _processManager.GetInstanceProcessor(s);
+                    var processor = RequireProcessors().GetInstanceProcessor(s);
                     var pn = processor.GetType().Name;
 
                     Trace.WriteLine(String.Format("[{0:u}|{1:u}] running instance processor: {2} with entity: {3}",
@@ -451,10 +456,10 @@ namespace Pulsar4X.Engine
                 _subStepDateTime = GetNextInterupt(_processToDateTime - _subStepDateTime);
 
                 // Need to run this on each sub-step otherwise processors will continue to be called on subsequent sub-steps when they shouldn't
-                _entityManager.RemoveTaggedEntitys();
+                RequireManager().RemoveTaggedEntitys();
 
                 //this lets us run through at least once.
-                if(StarSysDateTime == _processToDateTime)
+                if (StarSysDateTime == _processToDateTime)
                     break;
             }
         }

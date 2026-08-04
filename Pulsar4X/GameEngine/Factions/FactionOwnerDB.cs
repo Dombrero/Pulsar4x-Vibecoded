@@ -8,8 +8,8 @@ namespace Pulsar4X.Factions
     public class FactionOwnerDB : BaseDataBlob
     {
         [JsonProperty]
-        internal Dictionary<int, Entity> OwnedEntities { get; set; } = new ();
-        private Dictionary<string, List<Entity>> ByStarSystem { get; set; } = new ();
+        internal Dictionary<int, Entity> OwnedEntities { get; set; } = new();
+        private Dictionary<string, List<Entity>> ByStarSystem { get; set; } = new();
         public FactionOwnerDB() { }
 
         public FactionOwnerDB(FactionOwnerDB db)

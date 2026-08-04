@@ -1,4 +1,4 @@
-﻿/*
+/*
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -19,9 +19,9 @@ namespace Pulsar4X.Tests
     [TestFixture, Description("Entity Manager Tests")]
     class EntityManagerTests
     {
-        private Game _game;
+        private Game _game = null;
         private AuthenticationToken _smAuthToken;
-        private Entity _species1;
+        private Entity _species1 = Entity.InvalidEntity;
         private Dictionary<int, long> _pop1;
         private Dictionary<int, long> _pop2;
 

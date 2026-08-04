@@ -34,7 +34,7 @@ public class TechCatBlueprintUI : BluePrintsUI
 
     public override void DisplayEditorWindow(int selectedIndex)
     {
-        if(!_isActive[selectedIndex])
+        if (!_isActive[selectedIndex])
             return;
         var selectedItem = (TechCategoryBlueprint)_itemBlueprints[selectedIndex];
         string name = selectedItem.Name;
@@ -42,8 +42,8 @@ public class TechCatBlueprintUI : BluePrintsUI
         if (ImGui.Begin("Tech Category Editor: " + name, ref _isActive[selectedIndex]))
         {
             ImGui.Columns(2);
-            ImGui.SetColumnWidth(0,150);
-            ImGui.SetColumnWidth(1,500);
+            ImGui.SetColumnWidth(0, 150);
+            ImGui.SetColumnWidth(1, 500);
             ImGui.Text("Name: ");
             ImGui.NextColumn();
             if (TextEditWidget.Display("##name" + selectedItem.Name, ref name))

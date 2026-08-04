@@ -9,40 +9,39 @@ namespace Pulsar4X.Weapons
 {
     public class WeaponState : ComponentTreeHeirarchyAbilityState
     {
-        
+
         [JsonProperty]
-        public ComponentInstance WeaponComponentInstance { get; set; }
+        public ComponentInstance? WeaponComponentInstance { get; set; }
         [JsonProperty]
-        public IFireWeaponInstr FireWeaponInstructions;
-        
+        public IFireWeaponInstr? FireWeaponInstructions;
         [JsonProperty]
         public DateTime CoolDown { get; internal set; }
         [JsonProperty]
         public bool ReadyToFire { get; internal set; }
-        
-        
+
+
         [JsonProperty]
         public string WeaponType = "";
         [JsonIgnore]
-        public (string name, double value, ValueTypeStruct valueType)[] WeaponStats;
+        public (string? name, double value, ValueTypeStruct valueType)[] WeaponStats;
         [JsonProperty]
         public int InternalMagCurAmount = 0;
         //public OrdnanceDesign AssignedOrdnanceDesign {get; internal set;}
-        
+
 
 
         [JsonConstructor]
-        private WeaponState(){}
-        
+        private WeaponState() { }
+
         public WeaponState(ComponentInstance componentInstance, IFireWeaponInstr weaponInstr) : base(componentInstance)
         {
             FireWeaponInstructions = weaponInstr;
             //weapon starts loaded, max value from component design.
             InternalMagCurAmount = componentInstance.Design.GetAttribute<GenericWeaponAtb>().InternalMagSize;
         }
-        
 
-        public WeaponState(WeaponState db): base(db.ComponentInstance)
+
+        public WeaponState(WeaponState db) : base(db.ComponentInstance)
         {
             CoolDown = db.CoolDown;
             ReadyToFire = db.ReadyToFire;
@@ -52,7 +51,7 @@ namespace Pulsar4X.Weapons
             InternalMagCurAmount = db.InternalMagCurAmount;
 
         }
-        
+
         // JSON deserialization callback.
         [OnDeserialized]
         private void Deserialized(StreamingContext context)

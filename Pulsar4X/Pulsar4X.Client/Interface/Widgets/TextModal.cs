@@ -16,7 +16,7 @@ public class TextModal : UniquePulsarGuiWindow<TextModal>
 
     internal static TextModal GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<TextModal>(out var window))
+        if (_uiState.TryGetUniqueWindow<TextModal>(out var window))
         {
             return window;
         }
@@ -26,14 +26,14 @@ public class TextModal : UniquePulsarGuiWindow<TextModal>
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
     }
 
     public void DisplayModal(string title, Action<string> onOk, Action onCancel)
     {
         string fullTitle = title + $"###{title}-display-modal";
 
-        if(!IsActive)
+        if (!IsActive)
         {
             ImGui.OpenPopup(fullTitle);
             IsActive = true;
@@ -45,7 +45,7 @@ public class TextModal : UniquePulsarGuiWindow<TextModal>
             ImGui.SameLine();
             if (ImGui.Button("Ok"))//Gives the user the option to set the name
             {
-                if(_inputBuffer != null)
+                if (_inputBuffer != null)
                 {
                     ImGui.CloseCurrentPopup();
                     IsActive = false;

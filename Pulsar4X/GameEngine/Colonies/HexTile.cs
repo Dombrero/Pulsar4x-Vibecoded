@@ -30,17 +30,17 @@ namespace Pulsar4X.Colonies
         public string? BuildingId { get; set; }
         public Entity? Building { get; set; }
         public bool IsOccupied => Building != null || !string.IsNullOrEmpty(BuildingId);
-        
+
         /// <summary>
         /// Resource modifier for this tile (mining, agriculture, etc.)
         /// </summary>
         public float ResourceModifier { get; set; } = 1.0f;
-        
+
         /// <summary>
         /// Pollution level of this tile
         /// </summary>
         public float PollutionLevel { get; set; } = 0.0f;
-        
+
         /// <summary>
         /// Infrastructure level (roads, utilities, etc.)
         /// </summary>
@@ -68,7 +68,7 @@ namespace Pulsar4X.Colonies
         public bool CanPlaceBuilding(HexTileType buildingType)
         {
             if (IsOccupied) return false;
-            
+
             // Basic placement rules - can be expanded
             return buildingType switch
             {

@@ -32,13 +32,13 @@ public class UserOrbitSettings
         _ => OrbitBodyType.Unknown,
     };
 
-    public static readonly string[] OrbitBodyTypeTooltips = new []
+    public static readonly string[] OrbitBodyTypeTooltips = new[]
     {
         "Unknown", "Stars", "Planets", "Dwarf Planets", "Moons", "Asteroids",
         "Comets", "Colonies", "Ships"
     };
 
-    public static readonly string[] OrbitBodyTypeShortNames = new []
+    public static readonly string[] OrbitBodyTypeShortNames = new[]
     {
         "?", "*", "P", "D", "M", "A", "C", "H", "S"
     };

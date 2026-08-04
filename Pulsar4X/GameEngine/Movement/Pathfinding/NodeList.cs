@@ -108,8 +108,7 @@ namespace Pulsar4X.Movement
         /// </summary>
         public class NodeListEnumerator : IEnumerator, IDisposable
         {
-            private IDictionaryEnumerator _list;
-
+            private IDictionaryEnumerator? _list;
             public NodeListEnumerator(IDictionaryEnumerator coll)
             {
                 _list = coll;

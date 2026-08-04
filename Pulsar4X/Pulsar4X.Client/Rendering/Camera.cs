@@ -58,8 +58,10 @@ namespace Pulsar4X.Client
 
         //public ImVec2 WorldPosition { get { return _cameraWorldPosition; } }
 
-        public Vector2 ViewPortCenter {
-            get {
+        public Vector2 ViewPortCenter
+        {
+            get
+            {
                 var s = _viewPort.Size;
                 return new Orbital.Vector2(s.Width * 0.5f, s.Height * 0.5f);
             }
@@ -67,7 +69,8 @@ namespace Pulsar4X.Client
 
         public Vector2 ViewPortSize
         {
-            get {
+            get
+            {
                 var s = _viewPort.Size;
                 return new Orbital.Vector2(s.Width, s.Height);
             }
@@ -90,7 +93,8 @@ namespace Pulsar4X.Client
             _viewPort = viewPort;
 
             var mainWin = (PulsarMainWindow)viewPort;
-            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) => {
+            mainWin.MouseMoveOccured += (object? sender, SDL.Event e) =>
+            {
                 _mouseX = e.Motion.X;
                 _mouseY = e.Motion.Y;
             };
@@ -180,9 +184,9 @@ namespace Pulsar4X.Client
         public Orbital.Vector2 ViewCoordinateV2_m(Orbital.Vector2 worldCoord_m)
         {
             //we're converting to AU here because zoom works best at AU...
-            double x = (Distance.MToAU( worldCoord_m.X - CameraWorldPosition.X) * ZoomLevel + ViewPortCenter.X);
+            double x = (Distance.MToAU(worldCoord_m.X - CameraWorldPosition.X) * ZoomLevel + ViewPortCenter.X);
             double y = -(Distance.MToAU(worldCoord_m.Y - CameraWorldPosition.Y) * ZoomLevel - ViewPortCenter.Y);
-            Orbital.Vector2 viewCoord = new Orbital.Vector2( x, y );
+            Orbital.Vector2 viewCoord = new Orbital.Vector2(x, y);
 
             return viewCoord;
         }
@@ -219,8 +223,8 @@ namespace Pulsar4X.Client
         public Orbital.Vector2 ViewCoordinateV2_AU(Orbital.Vector3 worldCoord_AU)
         {
             // Since this method  uses AU anyway, might as well return it
-			return ViewCoordinateV2_m(Distance.AuToMt(worldCoord_AU));
-		}
+            return ViewCoordinateV2_m(Distance.AuToMt(worldCoord_AU));
+        }
 
         public Orbital.Vector3 MouseWorldCoordinate_m()
         {

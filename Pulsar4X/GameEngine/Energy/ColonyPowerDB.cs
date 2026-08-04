@@ -58,8 +58,7 @@ namespace Pulsar4X.Energy
         /// Index <see cref="HistogramIndex"/> is the next write slot (oldest when full).
         /// </summary>
         [JsonProperty]
-        public List<(double GenerationKW, double DemandKW, double DockKW, double StoredKJ)> Histogram { get; set; }
-            = new(HistogramSize);
+        public List<(double GenerationKW, double DemandKW, double DockKW, double StoredKJ)> Histogram { get; set; } = new(HistogramSize);
 
         [JsonProperty]
         public int HistogramIndex { get; set; }

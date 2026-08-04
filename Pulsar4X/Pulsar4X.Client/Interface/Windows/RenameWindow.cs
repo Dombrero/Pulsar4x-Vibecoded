@@ -11,7 +11,7 @@ namespace Pulsar4X.Client
         {
             get
             {
-                if(_nameInputBuffer == null)
+                if (_nameInputBuffer == null)
                     return "";
                 return System.Text.Encoding.UTF8.GetString(_nameInputBuffer).TrimEnd('\0');
             }
@@ -35,7 +35,7 @@ namespace Pulsar4X.Client
 
         internal static RenameWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<RenameWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<RenameWindow>(out var window))
             {
                 return window;
             }
@@ -45,7 +45,7 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(IsActive) ImGui.OpenPopup("Rename");
+            if (IsActive) ImGui.OpenPopup("Rename");
 
             if (ImGui.BeginPopupModal("Rename", ref IsActive, _flags))
             {
@@ -54,7 +54,7 @@ namespace Pulsar4X.Client
 
                 Array.Resize(ref _nameInputBuffer, checked((int)umaxnamesize));//Resize the text buffer
 
-                if(_setFocus)
+                if (_setFocus)
                 {
                     ImGui.SetKeyboardFocusHere();
                     _setFocus = false;
@@ -66,7 +66,7 @@ namespace Pulsar4X.Client
                 if (ImGui.SmallButton("Save"))//Gives the user the option to set the name
                 {
                     //If the user has not entered an empty name
-                    if(_nameInputBuffer[0] != 0 && _targetEntityId != -1)
+                    if (_nameInputBuffer[0] != 0 && _targetEntityId != -1)
                     {
                         _uiState.GameClient?.SubmitCommandAsync(
                             new Pulsar4X.Api.RenameCommand(_targetEntityId, NameString));

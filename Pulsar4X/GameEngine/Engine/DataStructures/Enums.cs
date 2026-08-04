@@ -126,19 +126,19 @@ namespace Pulsar4X.DataStructures
     public enum ComponentMountType
     {
         [Description("None")]
-        None                = 0,
+        None = 0,
         [Description("Ship")]
-        ShipComponent       = 1 << 0,
+        ShipComponent = 1 << 0,
         [Description("Cargo Hold")]
-        ShipCargo           = 1 << 1,
+        ShipCargo = 1 << 1,
         [Description("Colony")]
-        PlanetInstallation  = 1 << 2,
+        PlanetInstallation = 1 << 2,
         [Description("PDC")]
-        PDC                 = 1 << 3,
+        PDC = 1 << 3,
         [Description("Fighter")]
-        Fighter             = 1 << 4,
+        Fighter = 1 << 4,
         [Description("Missle")]
-        Missile             = 1 << 5,
+        Missile = 1 << 5,
     }
 
     [Flags]

@@ -15,9 +15,9 @@ namespace Pulsar4X.Tests
     /// </summary>
     public abstract class ApiTestBase
     {
-        private protected Game _game = null!;
-        private protected IGameServer _server = null!;
-        private protected GameProjector _projector = null!;
+        private protected Game _game = null;
+        private protected IGameServer _server;
+        private protected GameProjector _projector;
 
         [SetUp]
         public void SetUpApi()

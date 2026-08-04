@@ -19,9 +19,8 @@ namespace Pulsar4X.Movement
         public override ActionLaneTypes ActionLanes { get; } = ActionLaneTypes.InteractWithSelf | ActionLaneTypes.InteractWithEntitySameFleet | ActionLaneTypes.Movement;
         public override bool IsBlocking => true;
 
-        public Entity Target { get; internal set; }
-
-        private Entity _entityCommanding;
+        public Entity Target { get; internal set; } = Entity.InvalidEntity;
+        private Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding
         {
             get { return _entityCommanding; }
@@ -36,43 +35,44 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(!IsRunning) FindColonyAndSetupWarpCommands();
+            if (!IsRunning) FindColonyAndSetupWarpCommands();
         }
 
         private void FindColonyAndSetupWarpCommands()
         {
-            if(!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-            if(fleetDB.FlagShipID == -1) return;
+            if (!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
+            if (fleetDB.FlagShipID == -1) return;
 
             // Get the colonies parent radius
-            Target.TryGetDataBlob<PositionDB>(out var targetPositionDB);
+            Target.TryGetDataBlob<PositionDB>(out PositionDB? targetPositionDB);
 
-            if(targetPositionDB.OwningEntity == null) throw new NullReferenceException("targetPositionDB.OwningEntity cannot be null");
+            if (targetPositionDB is null || !targetPositionDB.OwningEntity.IsValid)
+                throw new InvalidOperationException("Target has no valid PositionDB.");
 
             double targetSMA = 0;
 
-            if(Target.HasDataBlob<MassVolumeDB>())
+            if (Target.HasDataBlob<MassVolumeDB>())
                 targetSMA = OrbitMath.LowOrbitRadius(targetPositionDB.OwningEntity);
 
             // Get all the ships we need to add the movement command to
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
             Target.TryGetDataBlob<OrbitDB>(out var targetOrbitDB);
 
-            foreach(var ship in ships)
+            foreach (var ship in ships)
             {
-                if(!ship.HasDataBlob<WarpAbilityDB>()) continue;
-                if(!ship.TryGetDataBlob<PositionDB>(out var shipPositionDB)) continue;
+                if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
+                if (!ship.TryGetDataBlob<PositionDB>(out var shipPositionDB)) continue;
 
                 var shipMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
 
-                if(targetOrbitDB == null)
+                if (targetOrbitDB == null)
                 {
                     var cmd = WarpMoveCommand.CreateCommandEZ(
                         ship,
                         Target,
                         EntityCommanding.StarSysDateTime);
                     _shipCommands.Add(cmd);
-                    ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 }
                 else
                 {
@@ -92,7 +92,7 @@ namespace Pulsar4X.Movement
                         Target,
                         EntityCommanding.StarSysDateTime);
                     _shipCommands.Add(cmd);
-                    ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 }
             }
 
@@ -101,11 +101,11 @@ namespace Pulsar4X.Movement
 
         private bool ShipsFinishedWarping()
         {
-            if(!IsRunning) return false;
+            if (!IsRunning) return false;
 
-            foreach(var command in _shipCommands)
+            foreach (var command in _shipCommands)
             {
-                if(!command.IsFinished())
+                if (!command.IsFinished())
                     return false;
             }
             return true;

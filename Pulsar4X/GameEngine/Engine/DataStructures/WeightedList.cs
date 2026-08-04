@@ -51,7 +51,7 @@ namespace Pulsar4X.DataStructures
     [JsonConverter(typeof(WeightedListConverter))]
     public class WeightedList<T> : IEnumerable<WeightedValue<T>>
     {
-        private List<WeightedValue<T>> _valueList;
+        private List<WeightedValue<T>> _valueList = new();
 
         /// <summary>
         /// Total weights of the list.
@@ -108,7 +108,7 @@ namespace Pulsar4X.DataStructures
             int removeAtIndex = -1;
             for (int i = 0; i < _valueList.Count; i++)
             {
-                if (_valueList[i].Value.Equals(value))
+                if (EqualityComparer<T>.Default.Equals(_valueList[i].Value, value))
                 {
                     removeAtIndex = i;
                     break;
@@ -210,14 +210,21 @@ namespace Pulsar4X.DataStructures
                 throw new JsonSerializationException($"Unexpected token type: {token.Type}. Expected a JObject or JArray.");
             }
 
-            var weightedListType = typeof(WeightedList<>).MakeGenericType(objectType.GetGenericArguments()[0]);
-            var weightedList = Activator.CreateInstance(weightedListType);
+            if (valuesArray is null)
+                throw new JsonSerializationException("WeightedList values array is missing.");
 
-            var addMethod = weightedListType.GetMethod("Add", new[] { typeof(WeightedValue<>).MakeGenericType(objectType.GetGenericArguments()[0]) });
+            var weightedListType = typeof(WeightedList<>).MakeGenericType(objectType.GetGenericArguments()[0]);
+            var weightedList = Activator.CreateInstance(weightedListType)
+                ?? throw new JsonSerializationException("Failed to create WeightedList instance.");
+
+            var addMethod = weightedListType.GetMethod("Add", new[] { typeof(WeightedValue<>).MakeGenericType(objectType.GetGenericArguments()[0]) })
+                ?? throw new JsonSerializationException("WeightedList.Add method not found.");
 
             foreach (var value in valuesArray)
             {
                 var weightedValue = value.ToObject(typeof(WeightedValue<>).MakeGenericType(objectType.GetGenericArguments()[0]));
+                if (weightedValue is null)
+                    continue;
                 addMethod.Invoke(weightedList, new[] { weightedValue });
             }
 
@@ -227,7 +234,7 @@ namespace Pulsar4X.DataStructures
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            if(value == null) return;
+            if (value == null) return;
             var jArray = new JArray();
             foreach (var item in (System.Collections.IEnumerable)value)
             {

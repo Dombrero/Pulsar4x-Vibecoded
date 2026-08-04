@@ -29,7 +29,7 @@ namespace Pulsar4X.Client
 
         public static OrbitalDebugWindow GetInstance()
         {
-            if(!_uiState.TryGetUniqueWindow<OrbitalDebugWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<OrbitalDebugWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new OrbitalDebugWindow());
             }
@@ -46,11 +46,13 @@ namespace Pulsar4X.Client
         public void HardRefresh()
         {
             var entityState = _uiState.LastClickedEntity;
+            if (entityState == null)
+                return;
             bool wasActive = IsActive;
             var entity = entityState.GetEntity()!;
             var hasParent = entity.GetSOIParentEntity() != null;
             IsActive = wasActive;
-            if(hasParent &&
+            if (hasParent &&
                (entity.HasDataBlob<OrbitDB>()
                 || entity.HasDataBlob<OrbitUpdateOftenDB>())
                 || entity.HasDataBlob<NewtonMoveDB>())
@@ -73,17 +75,17 @@ namespace Pulsar4X.Client
                 HardRefresh();
             }
 
-            if(_debugWidget == null) return;
+            if (_debugWidget == null) return;
 
-            if(IsActive && Window.Begin("Orbit Lines"))
+            if (IsActive && Window.Begin("Orbit Lines"))
             {
                 ImGui.Text($"Parent: {_debugWidget.parentname}");
                 ImGui.Text($"ParentPos: {_debugWidget.parentPos}");
-                ImGui.Text($"focal point abs: { _debugWidget._f1a}");
-                ImGui.Text($"focal point rel: { _debugWidget._f1r}");
+                ImGui.Text($"focal point abs: {_debugWidget._f1a}");
+                ImGui.Text($"focal point rel: {_debugWidget._f1r}");
                 foreach (var item in _debugWidget.ElementItems)
                 {
-                    if(string.IsNullOrEmpty(item.NameString)) continue;
+                    if (string.IsNullOrEmpty(item.NameString)) continue;
 
                     bool showlines = item.IsEnabled; //this feels like a cludgy bit of code...
                     if (lineEnabledPersistance.ContainsKey(item.NameString))
@@ -122,14 +124,16 @@ namespace Pulsar4X.Client
 
                 Window.End();
 
-                if (!_uiState.SelectedSysMapRender.SelectedEntityExtras.Contains(_debugWidget))
-                    _uiState.SelectedSysMapRender.SelectedEntityExtras.Add(_debugWidget);
+                var mapRender = _uiState.SelectedSysMapRender;
+                if (mapRender != null && !mapRender.SelectedEntityExtras.Contains(_debugWidget))
+                    mapRender.SelectedEntityExtras.Add(_debugWidget);
 
             }
             else
             {
-                if (_uiState.SelectedSysMapRender.SelectedEntityExtras.Contains(_debugWidget))
-                    _uiState.SelectedSysMapRender.SelectedEntityExtras.Remove(_debugWidget);
+                var mapRender = _uiState.SelectedSysMapRender;
+                if (mapRender != null && mapRender.SelectedEntityExtras.Contains(_debugWidget))
+                    mapRender.SelectedEntityExtras.Remove(_debugWidget);
             }
 
         }
@@ -140,9 +144,8 @@ namespace Pulsar4X.Client
         IKepler? _orbitIcon;
         KeplerElements _keplerElements;
         private IPosition _bodyPosition;
-
         internal int EntityGuid;
-        internal string parentname;
+        internal string parentname = "";
         internal Vector3 parentPos;
         internal Vector2 _f1a;
         internal Vector2 _f1r;
@@ -169,12 +172,9 @@ namespace Pulsar4X.Client
 
         double _eccentricAnom;
         double _eccentricAnom_FromTrueAnom;
-        double _ecctricAnom_FromStateVectors;
-        double _ecctricAnom_FromStateVectors2;
 
         double _meanAnom;
         Vector2 _bodyPosPnt_m;
-        Vector2 _bodyEAPnt;
 
         double _sgp;
         double _ae;
@@ -211,16 +211,16 @@ namespace Pulsar4X.Client
 
         private Entity _entity;
 
-        public OrbitalDebugWidget(EntityState entityState) : base(new PositionDBAdapter(MoveMath.GetSOIParentPositionDB(entityState.GetEntity()!)))
+        public OrbitalDebugWidget(EntityState entityState) : base(new PositionDBAdapter(MoveMath.GetSOIParentPositionDB(entityState.GetEntity()!)!))
         {
             _entity = entityState.GetEntity()!;
-            _bodyPosition = new PositionDBAdapter(_entity.GetDataBlob<PositionDB>());
+            _bodyPosition = new PositionDBAdapter(_entity.GetDataBlob<PositionDB>()!);
             _orbitIcon = UniquePulsarGuiWindow._uiState.SelectedSysMapRender?.GetOrbitIcon(entityState.Id);
 
             //NOTE! ParentPositionDB references the focal point (ie parent's position) *not* the orbiting object position.
 
             var parentEntity = _entity.GetSOIParentEntity();
-            if(parentEntity != null)
+            if (parentEntity != null)
             {
                 _positionDB = new PositionDBAdapter(parentEntity.GetDataBlob<PositionDB>());
 
@@ -256,23 +256,23 @@ namespace Pulsar4X.Client
                 }
             }
 
-            if(_orbitIcon == null)
+            if (_orbitIcon == null)
                 throw new NullReferenceException();
 
-            _loan =  _keplerElements.LoAN;
+            _loan = _keplerElements.LoAN;
             _aop = _keplerElements.AoP;
             _loP = _orbitIcon.LoP_radians;
 
             var cP_a = new Vector2() { X = _orbitIcon.ParentPosDB.AbsolutePosition.X, Y = _orbitIcon.ParentPosDB.AbsolutePosition.Y };
-            _f1a = new Vector2(){ X = _orbitIcon.ParentPosDB.AbsolutePosition.X, Y = _orbitIcon.ParentPosDB.AbsolutePosition.Y };
-            //_f1r = new Vector2(){ X = _orbitIcon.ParentPosDB.RelativePosition_m.X, Y = _orbitIcon.ParentPosDB.RelativePosition_m.Y };
+            _f1a = new Vector2() { X = _orbitIcon.ParentPosDB.AbsolutePosition.X, Y = _orbitIcon.ParentPosDB.AbsolutePosition.Y };
+            _f1r = _f1a;
             cP_a.X -= _orbitIcon.LinearEccent;
 
             //var f1_m = new Vector2() { X = cP_r.X + _orbitIcon.LinearEccent, Y = cP_r.Y};
-            var f2_m = new Vector2() { X = cP_a.X - _orbitIcon.LinearEccent, Y = cP_a.Y};
-            var coVertex = new Vector2() { X = cP_a.X , Y = cP_a.Y + _orbitIcon.SemiMin };
-            var periapsisPnt = new Vector2() { X = cP_a.X + _orbitIcon.SemiMaj, Y = cP_a.Y  };
-            var apoapsisPnt = new Vector2() { X = cP_a.X - _orbitIcon.SemiMaj, Y = cP_a.Y  };
+            var f2_m = new Vector2() { X = cP_a.X - _orbitIcon.LinearEccent, Y = cP_a.Y };
+            var coVertex = new Vector2() { X = cP_a.X, Y = cP_a.Y + _orbitIcon.SemiMin };
+            var periapsisPnt = new Vector2() { X = cP_a.X + _orbitIcon.SemiMaj, Y = cP_a.Y };
+            var apoapsisPnt = new Vector2() { X = cP_a.X - _orbitIcon.SemiMaj, Y = cP_a.Y };
 
             _cP = DrawTools.RotatePointAround(cP_a, _loP, _f1a);
             _f2 = DrawTools.RotatePointAround(f2_m, _loP, _f1a);
@@ -323,8 +323,8 @@ namespace Pulsar4X.Client
 
             _bodyPosPnt_m = new Vector2()
             {
-                X = (_bodyPosition.AbsolutePosition ).X,
-                Y = (_bodyPosition.AbsolutePosition ).Y
+                X = (_bodyPosition.AbsolutePosition).X,
+                Y = (_bodyPosition.AbsolutePosition).Y
             };
 
         }
@@ -402,19 +402,19 @@ namespace Pulsar4X.Client
                 HighlightColour = SMAHighlight,
                 DataItem = _semiMajAxis,
                 Shape = new ComplexShape()
-            {
-                Points = new Vector2[]
+                {
+                    Points = new Vector2[]
                 {
                     _cP,
                     _apoapsisPnt
                 },
-                Colors = SMAColour,
+                    Colors = SMAColour,
                     ColourChanges = new (int pointIndex, int colourIndex)[]
                     {
                         (0, 0)
                     },
                     Scales = true
-            }
+                }
             };
             ElementItems.Add(sma2);
 
@@ -487,7 +487,7 @@ namespace Pulsar4X.Client
                         (0, 0)
                     },
                     Scales = true
-                    }
+                }
             };
             ElementItems.Add(smina1);
 
@@ -545,7 +545,7 @@ namespace Pulsar4X.Client
 
             //string datastring = a_m.ToString() + " * " + e.ToString() + " = " + Stringify.Distance(a_m * e);
 
-            if(_orbitIcon == null)
+            if (_orbitIcon == null)
                 throw new NullReferenceException();
 
             ElementItem linec0 = new ElementItem()
@@ -572,7 +572,7 @@ namespace Pulsar4X.Client
             };
             ElementItems.Add(linec0);
 
-            var a_m = (_semiMajAxis) ;
+            var a_m = (_semiMajAxis);
             var e = _keplerElements.Eccentricity;
             string datastring = a_m.ToString() + " * " + e.ToString() + " = " + Stringify.Distance(a_m * e);
             ElementItem linec1 = new ElementItem()
@@ -826,7 +826,7 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 63, -6, _loan, _aop, 128),
                     Colors = aopColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0)
                     },
@@ -847,7 +847,7 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 90, -6, _loan, _aopFromCalc1, 128),
                     Colors = aopColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0)
                     },
@@ -868,7 +868,7 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 93, -6, _loan, _aopFromCalc2, 128),
                     Colors = aopColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0)
                     },
@@ -876,27 +876,27 @@ namespace Pulsar4X.Client
                 }
             };
             ElementItems.Add(_aopItem_FromCalc2);
-/*
-            _aopItem_FromCalc3 = new ElementItem()
-            {
-                NameString = "Argument Of Periapsis (ω) - using vector calc3",
-                Colour = aopColour,
-                HighlightColour = aopHColour,
-                DataItem = Angle.ToDegrees(_aopFromCalc2),
-                DataString = Angle.ToDegrees(_aopFromCalc2).ToString() + "°",
-                Shape = new ComplexShape()
-                {
-                    Points = CreatePrimitiveShapes.AngleArc(_cP, 96, -6, _loan, _aopFromCalc3, 128),
-                    Colors = aopColour,
-                    ColourChanges = new (int,int)[]
-                    {
-                        (0,0)
-                    },
-                    Scales = false
-                }
-            };
-            ElementItems.Add(_aopItem_FromCalc3);
-            */
+            /*
+                        _aopItem_FromCalc3 = new ElementItem()
+                        {
+                            NameString = "Argument Of Periapsis (ω) - using vector calc3",
+                            Colour = aopColour,
+                            HighlightColour = aopHColour,
+                            DataItem = Angle.ToDegrees(_aopFromCalc2),
+                            DataString = Angle.ToDegrees(_aopFromCalc2).ToString() + "°",
+                            Shape = new ComplexShape()
+                            {
+                                Points = CreatePrimitiveShapes.AngleArc(_cP, 96, -6, _loan, _aopFromCalc3, 128),
+                                Colors = aopColour,
+                                ColourChanges = new (int,int)[]
+                                {
+                                    (0,0)
+                                },
+                                Scales = false
+                            }
+                        };
+                        ElementItems.Add(_aopItem_FromCalc3);
+                        */
             _aopItem_FromCalc4 = new ElementItem()
             {
                 NameString = "Argument Of Periapsis (ω) - using vector calc4",
@@ -909,7 +909,7 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 99, -6, _loan, _aopFromCalc4, 128),
                     Colors = aopColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0)
                     },
@@ -933,7 +933,7 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 65, 6, 0, _loP, 128),
                     Colors = lopColour,
-                    ColourChanges = new (int pointIndex,int colourIndex)[]{ (0, 0) },
+                    ColourChanges = new (int pointIndex, int colourIndex)[] { (0, 0) },
                     Scales = false
                 }
             };
@@ -1013,12 +1013,13 @@ namespace Pulsar4X.Client
                     StartPoint = _f1a,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 78, 6, _loP, _trueAnom, 128),
                     Colors = trueAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
                     Scales = false
-            } };
+                }
+            };
             ElementItems.Add(_trueAnomalyAngleItem);
 
             _trueAnomItem_FromEVec = new ElementItem()
@@ -1033,12 +1034,13 @@ namespace Pulsar4X.Client
                     StartPoint = new Vector2() { X = _f1a.X, Y = _f1a.Y },
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 80, 6, _loP, _trueAnom_FromEVec, 128),
                     Colors = trueAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
                     Scales = false
-                } };
+                }
+            };
             ElementItems.Add(_trueAnomItem_FromEVec);
 
             _trueAnomItem_FromStateVec = new ElementItem()
@@ -1053,12 +1055,13 @@ namespace Pulsar4X.Client
                     StartPoint = new Vector2() { X = _f1a.X, Y = _f1a.Y },
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 84, 6, _loP, _trueAnom_FromStateVec, 128),
                     Colors = trueAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
                     Scales = false
-                } };
+                }
+            };
             ElementItems.Add(_trueAnomItem_FromStateVec);
             #endregion
 
@@ -1076,7 +1079,7 @@ namespace Pulsar4X.Client
                         _bodyPosPnt_m
                         },
                     Colors = trueAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
@@ -1101,7 +1104,7 @@ namespace Pulsar4X.Client
                     StartPoint = _cP,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 67, 6, 0, _meanAnom, 128),
                     Colors = meanAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
@@ -1127,7 +1130,7 @@ namespace Pulsar4X.Client
                     StartPoint = _cP,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 69, 6, _loP, _eccentricAnom, 128),
                     Colors = eAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
@@ -1148,7 +1151,7 @@ namespace Pulsar4X.Client
                     StartPoint = _cP,
                     Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 73, 6, _loP, _eccentricAnom_FromTrueAnom, 128),
                     Colors = eAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
@@ -1240,9 +1243,9 @@ namespace Pulsar4X.Client
                 Shape = new ComplexShape()
                 {
                     StartPoint = _f1a,
-                    Points =  evLine,
+                    Points = evLine,
                     Colors = eAnomColour,
-                    ColourChanges = new (int,int)[]
+                    ColourChanges = new (int, int)[]
                     {
                         (0,0),
                     },
@@ -1315,7 +1318,7 @@ namespace Pulsar4X.Client
             OrbitMath.TryGetEccentricAnomaly(_keplerElements.Eccentricity, _meanAnom, out _eccentricAnom);
             var meanAnom2 = OrbitMath.GetEllipticMeanAnomaly(_keplerElements.Eccentricity, _eccentricAnom);
 
-            if(_trueAnomalyAngleItem == null || _trueAnomalyAngleItem.Shape == null || _trueAnomalyAngleItem.Shape.Points == null)
+            if (_trueAnomalyAngleItem == null || _trueAnomalyAngleItem.Shape == null || _trueAnomalyAngleItem.Shape.Points == null)
                 throw new NullReferenceException();
 
             _trueAnomalyAngleItem.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 80, 4, _loP, _trueAnom, 128);
@@ -1341,14 +1344,14 @@ namespace Pulsar4X.Client
             _trueAnom_FromEVec = OrbitMath.TrueAnomaly(ecvec, pos_m, (Vector3)vel_m);
             _trueAnom_FromStateVec = OrbitMath.TrueAnomaly(_sgp, pos_m, (Vector3)vel_m);
 
-            if(_trueAnomItem_FromEVec == null || _trueAnomItem_FromEVec.Shape == null || _trueAnomItem_FromEVec.Shape.Points == null)
+            if (_trueAnomItem_FromEVec == null || _trueAnomItem_FromEVec.Shape == null || _trueAnomItem_FromEVec.Shape.Points == null)
                 throw new NullReferenceException();
 
             _trueAnomItem_FromEVec.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 82, 4, _loP, _trueAnom_FromEVec, 128);
             _trueAnomItem_FromEVec.DataItem = Angle.ToDegrees(_trueAnom_FromEVec);
             _trueAnomItem_FromEVec.DataString = Angle.ToDegrees(_trueAnom_FromEVec) + "°";
 
-            if(_trueAnomItem_FromStateVec == null || _trueAnomItem_FromStateVec.Shape == null || _trueAnomItem_FromStateVec.Shape.Points == null)
+            if (_trueAnomItem_FromStateVec == null || _trueAnomItem_FromStateVec.Shape == null || _trueAnomItem_FromStateVec.Shape.Points == null)
                 throw new NullReferenceException();
 
             _trueAnomItem_FromStateVec.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 84, 4, _loP, _trueAnom_FromStateVec, 128);
@@ -1357,23 +1360,23 @@ namespace Pulsar4X.Client
 
             _bodyPosPnt_m = new Vector2()
             {
-                X = (_bodyPosition.AbsolutePosition ).X,
-                Y = (_bodyPosition.AbsolutePosition ).Y
+                X = (_bodyPosition.AbsolutePosition).X,
+                Y = (_bodyPosition.AbsolutePosition).Y
             };
 
-            if(_bodyPosItem == null || _bodyPosItem.Shape == null)
+            if (_bodyPosItem == null || _bodyPosItem.Shape == null)
                 throw new NullReferenceException();
 
             _bodyPosItem.Shape.StartPoint = _bodyPosPnt_m;
 
             var posA_m = MoveMath.GetAbsolutePosition(_entity);
 
-            if(_bodyPosFromState == null || _bodyPosFromState.Shape == null)
+            if (_bodyPosFromState == null || _bodyPosFromState.Shape == null)
                 throw new NullReferenceException();
 
             _bodyPosFromState.Shape.StartPoint = new Vector2(posA_m.X, posA_m.Y);
 
-            if(_radiusToBody == null || _radiusToBody.Shape == null)
+            if (_radiusToBody == null || _radiusToBody.Shape == null)
                 throw new NullReferenceException();
 
             _radiusToBody.Shape.Points = new Vector2[]
@@ -1383,7 +1386,7 @@ namespace Pulsar4X.Client
             _radiusToBody.DataItem = _bodyPosition.RelativePosition.Length();
             _radiusToBody.DataString = Stringify.Distance(_bodyPosition.RelativePosition.Length());
 
-            if(_meanAnomalyItem == null || _meanAnomalyItem.Shape == null)
+            if (_meanAnomalyItem == null || _meanAnomalyItem.Shape == null)
                 throw new NullReferenceException();
 
             _meanAnomalyItem.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 67, 6, 0, _meanAnom, 128);
@@ -1394,14 +1397,14 @@ namespace Pulsar4X.Client
             //_ecctricAnom_FromStateVectors = OrbitMath.GetEccentricAnomalyFromStateVectors(pos, _semiMajAxis, _ae, _aop);
             //_ecctricAnom_FromStateVectors2 = OrbitMath.GetEccentricAnomalyFromStateVectors2(_sgp, _semiMajAxis, pos, (Vector3)vel);
 
-            if(_eccentricAnomalyItem == null || _eccentricAnomalyItem.Shape == null)
+            if (_eccentricAnomalyItem == null || _eccentricAnomalyItem.Shape == null)
                 throw new NullReferenceException();
 
             _eccentricAnomalyItem.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 69, 6, _loP, _eccentricAnom, 128);
             _eccentricAnomalyItem.DataItem = Angle.ToDegrees(_eccentricAnom);
             _eccentricAnomalyItem.DataString = Angle.ToDegrees(_eccentricAnom).ToString() + "°";
 
-            if(_eccentricAnomItem_FromTrueAnom == null || _eccentricAnomItem_FromTrueAnom.Shape == null)
+            if (_eccentricAnomItem_FromTrueAnom == null || _eccentricAnomItem_FromTrueAnom.Shape == null)
                 throw new NullReferenceException();
 
             _eccentricAnomItem_FromTrueAnom.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 73, 6, _loP, _eccentricAnom_FromTrueAnom, 128);
@@ -1435,7 +1438,7 @@ namespace Pulsar4X.Client
                 new Vector2(){X= evenorm2.X, Y = evenorm2.Y}
             };
 
-            if(_eccentricityVectorItem == null || _eccentricityVectorItem.Shape == null || _eccentricityVectorItem.Shape.Points == null)
+            if (_eccentricityVectorItem == null || _eccentricityVectorItem.Shape == null || _eccentricityVectorItem.Shape.Points == null)
                 throw new NullReferenceException();
 
             _eccentricityVectorItem.Shape.Points = evLine;
@@ -1448,7 +1451,7 @@ namespace Pulsar4X.Client
 
             _aopFromCalc1 = OrbitMath.GetArgumentOfPeriapsis1(nodeVector, ecvec, pos_m, vel_m);
 
-            if(_aopItem_FromCalc1 == null || _aopItem_FromCalc1.Shape == null || _aopItem_FromCalc1.Shape.Points == null)
+            if (_aopItem_FromCalc1 == null || _aopItem_FromCalc1.Shape == null || _aopItem_FromCalc1.Shape.Points == null)
                 throw new NullReferenceException();
 
             _aopItem_FromCalc1.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 90, -6, _loan, _aopFromCalc1, 128);
@@ -1457,7 +1460,7 @@ namespace Pulsar4X.Client
 
             _aopFromCalc2 = OrbitMath.GetArgumentOfPeriapsis(pos_m, _keplerElements.Inclination, _loan, _trueAnom);
 
-            if(_aopItem_FromCalc2 == null || _aopItem_FromCalc2.Shape == null || _aopItem_FromCalc2.Shape.Points == null)
+            if (_aopItem_FromCalc2 == null || _aopItem_FromCalc2.Shape == null || _aopItem_FromCalc2.Shape.Points == null)
                 throw new NullReferenceException();
 
             _aopItem_FromCalc2.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 93, -6, _loan, _aopFromCalc2, 128);
@@ -1473,20 +1476,20 @@ namespace Pulsar4X.Client
 
             _aopFromCalc4 = OrbitMath.GetArgumentOfPeriapsis3(_keplerElements.Inclination, ecvec, nodeVector);
 
-            if(_aopItem_FromCalc4 == null || _aopItem_FromCalc4.Shape == null || _aopItem_FromCalc4.Shape.Points == null)
+            if (_aopItem_FromCalc4 == null || _aopItem_FromCalc4.Shape == null || _aopItem_FromCalc4.Shape.Points == null)
                 throw new NullReferenceException();
 
             _aopItem_FromCalc4.Shape.Points = CreatePrimitiveShapes.AngleArc(Vector2.Zero, 99, -6, _loan, _aopFromCalc4, 128);
             _aopItem_FromCalc4.DataItem = Angle.ToDegrees(_aopFromCalc4);
             _aopItem_FromCalc4.DataString = Angle.ToDegrees(_aopFromCalc4).ToString() + "°";
 
-            _headingItemRel?.Update( vel_m);
+            _headingItemRel?.Update(vel_m);
 
             var vel2 = OrbitalMath.HackVelocityVector(_keplerElements, systemDateTime);
-            _headingItemRel2?.Update( vel2);
+            _headingItemRel2?.Update(vel2);
 
             var absVel = MoveMath.GetAbsoluteFutureVelocity(_entity, systemDateTime);
-            _headingItemAbs?.Update( absVel);
+            _headingItemAbs?.Update(absVel);
 
             _velvecItem?.Update(vel_m);
 
@@ -1498,11 +1501,11 @@ namespace Pulsar4X.Client
             ViewScreenPos = camera.ViewCoordinate_m(WorldPosition_m);
             var scAU = Matrix.IDScale(6.6859E-12, 6.6859E-12);
             var mirMtx = Matrix.IDMirror(false, true);
-            _drawComplexShapes = new List<ComplexShape>() {};
+            _drawComplexShapes = new List<ComplexShape>() { };
 
             foreach (var item in ElementItems)
             {
-                if(!item.ShowLines || item.Shape == null || item.Shape.Points == null)//don't draw the lines if we're not suposed to.
+                if (!item.ShowLines || item.Shape == null || item.Shape.Points == null)//don't draw the lines if we're not suposed to.
                     continue;
 
                 var shape = item.Shape;
@@ -1515,7 +1518,7 @@ namespace Pulsar4X.Client
                 {
                     for (int i = 0; i < shape.Points.Length; i++)
                     {
-                        var pnt = shape.Points[i];;
+                        var pnt = shape.Points[i]; ;
                         //Vector2 transformedPoint;
                         points[i] = camera.ViewCoordinateV2_m(pnt);
                     }
@@ -1525,16 +1528,16 @@ namespace Pulsar4X.Client
                     for (int i = 0; i < shape.Points.Length; i++)
                     {
                         var pnt = shape.Points[i];
-                        points[i] = new  Vector2(startPoint.X + pnt.X, startPoint.Y + pnt.Y * -1);
+                        points[i] = new Vector2(startPoint.X + pnt.X, startPoint.Y + pnt.Y * -1);
                         if (points[i].X > int.MaxValue || points[i].X < int.MinValue || points[i].X is Double.NaN)
                         {
                             //throw new Exception("point outside bounds, probilby a scale issue");
-                            points[i] = new  Vector2(startPoint.X, startPoint.Y);
+                            points[i] = new Vector2(startPoint.X, startPoint.Y);
                         }
                     }
                 }
 
-                _drawComplexShapes.Add( new ComplexShape()
+                _drawComplexShapes.Add(new ComplexShape()
                 {
                     Points = points,
                     Colors = shape.Colors,
@@ -1547,7 +1550,7 @@ namespace Pulsar4X.Client
         {
             foreach (var shape in _drawComplexShapes)
             {
-                if(shape == null || shape.Points == null || shape.Colors == null || shape.ColourChanges == null)
+                if (shape == null || shape.Points == null || shape.Colors == null || shape.ColourChanges == null)
                     continue;
 
                 int ci = 0;
@@ -1556,7 +1559,7 @@ namespace Pulsar4X.Client
 
                 for (int i = 0; i < shape.Points.Length - 1; i++)
                 {
-                    if(shape.ColourChanges.Length > i && shape.ColourChanges[ci].pointIndex == i)
+                    if (shape.ColourChanges.Length > i && shape.ColourChanges[ci].pointIndex == i)
                     {
                         colour = shape.Colors[shape.ColourChanges[ci].colourIndex];
                         SDL.SetRenderDrawColor(rendererPtr, colour.R, colour.G, colour.B, colour.A);
@@ -1610,9 +1613,9 @@ namespace Pulsar4X.Client
 
                 Shape = new ComplexShape()
                 {
-                    StartPoint = new Vector2( _bodyPosPnt_m.X, _bodyPosPnt_m.Y),
+                    StartPoint = new Vector2(_bodyPosPnt_m.X, _bodyPosPnt_m.Y),
                     Colors = headingColour,
-                    ColourChanges = new (int, int)[] {(0, 0),},
+                    ColourChanges = new (int, int)[] { (0, 0), },
                     Scales = false
                 };
 
@@ -1620,20 +1623,20 @@ namespace Pulsar4X.Client
 
             }
 
-            public void Update( Vector3 vel_m)
+            public void Update(Vector3 vel_m)
             {
                 _bodyPosPnt_m = new Vector2()
                 {
-                    X = (_bodyPosition.AbsolutePosition ).X,
-                    Y = (_bodyPosition.AbsolutePosition ).Y
+                    X = (_bodyPosition.AbsolutePosition).X,
+                    Y = (_bodyPosition.AbsolutePosition).Y
                 };
 
                 var vnorm = Vector3.Normalise(vel_m) * 60;
 
-                if(Shape == null)
+                if (Shape == null)
                     throw new NullReferenceException();
 
-                Shape.StartPoint = new Vector2( _bodyPosPnt_m.X, _bodyPosPnt_m.Y);
+                Shape.StartPoint = new Vector2(_bodyPosPnt_m.X, _bodyPosPnt_m.Y);
                 Vector2[] headingLine =
                 {
                     new () { X = 0, Y = 0 },
@@ -1664,8 +1667,8 @@ namespace Pulsar4X.Client
                 _bodyPosition = bodyPos;
                 _bodyPosPnt_m = new Vector2()
                 {
-                    X = (_bodyPosition.AbsolutePosition ).X,
-                    Y = (_bodyPosition.AbsolutePosition ).Y
+                    X = (_bodyPosition.AbsolutePosition).X,
+                    Y = (_bodyPosition.AbsolutePosition).Y
                 };
                 double lop = _ke.LoAN + _ke.AoP;
 
@@ -1692,7 +1695,7 @@ namespace Pulsar4X.Client
                 {
                     StartPoint = new Vector2(_bodyPosPnt_m.X, _bodyPosPnt_m.Y),
                     Colors = headingColour,
-                    ColourChanges = new (int, int)[] {(0, 0),},
+                    ColourChanges = new (int, int)[] { (0, 0), },
                     Scales = false
                 };
 
@@ -1700,7 +1703,7 @@ namespace Pulsar4X.Client
 
             }
 
-            public void Update( Vector3 vel_m)
+            public void Update(Vector3 vel_m)
             {
                 _bodyPosPnt_m = new Vector2()
                 {
@@ -1718,10 +1721,10 @@ namespace Pulsar4X.Client
                 pgd = Vector3.Normalise(pgd) * 60;
                 var vnorm = Vector3.Normalise(ptp) * 60;
 
-                if(Shape == null)
+                if (Shape == null)
                     throw new NullReferenceException();
 
-                Shape.StartPoint = new Vector2(_bodyPosPnt_m.X,_bodyPosPnt_m.Y);
+                Shape.StartPoint = new Vector2(_bodyPosPnt_m.X, _bodyPosPnt_m.Y);
                 Vector2[] vline =
                 {
                     new () { X = 0, Y = 0 },

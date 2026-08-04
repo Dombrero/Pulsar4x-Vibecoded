@@ -24,7 +24,7 @@ namespace Pulsar4X.Fleets
         public override ActionLaneTypes ActionLanes { get; } = ActionLaneTypes.InteractWithSelf | ActionLaneTypes.InteractWithEntitySameFleet;
         public override bool IsBlocking => true;
 
-        private Entity _entityCommanding;
+        private Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding => _entityCommanding;
 
         public RechargeEnergyAction() { }
@@ -55,18 +55,18 @@ namespace Pulsar4X.Fleets
 
             try
             {
-                if (_entityCommanding == null || !_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                if (!_entityCommanding.IsValid || !_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
                     return;
 
                 if (fleetDB.FlagShipID == -1
-                    || !_entityCommanding.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
+                    || !_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
                     || !flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
                     return;
 
                 Entity? nearestColony = null;
                 double nearestDist = double.MaxValue;
 
-                foreach (var entity in _entityCommanding.Manager.GetFilteredEntities(
+                foreach (var entity in _entityCommanding.AttachedManager.GetFilteredEntities(
                              EntityFilter.Friendly,
                              RequestingFactionGuid,
                              e => e.HasDataBlob<ColonyInfoDB>() && e.HasDataBlob<ColonyPowerDB>()))
@@ -85,7 +85,7 @@ namespace Pulsar4X.Fleets
                 // Colonies without ColonyPowerDB yet may still have batteries/plants — recalc and retry.
                 if (nearestColony == null)
                 {
-                    foreach (var entity in _entityCommanding.Manager.GetFilteredEntities(
+                    foreach (var entity in _entityCommanding.AttachedManager.GetFilteredEntities(
                                  EntityFilter.Friendly,
                                  RequestingFactionGuid,
                                  e => e.HasDataBlob<ColonyInfoDB>()))
@@ -169,7 +169,7 @@ namespace Pulsar4X.Fleets
             if (!_entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable))
             {
                 foreach (var cmd in followUps)
-                    _entityCommanding.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 return;
             }
 
@@ -186,7 +186,7 @@ namespace Pulsar4X.Fleets
             if (selfIndex < 0)
             {
                 foreach (var cmd in followUps)
-                    _entityCommanding.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 return;
             }
 
@@ -199,7 +199,7 @@ namespace Pulsar4X.Fleets
             }
         }
 
-        internal override bool IsValidCommand(Game game) => _entityCommanding != null;
+        internal override bool IsValidCommand(Game game) => _entityCommanding.IsValid;
 
         internal override void BindCommandingEntity(Entity entity)
         {

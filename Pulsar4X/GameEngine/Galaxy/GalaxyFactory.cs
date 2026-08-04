@@ -9,12 +9,11 @@ namespace Pulsar4X.Galaxy
     public class GalaxyFactory
     {
 
-        public SystemGenSettingsBlueprint Settings;
+        public SystemGenSettingsBlueprint? Settings;
 
-        public Dictionary<int, string> SystemIndexes;
+        public Dictionary<int, string> SystemIndexes = new();
 
-        internal readonly StarSystemFactory StarSystemFactory;
-
+        internal readonly StarSystemFactory? StarSystemFactory;
         public GalaxyFactory(SystemGenSettingsBlueprint settings)
         {
             Settings = settings;

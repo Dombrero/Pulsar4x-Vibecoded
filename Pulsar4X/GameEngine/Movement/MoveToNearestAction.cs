@@ -24,7 +24,7 @@ namespace Pulsar4X.Movement
 
         public override bool IsBlocking => true;
 
-        protected Entity _entityCommanding;
+        protected Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding
         {
             get { return _entityCommanding; }
@@ -78,10 +78,10 @@ namespace Pulsar4X.Movement
             if (Filter == null) return;
             if (!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
             if (fleetDB.FlagShipID == -1) return;
-            if (!EntityCommanding.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)) return;
+            if (!EntityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)) return;
             if (!flagship.TryGetDataBlob<PositionDB>(out var flagshipPositionDB)) return;
 
-            List<Entity> filteredEntities = EntityCommanding.Manager.GetFilteredEntities(
+            List<Entity> filteredEntities = EntityCommanding.AttachedManager.GetFilteredEntities(
                 EntityFactionFilter,
                 RequestingFactionGuid,
                 Filter);
@@ -142,7 +142,7 @@ namespace Pulsar4X.Movement
                         targetEntity,
                         EntityCommanding.StarSysDateTime);
                     _shipCommands.Add(cmd);
-                    ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+                    ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
                 }
                 catch (Exception ex)
                 {

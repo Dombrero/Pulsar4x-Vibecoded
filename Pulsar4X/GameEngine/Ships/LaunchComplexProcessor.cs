@@ -253,7 +253,7 @@ namespace Pulsar4X.Ships
             var faction = colonyEntity.GetFactionOwner;
 
             // Prefer the live SOI parent (always manager-bound). ColonyInfoDB.PlanetEntity can be a
-            // stale deserialized reference after load — CreateShip then NullRefs on parent.Manager.
+            // stale deserialized reference after load — CreateShip then NullRefs on parent.AttachedManager.
             var orbitParent = colonyEntity.GetSOIParentEntity()
                               ?? (planet.IsValid ? planet : null);
             if (orbitParent?.Manager == null)
@@ -303,7 +303,7 @@ namespace Pulsar4X.Ships
                                 gameTime,
                                 $"Launch of {pad.ShipName ?? shipDesign.Name} delayed: not enough fuel in colony storage (need ~{fuelCost:N0} kg).",
                                 colonyEntity.FactionOwnerID,
-                                colonyEntity.Manager.ManagerID,
+                                colonyEntity.AttachedManager.ManagerID,
                                 colonyEntity.Id));
                     }
                     catch (Exception ex)

@@ -1,4 +1,4 @@
-﻿/*
+/*
 using NUnit.Framework;
 using Pulsar4X.Blueprints;
 using Pulsar4X.Colonies;
@@ -22,7 +22,7 @@ namespace Pulsar4X.Tests
     public class MiningTests
     {
         private string _mineDesignGUID = "mine";
-        private Game _game;
+        private Game _game = null;
         private AuthenticationToken _smAuthToken;
 
         [Test]

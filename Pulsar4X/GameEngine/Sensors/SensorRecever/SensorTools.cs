@@ -15,7 +15,7 @@ namespace Pulsar4X.Sensors
     public static class SensorTools
     {
 
-        public static SensorReturnValues[] GetDetectedEntites(SensorReceiverAtb sensorAtb, Vector3 position, List<Entity> detectableEntities, DateTime atDate, int factionOwnerId,  bool filterSameFaction = true)
+        public static SensorReturnValues[] GetDetectedEntites(SensorReceiverAtb sensorAtb, Vector3 position, List<Entity> detectableEntities, DateTime atDate, int factionOwnerId, bool filterSameFaction = true)
         {
             SensorReturnValues[] detectionValues = new SensorReturnValues[detectableEntities.Count];
             for (int i = 0; i < detectableEntities.Count; i++)
@@ -25,7 +25,7 @@ namespace Pulsar4X.Sensors
                     continue;
                 else
                 {
-                    if(!detectableEntity.TryGetDataBlob<PositionDB>(out var detectablePosDB))
+                    if (!detectableEntity.TryGetDataBlob<PositionDB>(out var detectablePosDB))
                     {
                         continue;
                     }
@@ -41,13 +41,13 @@ namespace Pulsar4X.Sensors
                     var attentuatedSignal = AttenuatedForDistance(detectableProfile, distance);
                     SensorReturnValues detectionValue = DetectonQuality(sensorAtb, attentuatedSignal);
                     //if(detectionValue.SignalStrength_kW > 0)
-                        detectionValues[i] = detectionValue;
+                    detectionValues[i] = detectionValue;
                 }
             }
 
             return detectionValues;
         }
-        
+
         public static SensorReturnValues DetectonQuality(SensorReceiverAtb recever, Dictionary<EMWaveForm, double> signalAtPosition)
         {
             /*
@@ -124,7 +124,7 @@ namespace Pulsar4X.Sensors
                         double minDetectableWavelength = Math.Min(receverSensitivityFreqMin, signalWaveSpectraFreqMin);
                         double maxDetectableWavelenght = Math.Min(receverSensitivityFreqMax, signalWaveSpectraFreqMax);
 
-                        double detectedAngleA = Math.Atan(receverSensitivityAltitiude / (receverSensitivityFreqAvg - receverSensitivityFreqMin ));
+                        double detectedAngleA = Math.Atan(receverSensitivityAltitiude / (receverSensitivityFreqAvg - receverSensitivityFreqMin));
                         double receverBaseLen = maxDetectableWavelenght - minDetectableWavelength;
                         double detectedAngleB = Math.Atan(signalWaveSpectraMagnatude_kW / (signalWaveSpectraFreqAvg - signalWaveSpectraFreqMax));
 
@@ -199,9 +199,9 @@ namespace Pulsar4X.Sensors
                     abilityDB = new SensorAbilityDB();
                     entity.SetDataBlob(abilityDB);
                 }
-                
-                abilityDB.InstanceAtributes = new ();
-                abilityDB.InstanceStates = new ();
+
+                abilityDB.InstanceAtributes = new();
+                abilityDB.InstanceStates = new();
                 foreach (var receiverInstance in receivers)
                 {
                     //we're cloning the design to the instance here.
@@ -251,9 +251,9 @@ namespace Pulsar4X.Sensors
             {
                 // Collision detected
 
-                    i_x = p0_x + (t * s1_x);
+                i_x = p0_x + (t * s1_x);
 
-                    i_y = p0_y + (t * s1_y);
+                i_y = p0_y + (t * s1_y);
 
                 return true;
             }
@@ -273,7 +273,7 @@ namespace Pulsar4X.Sensors
             foreach (var emdat in emissionProfile.EmittedEMSpectra.Concat(emissionProfile.ReflectedEMSpectra))
             {
                 var reflectedValue = AttenuationCalc(emdat.Magnitude, distance);
-                if(!dict.ContainsKey(emdat.WaveForm))
+                if (!dict.ContainsKey(emdat.WaveForm))
                     dict.Add(emdat.WaveForm, reflectedValue);
                 else
                 {
@@ -283,7 +283,7 @@ namespace Pulsar4X.Sensors
             }
             return dict;
         }
-        
+
         /// <summary>
         /// returns a dictionary of all emmisions including reflected emmisions.
         /// </summary>
@@ -297,7 +297,7 @@ namespace Pulsar4X.Sensors
             foreach (var emdat in emissionProfile.EmittedEMSpectra.Concat(emissionProfile.ReflectedEMSpectra))
             {
                 var reflectedValue = emdat.Magnitude * factor;
-                if(reflectedValue >= cullBelow)
+                if (reflectedValue >= cullBelow)
                 {
                     EMData newdata = new EMData();
                     newdata.WaveForm = emdat.WaveForm;
@@ -337,7 +337,7 @@ namespace Pulsar4X.Sensors
         /// <returns></returns>
         public static double AttenuationFactor(double distance)
         {
-            if(distance < 1)
+            if (distance < 1)
                 distance = 1;
             return 1 / (4 * Math.PI * distance * distance);
         }
@@ -361,7 +361,8 @@ namespace Pulsar4X.Sensors
             EMWaveForm waveform = new EMWaveForm(wavelength - 300, wavelength, wavelength + 600);
 
 
-            var emisionSignature = new SensorProfileDB() {
+            var emisionSignature = new SensorProfileDB()
+            {
 
             };
             EMData emdata = new EMData()
@@ -369,7 +370,7 @@ namespace Pulsar4X.Sensors
                 WaveForm = waveform,
                 Magnitude = magnitudeInKW,
             };
-                
+
             emisionSignature.EmittedEMSpectra.Add(emdata);
 
             return emisionSignature;

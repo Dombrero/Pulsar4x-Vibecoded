@@ -29,7 +29,7 @@ namespace Pulsar4X.Colonies
             foreach (var (id, value) in currentPopulation)
             {
 
-                var species = colony.Manager.GetGlobalEntityById(id).GetDataBlob<SpeciesDB>();
+                var species = colony.AttachedManager.GetGlobalEntityById(id).GetDataBlob<SpeciesDB>();
                 // count the number of different population groups that need infrastructure support
                 if (species.ColonyCost(colony.GetDataBlob<ColonyInfoDB>().PlanetEntity) > 0.0)
                     needsSupport++;
@@ -38,7 +38,7 @@ namespace Pulsar4X.Colonies
             // find colony cost, divide the population support value by it
             foreach (var (id, value) in currentPopulation.ToArray())
             {
-                var species = colony.Manager.GetGlobalEntityById(id).GetDataBlob<SpeciesDB>();
+                var species = colony.AttachedManager.GetGlobalEntityById(id).GetDataBlob<SpeciesDB>();
                 double colonyCost = species.ColonyCost(colony.GetDataBlob<ColonyInfoDB>().PlanetEntity);
                 long maxPopulation;
                 double growthRate;
@@ -46,7 +46,7 @@ namespace Pulsar4X.Colonies
 
                 if (colonyCost > 0.0)
                 {
-                    maxPopulation = (long)((double)(popSupportValue / needsSupport) / colonyCost) ;
+                    maxPopulation = (long)((double)(popSupportValue / needsSupport) / colonyCost);
                     if (currentPopulation[id] > maxPopulation) // People will start dying
                     {
                         long excessPopulation = currentPopulation[id] - maxPopulation;
@@ -101,17 +101,17 @@ namespace Pulsar4X.Colonies
             colonyEntity.GetDataBlob<ColonyLifeSupportDB>().MaxPopulation = totalMaxPop;
         }
 
-        private void UpdatePopulation(ColonyInfoDB colony ,Dictionary<int, long> population, int id, long newPopulation)
+        private void UpdatePopulation(ColonyInfoDB colony, Dictionary<int, long> population, int id, long newPopulation)
         {
             population[id] = newPopulation;
-            
+
             EventManager.Instance.Publish(
                 Event.Create(
                     EventType.PopulationChanged,
                     colony.OwningEntity.StarSysDateTime,
                     $"{colony.OwningEntity.GetName(colony.OwningEntity.FactionOwnerID)} population is now {newPopulation}",
                     colony.OwningEntity.FactionOwnerID,
-                    colony.OwningEntity.Manager.ManagerID,
+                    colony.OwningEntity.AttachedManager.ManagerID,
                     colony.OwningEntity.Id
                     ));
         }
@@ -131,7 +131,7 @@ namespace Pulsar4X.Colonies
 
             foreach (var colony in colonies)
             {
-                if(colony.OwningEntity != null)
+                if (colony.OwningEntity.IsValid)
                     GrowPopulation(colony.OwningEntity);
             }
 

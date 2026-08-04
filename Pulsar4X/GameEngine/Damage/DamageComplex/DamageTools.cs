@@ -23,7 +23,7 @@ namespace Pulsar4X.Damage
     /// <summary>
     /// Merge this into materials?
     /// </summary>
-    public class DamageResistBlueprint: Blueprint
+    public class DamageResistBlueprint : Blueprint
     {
         /*
          this could potentialy get more complex,
@@ -57,7 +57,7 @@ namespace Pulsar4X.Damage
     public struct DamageFragment
     {
         public Vector2 Velocity;
-        public (int x,int y) Position;
+        public (int x, int y) Position;
         public double Energy;
         public float Mass;
         public float Momentum;
@@ -77,12 +77,12 @@ namespace Pulsar4X.Damage
         {
 
 
-            if(!File.Exists(file))
+            if (!File.Exists(file))
                 throw new FileNotFoundException();
 
             byte[] bmpBytes = File.ReadAllBytes(file);
-            (int offset,int size)[] headerDef = new (int,int)[12];
-            headerDef[0] = (0,2); //first two bytes should be BM in ascii
+            (int offset, int size)[] headerDef = new (int, int)[12];
+            headerDef[0] = (0, 2); //first two bytes should be BM in ascii
             headerDef[1] = (2, 4); //size of bmp in bytes (whole file size)
             headerDef[3] = (6, 2); //reserved creation application dependant
             headerDef[4] = (6, 8); //reserved creaton applicaton dependant
@@ -142,7 +142,7 @@ namespace Pulsar4X.Damage
             byte r = byteColor;
             byte g = byteColor;
             byte b = byteColor;
-            Color color = Color.FromArgb(255,r, g, b);
+            Color color = Color.FromArgb(255, r, g, b);
             return color;
         }
 
@@ -182,7 +182,7 @@ namespace Pulsar4X.Damage
 
             //damage.RelativePosition ralitive to our targets center, but we need to translate for calculating 0,0 at top left
             Vector2 start = new Vector2(damage.Position.x - hw, damage.Position.y - hh);
-            var end = new Vector2((pwidth * 0.5)-1, (phight * 0.5)-1); //center of our target
+            var end = new Vector2((pwidth * 0.5) - 1, (phight * 0.5) - 1); //center of our target
             var tl = new Vector2(0, 0);
             var tr = new Vector2(pwIndex, 0);
             var bl = new Vector2(0, phIndex);
@@ -200,11 +200,11 @@ namespace Pulsar4X.Damage
             {
             }
             //top
-            else if (GeneralMath.LineIntersectsLine(start,end,tl, tr, out intersection))
+            else if (GeneralMath.LineIntersectsLine(start, end, tl, tr, out intersection))
             {
             }
             //bottom
-            else if (GeneralMath.LineIntersectsLine(start,end,bl, br, out intersection))
+            else if (GeneralMath.LineIntersectsLine(start, end, bl, br, out intersection))
             {
             }
 
@@ -263,7 +263,7 @@ namespace Pulsar4X.Damage
                     momentum -= momentumLoss;
                     if (momentum > 0)
                     {
-                        px = ( px.r, px.g, px.b, 0);
+                        px = (px.r, px.g, px.b, 0);
                         damageToComponents.Add((px.g, 1));
                     }
                 }
@@ -328,7 +328,7 @@ namespace Pulsar4X.Damage
 
             //damage.RelativePosition ralitive to our targets center, but we need to translate for calculating 0,0 at top left
             Vector2 start = new Vector2(damage.Position.x - hw, damage.Position.y - hh);
-            var end = new Vector2((pwidth * 0.5)-1, (phight * 0.5)-1); //center of our target
+            var end = new Vector2((pwidth * 0.5) - 1, (phight * 0.5) - 1); //center of our target
             var tl = new Vector2(0, 0);
             var tr = new Vector2(pwIndex, 0);
             var bl = new Vector2(0, phIndex);
@@ -346,11 +346,11 @@ namespace Pulsar4X.Damage
             {
             }
             //top
-            else if (GeneralMath.LineIntersectsLine(start,end,tl, tr, out intersection))
+            else if (GeneralMath.LineIntersectsLine(start, end, tl, tr, out intersection))
             {
             }
             //bottom
-            else if (GeneralMath.LineIntersectsLine(start,end,bl, br, out intersection))
+            else if (GeneralMath.LineIntersectsLine(start, end, bl, br, out intersection))
             {
             }
 
@@ -402,7 +402,7 @@ namespace Pulsar4X.Damage
                     momentum -= momentumLoss;
                     if (momentum > 0)
                     {
-                        px = ( px.r, px.g, px.b, 0);
+                        px = (px.r, px.g, px.b, 0);
                         damageToComponents.Add((px.g, 1));
                     }
                 }

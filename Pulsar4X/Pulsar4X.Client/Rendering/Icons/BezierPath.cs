@@ -5,21 +5,18 @@ using SDL3;
 
 namespace Pulsar4X.Client
 {
-    public class BezierPath
-    {
-        List<BezierCurve> _segments = null!;
-    }
+    public class BezierPath;
 
-    public class BezierCurve: IDrawData
+    public class BezierCurve : IDrawData
     {
         Vector2[] _controlPoints;
-        List<Vector2> _linePoints = null!;
-        Vector2[] _drawPoints = null!;
+        List<Vector2> _linePoints = new();
+        Vector2[] _drawPoints = Array.Empty<Vector2>();
         public bool Scales = true;
 
         public BezierCurve(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3)
         {
-            _controlPoints = new Vector2[4] {p0, p1, p2, p3};
+            _controlPoints = new Vector2[4] { p0, p1, p2, p3 };
         }
 
         public void SetLinePoints(float dt)
@@ -30,7 +27,7 @@ namespace Pulsar4X.Client
                 var x = BezCalc(t, _controlPoints[0].X, _controlPoints[1].X, _controlPoints[2].X, _controlPoints[3].X);
                 var y = BezCalc(t, _controlPoints[0].Y, _controlPoints[1].Y, _controlPoints[2].Y, _controlPoints[3].Y);
 
-                _linePoints.Add(new Vector2() {X = x, Y = y});
+                _linePoints.Add(new Vector2() { X = x, Y = y });
             }
         }
 
@@ -49,11 +46,11 @@ namespace Pulsar4X.Client
         }
         public void OnFrameUpdate(Matrix matrix, Camera camera)
         {
-            var zm =camera.GetZoomMatrix();
+            var zm = camera.GetZoomMatrix();
             //var tm = camera.GetPanMatrix();
 
             Matrix nonZoomMatrix = Matrix.IDMirror(true, false);
-            var vsp = camera.ViewCoordinate_m(new Vector3(0,0,0));
+            var vsp = camera.ViewCoordinate_m(new Vector3(0, 0, 0));
 
             _drawPoints = new Vector2[_linePoints.Count];
 
@@ -86,8 +83,8 @@ namespace Pulsar4X.Client
             {
                 int x0 = Convert.ToInt32(_drawPoints[i].X);
                 int y0 = Convert.ToInt32(_drawPoints[i].Y);
-                int x1 = Convert.ToInt32(_drawPoints[i+1].X);
-                int y1 = Convert.ToInt32(_drawPoints[i+1].Y);
+                int x1 = Convert.ToInt32(_drawPoints[i + 1].X);
+                int y1 = Convert.ToInt32(_drawPoints[i + 1].Y);
                 SDL.RenderLine(rendererPtr, x0, y0, x1, y1);
             }
 

@@ -53,7 +53,6 @@ namespace Pulsar4X.Client
         protected float _segmentArcSweepRadians; //how large each segment in the drawn portion of the ellipse.
         protected float _alphaChangeAmount;
 
-        private double _dv = 0;
         private KeplerElements _ke;
 
 
@@ -105,15 +104,15 @@ namespace Pulsar4X.Client
         /// </summary>
         void SetTrueAnomalyIndex()
         {
-            if(_myPosDB == null)
+            if (_myPosDB == null)
                 throw new NullReferenceException();
-            if(_points.Length == 0)
+            if (_points.Length == 0)
                 return;
 
             Orbital.Vector2 pos = new Vector2(_myPosDB.RelativePosition.X, _myPosDB.RelativePosition.Y);
             double minDist = (pos - _points[_taIndex]).Length();
 
-            for (int i =0; i < _points.Length; i++)
+            for (int i = 0; i < _points.Length; i++)
             {
                 double dist = (pos - _points[i]).Length();
                 if (dist < minDist)
@@ -131,7 +130,7 @@ namespace Pulsar4X.Client
 
         internal void CreatePointArray()
         {
-            if(_ke.Eccentricity < 1)
+            if (_ke.Eccentricity < 1)
             {
                 TrajectoryType = UserOrbitSettings.OrbitTrajectoryType.Elliptical;
                 CreateEllipsePoints();
@@ -147,7 +146,7 @@ namespace Pulsar4X.Client
 
         private void CreateHyperbolicPoints()
         {
-            if(_myPosDB == null)
+            if (_myPosDB == null)
                 throw new NullReferenceException();
             var stateVec = OrbitalMath.GetStateVectors(_ke, _stateTime);
             Vector3 vel = (Vector3)stateVec.velocity;
@@ -213,9 +212,9 @@ namespace Pulsar4X.Client
             var mtxtr = Matrix.IDTranslate(linierEccentricity, 0);
             var mtxrt = Matrix.IDRotate(_lop);
             var mtx = mtxtr * mtxrt;
-            var mtxmr =  Matrix.IDMirror(true, false) * mtx;
+            var mtxmr = Matrix.IDMirror(true, false) * mtx;
 
-            if(_points is null || _points.Length != _numberOfEllipsePoints)
+            if (_points is null || _points.Length != _numberOfEllipsePoints)
                 _points = new Orbital.Vector2[_numberOfEllipsePoints];
             if (_drawPoints.Length != _numberOfDrawnPoints)
                 _drawPoints = new SDL.Point[_numberOfDrawnPoints];
@@ -240,7 +239,7 @@ namespace Pulsar4X.Client
         /// </summary>
         private void CreateEllipsePoints()
         {
-            if(_points is null || _points.Length != _numberOfEllipsePoints)
+            if (_points is null || _points.Length != _numberOfEllipsePoints)
                 _points = new Orbital.Vector2[_numberOfEllipsePoints];
             if (_drawPoints.Length != _numberOfDrawnPoints)
                 _drawPoints = new SDL.Point[_numberOfDrawnPoints];
@@ -284,7 +283,7 @@ namespace Pulsar4X.Client
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
-            if(_myPosDB == null)
+            if (_myPosDB == null)
                 throw new NullReferenceException();
 
             //resize from m to au because zoom is au
@@ -294,14 +293,14 @@ namespace Pulsar4X.Client
             var trns = Matrix.IDTranslate(foo.X, foo.Y);
             var scAU = Matrix.IDScale(6.6859E-12, 6.6859E-12);
             var scZm = Matrix.IDScale(camera.ZoomLevel, camera.ZoomLevel);
-            var mtrx = scAU * scZm *  trns;
+            var mtrx = scAU * scZm * trns;
 
             int index = _taIndex;
             var spos = camera.ViewCoordinateV2_m(_myPosDB.AbsolutePosition);
 
             //_drawPoints[0] = mtrx.TransformToSDL_Point(_bodyrelativePos.X, _bodyrelativePos.Y);
             // [0] is the position of the object.
-            _drawPoints[0] = new SDL.Point(){ X = (int)spos.X, Y = (int)spos.Y };
+            _drawPoints[0] = new SDL.Point() { X = (int)spos.X, Y = (int)spos.Y };
             //we should have one less segment than points.
             //we should have more Points than _drawPoints. (Points is a full ellipse, we normaly only draw an arc)
             for (int i = 1; i < _numberOfDrawnPoints; i++)
@@ -322,7 +321,7 @@ namespace Pulsar4X.Client
 
             var foo2 = camera.ViewCoordinate_m(_myPosDB.AbsolutePosition);
             var trns2 = Matrix.IDTranslate(foo2.X, foo2.Y);
-            var mtrx2 = scAU * scZm *  trns2;
+            var mtrx2 = scAU * scZm * trns2;
             for (int i = 0; i < 2; i++)
             {
                 _drawThrustLinePoints[i] = mtrx2.TransformToSDL_Point(_thrustLinePoints[i].X, _thrustLinePoints[i].Y);
@@ -338,7 +337,7 @@ namespace Pulsar4X.Client
             for (int i = 0; i < _drawPoints.Length - 1; i++)
             {
                 SDL.SetRenderDrawColor(rendererPtr, _userSettings.Red, _userSettings.Grn, _userSettings.Blu, (byte)alpha);//we cast the alpha here to stop rounding errors creeping up.
-                SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i +1].Y);
+                SDL.RenderLine(rendererPtr, _drawPoints[i].X, _drawPoints[i].Y, _drawPoints[i + 1].X, _drawPoints[i + 1].Y);
                 alpha -= _alphaChangeAmount;
             }
             byte r = 100;

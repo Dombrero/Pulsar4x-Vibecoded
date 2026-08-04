@@ -17,8 +17,8 @@ public class RemoveTechFromQueueOrder : EntityCommand
 
     internal override Entity EntityCommanding => _labEntity;
 
-    private Entity _labEntity;
-    private string _techId;
+    private Entity _labEntity = Entity.InvalidEntity;
+    private string? _techId;
 
     private RemoveTechFromQueueOrder(Entity labEntity, string techId)
     {
@@ -38,10 +38,10 @@ public class RemoveTechFromQueueOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+        if (!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
             return;
 
-        if(string.IsNullOrEmpty(_techId))
+        if (string.IsNullOrEmpty(_techId))
             return;
 
         researcherDB.TechQueue.TryRemoveItem(_techId);
@@ -52,7 +52,7 @@ public class RemoveTechFromQueueOrder : EntityCommand
                     atDateTime,
                     "Technology removed from queue",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _labEntity.Id));
     }
 

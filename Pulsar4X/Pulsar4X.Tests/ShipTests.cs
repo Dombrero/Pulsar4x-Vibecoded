@@ -1,4 +1,4 @@
-﻿/*
+/*
 using NUnit.Framework;
 using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
@@ -16,15 +16,15 @@ namespace Pulsar4X.Tests
     [Description("Ship Entity Tests")]
     internal class ShipEntityTests
     {
-        private Game _game;
-        // private EntityManager _entityManager;
-        private Entity _faction;
+        private Game _game = null;
+        // private EntityManager _entityManager = null;
+        private Entity _faction = Entity.InvalidEntity;
         private StarSystem _starSystem;
         private ShipDesign _shipDesign;
-        private Entity _ship;
+        private Entity _ship = Entity.InvalidEntity;
         private ComponentDesign _engineComponentDesign;
         // private ComponentTemplateSD _engineSD;
-        private Entity _sol;
+        private Entity _sol = Entity.InvalidEntity;
 
         [SetUp]
         public void Init()

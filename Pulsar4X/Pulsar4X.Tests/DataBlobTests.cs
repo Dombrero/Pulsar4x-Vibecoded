@@ -13,7 +13,7 @@ namespace Pulsar4X.Tests
     [Description("DataBlob Tests")]
     internal class DataBlobTests
     {
-        private static readonly List<Type> DataBlobTypes = new List<Type>(Assembly.GetAssembly(typeof(BaseDataBlob)).GetTypes().Where(type => type.IsSubclassOf(typeof(BaseDataBlob)) && !type.IsAbstract));
+        private static readonly List<Type> DataBlobTypes = new List<Type>(typeof(BaseDataBlob).Assembly.GetTypes().Where(type => type.IsSubclassOf(typeof(BaseDataBlob)) && !type.IsAbstract));
 
         /// <summary>
         /// This test ensures our DataBlobs can be created by Json during deserialization.

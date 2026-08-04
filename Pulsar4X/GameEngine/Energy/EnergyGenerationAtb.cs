@@ -13,7 +13,7 @@ namespace Pulsar4X.Energy
 
         public double FuelUsedAtMax;  //KgPerS
 
-        public string EnergyTypeID;
+        public string? EnergyTypeID;
 
         public double PowerOutputMax; //Kw
 
@@ -32,6 +32,8 @@ namespace Pulsar4X.Energy
         {
             string resourceID = EnergyTypeID;
             ICargoable? energyCargoable = parentEntity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods.GetAny(resourceID);
+            if (energyCargoable is null)
+                throw new InvalidOperationException($"Energy cargo type '{resourceID}' not found for faction.");
             EnergyGenAbilityDB genDB;
             if (!parentEntity.HasDataBlob<EnergyGenAbilityDB>())
             {
@@ -46,11 +48,11 @@ namespace Pulsar4X.Energy
 
                 if (genDB.EnergyType == null)
                     genDB.EnergyType = energyCargoable;
-                else if(genDB.EnergyType != energyCargoable)//this is just to reduce complexity. we can add this ability later.
+                else if (genDB.EnergyType != energyCargoable)//this is just to reduce complexity. we can add this ability later.
                     throw new Exception("PrimeEntity cannot use two different energy types");
                 if (genDB.TotalFuelUseAtMax.type == String.Empty || genDB.TotalFuelUseAtMax.type == null)
                     genDB.TotalFuelUseAtMax.type = FuelType;
-                else if(genDB.TotalFuelUseAtMax.type != FuelType)
+                else if (genDB.TotalFuelUseAtMax.type != FuelType)
                     throw new Exception("PrimeEntity cannot have power plants that use different fuel types");
             }
 

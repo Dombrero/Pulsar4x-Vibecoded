@@ -9,10 +9,10 @@ public static class DoubleEditWidget
     public static bool Display(string label, ref double num, string format = "%.2f", bool exitEditOnFocusLoss = true)
     {
         bool hasChanged = false;
-        if(label != _editingID)
+        if (label != _editingID)
         {
             ImGui.Text(num.ToString());
-            if(ImGui.IsItemClicked())
+            if (ImGui.IsItemClicked())
             {
                 _editingID = label;
                 ImGui.SetKeyboardFocusHere(0); // Ensure focus on the input field when editing starts
@@ -49,10 +49,10 @@ public static class FloatEditWidget
     public static bool Display(string label, ref float num, string format = "%.2f", bool exitEditOnFocusLoss = true)
     {
         bool hasChanged = false;
-        if(label != _editingID)
+        if (label != _editingID)
         {
             ImGui.Text(num.ToString());
-            if(ImGui.IsItemClicked())
+            if (ImGui.IsItemClicked())
             {
                 _editingID = label;
                 ImGui.SetKeyboardFocusHere(0); // Ensure focus on the input field when editing starts

@@ -23,11 +23,11 @@ namespace Pulsar4X.JumpPoints
         [JsonProperty]
         public uint PointsRequired;
         [JsonProperty]
-        public SafeDictionary<int, uint> SurveyPointsRemaining;
+        public SafeDictionary<int, uint> SurveyPointsRemaining = new();
         [JsonProperty]
-        public Entity? JumpPointTo;
+        public Entity? JumpPointTo = Entity.InvalidEntity;
         [JsonProperty]
-        public string SystemToGuid;
+        public string? SystemToGuid;
         [JsonProperty]
         public double MinimumDistanceToJump_m;
 
@@ -37,7 +37,8 @@ namespace Pulsar4X.JumpPoints
         public JPSurveyableDB() { }
 
 
-        public JPSurveyableDB(uint pointsRequired, SafeDictionary<int, uint> pointsAccumulated, double minimumDistanceToJump_m): this(pointsRequired, pointsAccumulated, null, String.Empty, minimumDistanceToJump_m){
+        public JPSurveyableDB(uint pointsRequired, SafeDictionary<int, uint> pointsAccumulated, double minimumDistanceToJump_m) : this(pointsRequired, pointsAccumulated, null, String.Empty, minimumDistanceToJump_m)
+        {
 
         }
 
@@ -47,7 +48,7 @@ namespace Pulsar4X.JumpPoints
         public JPSurveyableDB(uint pointsRequired, SafeDictionary<int, uint> pointsAccumulated, Entity? jumpPointTo, string systemToGuid, double minimumDistanceToJump_m)
         {
             PointsRequired = pointsRequired;
-            SurveyPointsRemaining = new (pointsAccumulated);
+            SurveyPointsRemaining = new(pointsAccumulated);
             JumpPointTo = jumpPointTo;
             SystemToGuid = systemToGuid;
             MinimumDistanceToJump_m = minimumDistanceToJump_m;

@@ -41,17 +41,20 @@ namespace Pulsar4X.Client
 
         public void Enable(bool enable, GlobalUIState state)
         {
+            var mapRender = state.SelectedSysMapRender;
+            if (mapRender == null)
+                return;
 
             if (enable && !_isEnabled)
             {
-                if (!state.SelectedSysMapRender.SelectedEntityExtras.Contains(_debugWidget))
-                    state.SelectedSysMapRender.SelectedEntityExtras.Add(_debugWidget);
+                if (!mapRender.SelectedEntityExtras.Contains(_debugWidget))
+                    mapRender.SelectedEntityExtras.Add(_debugWidget);
                 _isEnabled = true;
             }
             else if (!enable && _isEnabled)
             {
-                if (state.SelectedSysMapRender.SelectedEntityExtras.Contains(_debugWidget))
-                    state.SelectedSysMapRender.SelectedEntityExtras.Remove(_debugWidget);
+                if (mapRender.SelectedEntityExtras.Contains(_debugWidget))
+                    mapRender.SelectedEntityExtras.Remove(_debugWidget);
                 _isEnabled = false;
             }
         }
@@ -89,7 +92,7 @@ namespace Pulsar4X.Client
             ImGui.SameLine();
             ImGui.Text("y" + _debugWidget.ViewScreenPos.Y);
 
-            if(ImGui.CollapsingHeader("MatrixArrow test"))
+            if (ImGui.CollapsingHeader("MatrixArrow test"))
             {
                 _debugWidget.SetArrowEnabled = true;
                 ImGui.SliderFloat("MatrixArrow Scale X", ref _debugWidget.MtxArwScaleX, -10, 10);
@@ -104,7 +107,7 @@ namespace Pulsar4X.Client
                 _debugWidget.SetArrowEnabled = false;
             }
 
-            if(ImGui.CollapsingHeader("Angle Arc test"))
+            if (ImGui.CollapsingHeader("Angle Arc test"))
             {
                 _debugWidget.SetAngleArcEnabled = true;
                 ImGui.Checkbox("Scales With Zoom", ref _debugWidget.Scales);
@@ -139,11 +142,11 @@ namespace Pulsar4X.Client
                 {
                     _ellipseEccentricity = (float)EllipseMath.EccentricityFromAxies(_ellipseA, _ellipseB);
                 }
-                if(ImGui.SliderFloat("b", ref _ellipseB, 25, _ellipseA))
+                if (ImGui.SliderFloat("b", ref _ellipseB, 25, _ellipseA))
                 {
                     _ellipseEccentricity = (float)EllipseMath.EccentricityFromAxies(_ellipseA, _ellipseB);
                 }
-                if(ImGui.SliderFloat("Eccentricity", ref _ellipseEccentricity, 0, 1f))
+                if (ImGui.SliderFloat("Eccentricity", ref _ellipseEccentricity, 0, 1f))
                 {
                     _ellipseB = (float)(_ellipseA * Math.Sqrt(1 - _ellipseEccentricity * _ellipseEccentricity));
                 }
@@ -232,7 +235,7 @@ namespace Pulsar4X.Client
         {
             set
             {
-                if(_keplerEllipseItem.Shape != null)
+                if (_keplerEllipseItem.Shape != null)
                     _keplerEllipseItem.Shape.Points = value;
             }
         }
@@ -240,7 +243,7 @@ namespace Pulsar4X.Client
         {
             set
             {
-                if(_keplerEllipseItem2.Shape != null)
+                if (_keplerEllipseItem2.Shape != null)
                     _keplerEllipseItem2.Shape.Points = value;
             }
         }
@@ -394,7 +397,7 @@ namespace Pulsar4X.Client
             {
                 NameString = "Ellipse",
                 IsEnabled = false,
-                Colour = ellipse2Colour ,
+                Colour = ellipse2Colour,
                 HighlightColour = ellipse2Colour,
                 DataItem = Angle.ToDegrees(MtxArwAngle),
                 DataString = Angle.ToDegrees(MtxArwAngle).ToString() + "°",
@@ -411,24 +414,24 @@ namespace Pulsar4X.Client
             };
             ElementItems.Add(_keplerEllipseItem2);
 
-            var bcp0 = new Vector2(0,0);
-            var bcp1 = new Vector2(0.5, 0) ;
-            var bcp2 = new Vector2(0, 0) ;
-            var bcp3 = new Vector2(0, 0.5) ;
-             _bc   = new BezierCurve(bcp0, bcp1, bcp2, bcp3);
-             _bc.SetLinePoints(0.01f);
+            var bcp0 = new Vector2(0, 0);
+            var bcp1 = new Vector2(0.5, 0);
+            var bcp2 = new Vector2(0, 0);
+            var bcp3 = new Vector2(0, 0.5);
+            _bc = new BezierCurve(bcp0, bcp1, bcp2, bcp3);
+            _bc.SetLinePoints(0.01f);
         }
 
         void UpdateElements()
         {
             foreach (var item in ElementItems)
             {
-                if(item.Shape == null) continue;
+                if (item.Shape == null) continue;
                 item.Shape.StartPoint = _ctrPnt;
                 item.Shape.Scales = Scales;
             }
 
-            if(_anglelineItem.Shape == null || _testAngleItem.Shape == null)
+            if (_anglelineItem.Shape == null || _testAngleItem.Shape == null)
                 throw new NullReferenceException();
 
             _anglelineItem.Shape.Points = new Orbital.Vector2[]
@@ -443,7 +446,7 @@ namespace Pulsar4X.Client
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
-            if(_bezEnabled)
+            if (_bezEnabled)
                 _bc.OnFrameUpdate(matrix, camera);
             UpdateElements();
 
@@ -456,12 +459,12 @@ namespace Pulsar4X.Client
             for (int index = 0; index < ElementItems.Count; index++)
             {
                 ElementItem item = ElementItems[index];
-                if(!item.IsEnabled)
+                if (!item.IsEnabled)
                     continue;
 
                 var shape = item.Shape;
 
-                if(shape == null || shape.Points == null)
+                if (shape == null || shape.Points == null)
                     throw new NullReferenceException();
 
                 var startPoint = matrix.TransformD(shape.StartPoint.X, shape.StartPoint.Y); //add zoom transformation.
@@ -489,7 +492,7 @@ namespace Pulsar4X.Client
             }
 
 
-            if(_mtxArwItem.IsEnabled && _mtxArwItem.Shape != null && _mtxArwItem.Shape.Points != null)
+            if (_mtxArwItem.IsEnabled && _mtxArwItem.Shape != null && _mtxArwItem.Shape.Points != null)
             {
                 Orbital.Vector2[] mtxArwPts = new Orbital.Vector2[_mtxArwItem.Shape.Points.Length];
                 var mm = Matrix.IDMirror(MtxArwMirrorX, MtxArwMirrorY);
@@ -515,7 +518,7 @@ namespace Pulsar4X.Client
         {
             foreach (var shape in DrawComplexShapes)
             {
-                if(shape.Colors == null || shape.ColourChanges == null || shape.Points == null) continue;
+                if (shape.Colors == null || shape.ColourChanges == null || shape.Points == null) continue;
 
                 int ci = 0;
                 var colour = shape.Colors[shape.ColourChanges[ci].colourIndex];
@@ -536,7 +539,7 @@ namespace Pulsar4X.Client
                     SDL.RenderLine(rendererPtr, x1, y1, x2, y2);
                 }
             }
-            if(_bezEnabled)
+            if (_bezEnabled)
                 _bc.Draw(rendererPtr, camera);
         }
     }

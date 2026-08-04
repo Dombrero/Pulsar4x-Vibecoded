@@ -39,7 +39,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
     // The mod list and the option catalog come from the lifecycle seam (composition-root work);
     // this window only holds the player's selections.
     IReadOnlyList<ModOption> _availableMods = Array.Empty<ModOption>();
-    Dictionary<string, bool> _modEnabled = new ();
+    Dictionary<string, bool> _modEnabled = new();
     NewGameCatalog? _catalog;
 
     string _selectedSpeciesId = "";
@@ -49,7 +49,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
     string _selectedColonyId = "";
     private bool _eleStart = true;
 
-    List<string> _enabledSystems = new ();
+    List<string> _enabledSystems = new();
 
     int _maxSystems = DEFAULT_NUM_SYSTEMS;
     int _startingFunds = 100_000_000;
@@ -75,7 +75,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
     internal static NewGameMenu GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<NewGameMenu>(out var window))
+        if (_uiState.TryGetUniqueWindow<NewGameMenu>(out var window))
         {
             return window;
         }
@@ -85,7 +85,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
 
         if (Window.Begin("New Game Setup", _flags | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoCollapse))
         {
@@ -98,7 +98,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
             // Calculate content area height (window height minus footer)
             _contentHeight = _windowSize.Y - _footerHeight;// - ImGui.GetFrameHeightWithSpacing();
 
-            switch(_currentPage)
+            switch (_currentPage)
             {
                 case Page.SelectMods:
                     DisplayModsPage();
@@ -132,7 +132,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         ImGui.BeginChild("ScrollingRegion", new Vector2(0, _contentHeight), ImGuiChildFlags.None);
 
         DisplayHelpers.Header("Select Mods to Enable");
-        if(ImGui.BeginTable("ModsList", 4, Styles.TableFlags))
+        if (ImGui.BeginTable("ModsList", 4, Styles.TableFlags))
         {
             ImGui.TableNextColumn();
             ImGui.TableHeader("Mod Name");
@@ -143,7 +143,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
             ImGui.TableNextColumn();
             ImGui.TableHeader("Enable?");
 
-            foreach(var mod in _availableMods)
+            foreach (var mod in _availableMods)
             {
                 ImGui.TableNextColumn();
                 ImGui.Text(mod.Name);
@@ -153,7 +153,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
                 ImGui.Text(mod.ManifestHash);
                 var isEnabled = _modEnabled[mod.Name];
                 ImGui.TableNextColumn();
-                if(ImGui.Checkbox("###" + mod.Name + "-checkbox", ref isEnabled))
+                if (ImGui.Checkbox("###" + mod.Name + "-checkbox", ref isEnabled))
                 {
                     _modEnabled[mod.Name] = isEnabled;
                 }
@@ -207,21 +207,21 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
         DisplayHelpers.Header("Select pre-configured Systems to include");
 
-        if(_catalog != null && ImGui.BeginTable("SystemsSelection", 2, Styles.TableFlags))
+        if (_catalog != null && ImGui.BeginTable("SystemsSelection", 2, Styles.TableFlags))
         {
             ImGui.TableSetupColumn("Name");
             ImGui.TableSetupColumn("Include");
             ImGui.TableHeadersRow();
 
-            foreach(var system in _catalog.Systems)
+            foreach (var system in _catalog.Systems)
             {
                 ImGui.TableNextColumn();
                 ImGui.Text(system.Name);
                 ImGui.TableNextColumn();
                 bool enabled = _enabledSystems.Contains(system.Id);
-                if(ImGui.Checkbox("###" + system.Id, ref enabled))
+                if (ImGui.Checkbox("###" + system.Id, ref enabled))
                 {
-                    if(!enabled)
+                    if (!enabled)
                         _enabledSystems.Remove(system.Id);
                     else
                         _enabledSystems.Add(system.Id);
@@ -264,11 +264,11 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         ImGui.InputText("Corporation Abbreviation", _corporationAbbreviationBuffer, SHORTNAME_BUFFER_SIZE);
 
         var display = _catalog.Species.FirstOrDefault(s => s.Id == _selectedSpeciesId)?.Name ?? "";
-        if(ImGui.BeginCombo("Select Species", display))
+        if (ImGui.BeginCombo("Select Species", display))
         {
-            foreach(var species in _catalog.Species)
+            foreach (var species in _catalog.Species)
             {
-                if(ImGui.Selectable(species.Name, _selectedSpeciesId.Equals(species.Id)))
+                if (ImGui.Selectable(species.Name, _selectedSpeciesId.Equals(species.Id)))
                 {
                     _selectedSpeciesId = species.Id;
                 }
@@ -277,11 +277,11 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         }
 
         display = _catalog.Themes.FirstOrDefault(t => t.Id == _selectedThemeId)?.Name ?? "";
-        if(ImGui.BeginCombo("Select Theme", display))
+        if (ImGui.BeginCombo("Select Theme", display))
         {
-            foreach(var theme in _catalog.Themes)
+            foreach (var theme in _catalog.Themes)
             {
-                if(ImGui.Selectable(theme.Name, _selectedThemeId.Equals(theme.Id)))
+                if (ImGui.Selectable(theme.Name, _selectedThemeId.Equals(theme.Id)))
                 {
                     _selectedThemeId = theme.Id;
                 }
@@ -290,11 +290,11 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         }
 
         display = _catalog.Colonies.FirstOrDefault(c => c.Id == _selectedColonyId)?.Name ?? "";
-        if(ImGui.BeginCombo("Starting Corporation Configuration", display))
+        if (ImGui.BeginCombo("Starting Corporation Configuration", display))
         {
-            foreach(var colony in _catalog.Colonies)
+            foreach (var colony in _catalog.Colonies)
             {
-                if(ImGui.Selectable(colony.Name, _selectedColonyId.Equals(colony.Id)))
+                if (ImGui.Selectable(colony.Name, _selectedColonyId.Equals(colony.Id)))
                 {
                     _selectedColonyId = colony.Id;
                 }
@@ -304,33 +304,33 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
         display = _catalog.Systems.FirstOrDefault(s => s.Id == _selectedSystemId)?.Name
             ?? (_selectedSystemId.Equals("random") ? "Randomly Generated" : "");
-        if(ImGui.BeginCombo("Select Starting System", display))
+        if (ImGui.BeginCombo("Select Starting System", display))
         {
-            foreach(var system in _catalog.Systems.Where(s => _enabledSystems.Contains(s.Id)))
+            foreach (var system in _catalog.Systems.Where(s => _enabledSystems.Contains(s.Id)))
             {
-                if(ImGui.Selectable(system.Name, _selectedSystemId.Equals(system.Id)))
+                if (ImGui.Selectable(system.Name, _selectedSystemId.Equals(system.Id)))
                 {
                     _selectedSystemId = system.Id;
                     ResetSelectedBodyId();
                 }
             }
             ImGui.Separator();
-            if(ImGui.Selectable("Randomly Generated", _selectedSystemId.Equals("random")))
+            if (ImGui.Selectable("Randomly Generated", _selectedSystemId.Equals("random")))
             {
                 _selectedSystemId = "random";
             }
             ImGui.EndCombo();
         }
 
-        if(!_selectedSystemId.Equals("random") && !string.IsNullOrEmpty(_selectedSystemId))
+        if (!_selectedSystemId.Equals("random") && !string.IsNullOrEmpty(_selectedSystemId))
         {
             var selectedSystem = _catalog.Systems.FirstOrDefault(s => s.Id == _selectedSystemId);
             display = selectedSystem?.StartingBodies.FirstOrDefault(b => b.Id == _selectedBodyId)?.Name ?? "";
-            if(selectedSystem != null && ImGui.BeginCombo("Select Starting Location", display))
+            if (selectedSystem != null && ImGui.BeginCombo("Select Starting Location", display))
             {
-                foreach(var body in selectedSystem.StartingBodies)
+                foreach (var body in selectedSystem.StartingBodies)
                 {
-                    if(ImGui.Selectable(body.Name, _selectedBodyId.Equals(body.Id)))
+                    if (ImGui.Selectable(body.Name, _selectedBodyId.Equals(body.Id)))
                     {
                         _selectedBodyId = body.Id;
                     }
@@ -355,7 +355,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
         ImGui.InputInt("Game Seed", ref _masterSeed);
         ImGui.InputInt("Galaxy Size", ref _maxSystems);
-        if(ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered())
         {
             DisplayHelpers.DescriptiveTooltip(
                 "Galaxy Size",
@@ -363,7 +363,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
                 "How many playable star systems the galaxy will have.");
         }
         ImGui.Checkbox("Include ELE", ref _eleStart);
-        if(ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered())
         {
             DisplayHelpers.DescriptiveTooltip(
                 "End of Life Event",
@@ -394,11 +394,11 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
     private List<string> EnabledModPaths()
     {
-        List<string> enabledMods = new ();
+        List<string> enabledMods = new();
 
-        foreach(var mod in _availableMods)
+        foreach (var mod in _availableMods)
         {
-            if(_modEnabled.TryGetValue(mod.Name, out bool enabled) && enabled)
+            if (_modEnabled.TryGetValue(mod.Name, out bool enabled) && enabled)
             {
                 enabledMods.Add(mod.ManifestPath);
             }
@@ -450,7 +450,7 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
 
     private void CancelButton()
     {
-        if(ImGui.Button("Cancel", new Vector2(_buttonWidth, 0)))
+        if (ImGui.Button("Cancel", new Vector2(_buttonWidth, 0)))
         {
             IsActive = false;
             MainMenuItems.GetInstance().SetActive(true);
@@ -458,13 +458,23 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
     }
 
     /// <summary>
+    /// Creates a new game instantly with default settings, bypassing the wizard.
+    /// Returns true if the game was activated successfully.
+    /// </summary>
+    public static bool TryQuickstartGame()
+    {
+        var activation = _uiState.Lifecycle?.Quickstart();
+        if (activation == null) return false;
+
+        _uiState.ActivateGameUI(activation);
+        return true;
+    }
+
+    /// <summary>
     /// Creates a new game instantly with default settings, bypassing the wizard
     /// </summary>
     public static void QuickstartGame()
     {
-        var activation = _uiState.Lifecycle?.Quickstart();
-        if (activation == null) return;
-
-        _uiState.ActivateGameUI(activation);
+        TryQuickstartGame();
     }
 }

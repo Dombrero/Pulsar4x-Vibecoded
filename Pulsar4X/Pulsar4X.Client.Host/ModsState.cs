@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -24,8 +24,8 @@ public class ModsState
         }
     }
 
-    public static List<ModMetaData> AvailableMods { get; private set; } = new ();
-    public static Dictionary<string, bool> IsModEnabled { get; private set; } = new ();
+    public static List<ModMetaData> AvailableMods { get; private set; } = new();
+    public static Dictionary<string, bool> IsModEnabled { get; private set; } = new();
 
     /// <summary>
     /// Clear the list of available mods
@@ -43,17 +43,17 @@ public class ModsState
     /// <param name="clearExistingMods">If true clears the list of existing mods</param>
     public static void RefreshModsList(string modsPath, bool clearExistingMods = true)
     {
-        if(clearExistingMods) ClearModList();
+        if (clearExistingMods) ClearModList();
 
-        foreach(var directory in Directory.GetDirectories(modsPath))
+        foreach (var directory in Directory.GetDirectories(modsPath))
         {
             // All mods must have a modInfo.json file that acts as the mod manifest
             var manifestPath = Path.Combine(directory, "modInfo.json");
-            if(File.Exists(manifestPath))
+            if (File.Exists(manifestPath))
             {
                 string manifestHash = GetSha1Hash(manifestPath);
                 var modManifest = JsonConvert.DeserializeObject<ModManifest>(File.ReadAllText(manifestPath));
-                if(modManifest != null)
+                if (modManifest != null)
                 {
 #if DEBUG
                     Console.WriteLine($"Found mod '{modManifest.ModName}' from {manifestPath}");

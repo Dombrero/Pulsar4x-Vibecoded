@@ -48,6 +48,12 @@ public static class WarpMath
     {
         public Vector3 position;
         public double T;
+
+        public Orbit(Vector3 position, double t)
+        {
+            this.position = position;
+            T = t;
+        }
     }
 
     public static (Vector3 position, DateTime etiDateTime) GetInterceptPosition(Entity mover, Entity target, DateTime atDateTime, Vector3 offsetPosition = new Vector3())
@@ -61,18 +67,16 @@ public static class WarpMath
         switch (tgtMoveType)
         {
             case PositionDB.MoveTypes.None:
-            {
-                var distance = (exitPos - moverPos).Length();
-                var intercept = ((Vector3)exitPos, atDateTime + TimeSpan.FromSeconds(distance / spd_m));
-                return intercept;
-                break;
-            }
+                {
+                    var distance = (exitPos - moverPos).Length();
+                    var intercept = ((Vector3)exitPos, atDateTime + TimeSpan.FromSeconds(distance / spd_m));
+                    return intercept;
+                }
             case PositionDB.MoveTypes.Orbit:
-            {
-                var intercept = WarpMath.GetInterceptPosition_m(moverPos, spd_m, target.GetDataBlob<OrbitDB>(), atDateTime, offsetPosition);
-                return intercept;
-                break;
-            }
+                {
+                    var intercept = WarpMath.GetInterceptPosition_m(moverPos, spd_m, target.GetDataBlob<OrbitDB>(), atDateTime, offsetPosition);
+                    return intercept;
+                }
             //For the following cases, we need to know if the target is an object which is owned by the same empire and we know what it's doing,
             //or if that info is unknown and how do we try predict?
             case PositionDB.MoveTypes.NewtonSimple:
@@ -130,7 +134,7 @@ public static class WarpMath
         dt = 0.01 * pl.T;
 
 
-        for (t=0; t< pl.T; t+=dt)
+        for (t = 0; t < pl.T; t += dt)
         {
             p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(t));  //pl.position(sim_t + t);                     // try time t
             p += offsetPosition;
@@ -159,7 +163,7 @@ public static class WarpMath
                 if ((a0 < a1) || (a1 < 0.0))
                 {
                     a1 = a0;
-                tim = tt;
+                    tim = tt;
                 }   // remember best option
             }
         // direction

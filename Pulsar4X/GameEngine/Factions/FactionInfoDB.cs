@@ -35,48 +35,48 @@ namespace Pulsar4X.Factions
         public int FactionMask => FactionMaskIndex >= 0 ? 1 << FactionMaskIndex : 0;
 
         [JsonProperty]
-        public Ledger Money { get; internal set; } = new ();
+        public Ledger Money { get; internal set; } = new();
 
         [JsonProperty]
         public FactionDataStore Data { get; internal set; } = new FactionDataStore();
 
         [JsonProperty]
-        public List<Entity> Species { get; internal set; } = new ();
+        public List<Entity> Species { get; internal set; } = new();
 
 
         [JsonProperty]
-        public List<string> KnownSystems { get; internal set; } = new ();
+        public List<string> KnownSystems { get; internal set; } = new();
 
         [JsonProperty]
-        public ReadOnlyDictionary<string, List<Entity>> KnownJumpPoints => new (InternalKnownJumpPoints);
+        public ReadOnlyDictionary<string, List<Entity>> KnownJumpPoints => new(InternalKnownJumpPoints);
         [JsonProperty]
-        internal Dictionary<string, List<Entity>> InternalKnownJumpPoints = new ();
+        internal Dictionary<string, List<Entity>> InternalKnownJumpPoints = new();
 
 
         [JsonProperty]
-        public List<Entity> KnownFactions { get; internal set; } = new ();
+        public List<Entity> KnownFactions { get; internal set; } = new();
 
 
         [PublicAPI]
         [JsonProperty]
-        public List<Entity> Colonies { get; internal set; } = new ();
+        public List<Entity> Colonies { get; internal set; } = new();
 
         [JsonProperty]
-        public SafeList<Entity> Commanders { get; internal set; } = new ();
+        public SafeList<Entity> Commanders { get; internal set; } = new();
 
         [JsonProperty]
-        public Dictionary<string, ShipDesign> ShipDesigns = new ();
+        public Dictionary<string, ShipDesign> ShipDesigns = new();
 
         [JsonProperty]
-        public Dictionary<string, OrdnanceDesign> MissileDesigns = new ();
+        public Dictionary<string, OrdnanceDesign> MissileDesigns = new();
 
         /// <summary>
         /// This includes non researched and not constructible designs.
         /// Does Not Include Refined Materials
         /// </summary>
-        public ReadOnlyDictionary<string, ComponentDesign> ComponentDesigns => new (InternalComponentDesigns);
+        public ReadOnlyDictionary<string, ComponentDesign> ComponentDesigns => new(InternalComponentDesigns);
         [JsonProperty]
-        internal Dictionary<string, ComponentDesign> InternalComponentDesigns = new ();
+        internal Dictionary<string, ComponentDesign> InternalComponentDesigns = new();
 
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace Pulsar4X.Factions
         /// Does Include Refined Materials.
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, IConstructableDesign> IndustryDesigns = new ();
+        public Dictionary<string, IConstructableDesign> IndustryDesigns = new();
 
 
 
@@ -93,17 +93,16 @@ namespace Pulsar4X.Factions
         /// stores sensor contacts for the entire faction, when a contact is created it gets added here.
         /// </summary>
         [JsonProperty]
-        internal Dictionary<int, SensorContact> SensorContacts = new ();
+        internal Dictionary<int, SensorContact> SensorContacts = new();
         [JsonProperty]
-        public Dictionary<EventType, bool> HaltsOnEvent { get; } = new ();
+        public Dictionary<EventType, bool> HaltsOnEvent { get; } = new();
 
         [JsonProperty]
-        private Dictionary<Entity, uint> FactionAccessRoles { get; set; } = new ();
-        internal ReadOnlyDictionary<Entity, AccessRole> AccessRoles => new (FactionAccessRoles.ToDictionary(kvp => kvp.Key, kvp => (AccessRole)kvp.Value));
+        private Dictionary<Entity, uint> FactionAccessRoles { get; set; } = new();
+        internal ReadOnlyDictionary<Entity, AccessRole> AccessRoles => new(FactionAccessRoles.ToDictionary(kvp => kvp.Key, kvp => (AccessRole)kvp.Value));
 
         [JsonProperty]
-        public IEventLog EventLog { get; internal set; }
-
+        public IEventLog? EventLog { get; internal set; }
         public FactionInfoDB()
         {
             var componentDesigns = new Dictionary<string, ComponentDesign>();

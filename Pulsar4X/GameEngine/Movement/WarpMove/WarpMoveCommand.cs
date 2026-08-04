@@ -26,7 +26,7 @@ namespace Pulsar4X.Movement
         {
             get
             {
-                if(_targetEntity == null || _entityCommanding == null)
+                if (!_targetEntity.IsValid || !_entityCommanding.IsValid)
                     return "Warp Move";
 
                 return "Warp Move to " + _targetEntity.GetName(_entityCommanding.FactionOwnerID);
@@ -42,7 +42,7 @@ namespace Pulsar4X.Movement
                 double travel_m = 0;
                 if (_warpingDB != null)
                     travel_m = (_warpingDB.ExitPointAbsolute - _warpingDB.EntryPointAbsolute).Length();
-                else if (_entityCommanding != null && _targetEntity != null)
+                else if (_entityCommanding.IsValid && _targetEntity.IsValid)
                 {
                     try
                     {
@@ -64,15 +64,15 @@ namespace Pulsar4X.Movement
         [JsonProperty]
         public int TargetEntityGuid { get; set; }
 
-        private Entity _targetEntity;
+        private Entity _targetEntity = Entity.InvalidEntity;
 
 
         [JsonIgnore]
-        Entity _factionEntity;
-        WarpMovingDB _warpingDB;
+        Entity _factionEntity = Entity.InvalidEntity;
+        WarpMovingDB? _warpingDB;
 
 
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
         public DateTime TransitStartDateTime;
@@ -82,7 +82,6 @@ namespace Pulsar4X.Movement
         /// the orbit we want to be in at the target.
         /// </summary>
         public KeplerElements EndpointTargetOrbit;
-
         public static bool CreateCommand(
             Entity orderEntity,
             Entity targetEntity,
@@ -95,7 +94,7 @@ namespace Pulsar4X.Movement
             {
                 RequestingFactionGuid = orderEntity.FactionOwnerID,
                 EntityCommandingGuid = orderEntity.Id,
-                CreatedDate = orderEntity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = orderEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 TargetEntityGuid = targetEntity.Id,
                 EndpointRelitivePosition = endpointRelativePos,
                 TransitStartDateTime = transitStartDatetime,
@@ -103,9 +102,9 @@ namespace Pulsar4X.Movement
             if (targetEntity.GetDataBlob<PositionDB>().MoveType != PositionDB.MoveTypes.None)
             {
                 var sgp = GeneralMath.StandardGravitationalParameter(targetEntity.GetDataBlob<MassVolumeDB>().MassTotal + orderEntity.GetDataBlob<MassVolumeDB>().MassTotal);
-                cmd.EndpointTargetOrbit = OrbitMath.KeplerCircularFromPosition(sgp, endpointRelativePos, datetimeArrive.Item2);;
+                cmd.EndpointTargetOrbit = OrbitMath.KeplerCircularFromPosition(sgp, endpointRelativePos, datetimeArrive.Item2); ;
             }
-            return orderEntity.Manager.Game.OrderHandler.HandleOrder(cmd);
+            return orderEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
         }
 
         /// <summary>
@@ -122,13 +121,13 @@ namespace Pulsar4X.Movement
             DateTime transitStartDatetime)
         {
             //if target is a colony, just make the target the parent planet.
-            if(targetEntity.TryGetDataBlob<ColonyInfoDB>(out ColonyInfoDB info))
-                targetEntity = info.PlanetEntity;
+            if (targetEntity.TryGetDataBlob<ColonyInfoDB>(out var colonyInfo) && colonyInfo is not null)
+                targetEntity = colonyInfo.PlanetEntity;
 
             (Vector3 pos, Vector3 vel) departureState;
             try
             {
-                if (orderEntity.Manager.Game.Settings.UseRelativeVelocity)
+                if (orderEntity.AttachedManager.Game.Settings.UseRelativeVelocity)
                     departureState = MoveMath.GetRelativeFutureState(orderEntity, transitStartDatetime);
                 else
                     departureState = MoveMath.GetAbsoluteState(orderEntity, transitStartDatetime);
@@ -149,7 +148,7 @@ namespace Pulsar4X.Movement
             {
                 RequestingFactionGuid = orderEntity.FactionOwnerID,
                 EntityCommandingGuid = orderEntity.Id,
-                CreatedDate = orderEntity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = orderEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 TargetEntityGuid = targetEntity.Id,
                 TransitStartDateTime = transitStartDatetime,
 
@@ -158,62 +157,68 @@ namespace Pulsar4X.Movement
             switch (targetEntity.GetDataBlob<PositionDB>().MoveType) //if the targetEntity's movetype is this:
             {
                 case PositionDB.MoveTypes.None: //this means it's a grav anomaly, jump point
-                {
-                    break;
-                }
+                    {
+                        break;
+                    }
                 case PositionDB.MoveTypes.Orbit:
-                {
-                    var sgp = OrbitMath.SGP(targetEntity, orderEntity);
-                    var lowOrbitRadius = OrbitMath.LowOrbitRadius(targetEntity);
-                    var perpVec = Vector3.Normalise(new Vector3(departureState.vel.Y * -1, departureState.vel.X, 0));
-                    var lowOrbitPos = perpVec * lowOrbitRadius;
-                    (Vector3 pos, DateTime eti) targetIntercept  = WarpMath.GetInterceptPosition(orderEntity, targetEntity, transitStartDatetime, lowOrbitPos);
-                    var lowOrbit = OrbitMath.KeplerCircularFromPosition(sgp, lowOrbitPos, targetIntercept.eti);
-                    var lowOrbitState = OrbitMath.GetStateVectors(lowOrbit, targetIntercept.eti);
-                    var targetEntityOrbitDb = targetEntity.GetDataBlob<OrbitDB>();
-                    Vector3 insertionVector = OrbitProcessor.GetOrbitalInsertionVector(departureState.vel, targetEntityOrbitDb, targetIntercept.eti);
-                    var deltaV = insertionVector - (Vector3)lowOrbitState.velocity;
+                    {
+                        var sgp = OrbitMath.SGP(targetEntity, orderEntity);
+                        var lowOrbitRadius = OrbitMath.LowOrbitRadius(targetEntity);
+                        var perpVec = Vector3.Normalise(new Vector3(departureState.vel.Y * -1, departureState.vel.X, 0));
+                        var lowOrbitPos = perpVec * lowOrbitRadius;
+                        (Vector3 pos, DateTime eti) targetIntercept = WarpMath.GetInterceptPosition(orderEntity, targetEntity, transitStartDatetime, lowOrbitPos);
+                        var lowOrbit = OrbitMath.KeplerCircularFromPosition(sgp, lowOrbitPos, targetIntercept.eti);
+                        var lowOrbitState = OrbitMath.GetStateVectors(lowOrbit, targetIntercept.eti);
+                        var targetEntityOrbitDb = targetEntity.GetDataBlob<OrbitDB>();
+                        Vector3 insertionVector = OrbitProcessor.GetOrbitalInsertionVector(departureState.vel, targetEntityOrbitDb, targetIntercept.eti);
+                        var deltaV = insertionVector - (Vector3)lowOrbitState.velocity;
 
-                    cmd.EndpointRelitivePosition = lowOrbitPos;
-                    cmd.EndpointTargetOrbit = lowOrbit;
-                    cmd.EndpointTargetExpendDeltaV = deltaV;
-                    break;
-                }
+                        cmd.EndpointRelitivePosition = lowOrbitPos;
+                        cmd.EndpointTargetOrbit = lowOrbit;
+                        cmd.EndpointTargetExpendDeltaV = deltaV;
+                        break;
+                    }
                 case PositionDB.MoveTypes.NewtonSimple:
-                {
-                    //recursive call here, if the target we're trying to go to is manuvering somewhere,
-                    //then just target that targets target...
-                    //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
-                    //but maybe we can guess it. idk.
-                    var wp = targetEntity.GetDataBlob<WarpMovingDB>();
-                    cmd = CreateCommandEZ(orderEntity, wp.TargetEntity, transitStartDatetime);
-                    break;
-                }
+                    {
+                        //recursive call here, if the target we're trying to go to is manuvering somewhere,
+                        //then just target that targets target...
+                        //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
+                        //but maybe we can guess it. idk.
+                        var wp = targetEntity.GetDataBlob<WarpMovingDB>();
+                        if (wp.TargetEntity is not { IsValid: true } nestedTarget)
+                            throw new InvalidOperationException("Warp target has no valid nested target.");
+                        cmd = CreateCommandEZ(orderEntity, nestedTarget, transitStartDatetime);
+                        break;
+                    }
                 case PositionDB.MoveTypes.NewtonComplex:
-                {
-                    //recursive call here, if the target we're trying to go to is manuvering somewhere,
-                    //then just target that targets target...
-                    //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
-                    //but maybe we can guess it. idk.
-                    var wp = targetEntity.GetDataBlob<WarpMovingDB>();
-                    cmd = CreateCommandEZ(orderEntity, wp.TargetEntity, transitStartDatetime);
-                    break;
-                }
+                    {
+                        //recursive call here, if the target we're trying to go to is manuvering somewhere,
+                        //then just target that targets target...
+                        //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
+                        //but maybe we can guess it. idk.
+                        var wp = targetEntity.GetDataBlob<WarpMovingDB>();
+                        if (wp.TargetEntity is not { IsValid: true } nestedTarget)
+                            throw new InvalidOperationException("Warp target has no valid nested target.");
+                        cmd = CreateCommandEZ(orderEntity, nestedTarget, transitStartDatetime);
+                        break;
+                    }
                 case PositionDB.MoveTypes.Warp:
-                {
-                    //recursive call here, if the target we're trying to go to is warping somewhere,
-                    //then just target that targets target...
-                    //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
-                    //but maybe we can guess it. idk.
-                    var wp = targetEntity.GetDataBlob<WarpMovingDB>();
-                    cmd = CreateCommandEZ(orderEntity, wp.TargetEntity, transitStartDatetime);
-                    break;
-                }
+                    {
+                        //recursive call here, if the target we're trying to go to is warping somewhere,
+                        //then just target that targets target...
+                        //TODO we should check if the target is another empire, in such case we probilby shouldn't know the target?
+                        //but maybe we can guess it. idk.
+                        var wp = targetEntity.GetDataBlob<WarpMovingDB>();
+                        if (wp.TargetEntity is not { IsValid: true } nestedTarget)
+                            throw new InvalidOperationException("Warp target has no valid nested target.");
+                        cmd = CreateCommandEZ(orderEntity, nestedTarget, transitStartDatetime);
+                        break;
+                    }
                 default:
                     throw new NotImplementedException();
             }
 
-            //orderEntity.Manager.Game.OrderHandler.HandleOrder(cmd);
+            //orderEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
 
 
             return cmd;
@@ -371,7 +376,7 @@ namespace Pulsar4X.Movement
         {
             if (WasCancelled)
                 return _isFinished = true;
-            if(_warpingDB != null)
+            if (_warpingDB != null)
                 _isFinished = _warpingDB.IsAtTarget;
             else
                 _isFinished = false;
@@ -406,13 +411,12 @@ namespace Pulsar4X.Movement
 
         public override string Details => "";
 
-        private Entity _entityCommanding;
+        private Entity _entityCommanding = Entity.InvalidEntity;
 
         internal override Entity EntityCommanding => _entityCommanding;
 
-        public Entity Target { get; set; }
-
-            List<WarpMoveCommand> _shipCommands = new List<WarpMoveCommand>();
+        public Entity Target { get; set; } = Entity.InvalidEntity;
+        List<WarpMoveCommand> _shipCommands = new List<WarpMoveCommand>();
 
         public override EntityCommand Clone()
         {
@@ -421,7 +425,7 @@ namespace Pulsar4X.Movement
 
         internal override bool IsFinished()
         {
-            if(!IsRunning)
+            if (!IsRunning)
                 return _isFinished = false;
 
             // Ship warps were preempted — stay in the fleet queue and re-dispatch later.
@@ -442,7 +446,7 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
 
             bool needsRedispatch = !IsRunning
                 || _shipCommands.Count == 0
@@ -460,20 +464,20 @@ namespace Pulsar4X.Movement
             _shipCommands.Clear();
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
 
-            foreach(var ship in ships)
+            foreach (var ship in ships)
             {
                 var shipParent = ship.GetDataBlob<PositionDB>().Parent;
-                if(shipParent == Target)
+                if (shipParent == Target)
                     continue;
                 if (Target.TryGetDataBlob<ColonyInfoDB>(out var colonyDB) && colonyDB.PlanetEntity == shipParent)
                     continue;
-                if(!ship.HasDataBlob<WarpAbilityDB>()) continue;
+                if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
 
                 try
                 {
                     var shipCommand = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
                     _shipCommands.Add(shipCommand);
-                    ship.Manager.Game.OrderHandler.HandleOrder(shipCommand);
+                    ship.AttachedManager.Game.OrderHandler.HandleOrder(shipCommand);
                 }
                 catch (Exception ex)
                 {

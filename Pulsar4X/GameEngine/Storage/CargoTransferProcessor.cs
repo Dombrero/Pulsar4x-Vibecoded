@@ -13,7 +13,6 @@ namespace Pulsar4X.Storage
     public class CargoTransferProcessor : IHotloopProcessor
     {
         public static CargoDefinitionsLibrary CargoDefs;
-
         public TimeSpan RunFrequency
         {
             get { return TimeSpan.FromMinutes(1); }
@@ -30,7 +29,7 @@ namespace Pulsar4X.Storage
         public int ProcessManager(EntityManager manager, int deltaSeconds)
         {
             List<CargoTransferDB> dblist = manager.GetAllDataBlobsOfType<CargoTransferDB>();
-            foreach(var db in dblist)
+            foreach (var db in dblist)
             {
                 ProcessEntity(db, deltaSeconds);
             }
@@ -44,6 +43,9 @@ namespace Pulsar4X.Storage
 
         public void ProcessEntity(CargoTransferDB transferDB, int deltaSeconds)
         {
+            if (!transferDB.IsPrimary)
+                return;
+
             try
             {
                 ProcessEntityCore(transferDB, deltaSeconds);
@@ -108,7 +110,7 @@ namespace Pulsar4X.Storage
                 //we use Ceiling here to signify whole part items not fully moved yet.
                 long itemsLeft = (long)Math.Ceiling(massLeft / itemMassPerUnit);
                 var countToXfer = tuple.count - itemsLeft;
-                escroList[index] = (cargoItem,itemsLeft, massLeft);
+                escroList[index] = (cargoItem, itemsLeft, massLeft);
 
                 //add items to cargo of seconddary entity store
                 moveTo.AddCargoByUnit(cargoItem, countToXfer);
@@ -198,18 +200,22 @@ namespace Pulsar4X.Storage
 
         internal static void UpdateMassFuelAndDeltaV(Entity entity)
         {
-            if(!entity.TryGetDataBlob(out NewtonThrustAbilityDB newtdb))
+            if (!entity.TryGetDataBlob<NewtonThrustAbilityDB>(out NewtonThrustAbilityDB? newtdb) || newtdb is null)
                 return;
-            if (!entity.TryGetDataBlob(out MassVolumeDB massdb))
+            if (!entity.TryGetDataBlob<MassVolumeDB>(out MassVolumeDB? massdb) || massdb is null)
                 return;
-            if(!entity.TryGetDataBlob(out CargoStorageDB storedb))
+            if (!entity.TryGetDataBlob<CargoStorageDB>(out CargoStorageDB? storedb) || storedb is null)
                 return;
 
             massdb.UpdateMassTotal();
             var cargoLib = entity.GetFactionCargoDefinitions();
+            if (cargoLib is null)
+                return;
             var fuelTypeID = newtdb.FuelType;
-            var fuelType = cargoLib.GetAny(fuelTypeID);
-            var fuelMass = storedb.GetMassStored(fuelType, false);
+            ICargoable? fuelType = cargoLib.GetAny(fuelTypeID);
+            if (fuelType is null)
+                return;
+            var fuelMass = CargoMath.GetMassStored(storedb, fuelType, false);
             newtdb.SetFuel(fuelMass, massdb.MassTotal);
         }
 
@@ -240,10 +246,10 @@ namespace Pulsar4X.Storage
             double r1;
             double r2;
 
-            Entity? soi1 = entity1.GetSOIParentEntity();
-            Entity? soi2 = entity2.GetSOIParentEntity();
+            Entity soi1 = entity1.GetSOIParentEntity();
+            Entity soi2 = entity2.GetSOIParentEntity();
 
-            if (soi1 is not null && soi2 is not null && soi1 == soi2)
+            if (soi1.IsValid && soi2.IsValid && soi1 == soi2)
             {
                 parent = soi1;
                 parentMass = parent.GetDataBlob<MassVolumeDB>().MassDry;
@@ -376,7 +382,7 @@ namespace Pulsar4X.Storage
                     maxXferAtMaxRange = fromdb.TransferRate;
             }
 
-            return(maxRange, maxXferAtMaxRange);
+            return (maxRange, maxXferAtMaxRange);
         }
     }
 }

@@ -241,7 +241,7 @@ namespace Pulsar4X.Orbital
         /// <summary>
         /// Returns a value that indicates whether this instance and a specified object are equal. (Overrides ValueType.Equals(Object).)
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is Vector3))
                 return false;
@@ -342,7 +342,7 @@ namespace Pulsar4X.Orbital
         {
             return left - right;
         }
-        
+
         /// <summary>Computes the Euclidean distance between the two given points.</summary>
         /// <param name="value1">The first point.</param>
         /// <param name="value2">The second point.</param>
@@ -374,7 +374,7 @@ namespace Pulsar4X.Orbital
         /// Returns the string representation of the current instance using the specified format string to format individual elements 
         /// and the specified format provider to define culture-specific formatting.
         /// </summary>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             return String.Format("({0}, {1}, {2})", X.ToString(format, formatProvider), Y.ToString(format, formatProvider),
                                                          Z.ToString(format, formatProvider));
@@ -477,7 +477,7 @@ namespace Pulsar4X.Orbital
         }
 
         #endregion
-        
+
         private string DebuggerDisplay
         {
             get
@@ -489,7 +489,7 @@ namespace Pulsar4X.Orbital
                 return $"(X:{strx},Y:{stry},Z:{strz}), Magnitude: {strmag})";
             }
         }
-        private static string ToReadableDistance(double length_m,  string format = "0.###")
+        private static string ToReadableDistance(double length_m, string format = "0.###")
         {
 
             string stringDistance = "0 m";

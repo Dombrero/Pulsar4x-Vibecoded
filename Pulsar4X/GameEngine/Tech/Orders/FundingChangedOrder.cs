@@ -17,7 +17,7 @@ public class FundingChangedOrder : EntityCommand
 
     internal override Entity EntityCommanding => _labEntity;
 
-    private Entity _labEntity;
+    private Entity _labEntity = Entity.InvalidEntity;
     private byte _fundingLevel;
 
     private FundingChangedOrder(Entity labEntity, byte fundingLevel)
@@ -38,10 +38,10 @@ public class FundingChangedOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+        if (!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
             return;
 
-        if(_fundingLevel < 0 || _fundingLevel > 5)
+        if (_fundingLevel < 0 || _fundingLevel > 5)
             return;
 
         researcherDB.FundingLevel = _fundingLevel;
@@ -52,7 +52,7 @@ public class FundingChangedOrder : EntityCommand
                     atDateTime,
                     "Funding level changed",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _labEntity.Id));
     }
 

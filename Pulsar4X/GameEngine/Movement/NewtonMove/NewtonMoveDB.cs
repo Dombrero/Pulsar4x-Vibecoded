@@ -22,14 +22,14 @@ namespace Pulsar4X.Movement
         /// </summary>
         /// <value></value>
         [JsonProperty]
-        public Vector3 ManuverDeltaV {get; internal set;}
+        public Vector3 ManuverDeltaV { get; internal set; }
 
         /// <summary>
         /// Just returns the lengths of the manuver deltaV
         /// </summary>
         /// <returns></returns>
         [JsonProperty]
-        public double ManuverDeltaVLen {get{return ManuverDeltaV.Length();}}
+        public double ManuverDeltaVLen { get { return ManuverDeltaV.Length(); } }
         /// <summary>
         /// Orbital Frame Of Reference: Y is prograde
         /// </summary>
@@ -44,16 +44,13 @@ namespace Pulsar4X.Movement
         public Vector3 CurrentVector_ms { get; internal set; }
 
         public Vector2 _position;
-
         [JsonProperty]
-        public Entity SOIParent { get; internal set; }
-
+        public Entity SOIParent { get; internal set; } = Entity.InvalidEntity;
         [JsonProperty]
         public double ParentMass { get; internal set; }
 
         [JsonProperty]
         private KeplerElements _ke;
-
         internal void UpdateKeplerElements(KeplerElements ke)
         {
             _ke = ke;
@@ -83,7 +80,7 @@ namespace Pulsar4X.Movement
             SOIParent = sphereOfInfluenceParent;
             ManuverDeltaV = manuverDeltaV;
             ParentMass = SOIParent.GetDataBlob<MassVolumeDB>().MassDry;
-            LastProcessDateTime = sphereOfInfluenceParent.Manager.ManagerSubpulses.StarSysDateTime;
+            LastProcessDateTime = sphereOfInfluenceParent.AttachedManager.ManagerSubpulses.StarSysDateTime;
         }
 
         /// <summary>
@@ -96,7 +93,7 @@ namespace Pulsar4X.Movement
             CurrentVector_ms = velocity_ms;
             SOIParent = sphereOfInfluenceParent;
             ParentMass = SOIParent.GetDataBlob<MassVolumeDB>().MassDry;
-            LastProcessDateTime = sphereOfInfluenceParent.Manager.ManagerSubpulses.StarSysDateTime;
+            LastProcessDateTime = sphereOfInfluenceParent.AttachedManager.ManagerSubpulses.StarSysDateTime;
 
         }
 
@@ -127,7 +124,7 @@ namespace Pulsar4X.Movement
             {
                 OwningEntity.RemoveDataBlob<WarpMovingDB>();
             }
-            if(OwningEntity.HasDataBlob<MassVolumeDB>())
+            if (OwningEntity.HasDataBlob<MassVolumeDB>())
             {
                 UpdateKeplerElements();
             }

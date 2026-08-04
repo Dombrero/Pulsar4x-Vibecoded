@@ -12,7 +12,7 @@ namespace Pulsar4X.DataStructures
         [JsonProperty]
         public int[] BackingValues { get; internal set; }
         private const int BitsPerValue = 32;
-        public List<int> SetBits;
+        public List<int> SetBits = new();
 
         public int Length { get; private set; }
 
@@ -155,7 +155,7 @@ namespace Pulsar4X.DataStructures
 
             BackingValues = new int[requiredBackingValues];
 
-            for (int i = 0; i < BackingValues.Length; i++ )
+            for (int i = 0; i < BackingValues.Length; i++)
             {
                 BackingValues[i] = 0;
             }
@@ -234,6 +234,11 @@ namespace Pulsar4X.DataStructures
     {
         public override void WriteJson(JsonWriter writer, ComparableBitArray? value, JsonSerializer serializer)
         {
+            if (value is null)
+            {
+                writer.WriteNull();
+                return;
+            }
             var jObject = new JObject
             {
                 { "BackingValues", JToken.FromObject(value.BackingValues) },
@@ -245,15 +250,17 @@ namespace Pulsar4X.DataStructures
         public override ComparableBitArray? ReadJson(JsonReader reader, Type objectType, ComparableBitArray? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             var jObject = JObject.Load(reader);
-            int[]? backingValues = jObject["BackingValues"].ToObject<int[]>();
+            int[]? backingValues = jObject["BackingValues"]?.ToObject<int[]>();
             int? length = jObject["Length"]?.Value<int>();
+            if (backingValues is null || length is null)
+                throw new JsonSerializationException("ComparableBitArray missing BackingValues or Length.");
 
             // Use the private constructor to create the ComparableBitArray instance
             var bitArrayInstance = (ComparableBitArray?)Activator.CreateInstance(typeof(ComparableBitArray),
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
-                null, new object[] { backingValues, length }, null);
+                null, new object[] { backingValues, length.Value }, null);
 
-            return bitArrayInstance;
+            return bitArrayInstance ?? throw new JsonSerializationException("Failed to construct ComparableBitArray.");
         }
     }
 }

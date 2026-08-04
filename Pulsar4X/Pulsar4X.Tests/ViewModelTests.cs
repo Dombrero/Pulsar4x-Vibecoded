@@ -1,4 +1,4 @@
-﻿// using NUnit.Framework;
+// using NUnit.Framework;
 // using Pulsar4X.ECSLib;
 // using System;
 // using System.Collections.Generic;
@@ -12,7 +12,7 @@
 //     [Description("ViewModel and Generic Game Tests")]
 //     class ViewModelTests
 //     {
-//         // private Game _game;
+//         // private Game _game = null;
 //         private GameVM _gameVM;
 //         // private NewGameOptionsVM _newGameOptions;
 

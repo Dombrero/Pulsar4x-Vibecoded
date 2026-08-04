@@ -36,12 +36,12 @@ public class GeoSurveyOrder : EntityCommand
         ? "Surveying at target."
         : "Moving to survey target before scanning.";
 
-    public Entity Target { get; private set; }
+    public Entity Target { get; set; } = Entity.InvalidEntity;
     public GeoSurveyableDB? TargetGeoSurveyDB { get; private set; } = null;
     public DateTime? PreviousUpdate { get; private set; } = null;
     public GeoSurveyProcessor? Processor { get; private set; } = null;
 
-    private Entity _entityCommanding;
+    private Entity _entityCommanding = Entity.InvalidEntity;
     private readonly List<WarpMoveCommand> _travelCommands = new();
     private bool _surveyStarted;
 
@@ -174,56 +174,61 @@ public class GeoSurveyOrder : EntityCommand
             _entityCommanding.RemoveDataBlob<GeoSurveyingDB>();
     }
 
-        private void EnsureTravel(DateTime atDateTime)
+    private void EnsureTravel(DateTime atDateTime)
+    {
+        if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+            return;
+
+        // Still warping toward this target — wait; do not stack another hop.
+        if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
+            return;
+
+        bool needsRedispatch = _travelCommands.Count == 0
+            || _travelCommands.Any(c => c.WasCancelled)
+            || _travelCommands.All(c =>
+                !c.EntityCommanding.TryGetDataBlob<OrderableDB>(out var shipOrders)
+                || !shipOrders.ActionList.Contains(c));
+
+        if (!needsRedispatch)
+            return;
+
+        var shipsNeedingTravel = fleetDB.Children
+            .Where(c => c.HasDataBlob<ShipInfoDB>()
+                        && c.HasDataBlob<WarpAbilityDB>()
+                        && !FleetOrderCleanup.IsShipAtBody(c, Target))
+            .ToList();
+
+        if (shipsNeedingTravel.Count == 0)
+            return;
+
+        // Leaving the current body for survey — clear cargo so Movement is free for warp.
+        FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
+
+        _travelCommands.Clear();
+
+        if (!Target.IsValid)
+            return;
+
+        Entity surveyTarget = Target;
+
+        foreach (var ship in shipsNeedingTravel)
         {
-            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return;
-
-            // Still warping toward this target — wait; do not stack another hop.
-            if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
-                return;
-
-            bool needsRedispatch = _travelCommands.Count == 0
-                || _travelCommands.Any(c => c.WasCancelled)
-                || _travelCommands.All(c =>
-                    !c.EntityCommanding.TryGetDataBlob<OrderableDB>(out var shipOrders)
-                    || !shipOrders.ActionList.Contains(c));
-
-            if (!needsRedispatch)
-                return;
-
-            var shipsNeedingTravel = fleetDB.Children
-                .Where(c => c.HasDataBlob<ShipInfoDB>()
-                            && c.HasDataBlob<WarpAbilityDB>()
-                            && !FleetOrderCleanup.IsShipAtBody(c, Target))
-                .ToList();
-
-            if (shipsNeedingTravel.Count == 0)
-                return;
-
-            // Leaving the current body for survey — clear cargo so Movement is free for warp.
-            FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
-
-            _travelCommands.Clear();
-
-            foreach (var ship in shipsNeedingTravel)
+            try
             {
-                try
+                var cmd = WarpMoveCommand.CreateCommandEZ(ship, surveyTarget, atDateTime);
+                _travelCommands.Add(cmd);
+                if (!ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd))
                 {
-                    var cmd = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
-                    _travelCommands.Add(cmd);
-                    if (!ship.Manager.Game.OrderHandler.HandleOrder(cmd))
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"GeoSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"GeoSurvey travel failed for ship {ship.Id}: {ex}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"GeoSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GeoSurvey travel failed for ship {ship.Id}: {ex}");
+            }
         }
+    }
 
     internal override bool IsValidCommand(Game game)
         => TargetGeoSurveyDB != null;

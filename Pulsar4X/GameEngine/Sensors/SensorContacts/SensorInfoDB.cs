@@ -19,9 +19,9 @@ namespace Pulsar4X.Sensors
         [JsonProperty]
         internal int FactionId;
         [JsonIgnore]
-        public Entity DetectedEntity; //the actual entity that we've detected.
+        public Entity DetectedEntity = Entity.InvalidEntity; //the actual entity that we've detected.
         [JsonProperty]
-        internal SensorContact SensorContact;
+        internal SensorContact? SensorContact;
         [JsonProperty]
         internal DateTime LastDetection; //the datetime of teh last detection
         [JsonProperty]

@@ -20,9 +20,9 @@ public partial class DamageMap
     public TimeSpan RunTime = TimeSpan.Zero;
     private Dictionary<string, ushort> componentIDLookup = new();
 
-    
+
     public Dictionary<string, ((int x, int y) Position, (int x, int y) Size, int totalParticles)> componentData = new();
-    
+
     internal ushort _nextComponentID = 0;
 
     public double TotalEnergy = 0;
@@ -30,11 +30,11 @@ public partial class DamageMap
     public int ParticlesPerMeter = 100; //default non physics scale. 
     int _pixBuf = 10; //this is just how much space we're leaving around the edges. 
     private int _armorHeadspace = 2; //space between skin and componenents.
-    public PhysicalParticle[] PMap;
+    public PhysicalParticle?[] PMap;
     public List<BeamPoint> BeamStarts = new();
     public List<BeamPoint> BeamPoints = new();
     public int[] compIDMap; //componentInstance Map.
-    public float[] PresMap; //pressure in bar
+    public float[] PresMap; //pressure in? bar
     public int Width;
     public int Height;
     public int X = 0;
@@ -43,17 +43,18 @@ public partial class DamageMap
     {
         Width = width;
         Height = height;
-        PMap = new PhysicalParticle[Width * Height];
+        PMap = new PhysicalParticle?[Width * Height];
         PresMap = new float[Width * Height];
+        compIDMap = new int[Width * Height];
     }
-    public DamageMap(int posX, int posY , Vector2 velocity, int width, int height, ParticleMaterial material)
+    public DamageMap(int posX, int posY, Vector2 velocity, int width, int height, ParticleMaterial material)
     {
         X = posX;
         Y = posY;
         Width = width;
         Height = height;
         compIDMap = new int[Width * Height];
-        PMap = new PhysicalParticle[Width * Height];
+        PMap = new PhysicalParticle?[Width * Height];
         PresMap = new float[Width * Height];
         // Let's create a simple projectile shape, like a bullet or missile
         for (int y = 0; y < height; y++)
@@ -65,7 +66,7 @@ public partial class DamageMap
                 {
                     int index = y * width + x;
                     compIDMap[index] = _nextComponentID;
-                    var newPart = new PhysicalParticle(_nextComponentID, material, new Vector2(x,y), velocity, ParticlesPerMeter);
+                    var newPart = new PhysicalParticle(_nextComponentID, material, new Vector2(x, y), velocity, ParticlesPerMeter);
                     newPart.mapIndex = index;
                     PMap[index] = newPart;
                     PresMap[index] = 1.0f; // Assuming atmospheric pressure for simplicity
@@ -73,7 +74,7 @@ public partial class DamageMap
                 // If you want a more complex shape, you can use conditions here to define where particles exist
             }
         }
-        componentIDLookup.Add("projectile"+_nextComponentID, _nextComponentID);
+        componentIDLookup.Add("projectile" + _nextComponentID, _nextComponentID);
         _nextComponentID++;
     }
 
@@ -86,21 +87,21 @@ public partial class DamageMap
         Height = ParticlesPerMeter;
         Width = ParticlesPerMeter;
         compIDMap = new int[Width * Height];
-        PMap = new PhysicalParticle[Width * Height];
+        PMap = new PhysicalParticle?[Width * Height];
         PresMap = new float[Width * Height];
-        
+
         for (int y = 0; y < Height; y++)
         {
             for (int x = 0; x < Width; x++)
             {
                 int index = y * Width + x;
                 compIDMap[index] = part.compID;
-                var newPart = new PhysicalParticle(part.compID, part.MatType, new Vector2(x,y), part.Velocity, ParticlesPerMeter);
+                var newPart = new PhysicalParticle(part.compID, part.MatType, new Vector2(x, y), part.Velocity, ParticlesPerMeter);
                 newPart.mapIndex = index;
                 newPart.Temperature = part.Temperature;
                 PMap[index] = newPart;
                 PresMap[index] = map.PresMap[part.mapIndex];
-                
+
             }
         }
         part.DMap = this;
@@ -108,7 +109,7 @@ public partial class DamageMap
 
     public ushort GenerateNewCompID(string strID)
     {
-        componentIDLookup.Add(strID+_nextComponentID, _nextComponentID);
+        componentIDLookup.Add(strID + _nextComponentID, _nextComponentID);
         _nextComponentID++;
         return (ushort)(_nextComponentID - 1);
     }
@@ -119,7 +120,7 @@ public partial class DamageMap
         componentIDLookup.Add(strID, intID);
         _nextComponentID++;
         //componentIDLookupByIntID.Add(intID, (strID, htkpp));
-        
+
     }
 
     /// <summary>
@@ -134,13 +135,13 @@ public partial class DamageMap
         X = posX;
         Y = posY;
         //var range = (beamInfo.LaunchPosition - beamInfo.Positions.Item1).Length();
-        
-        
+
+
         Width = 10; // Example width, set as needed
         Height = 10; // Example height, set as needed
 
         compIDMap = new int[Width * Height];
-        PMap = new PhysicalParticle[Width * Height];
+        PMap = new PhysicalParticle?[Width * Height];
         PresMap = new float[Width * Height];
         int length = 5; //todo change this to dispersion from range.
         // Launch position is transformed into this smaller map's local coordinate space
@@ -168,33 +169,33 @@ public partial class DamageMap
         }
     }
 
-    
+
     public DamageMap(Entity shipEntity, ShipDesign design)
     {
-        Random rng = shipEntity.Manager.RNG;
-        var modData = shipEntity.Manager.Game.StartingGameData;
- 
+        Random rng = shipEntity.AttachedManager.RNG;
+        var modData = shipEntity.AttachedManager.Game.StartingGameData;
+
         var armor = design.Armor;
         List<(ComponentDesign design, int count)> placementOrder = design.Components;
         List<(ComponentDesign design, float len, int height, int count)> partSizes = SetSize(placementOrder, ParticlesPerMeter);
         Dictionary<string, List<ComponentInstance>> componentInstances = shipEntity.GetDataBlob<ComponentInstancesDB>().ComponentsByDesign;
-        
+
         int centerY = Height / 2;
         int currentX = _pixBuf + _armorHeadspace; // Start at the buffer size for the left side
-        
+
         int partSizesIndex = 0;
         foreach (var partSize in partSizes)
         {
             List<ComponentInstance> instanceIDs = componentInstances[partSize.design.UniqueID];
             var mats = ParticleHelpers.GetMaterialsList(modData, partSize.design);
-            
+
             int partHeight = partSize.height;
             int partLength = (int)Math.Round(partSize.len);
             int evenStackHeight = partHeight * partSize.count;
             if (int.IsOddInteger(evenStackHeight))
                 evenStackHeight++;
             int stackCenterY = centerY - evenStackHeight / 2;
-            
+
             for (int i = 0; i < partSize.count; i++)
             {
                 string instanceID = instanceIDs[i].UniqueID; // Get the corresponding instanceID
@@ -206,7 +207,7 @@ public partial class DamageMap
                 {
                     if (actualY + y >= Height)
                         throw new Exception("Outside the height of the array.(more than height)");
-                    if(actualY + y < 0)
+                    if (actualY + y < 0)
                         throw new Exception("Outside the height of the array. (less than 0)");
                     for (int x = 0; x < partLength; x++)
                     {
@@ -238,42 +239,42 @@ public partial class DamageMap
 
             partSizesIndex++;
         }
-        
+
         List<int> lineHeight = new List<int>();
 
         int numparts = partSizes.Count;
-        
+
         //Grabs the height of each transtion between parts
 
-        
+
         int height0 = 0;
-        int height1 =(partSizes[0].height * partSizes[0].count / 2);
+        int height1 = (partSizes[0].height * partSizes[0].count / 2);
         for (int partnum = 0; partnum < numparts - 1; partnum++)
         {
             if (height0 > height1)
-                lineHeight.Add( height0);
+                lineHeight.Add(height0);
             else
-                lineHeight.Add( height1);
+                lineHeight.Add(height1);
             height0 = partSizes[partnum].height * partSizes[partnum].count / 2;
             height1 = partSizes[partnum + 1].height * partSizes[partnum + 1].count / 2;
         }
-        lineHeight.Add( height1);
-        
+        lineHeight.Add(height1);
+
         List<(int x, int y)> armorVertex = new();
         int currentx = _pixBuf - (int)(armor.thickness);
         armorVertex.Add((currentx, 0));
         armorVertex.Add((currentx, lineHeight[0] + _armorHeadspace));
         currentx += (int)Math.Round(partSizes[0].len) + _armorHeadspace;
-        
+
         for (int partnum = 1; partnum < numparts; partnum++)
         {
             armorVertex.Add((currentx, lineHeight[partnum] + _armorHeadspace));
             currentx += (int)Math.Round(partSizes[partnum].len);
         }
 
-        
-        armorVertex.Add((currentx, lineHeight[numparts-1] + _armorHeadspace));
-        
+
+        armorVertex.Add((currentx, lineHeight[numparts - 1] + _armorHeadspace));
+
         ParticleMaterial amMat = new ParticleMaterial()
         {
             TensileStrength = armor.type.TensileStrength,
@@ -290,14 +291,14 @@ public partial class DamageMap
             PhotonTransperencyPeak = armor.type.PhotonTransparencyPeak
         };
 
-        for (int index = 0; index < armorVertex.Count-1; index++)
+        for (int index = 0; index < armorVertex.Count - 1; index++)
         {
             (int x, int y) av0 = armorVertex[index];
-            (int x, int y) av1 = armorVertex[index+1];
-            DrawWuArmorSegment(this, av0, av1,armor.thickness / ParticlesPerMeter, amMat);
+            (int x, int y) av1 = armorVertex[index + 1];
+            DrawWuArmorSegment(this, av0, av1, armor.thickness / ParticlesPerMeter, amMat);
         }
     }
-    
+
     private static void DrawWuArmorSegment(DamageMap map, (int x, int y) coordStart, (int x, int y) coordEnd, float thickness, ParticleMaterial mat)
     {
         thickness = 0.5f;
@@ -308,7 +309,7 @@ public partial class DamageMap
         int centerY = map.Height / 2;
         int deltax = Math.Abs(x1 - x0);
         int deltay = Math.Abs(y1 - y0);
-        
+
         List<(float x, float y, float alpha)> points = new();
 
         if (deltax > deltay)
@@ -349,21 +350,21 @@ public partial class DamageMap
         {
             for (int i = -(int)(thickness / 2); i <= (int)(thickness / 2); i++)
             {
-                if(point.alpha == 0)
+                if (point.alpha == 0)
                     continue;
                 DrawPoint(map, centerY, point.x, point.y + i, point.alpha * maxAlpha, mat);
                 DrawPoint(map, centerY, point.x, -(point.y + i + 1), point.alpha * maxAlpha, mat); // Mirroring
             }
         }
     }
-    
+
 
     private static void DrawPoint(DamageMap map, int centerY, float x, float y, float alpha, ParticleMaterial mat)
     {
         Vector2 pos = new Vector2(x, centerY + y);
         var pmapIndex = map.GetIndex(pos);
         map.compIDMap[pmapIndex] = map._nextComponentID;
-        
+
         var newPart = new PhysicalParticle(map._nextComponentID, mat, pos, Vector2.Zero, map.ParticlesPerMeter)
         {
             mapIndex = pmapIndex
@@ -372,8 +373,8 @@ public partial class DamageMap
         newPart.Mass *= alpha;
         map.PMap[pmapIndex] = newPart;
     }
-    
-    private List<(ComponentDesign design, float len, int height, int count)> SetSize(List<(ComponentDesign design, int count)> po, int scale )
+
+    private List<(ComponentDesign design, float len, int height, int count)> SetSize(List<(ComponentDesign design, int count)> po, int scale)
     {
         List<(ComponentDesign design, float len, int height, int count)> partsize = new();
         int componentWidthNum = 0;
@@ -381,13 +382,11 @@ public partial class DamageMap
         int totalLen = 0;
         int totalHeight = 0;
 
-        byte componentInstance = 0;
-
         for (int i = 0; i < po.Count; i++)
         {
             var count = po[i].count;
-            var compSize= DamageMapHelpers.GetComponentSize(po[i].design, scale);
-            
+            var compSize = DamageMapHelpers.GetComponentSize(po[i].design, scale);
+
             var evenHeight = (int)Math.Ceiling(compSize.height);
             if (int.IsOddInteger(evenHeight)) //make heights even to simplify placement. 
                 evenHeight++;
@@ -401,18 +400,18 @@ public partial class DamageMap
                 totalHeight = height;
             }
         }
-        
+
         Height = totalHeight + _pixBuf * 2; //create a bit larger canvas size for the armor.
         Width = totalLen + _pixBuf * 2;
-        
+
         //lets make it always even for consistancy.
         if (int.IsOddInteger(Height))
             Height++;
         if (int.IsOddInteger(Width))
             Width++;
-        
+
         int arraylen = Width * Height;
-        PMap = new PhysicalParticle[arraylen];
+        PMap = new PhysicalParticle?[arraylen];
         PresMap = new float[arraylen];
         compIDMap = new int[arraylen];
         return partsize;
@@ -437,11 +436,11 @@ public partial class DamageMap
         return (index % Width, index / Width);
     }
 
-    public PhysicalParticle[] GetImediateParticles(PhysicalParticle particle)
+    public PhysicalParticle?[] GetImediateParticles(PhysicalParticle particle)
     {
-        var array = new PhysicalParticle[9];
+        var array = new PhysicalParticle?[9];
         var ctr = GetIndex(particle);
-        array[0] = PMap[ctr - Width -1];
+        array[0] = PMap[ctr - Width - 1];
         array[1] = PMap[ctr - Width];
         array[2] = PMap[ctr - Width + 1];
         array[3] = PMap[ctr - 1];
@@ -451,11 +450,11 @@ public partial class DamageMap
         array[7] = PMap[ctr + Width];
         array[8] = PMap[ctr + Width + 1];
         return array;
-        
-    }
-    
 
-    
+    }
+
+
+
     public static T GetItem<T>(object[] ary, int aryWid, int x, int y)
     {
         int row = y * aryWid;
@@ -488,7 +487,7 @@ public partial class DamageMap
 
             // Create new arrays for storing merged data
             int[] newIDMap = new int[newWidth * newHeight];
-            PhysicalParticle[] newPMap = new PhysicalParticle[newWidth * newHeight];
+            PhysicalParticle?[] newPMap = new PhysicalParticle?[newWidth * newHeight];
             float[] newPresMap = new float[newWidth * newHeight];
             var newComponentData = new Dictionary<string, ((int, int) Position, (int, int) Size, int TotalParticles)>();
             // Offset for placing particles from this map
@@ -511,15 +510,14 @@ public partial class DamageMap
                     int oldIndex = GetIndex(x, y);
                     int newIndex = (y + offsetY) * newWidth + (x + offsetX);
                     newIDMap[newIndex] = compIDMap[oldIndex];
-                    if (PMap[oldIndex] != null)
+                    if (PMap[oldIndex] is { } existingParticle)
                     {
-                        var p = PMap[oldIndex];
-                        p.mapIndex = newIndex;
-                        newPMap[newIndex] = p;
-                        var tempPosition = newPMap[newIndex].Position;
+                        existingParticle.mapIndex = newIndex;
+                        newPMap[newIndex] = existingParticle;
+                        var tempPosition = existingParticle.Position;
                         tempPosition.X += offsetX;
                         tempPosition.Y += offsetY;
-                        newPMap[newIndex].Position = tempPosition;
+                        existingParticle.Position = tempPosition;
                     }
 
                     newPresMap[newIndex] = PresMap[oldIndex];
@@ -540,12 +538,11 @@ public partial class DamageMap
                     {
                         newIDMap[newIndex] = otherMap.compIDMap[otherIndex];
                         newPresMap[newIndex] = otherMap.PresMap[otherIndex];
-                        if (otherMap.PMap[otherIndex] != null)
+                        if (otherMap.PMap[otherIndex] is { } otherParticle)
                         {
-                            var p = otherMap.PMap[otherIndex];
-                            p.mapIndex = newIndex;
-                            newPMap[newIndex] = p;
-                            newPMap[newIndex].Position = new(newX, newY);
+                            otherParticle.mapIndex = newIndex;
+                            newPMap[newIndex] = otherParticle;
+                            otherParticle.Position = new(newX, newY);
                         }
 
                     }
@@ -604,7 +601,7 @@ public static class DamageMapHelpers
         float height = (float)(area / length);
         return (length, height);
     }
-    
+
     internal static DamageMap DownscaleHighResMap(DamageMap highResMap, int targetPPM)
     {
         float scaleFactor = (float)highResMap.ParticlesPerMeter / targetPPM; // e.g., 1000/10 = 100
@@ -615,7 +612,7 @@ public static class DamageMapHelpers
         DamageMap downscaledMap = new DamageMap(newWidth, newHeight);
         downscaledMap.X = highResMap.X / (int)scaleFactor;
         downscaledMap.Y = highResMap.Y / (int)scaleFactor;
-        
+
         downscaledMap.ParticlesPerMeter = targetPPM;
 
         // Aggregate high-res particles into low-res grid
@@ -633,7 +630,7 @@ public static class DamageMapHelpers
                 float avgTemp = 0;
                 float avgPressure = 0;
                 int particleCount = 0;
-                PhysicalParticle firstParticle = null;
+                PhysicalParticle? firstParticle = null;
 
                 // Collect stats from the high-res block
                 for (int dy = 0; dy < blockSize && (highYBase + dy) < highResMap.Height; dy++)
@@ -644,7 +641,9 @@ public static class DamageMapHelpers
                         if (highResMap.PMap[highIndex] != null)
                         {
                             var p = highResMap.PMap[highIndex];
-                            if (firstParticle == null) firstParticle = p; // Use first for ID and material
+                            if (p is null)
+                                continue;
+                            if (firstParticle is null) firstParticle = p;
                             avgVelocity += p.Velocity;
                             totalMass += p.Mass;
                             avgTemp += p.Temperature;
@@ -681,7 +680,7 @@ public static class DamageMapHelpers
 
         return downscaledMap;
     }
-    
+
     public static (float length, float height) GetComponentSize(ReadOnlyDictionary<string, ComponentDesign> lib, string typeid, int scale)
     {
         ComponentDesign componentDeign = lib[typeid];
@@ -715,27 +714,26 @@ public static class DamageMapHelpers
     {
         foreach (var part in map.PMap)
         {
-            if(part == null)
+            if (part == null)
                 continue;
             var index = map.GetIndex(part);
             var pos = map.GetPosition(index);
-            var partPos = (Math.Round( part.Position.X), Math.Round(part.Position.Y));
             bool isOutOfBounds = DamagePhysicsSim.IsOutOfBounds(part, map);
             bool isDeleted = part.IsDeleted;
-            if(index > map.PMap.Length - 1)
+            if (index > map.PMap.Length - 1)
             {
                 throw new IndexOutOfRangeException(pos.ToString());
             }
-            if(index < 0)
+            if (index < 0)
             {
                 throw new IndexOutOfRangeException(pos.ToString());
             }
-            var isSame = map.PMap[index] == part; 
+            var isSame = map.PMap[index] == part;
             //if (!isSame)
-                //throw new Exception("out of position");
+            //throw new Exception("out of position");
         }
     }
-    
+
     public static List<PhysicalParticle> GetNeighboringParticles(DamageMap map, Vector2 position, float radius)
     {
         List<PhysicalParticle> neighbors = new List<PhysicalParticle>();
@@ -749,17 +747,17 @@ public static class DamageMapHelpers
             for (int y = minY; y <= maxY; y++)
             {
                 int index = y * map.Width + x; // Assuming row-major order
-                if (index >= 0 && index < map.PMap.Length && map.PMap[index] != null) 
+                if (index >= 0 && index < map.PMap.Length && map.PMap[index] is PhysicalParticle neighbor)
                 {
-                    if (Vector2.Distance(position, map.PMap[index].Position) <= radius)
+                    if (Vector2.Distance(position, neighbor.Position) <= radius)
                     {
-                        neighbors.Add(map.PMap[index]);
+                        neighbors.Add(neighbor);
                     }
                 }
             }
         }
         return neighbors;
     }
-    
-    
+
+
 }

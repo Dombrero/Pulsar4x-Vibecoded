@@ -21,27 +21,27 @@ namespace Pulsar4X.Sensors
         //maybe the scan freqency /attribute.scanTime should just effect the chance of a detection.
         internal override void ProcessEntity(Entity entity, DateTime atDateTime)
         {
-            if(entity.Manager == null) throw new NullReferenceException("entity.Manager cannot be null");
+            if (entity.Manager == null) throw new NullReferenceException("entity.Manager cannot be null");
 
             EntityManager manager = entity.Manager;
-            Entity faction = entity.Manager.Game.Factions[entity.FactionOwnerID];
+            Entity faction = entity.AttachedManager.Game.Factions[entity.FactionOwnerID];
 
             var position = entity.GetDataBlob<PositionDB>();//recever is a componentDB. not a shipDB
             if (position == null) //then it's probilby a colony
                 position = entity.GetDataBlob<ColonyInfoDB>().PlanetEntity.GetDataBlob<PositionDB>();
-            
-            if( entity.TryGetDataBlob<SensorAbilityDB>(out var sensorAbility))
+
+            if (entity.TryGetDataBlob<SensorAbilityDB>(out var sensorAbility))
             {
                 var detectableEntitys = manager.GetAllEntitiesWithDataBlob<SensorProfileDB>();
                 sensorAbility.CurrentContacts = new List<(Entity, SensorReturnValues)>();
-                for(int i = 0; i < sensorAbility.InstanceStates.Count; i++)
+                for (int i = 0; i < sensorAbility.InstanceStates.Count; i++)
                 {
                     var sensorAbl = sensorAbility.InstanceStates[i];
                     var sensorAtb = sensorAbility.InstanceAtributes[i];
                     var sensorMgr = manager.GetSensorContacts(entity.FactionOwnerID);
                     var detections = SensorTools.GetDetectedEntites(sensorAtb, position.AbsolutePosition, detectableEntitys, atDateTime, faction.Id, true);
-                    
-                    SensorInfoDB sensorInfo;
+
+                    SensorInfoDB? sensorInfo;
                     for (int j = 0; j < detections.Length; j++)
                     {
                         var detectionValues = detections[j];
@@ -49,7 +49,7 @@ namespace Pulsar4X.Sensors
                         sensorAbility.CurrentContacts.Add((detectableEntity, detectionValues));
                         if (detectionValues.SignalStrength_kW > 0.0)
                         {
-                            
+
                             if (sensorAtb.IsEnergyGen)//if solar array not sensor
                             {
                                 var genAbil = entity.GetDataBlob<EnergyGenAbilityDB>();
@@ -59,6 +59,8 @@ namespace Pulsar4X.Sensors
                             {
                                 //sensorInfo = knownContacts[detectableEntity.ID].GetDataBlob<SensorInfoDB>();
                                 sensorInfo = sensorMgr.GetSensorContact(detectableEntity.Id).SensorInfo;
+                                if (sensorInfo is null)
+                                    continue;
                                 sensorInfo.LatestDetectionQuality = detectionValues;
                                 sensorInfo.LastDetection = atDateTime;
                                 if (sensorInfo.HighestDetectionQuality.SignalQuality < detectionValues.SignalQuality)

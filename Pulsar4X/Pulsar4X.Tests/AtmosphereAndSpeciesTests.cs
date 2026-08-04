@@ -1,4 +1,4 @@
-﻿/*
+/*
 using System.Collections.Generic;
 using NUnit.Framework;
 using Pulsar4X.Engine;
@@ -17,10 +17,10 @@ namespace Pulsar4X.Tests
     {
         Game _game;
 
-        private EntityManager _entityManager;
-        private Entity _planet;
+        private EntityManager _entityManager = null;
+        private Entity _planet = Entity.InvalidEntity;
         private Dictionary<string, GasBlueprint> _gasDictionary;
-        private SpeciesDB _humans;
+        private SpeciesDB _humans = null;
 
         [SetUp]
         public void Init()

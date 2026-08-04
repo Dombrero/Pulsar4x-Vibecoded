@@ -176,7 +176,7 @@ namespace Pulsar4X.Orbital
             }
             return value;
         }
-        
+
 
         public Vector3 Transform(Vector3 vector)
         {

@@ -22,7 +22,7 @@ namespace Pulsar4X.Client
 
         internal static ComponentDesignWindow GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<ComponentDesignWindow>(out var window))
+            if (_uiState.TryGetUniqueWindow<ComponentDesignWindow>(out var window))
             {
                 return window;
             }
@@ -59,9 +59,9 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive) return;
+            if (!IsActive) return;
 
-            if(Window.Begin("Component Designer", ref IsActive, _flags))
+            if (Window.Begin("Component Designer", ref IsActive, _flags))
             {
                 var snapshot = _uiState.GameClient?.Galaxy?.ComponentDesigns;
                 if (snapshot != null && !ReferenceEquals(snapshot, designs))
@@ -72,7 +72,7 @@ namespace Pulsar4X.Client
                 var secondChildSize = new Vector2(windowContentSize.X * 0.15f, windowContentSize.Y);
                 var thirdChildSize = new Vector2(windowContentSize.X * 0.7f - (windowContentSize.X * 0.01f), windowContentSize.Y);
 
-                if(ImGui.BeginChild("ComponentDesignSelection", firstChildSize, ImGuiChildFlags.Borders))
+                if (ImGui.BeginChild("ComponentDesignSelection", firstChildSize, ImGuiChildFlags.Borders))
                 {
                     DisplayTemplateSelection();
                 }
@@ -86,7 +86,7 @@ namespace Pulsar4X.Client
                 ImGui.SameLine();
                 if (ImGui.BeginChild("ComponentDesign", thirdChildSize, ImGuiChildFlags.None))
                 {
-                    if(selectedTemplate != null)
+                    if (selectedTemplate != null)
                     {
                         ComponentDesignDisplay.GetInstance().Display(_uiState);
                     }
@@ -112,12 +112,12 @@ namespace Pulsar4X.Client
 
             var availableSize = ImGui.GetContentRegionAvail();
             ImGui.SetNextItemWidth(availableSize.X);
-            if(ImGui.Combo("###template-filter", ref selectedFilterIndex, sortedGroupNames, sortedGroupNames.Length))
+            if (ImGui.Combo("###template-filter", ref selectedFilterIndex, sortedGroupNames, sortedGroupNames.Length))
             {
                 RefreshFilteredTemplates();
             }
 
-            foreach(var template in filteredTemplates)
+            foreach (var template in filteredTemplates)
             {
                 bool isSelected = selectedTemplate == template;
                 if (ImGui.Selectable(template.Name + "###component-" + template.Id, isSelected))
@@ -145,7 +145,7 @@ namespace Pulsar4X.Client
             }
 
             ImGui.BeginDisabled();
-            if(ImGui.Button("Create Template", new Vector2(204f, 0f)))
+            if (ImGui.Button("Create Template", new Vector2(204f, 0f)))
             {
 
             }

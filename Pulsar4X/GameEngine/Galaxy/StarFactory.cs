@@ -17,7 +17,7 @@ namespace Pulsar4X.Galaxy
 {
     public class StarFactory
     {
-        private GalaxyFactory _galaxyGen;
+        private GalaxyFactory? _galaxyGen;
 
         public StarFactory(GalaxyFactory galaxyGen)
         {
@@ -73,13 +73,13 @@ namespace Pulsar4X.Galaxy
         {
             string fileContents = File.ReadAllText(filePath);
             var rootJson = JObject.Parse(fileContents);
-            var info = rootJson["info"];
+            var info = rootJson["info"] as JObject ?? throw new InvalidOperationException("Star json missing info.");
 
             var blobsToAdd = new List<BaseDataBlob>();
 
-            var starName = rootJson["name"].ToString();
-            var spectralType = (SpectralType)Enum.Parse(typeof(SpectralType), info["spectralType"].ToString(), true);
-            var luminosityClass = (LuminosityClass)Enum.Parse(typeof(LuminosityClass), info["luminosityClass"].ToString(), true);
+            var starName = rootJson["name"]?.ToString() ?? throw new InvalidOperationException("Star json missing name.");
+            var spectralType = (SpectralType)Enum.Parse(typeof(SpectralType), info["spectralType"]?.ToString() ?? throw new InvalidOperationException("Star missing spectralType."), true);
+            var luminosityClass = (LuminosityClass)Enum.Parse(typeof(LuminosityClass), info["luminosityClass"]?.ToString() ?? throw new InvalidOperationException("Star missing luminosityClass."), true);
             var luminosity = (double?)info["luminosity"] ?? 0;
             var temperature = (double?)info["temperature"] ?? 0;
             var mass = (double?)info["mass"] ?? 0;
@@ -140,7 +140,7 @@ namespace Pulsar4X.Galaxy
             starName += " " + (char)('A' + starIndex) + " " + spectralType + subDivision + luminosityClass;
 
             MassVolumeDB starMassVolumeDB = MassVolumeDB.NewFromMassAndRadius_AU(mass, radius);
-            StarInfoDB starInfoDB = new StarInfoDB {Age = age, Class = starClass, Luminosity = luminosity, SpectralType = spectralType, Temperature = temperature, LuminosityClass = luminosityClass, SpectralSubDivision = subDivision};
+            StarInfoDB starInfoDB = new StarInfoDB { Age = age, Class = starClass, Luminosity = luminosity, SpectralType = spectralType, Temperature = temperature, LuminosityClass = luminosityClass, SpectralSubDivision = subDivision };
             PositionDB starPositionDB = new PositionDB(Vector3.Zero);
             NameDB starNameDB = new NameDB(starName);
             OrbitDB starOrbitDB = new OrbitDB();
@@ -148,7 +148,7 @@ namespace Pulsar4X.Galaxy
             SensorProfileDB emmisionSignature = SensorTools.SetStarEmmisionSig(starInfoDB, starMassVolumeDB);
 
             Entity entity = Entity.Create();
-            system.AddEntity(entity, new List<BaseDataBlob> {starNameDB, starPositionDB, starOrbitDB, starMassVolumeDB, starInfoDB, emmisionSignature});
+            system.AddEntity(entity, new List<BaseDataBlob> { starNameDB, starPositionDB, starOrbitDB, starMassVolumeDB, starInfoDB, emmisionSignature });
 
             return entity;
         }
@@ -288,7 +288,8 @@ namespace Pulsar4X.Galaxy
         {
             double maxStarAge = _galaxyGen.Settings.StarAgeBySpectralType[spectralType].Max;
 
-            StarInfoDB starData = new StarInfoDB {// for star age we will make it proportional to the inverse of the stars mass ratio (for that type of star).
+            StarInfoDB starData = new StarInfoDB
+            {// for star age we will make it proportional to the inverse of the stars mass ratio (for that type of star).
                 // while this will produce the same age for the same mass/type of star the chances of getting the same
                 // mass/type are tiny. Tho there will still be the obvious inverse relationship here.
                 Age = (1 - starMVDB.MassDry / _galaxyGen.Settings.StarMassBySpectralType[spectralType].Max) * maxStarAge,

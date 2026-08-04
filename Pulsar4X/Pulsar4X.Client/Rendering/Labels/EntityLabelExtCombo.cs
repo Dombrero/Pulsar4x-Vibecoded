@@ -12,9 +12,10 @@ namespace Pulsar4X.Client
     {
         private bool _hoverOpen = false;
 
-        private SDL.FRect _dropDownRect = new ();
+        private SDL.FRect _dropDownRect = new();
 
-        private IOrderedEnumerable<IGrouping<UserOrbitSettings.OrbitBodyType, EntityLabel>> _subEntities = null!;
+        private IOrderedEnumerable<IGrouping<UserOrbitSettings.OrbitBodyType, EntityLabel>> _subEntities =
+            Array.Empty<EntityLabel>().GroupBy(_ => UserOrbitSettings.OrbitBodyType.Unknown).OrderBy(g => g.Key);
 
         public EntityLabelExtCombo(GlobalUIState state, EntitySnapshot entity, string systemId, IEnumerable<EntityLabel>? subEntities = null)
             : base(state, entity, systemId)
@@ -87,7 +88,7 @@ namespace Pulsar4X.Client
                 ImGui.OpenPopup(_name + "##Alt");
                 _clickedAlt = false;
             }
-            if(ImGui.BeginPopupContextItem(_name + "##Alt"))
+            if (ImGui.BeginPopupContextItem(_name + "##Alt"))
             {
                 _state.ContextMenu?.Display();
                 ImGui.EndPopup();
@@ -102,10 +103,10 @@ namespace Pulsar4X.Client
                 ImGui.Begin(_name + "##Hover", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize);
 
                 // Close window if not hovered on label or window
-                if (! _hovered && ! ImGui.IsWindowHovered())
+                if (!_hovered && !ImGui.IsWindowHovered())
                     _hoverOpen = false;
 
-                if(ImGui.MenuItem("View " + _name))
+                if (ImGui.MenuItem("View " + _name))
                 {
                     _state.EntityClicked(EntityId, SystemId, MouseButtons.Primary);
                 }
@@ -114,19 +115,19 @@ namespace Pulsar4X.Client
                 var count = _subEntities.Count();
 
                 // Display all _subEntities in a flat list, separated by type
-                for(int i = 0; i < count; i++)
+                for (int i = 0; i < count; i++)
                 {
                     var itm = _subEntities.ElementAt(i);
 
                     // Add a type header if there are multiple types
-                    if(count > 1)
+                    if (count > 1)
                     {
                         ImGui.TextDisabled(itm.Key.ToString());
                     }
 
-                    foreach(var s in itm)
+                    foreach (var s in itm)
                     {
-                        if(ImGui.MenuItem(s.Name))
+                        if (ImGui.MenuItem(s.Name))
                         {
                             _state.EntityClicked(s.EntityId, SystemId, MouseButtons.Primary);
                         }
@@ -142,7 +143,7 @@ namespace Pulsar4X.Client
                     }
 
                     // Add separator between groups (but not after the last one)
-                    if(i < count - 1)
+                    if (i < count - 1)
                     {
                         ImGui.Separator();
                     }
@@ -162,7 +163,7 @@ namespace Pulsar4X.Client
                 SDL.SetRenderDrawColor(rendererPtr, 255, 255, 0, 255);
                 SDL.RenderFillRect(rendererPtr, _dropDownRect);
 
-                SDL.SetRenderDrawColor(rendererPtr, r, g, b ,a);
+                SDL.SetRenderDrawColor(rendererPtr, r, g, b, a);
             }
             else if (_hovered) // We are hovered but don't have any sub entities. Display a tooltip.
             {

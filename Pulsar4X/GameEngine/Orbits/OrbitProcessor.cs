@@ -28,8 +28,7 @@ namespace Pulsar4X.Orbits
 
         public Type GetParameterType => typeof(OrbitDB);
 
-        private static GameSettings _gameSettings;
-
+        private static GameSettings? _gameSettings;
         public void Init(Game game)
         {
             _gameSettings = game.Settings;
@@ -37,14 +36,16 @@ namespace Pulsar4X.Orbits
 
         public void ProcessEntity(Entity entity, int deltaSeconds)
         {
-            DateTime toDate = entity.Manager.ManagerSubpulses.StarSysDateTime + TimeSpan.FromSeconds(deltaSeconds);
+            DateTime toDate = entity.AttachedManager.ManagerSubpulses.StarSysDateTime + TimeSpan.FromSeconds(deltaSeconds);
             ProcessEntity(entity, toDate);
         }
 
         public static void ProcessEntity(Entity entity, DateTime toDateTime)
         {
             var db = entity.GetDataBlob<OrbitDB>();
-            UpdateOrbit(entity, db.Parent.GetDataBlob<PositionDB>(), toDateTime);
+            if (db.Parent is not { IsValid: true } parent)
+                return;
+            UpdateOrbit(entity, parent.GetDataBlob<PositionDB>(), toDateTime);
             MoveStateProcessor.ProcessForType(db, toDateTime);
         }
 
@@ -138,7 +139,7 @@ namespace Pulsar4X.Orbits
             foreach (var orbit in orbits)
             {
                 var subOrbit = OrbitMath.FindSOIForOrbit(orbit, AbsolutePosition);
-                if(subOrbit != null && subOrbit.OwningEntity != null)
+                if (subOrbit != null && subOrbit.OwningEntity.IsValid)
                     withinSOIOf.Add(subOrbit.OwningEntity);
             }
 
@@ -168,7 +169,7 @@ namespace Pulsar4X.Orbits
         {
             var posDB = entity.GetDataBlob<PositionDB>();
             var parent = posDB.Parent;
-            if(parent == null) throw new NullReferenceException("parent cannot be null");
+            if (parent == null) throw new NullReferenceException("parent cannot be null");
 
             // Guard: verify entity is actually near the SOI boundary.
             // If an EnterSOIProcessor fired first and changed the orbit, this interrupt is stale.
@@ -209,14 +210,14 @@ namespace Pulsar4X.Orbits
 
             // SetDataBlob silently overwrites the old orbit without cleanup.
             // Null OwningEntity so MoveStateProcessor won't re-process the stale orbit.
-            oldOrbit.OwningEntity = null;
+            oldOrbit.OwningEntity = Entity.InvalidEntity;
 
             // Override stale RelativePosition from SetParent with orbit-equation-derived value
             posDB.RelativePosition = relPos;
 
             var soievent = Event.Create(EventType.SOIChanged, atDateTime,
                 "Exited SOI of " + parent.GetDefaultName(),
-                entity.FactionOwnerID, entity.Manager.ManagerID);
+                entity.FactionOwnerID, entity.AttachedManager.ManagerID);
             EventManager.Instance.Publish(soievent);
         }
     }
@@ -289,7 +290,7 @@ namespace Pulsar4X.Orbits
             // SetParent(Earth), and overwrite RelativePosition with the old Earth-relative
             // value — producing the "snap to old position" bug. Null OwningEntity so
             // MoveStateProcessor skips the stale orbit.
-            oldOrbit.OwningEntity = null;
+            oldOrbit.OwningEntity = Entity.InvalidEntity;
 
             // Override stale RelativePosition (computed from stale AbsolutePosition in
             // SetParent) with the correct orbit-equation-derived value
@@ -297,7 +298,7 @@ namespace Pulsar4X.Orbits
 
             var soievent = Event.Create(EventType.SOIChanged, atDateTime,
                 "Entered SOI of " + targetChild.GetDefaultName(),
-                entity.FactionOwnerID, entity.Manager.ManagerID);
+                entity.FactionOwnerID, entity.AttachedManager.ManagerID);
             EventManager.Instance.Publish(soievent);
         }
     }

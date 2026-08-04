@@ -31,7 +31,7 @@ namespace Pulsar4X.Client
         public static string ModsPath = "Mods";
         public static string ResourcesPath = "Resources";
         private readonly GlobalUIState _state;
-        private ITheme _theme = null!;
+        private ITheme _theme = new DefaultTheme();
 
         /// <summary>The UI state, exposed so the composition root can register its dev tools.</summary>
         internal GlobalUIState State => _state;
@@ -55,7 +55,7 @@ namespace Pulsar4X.Client
             {
                 string? appDataDirectory = GetAppDataPath();
 
-                if(string.IsNullOrEmpty(appDataDirectory)) throw new NullReferenceException("App data directory cannot be null");
+                if (string.IsNullOrEmpty(appDataDirectory)) throw new NullReferenceException("App data directory cannot be null");
 
                 // Set the deafault mods path
                 ModsPath = Path.Combine(appDataDirectory, ModsPath);
@@ -65,7 +65,7 @@ namespace Pulsar4X.Client
                     var exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                     var exeDiretory = Path.GetDirectoryName(exePath);
 
-                    if(string.IsNullOrEmpty(exeDiretory)) throw new NullReferenceException("exe path cannot be null");
+                    if (string.IsNullOrEmpty(exeDiretory)) throw new NullReferenceException("exe path cannot be null");
 
                     ResourcesPath = Path.Combine(exeDiretory, ResourcesPath);
                 }
@@ -99,7 +99,7 @@ namespace Pulsar4X.Client
                 PopulateStyles();
 
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine($"Error setting up game data: {e.Message}");
                 Trace.WriteLine($"Error setting up game data: {e}");
@@ -147,7 +147,7 @@ namespace Pulsar4X.Client
             mouseX = mX;
             mouseY = mY;
 
-            if(!_state.IsGameLoaded)
+            if (!_state.IsGameLoaded)
             {
                 var compare = 0;
 #if DEBUG
@@ -155,7 +155,7 @@ namespace Pulsar4X.Client
                 compare = 1;
 #endif
                 // Open the main menu if no other windows are open
-                if(ImGui.GetIO().MetricsRenderWindows == compare)
+                if (ImGui.GetIO().MetricsRenderWindows == compare)
                     MainMenuItems.GetInstance().SetActive(true);
                 return;
             }
@@ -189,7 +189,7 @@ namespace Pulsar4X.Client
             _state.GameClient?.Update();
 
             //update and refresh state for GameDateTimechange
-            if(_state.GameClient is { } gameClient)
+            if (_state.GameClient is { } gameClient)
             {
                 //update and refresh state for SystemDateTimechage
                 var curTime = _state.SelectedSystemTime;
@@ -326,13 +326,13 @@ namespace Pulsar4X.Client
         /// <param name="args"></param>
         private void ParseCommandLineArguments(string[] args)
         {
-            for(int i = 0; i < args.Length; i++)
+            for (int i = 0; i < args.Length; i++)
             {
-                switch(args[i].ToLower())
+                switch (args[i].ToLower())
                 {
                     case "--data":
                     case "-d":
-                        if(i + 1 < args.Length)
+                        if (i + 1 < args.Length)
                         {
                             Console.WriteLine($"Using {args[i].ToLower()} = {ModsPath}");
                             ModsPath = args[i + 1];
@@ -341,7 +341,7 @@ namespace Pulsar4X.Client
                         break;
                     case "--resources":
                     case "-r":
-                        if(i + 1 < args.Length)
+                        if (i + 1 < args.Length)
                         {
                             Console.WriteLine($"Using {args[i].ToLower()} = {ResourcesPath}");
                             ResourcesPath = args[i + 1];
@@ -360,10 +360,10 @@ namespace Pulsar4X.Client
             string? appDataDirectory = GetAppDataPath();
 
             // If the app data path is bad here, just return its only the preferences
-            if(string.IsNullOrEmpty(appDataDirectory)) return;
+            if (string.IsNullOrEmpty(appDataDirectory)) return;
 
             string preferencesPath = Path.Combine(appDataDirectory, PreferencesFile);
-            if(!File.Exists(preferencesPath))
+            if (!File.Exists(preferencesPath))
             {
                 File.Create(preferencesPath).Close();
             }
@@ -377,15 +377,15 @@ namespace Pulsar4X.Client
             string? maximized = windowSection["Maximized"];
             string? themeEnabled = windowSection["Theme"];
 
-            if(xPosition != null) X = int.Parse(xPosition);
-            if(yPosition != null) Y = int.Parse(yPosition);
-            if(width != null) Width = int.Parse(width);
-            if(height != null) Height = int.Parse(height);
+            if (xPosition != null) X = int.Parse(xPosition);
+            if (yPosition != null) Y = int.Parse(yPosition);
+            if (width != null) Width = int.Parse(width);
+            if (height != null) Height = int.Parse(height);
 
             // if maximized is set to true it will override the other preferences
-            if(maximized != null)
+            if (maximized != null)
             {
-                if(bool.Parse(maximized))
+                if (bool.Parse(maximized))
                     Maximize();
             }
 
@@ -413,25 +413,25 @@ namespace Pulsar4X.Client
         {
             string? appDataDirectory = GetAppDataPath();
 
-            if(string.IsNullOrEmpty(appDataDirectory))
+            if (string.IsNullOrEmpty(appDataDirectory))
                 return;
 
             // Give up if the file doesn't exist
             string filePath = Path.Combine(appDataDirectory, UserOrbitSettingsFile);
-            if(!File.Exists(filePath))
+            if (!File.Exists(filePath))
                 return;
 
             string text = File.ReadAllText(filePath);
             var result = JsonConvert.DeserializeObject<List<List<UserOrbitSettings>>>(text);
 
-            if(result != null)
+            if (result != null)
                 _state.UserOrbitSettingsMtx = result;
         }
 
         public void SaveOrbitSettings()
         {
             string? appDataDirectory = GetAppDataPath();
-            if(appDataDirectory == null)
+            if (appDataDirectory == null)
                 return;
 
             string filePath = Path.Combine(appDataDirectory, UserOrbitSettingsFile);
@@ -479,7 +479,8 @@ namespace Pulsar4X.Client
             if (renderer == IntPtr.Zero)
                 return;
 
-            SDL.Color white = new () {
+            SDL.Color white = new()
+            {
                 R = 255,
                 G = 255,
                 B = 255,
@@ -492,14 +493,16 @@ namespace Pulsar4X.Client
                     0,
                     white);
 
-            if (surface == IntPtr.Zero) {
+            if (surface == IntPtr.Zero)
+            {
                 Trace.WriteLine("RenderDebugText: failed to create surface");
                 return;
             }
 
             IntPtr texture = SDL.CreateTextureFromSurface(renderer, surface);
 
-            if (texture == IntPtr.Zero) {
+            if (texture == IntPtr.Zero)
+            {
                 SDL.DestroySurface(surface);
 
                 Trace.WriteLine("RenderDebugText: failed to create texture from surface");
@@ -510,14 +513,15 @@ namespace Pulsar4X.Client
             int w;
             SDL3.TTF.GetStringSize(Styles.SDLDefaultFont, text, 0, out w, out h);
 
-            SDL.FRect frect = new () {
+            SDL.FRect frect = new()
+            {
                 X = 5,
                 Y = y,
                 W = w,
                 H = h
             };
 
-            SDL.RenderTexture(renderer, texture, IntPtr.Zero, ref frect);
+            SDL.RenderTexture(renderer, texture, IntPtr.Zero, in frect);
 
             SDL.DestroyTexture(texture);
             SDL.DestroySurface(surface);

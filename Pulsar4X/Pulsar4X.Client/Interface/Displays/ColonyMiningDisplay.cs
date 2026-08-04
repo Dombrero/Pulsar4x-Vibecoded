@@ -12,10 +12,10 @@ namespace Pulsar4X.Client
         public static void Display(this ColonyMiningView mining)
         {
             Vector2 topSize = ImGui.GetContentRegionAvail();
-            if(ImGui.BeginChild("NumberOfMines", new Vector2(topSize.X, 28f), ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+            if (ImGui.BeginChild("NumberOfMines", new Vector2(topSize.X, 28f), ImGuiChildFlags.Borders, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
                 ImGui.Text("Number of Mines:");
-                if(ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("You can build more mines on this colony using the Production tab.");
                 ImGui.SameLine();
                 ImGui.PushStyleColor(ImGuiCol.Text, Styles.HighlightColor);
@@ -24,7 +24,7 @@ namespace Pulsar4X.Client
             }
             ImGui.EndChild();
 
-            if(ImGui.BeginTable("###MineralTable", 6, ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
+            if (ImGui.BeginTable("###MineralTable", 6, ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Mineral");
                 ImGui.TableSetupColumn("Stockpile");
@@ -34,46 +34,46 @@ namespace Pulsar4X.Client
                 ImGui.TableSetupColumn("Years to Depletion");
                 ImGui.TableHeadersRow();
 
-                foreach(var mineral in mining.Minerals)
+                foreach (var mineral in mining.Minerals)
                 {
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.Text(mineral.Name);
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         DisplayHelpers.DescriptiveTooltip(mineral.Name, "Mineral", mineral.Description);
                     ImGui.TableNextColumn();
                     ImGui.Text(mineral.Stockpile?.ToString("#,###,###,###,###,###,##0") ?? "Unavailable");
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Amount of " + mineral.Name + " available for use in the colony stockpile.");
 
                     ImGui.TableNextColumn();
                     ImGui.Text(mineral.AvailableToMine?.ToString("#,###,###,###,###,###,##0") ?? "N/A");
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("Amount of " + mineral.Name + " available that can be mined from this colony.");
                     ImGui.TableNextColumn();
                     ImGui.Text(mineral.Accessibility.ToString("0.00"));
-                    if(ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("How easy it is to mine " + mineral.Name + " from this colony.\n\n1.0 = easiest\n0.0 = hardest");
                     ImGui.TableNextColumn();
-                    if(mineral.CanMine)
+                    if (mineral.CanMine)
                     {
                         ImGui.Text(mineral.AnnualProduction.ToString("#,###,###"));
-                        if(ImGui.IsItemHovered())
+                        if (ImGui.IsItemHovered())
                             ImGui.SetTooltip("Annual production of " + mineral.Name + " from this colony.");
                     }
                     else
                     {
                         ImGui.Text("-");
-                        if(ImGui.IsItemHovered())
+                        if (ImGui.IsItemHovered())
                             ImGui.SetTooltip("This colony is currently unable to mine " + mineral.Name + ".");
                     }
                     ImGui.TableNextColumn();
-                    if(mineral.AnnualProduction > 0)
+                    if (mineral.AnnualProduction > 0)
                     {
                         var amount = mineral.AvailableToMine ?? 0;
                         string yearsToDepletion = Math.Round((double)amount / (double)mineral.AnnualProduction, 4).ToString("#.0");
                         ImGui.Text(yearsToDepletion);
-                        if(ImGui.IsItemHovered())
+                        if (ImGui.IsItemHovered())
                             ImGui.SetTooltip("The colony will exhaust the available " + mineral.Name + " in " + yearsToDepletion + " years.");
                     }
                     else
@@ -84,7 +84,7 @@ namespace Pulsar4X.Client
 
                 ImGui.EndTable();
 
-                if(mining.Minerals.Count == 0)
+                if (mining.Minerals.Count == 0)
                 {
                     ImGui.Text("No minerals available.");
                 }

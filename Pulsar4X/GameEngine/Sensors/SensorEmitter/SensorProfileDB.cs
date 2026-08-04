@@ -42,7 +42,7 @@ namespace Pulsar4X.Sensors
                     return (double)_targetCrossSection;
                 }
                 else return 0;
-                    //throw new Exception("Parent Entity does not have an MassVolumeDB");
+                //throw new Exception("Parent Entity does not have an MassVolumeDB");
             }
         }
 
@@ -51,11 +51,11 @@ namespace Pulsar4X.Sensors
         //key is frequency, value is 0.0-1.0 for that freqency. for most entites this will create a wave type spectrum.
         //internal Dictionary<double, float> Reflectivity { get; private set; } = new Dictionary<double, float>();
         internal double Reflectivity = 0.9;
-        
+
         /// <summary>
         /// reflection coefficent. 
         /// </summary>
-        internal double ReflectionCoefficent {get {return Reflectivity * TargetCrossSection_msq;}}
+        internal double ReflectionCoefficent { get { return Reflectivity * TargetCrossSection_msq; } }
 
         /// <summary>
         /// This dictionary gets replaced frequently by SetReflectedEMSig()
@@ -82,8 +82,8 @@ namespace Pulsar4X.Sensors
         {
             //EmittedEMSpectra = new Dictionary<EMWaveForm, double>(db.EmittedEMSpectra);
             //ReflectedEMSpectra = new Dictionary<EMWaveForm, double>(db.ReflectedEMSpectra);
-            EmittedEMSpectra = new List<EMData>( db.EmittedEMSpectra);
-            ReflectedEMSpectra = new List<EMData>( db.ReflectedEMSpectra);
+            EmittedEMSpectra = new List<EMData>(db.EmittedEMSpectra);
+            ReflectedEMSpectra = new List<EMData>(db.ReflectedEMSpectra);
             _targetCrossSection = db._targetCrossSection;
         }
 
@@ -95,10 +95,15 @@ namespace Pulsar4X.Sensors
 
     public struct EMData
     {
-        internal ComponentInstance Instance;
-        internal Entity SourceEntity;
-        public EMWaveForm WaveForm;
+        internal ComponentInstance? Instance;
+        internal Entity SourceEntity = Entity.InvalidEntity;
+        public EMWaveForm? WaveForm;
         public double Magnitude;
+
+        public EMData()
+        {
+            SourceEntity = Entity.InvalidEntity;
+        }
         public float StateLoad
         {
             get
@@ -113,7 +118,7 @@ namespace Pulsar4X.Sensors
         {
             get
             {
-                if(Instance != null)
+                if (Instance != null)
                     return Instance.Name;
                 else if (SourceEntity != null)
                     return SourceEntity.GetOwnersName();

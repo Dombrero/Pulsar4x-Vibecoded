@@ -589,9 +589,9 @@ namespace Pulsar4X.Tests
 
                 Assert.Multiple(() =>
                 {
-                    Assert.AreEqual(o_ω, ω1, 1.0E-7, "i"+i+" AoP ω1 expected: " + Angle.ToDegrees(o_ω) + " was: " + Angle.ToDegrees(ω1));
+                    Assert.AreEqual(o_ω, ω1, 1.0E-7, "i" + i + " AoP ω1 expected: " + Angle.ToDegrees(o_ω) + " was: " + Angle.ToDegrees(ω1));
                     Assert.AreEqual(o_ω, ω2, 1.0E-7, "i" + i + " AoP ω2 expected: " + Angle.ToDegrees(o_ω) + " was: " + Angle.ToDegrees(ω2));
-                    Assert.AreEqual(o_ω, ω3, 1.0E-7, "i"+i+" AoP ω3 expected: " + Angle.ToDegrees(o_ω) + " was: " + Angle.ToDegrees(ω3));
+                    Assert.AreEqual(o_ω, ω3, 1.0E-7, "i" + i + " AoP ω3 expected: " + Angle.ToDegrees(o_ω) + " was: " + Angle.ToDegrees(ω3));
                 });
 
             }

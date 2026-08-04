@@ -108,35 +108,36 @@ namespace Pulsar4X.Orbital
         public static double StandardGravitationalParameter(double mass1, double mass2) =>
             StandardGravitationalParameter(mass1 + mass2);
 
-		/// <summary>
-		/// calculates a vector from two positions and a magnatude
-		/// </summary>
-		/// <returns>The vector.</returns>
-		/// <param name="currentPosition">Current position.</param>
-		/// <param name="targetPosition">Target position.</param>
-		/// <param name="speedMagnitude_AU">Speed magnitude.</param>
-		public static Vector3 GetVector(Vector3 currentPosition, Vector3 targetPosition, double speedMagnitude_AU)
+        /// <summary>
+        /// calculates a vector from two positions and a magnatude
+        /// </summary>
+        /// <returns>The vector.</returns>
+        /// <param name="currentPosition">Current position.</param>
+        /// <param name="targetPosition">Target position.</param>
+        /// <param name="speedMagnitude_AU">Speed magnitude.</param>
+        public static Vector3 GetVector(Vector3 currentPosition, Vector3 targetPosition, double speedMagnitude_AU)
         {
             Vector3 direction = targetPosition - currentPosition;
 
             double length = direction.Length(); // Distance between targets in AU
-            return (length != 0) ? direction *speedMagnitude_AU / length : Vector3.Zero;
+            return (length != 0) ? direction * speedMagnitude_AU / length : Vector3.Zero;
         }
 
         public static bool LineIntersectsLine(Vector2 l1start, Vector2 l1End, Vector2 l2Start, Vector2 l2End, out Vector2 intersectsAt)
         {
             // calculate the direction of the lines
-            var uA = 
-                ((l2End.X-l2Start.X)*(l1start.Y-l2Start.Y) - (l2End.Y-l2Start.Y)*(l1start.X-l2Start.X)) / 
-                ((l2End.Y-l2Start.Y)*(l1End.X-l1start.X) - (l2End.X-l2Start.X)*(l1End.Y-l1start.Y));
-            var uB = 
-                ((l1End.X-l1start.X)*(l1start.Y-l2Start.Y) - (l1End.Y-l1start.Y)*(l1start.X-l2Start.X)) / 
-                ((l2End.Y-l2Start.Y)*(l1End.X-l1start.X) - (l2End.X-l2Start.X)*(l1End.Y-l1start.Y));
+            var uA =
+                ((l2End.X - l2Start.X) * (l1start.Y - l2Start.Y) - (l2End.Y - l2Start.Y) * (l1start.X - l2Start.X)) /
+                ((l2End.Y - l2Start.Y) * (l1End.X - l1start.X) - (l2End.X - l2Start.X) * (l1End.Y - l1start.Y));
+            var uB =
+                ((l1End.X - l1start.X) * (l1start.Y - l2Start.Y) - (l1End.Y - l1start.Y) * (l1start.X - l2Start.X)) /
+                ((l2End.Y - l2Start.Y) * (l1End.X - l1start.X) - (l2End.X - l2Start.X) * (l1End.Y - l1start.Y));
 
             // if uA and uB are between 0-1, lines are colliding
-            if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1) {
-                double intersectionX = l1start.X + (uA * (l1End.X-l1start.X));
-                double intersectionY = l1start.Y + (uA * (l1End.Y-l1start.Y));
+            if (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1)
+            {
+                double intersectionX = l1start.X + (uA * (l1End.X - l1start.X));
+                double intersectionY = l1start.Y + (uA * (l1End.Y - l1start.Y));
                 intersectsAt = new Vector2(intersectionX, intersectionY);
                 return true;
             }
@@ -171,12 +172,12 @@ namespace Pulsar4X.Orbital
                 intersects = true;
             }
             //top
-            if (GeneralMath.LineIntersectsLine(l1start,l1End,topLeft, tr, out intersectsAt))
+            if (GeneralMath.LineIntersectsLine(l1start, l1End, topLeft, tr, out intersectsAt))
             {
                 intersects = true;
             }
             //bottom
-            if (GeneralMath.LineIntersectsLine(l1start,l1End,bl, bottomRight, out intersectsAt))
+            if (GeneralMath.LineIntersectsLine(l1start, l1End, bl, bottomRight, out intersectsAt))
             {
                 intersects = true;
             }

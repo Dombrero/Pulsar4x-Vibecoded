@@ -35,14 +35,14 @@ public static class Textures
     public static void UpdateOrCreate(IntPtr renderer, ref IntPtr texture, int width, int height, IntPtr pixels)
     {
         // If the texture doesn't exist, create it
-        if(texture == IntPtr.Zero)
+        if (texture == IntPtr.Zero)
         {
             CreateTexture(renderer, ref texture, width, height, 32, width * 4, pixels, SDL.PixelFormat.RGBA8888);
             return;
         }
         // If the dimensions don't match, recreate the texture
         (int txWidth, int txHeight) = GetTextureSize(texture);
-        if(width != txWidth || height != txHeight)
+        if (width != txWidth || height != txHeight)
         {
             CreateTexture(renderer, ref texture, width, height, 32, width * 4, pixels, SDL.PixelFormat.RGBA8888);
             return;

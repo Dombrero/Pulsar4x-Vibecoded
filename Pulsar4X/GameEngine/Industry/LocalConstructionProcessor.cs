@@ -94,7 +94,7 @@ public class LocalConstructionProcessor : IHotloopProcessor
                         entity.StarSysDateTime,
                         $"Completed construction of {currentJob.Design.Name}",
                         entity.FactionOwnerID,
-                        entity.Manager.ManagerID,
+                        entity.AttachedManager.ManagerID,
                         entity.Id));
             }
             else

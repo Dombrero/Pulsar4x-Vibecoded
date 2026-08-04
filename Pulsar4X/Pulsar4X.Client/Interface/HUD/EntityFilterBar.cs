@@ -26,7 +26,7 @@ public class EntityFilterBar : UniquePulsarGuiWindow<EntityFilterBar>
 
     internal static EntityFilterBar GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<EntityFilterBar>(out var window))
+        if (_uiState.TryGetUniqueWindow<EntityFilterBar>(out var window))
         {
             return window;
         }

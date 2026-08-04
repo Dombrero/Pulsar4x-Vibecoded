@@ -26,38 +26,37 @@ namespace Pulsar4X.Engine
 {
     public static class DefaultStartFactory
     {
-        private static ComponentDesign _merlin;
-        private static ComponentDesign _f1;
-        private static ComponentDesign _raptor;
-        private static ComponentDesign _rs25;
-        private static ComponentDesign _warpDrive;
-        private static ComponentDesign _largeWarpDrive;
-        private static ComponentDesign _fuelTank_1000;
-        private static ComponentDesign _fuelTank_2500;
-        private static ComponentDesign _fuelTank_3000;
-        private static ComponentDesign _laser;
-        private static ComponentDesign _payload;
-        private static ComponentDesign _missileSRB;
-        private static ComponentDesign _missileSuite;
-        private static ComponentDesign _sensor_50;
-        private static ComponentDesign _sensorInstallation;
-        private static ComponentDesign _fireControl;
-        private static ComponentDesign _cargoInstallation;
-        private static ComponentDesign _reactor;
-        private static ComponentDesign _battery;
-        private static ComponentDesign _cargoHold;
-        private static ComponentDesign _cargoCompartment;
-        private static ComponentDesign _shipYard;
-        private static ComponentDesign _logiOffice;
-        private static ComponentDesign _missileTube;
-        private static ComponentDesign _ordnanceStore;
-        private static ShipDesign _defaultShipDesign;
-        private static ShipDesign _gunshipDesign;
-        private static ShipDesign _spaceXStarShipDesign;
-        private static OrdnanceDesign _missile;
-        private static ComponentDesign _geoSurveyor;
-        private static ComponentDesign _jpSurveyor;
-
+        private static ComponentDesign? _merlin;
+        private static ComponentDesign? _f1;
+        private static ComponentDesign? _raptor;
+        private static ComponentDesign? _rs25;
+        private static ComponentDesign? _warpDrive;
+        private static ComponentDesign? _largeWarpDrive;
+        private static ComponentDesign? _fuelTank_1000;
+        private static ComponentDesign? _fuelTank_2500;
+        private static ComponentDesign? _fuelTank_3000;
+        private static ComponentDesign? _laser;
+        private static ComponentDesign? _payload;
+        private static ComponentDesign? _missileSRB;
+        private static ComponentDesign? _missileSuite;
+        private static ComponentDesign? _sensor_50;
+        private static ComponentDesign? _sensorInstallation;
+        private static ComponentDesign? _fireControl;
+        private static ComponentDesign? _cargoInstallation;
+        private static ComponentDesign? _reactor;
+        private static ComponentDesign? _battery;
+        private static ComponentDesign? _cargoHold;
+        private static ComponentDesign? _cargoCompartment;
+        private static ComponentDesign? _shipYard;
+        private static ComponentDesign? _logiOffice;
+        private static ComponentDesign? _missileTube;
+        private static ComponentDesign? _ordnanceStore;
+        private static ShipDesign? _defaultShipDesign;
+        private static ShipDesign? _gunshipDesign;
+        private static ShipDesign? _spaceXStarShipDesign;
+        private static OrdnanceDesign? _missile;
+        private static ComponentDesign? _geoSurveyor;
+        private static ComponentDesign? _jpSurveyor;
         public static (Entity?, string) LoadFromJson(Game game, string filePath)
         {
             ComponentDesigner.StartResearched = true;
@@ -71,19 +70,21 @@ namespace Pulsar4X.Engine
             Entity? playerFaction = null;
 
             var systemsToLoad = (JArray?)rootJson["systems"];
-            foreach(var systemToLoad in systemsToLoad)
+            if (systemsToLoad is null)
+                return (null, "Missing \"systems\" in start json.");
+            foreach (var systemToLoad in systemsToLoad)
             {
                 var system = starSystemFactory.LoadSystemFromJson(game, Path.Combine(rootDirectory, systemToLoad.ToString()));
 
                 // TODO: allow the json to set this
-                if(startingSystem == null)
+                if (startingSystem == null)
                     startingSystem = system;
             }
 
             var jumpPoints = (JArray?)rootJson["jumpPoints"];
-            if(jumpPoints != null)
+            if (jumpPoints != null)
             {
-                foreach(var pair in jumpPoints)
+                foreach (var pair in jumpPoints)
                 {
                     var from = (string?)pair["from"];
                     var to = (string?)pair["to"];
@@ -102,7 +103,11 @@ namespace Pulsar4X.Engine
             }
 
             var factionsToLoad = (JArray?)rootJson["factions"];
-            foreach(var factionToLoad in factionsToLoad)
+            if (factionsToLoad is null)
+                return (null, "Missing \"factions\" in start json.");
+            if (startingSystem is null)
+                return (null, "No starting system loaded.");
+            foreach (var factionToLoad in factionsToLoad)
             {
                 var faction = FactionFactory.LoadFromJson(game, Path.Combine(rootDirectory, factionToLoad.ToString()));
 
@@ -110,21 +115,21 @@ namespace Pulsar4X.Engine
                 faction.GetDataBlob<FactionInfoDB>().KnownSystems.Add(startingSystem.ID);
 
                 // TODO: allow the json to set this
-                if(playerFaction == null)
+                if (playerFaction == null)
                     playerFaction = faction;
             }
 
             var pow = startingSystem.GetAllEntitiesWithDataBlob<EnergyGenAbilityDB>();
             foreach (var entityItem in pow)
             {
-                game.ProcessorManager.GetInstanceProcessor(nameof(EnergyGenProcessor)).ProcessEntity(entityItem,  game.TimePulse.GameGlobalDateTime);
+                game.ProcessorManager.GetInstanceProcessor(nameof(EnergyGenProcessor)).ProcessEntity(entityItem, game.TimePulse.GameGlobalDateTime);
 
             }
 
             var entitiesWithSensors = startingSystem.GetAllEntitiesWithDataBlob<SensorAbilityDB>();
             foreach (var entityItem in entitiesWithSensors)
             {
-                game.ProcessorManager.GetInstanceProcessor(nameof(SensorScan)).ProcessEntity(entityItem,  game.TimePulse.GameGlobalDateTime);
+                game.ProcessorManager.GetInstanceProcessor(nameof(SensorScan)).ProcessEntity(entityItem, game.TimePulse.GameGlobalDateTime);
             }
 
             ComponentDesigner.StartResearched = false;
@@ -266,32 +271,32 @@ namespace Pulsar4X.Engine
             ShipDesign pexDesign = CargoShipDesign(factionEntity, factionDataStore);
             ShipDesign courierDesign = CargoCourierDesign(factionEntity, factionDataStore);
 
-            Entity gunShip0 = ShipFactory.CreateShip(gunShipDesign, factionEntity, earth,  "Serial Peacemaker");
-            Entity ship2 = ShipFactory.CreateShip(shipDesign, factionEntity, earth,  "Ensuing Calm");
-            Entity ship3 = ShipFactory.CreateShip(shipDesign, factionEntity, earth,  "Touch-and-Go");
-            Entity gunShip1 = ShipFactory.CreateShip(gunShipDesign, factionEntity, earth,  "Prevailing Stillness");
+            Entity gunShip0 = ShipFactory.CreateShip(gunShipDesign, factionEntity, earth, "Serial Peacemaker");
+            Entity ship2 = ShipFactory.CreateShip(shipDesign, factionEntity, earth, "Ensuing Calm");
+            Entity ship3 = ShipFactory.CreateShip(shipDesign, factionEntity, earth, "Touch-and-Go");
+            Entity gunShip1 = ShipFactory.CreateShip(gunShipDesign, factionEntity, earth, "Prevailing Stillness");
             Entity courier = ShipFactory.CreateShip(pexDesign, factionEntity, earth, Math.PI, "Old Bessie");
             Entity courier2 = ShipFactory.CreateShip(pexDesign, factionEntity, earth, 0, "PE2");
-            Entity starship = ShipFactory.CreateShip(SpaceXStarShip(factionEntity, factionDataStore), factionEntity, earth,  "Starship");
+            Entity starship = ShipFactory.CreateShip(SpaceXStarShip(factionEntity, factionDataStore), factionEntity, earth, "Starship");
             var fuel = factionDataStore.CargoGoods["sorium-fuel"];
             var rp1 = factionDataStore.CargoGoods["rp-1"];
             var methalox = factionDataStore.CargoGoods["methalox"];
             var hydrolox = factionDataStore.CargoGoods["hydrolox"];
 
-            for(int i = 0; i < 7; i++)
+            for (int i = 0; i < 7; i++)
             {
                 var commanderDB = CommanderFactory.CreateShipCaptain(game);
                 commanderDB.CommissionedOn = game.TimePulse.GameGlobalDateTime - TimeSpan.FromDays(365.25 * 10);
                 commanderDB.RankedOn = game.TimePulse.GameGlobalDateTime - TimeSpan.FromDays(365);
                 var entity = CommanderFactory.Create(earth.Manager, factionEntity.Id, commanderDB);
 
-                if(i == 0) gunShip0.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 1) ship2.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 2) ship3.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 3) gunShip1.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 4) courier.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 5) courier2.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
-                if(i == 6) starship.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 0) gunShip0.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 1) ship2.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 2) ship3.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 3) gunShip1.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 4) courier.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 5) courier2.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
+                if (i == 6) starship.GetDataBlob<ShipInfoDB>().CommanderID = entity.Id;
             }
 
             var fleetDB = defaultFleet.GetDataBlob<FleetDB>();
@@ -417,14 +422,14 @@ namespace Pulsar4X.Engine
             var pow = startingSystem.GetAllEntitiesWithDataBlob<EnergyGenAbilityDB>();
             foreach (var entityItem in pow)
             {
-                game.ProcessorManager.GetInstanceProcessor(nameof(EnergyGenProcessor)).ProcessEntity(entityItem,  game.TimePulse.GameGlobalDateTime);
+                game.ProcessorManager.GetInstanceProcessor(nameof(EnergyGenProcessor)).ProcessEntity(entityItem, game.TimePulse.GameGlobalDateTime);
 
             }
 
             var entitiesWithSensors = startingSystem.GetAllEntitiesWithDataBlob<SensorAbilityDB>();
             foreach (var entityItem in entitiesWithSensors)
             {
-                game.ProcessorManager.GetInstanceProcessor(nameof(SensorScan)).ProcessEntity(entityItem,  game.TimePulse.GameGlobalDateTime);
+                game.ProcessorManager.GetInstanceProcessor(nameof(SensorScan)).ProcessEntity(entityItem, game.TimePulse.GameGlobalDateTime);
             }
 
             ComponentDesigner.StartResearched = false;

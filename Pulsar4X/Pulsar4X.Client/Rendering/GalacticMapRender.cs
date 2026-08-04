@@ -14,9 +14,9 @@ namespace Pulsar4X.Client
     public class GalacticMapRender
     {
         GlobalUIState _state;
-        Dictionary<string, SystemMapRendering> RenderedMaps = new ();
-        Dictionary<string, StarIcon> StarIcons = new ();
-        Dictionary<string, string> _galMapLabels = new ();
+        Dictionary<string, SystemMapRendering> RenderedMaps = new();
+        Dictionary<string, StarIcon> StarIcons = new();
+        Dictionary<string, string> _galMapLabels = new();
         SDL3Window _window;
         internal string? CapitolSysMap { get; set; }
         internal string SelectedStarSysGuid { get { return _state.SelectedStarSystemId; } }
@@ -103,7 +103,7 @@ namespace Pulsar4X.Client
         void _state_EntityClickedEvent(EntityState entityState, MouseButtons mouseButton)
         {
             var sysGuid = entityState.StarSystemId;
-            if(!string.IsNullOrEmpty(sysGuid) && SelectedStarSysGuid != sysGuid && RenderedMaps.ContainsKey(sysGuid))
+            if (!string.IsNullOrEmpty(sysGuid) && SelectedStarSysGuid != sysGuid && RenderedMaps.ContainsKey(sysGuid))
             {
                 _state.SetActiveSystem(sysGuid);
             }
@@ -151,7 +151,7 @@ namespace Pulsar4X.Client
         {
             SyncKnownSystems();
 
-            foreach(var (id, system) in RenderedMaps)
+            foreach (var (id, system) in RenderedMaps)
             {
                 system.Update();
             }

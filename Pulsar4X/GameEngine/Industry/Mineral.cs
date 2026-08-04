@@ -8,7 +8,7 @@ namespace Pulsar4X.Industry
     {
         public int ID { get; private set; } = Game.GetEntityID();
 
-        public Mineral() {}
+        public Mineral() { }
 
         public Mineral(MineralBlueprint blueprint)
         {

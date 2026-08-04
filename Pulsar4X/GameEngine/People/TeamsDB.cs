@@ -14,8 +14,7 @@ namespace Pulsar4X.People
         [JsonProperty]
         private int _teamSize;
         [JsonProperty]
-        private object _teamTask;
-
+        private object? _teamTask;
         /// <summary>
         /// Determines how many Labs this team can manage
         /// </summary>
@@ -46,7 +45,8 @@ namespace Pulsar4X.People
         public TeamsDB(int teamSize = 0, object? initialTask = null)
         {
             TeamSize = teamSize;
-            TeamTask = initialTask;
+            if (initialTask is not null)
+                TeamTask = initialTask;
         }
 
         public TeamsDB(TeamsDB teamsdb)

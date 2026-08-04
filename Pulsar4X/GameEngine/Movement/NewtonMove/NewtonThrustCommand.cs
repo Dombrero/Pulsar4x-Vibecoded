@@ -17,7 +17,7 @@ namespace Pulsar4X.Movement
     {
         public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement;
         public override bool IsBlocking => true;
-        public override string Name { get {return _name;}}
+        public override string Name { get { return _name; } }
 
         string _name = "Burn";
 
@@ -30,8 +30,8 @@ namespace Pulsar4X.Movement
         }
         string _details = "";
 
-        Entity _factionEntity;
-        Entity _entityCommanding;
+        Entity _factionEntity = Entity.InvalidEntity;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
         public Vector3 OrbitrelativeDeltaV;
@@ -46,13 +46,13 @@ namespace Pulsar4X.Movement
 
         public List<(string item, double value)> DebugDetails = new List<(string, double)>();
 
-        public static NewtonThrustCommand CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, Vector3 expendDeltaV_m, double burnTime, string name = null)
+        public static NewtonThrustCommand CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, Vector3 expendDeltaV_m, double burnTime, string? name = null)
         {
             var cmd = new NewtonThrustCommand()
             {
                 RequestingFactionGuid = faction,
                 EntityCommandingGuid = orderEntity.Id,
-                CreatedDate = orderEntity.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = orderEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 OrbitrelativeDeltaV = expendDeltaV_m,
                 _vectorDateTime = manuverNodeTime,
                 ActionOnDate = manuverNodeTime - TimeSpan.FromSeconds(burnTime * 0.5),
@@ -112,7 +112,7 @@ namespace Pulsar4X.Movement
                 {
                     RequestingFactionGuid = ship.FactionOwnerID,
                     EntityCommandingGuid = ship.Id,
-                    CreatedDate = ship.Manager.ManagerSubpulses.StarSysDateTime,
+                    CreatedDate = ship.AttachedManager.ManagerSubpulses.StarSysDateTime,
                     OrbitrelativeDeltaV = manuver.dv,
                     _vectorDateTime = tmanuver,
                     ActionOnDate = tmanuver - TimeSpan.FromSeconds(tburn * 0.5),
@@ -146,7 +146,7 @@ namespace Pulsar4X.Movement
             {
                 RequestingFactionGuid = ship.FactionOwnerID,
                 EntityCommandingGuid = ship.Id,
-                CreatedDate = ship.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = ship.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 OrbitrelativeDeltaV = manuver.dv,
                 _vectorDateTime = tmanuver,
                 ActionOnDate = tmanuver - TimeSpan.FromSeconds(tburn * 0.5),
@@ -175,7 +175,7 @@ namespace Pulsar4X.Movement
             {
                 RequestingFactionGuid = ship.FactionOwnerID,
                 EntityCommandingGuid = ship.Id,
-                CreatedDate = ship.Manager.ManagerSubpulses.StarSysDateTime,
+                CreatedDate = ship.AttachedManager.ManagerSubpulses.StarSysDateTime,
                 OrbitrelativeDeltaV = dv,
                 _entityCommanding = ship,
                 _vectorDateTime = tmanuver,
@@ -190,9 +190,9 @@ namespace Pulsar4X.Movement
         {
             if (!IsRunning && atDateTime >= ActionOnDate)
             {
-                 var parent = _entityCommanding.GetSOIParentEntity();
-                 if(parent == null) throw new NullReferenceException("parent cannot be null");
-                 var currentVel = MoveMath.GetRelativeFutureVelocity(_entityCommanding, atDateTime);
+                var parent = _entityCommanding.GetSOIParentEntity();
+                if (!parent.IsValid) throw new NullReferenceException("parent cannot be null");
+                var currentVel = MoveMath.GetRelativeFutureVelocity(_entityCommanding, atDateTime);
 
                 var parentMass = _entityCommanding.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
                 var myMass = _entityCommanding.GetDataBlob<MassVolumeDB>().MassTotal;
@@ -217,10 +217,10 @@ namespace Pulsar4X.Movement
 
         public override void UpdateDetailString()
         {
-            if(_entityCommanding != null && ActionOnDate > _entityCommanding.StarSysDateTime)
+            if (_entityCommanding.IsValid && ActionOnDate > _entityCommanding.StarSysDateTime)
                 _details = "Waiting " + (ActionOnDate - _entityCommanding.StarSysDateTime).ToString("d'd 'h'h 'm'm 's's'") + "\n"
                 + "   to expend  " + Stringify.Velocity(OrbitrelativeDeltaV.Length()) + " Δv";
-            else if(IsRunning)
+            else if (IsRunning)
                 _details = "Expending " + Stringify.Velocity(_db.ManuverDeltaVLen) + " Δv";
         }
 
@@ -267,12 +267,12 @@ namespace Pulsar4X.Movement
         public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement;
         public override bool IsBlocking => true;
 
-        Entity _factionEntity;
-        Entity _entityCommanding;
+        Entity _factionEntity = Entity.InvalidEntity;
+        Entity _entityCommanding = Entity.InvalidEntity;
         // private OrdnanceDesign _missileDesign;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
-        private Entity _targetEntity;
+        private Entity _targetEntity = Entity.InvalidEntity;
         NewtonMoveDB _newtonMovedb;
         NewtonThrustAbilityDB _newtonAbilityDB;
         private double _startDV;
@@ -298,7 +298,7 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(atDateTime < ActionOnDate)
+            if (atDateTime < ActionOnDate)
                 return;
 
             if (!IsRunning)
@@ -326,7 +326,7 @@ namespace Pulsar4X.Movement
             var halfDV = _startDV * 0.5; //lets burn half the dv getting into a good intercept.
             var dvUsed = _startDV - _newtonAbilityDB.DeltaV;
             var dvToUse = halfDV - dvUsed;
-            if(dvToUse > 0)
+            if (dvToUse > 0)
             {
                 (Vector3 Position, Vector3 Velocity) curOurRalState = MoveMath.GetRelativeState(_entityCommanding);
                 (Vector3 Position, Vector3 Velocity) curTgtRalState = MoveMath.GetRelativeState(_targetEntity);
@@ -352,7 +352,7 @@ namespace Pulsar4X.Movement
                 var manuverVector = ManuverVector(dvToUse, burnTime, curOurRalState, curTgtRalState, atDateTime);
 
                 _newtonMovedb.ManuverDeltaV = manuverVector; //TODO: this is going to be even more broken now. it used to be using the prograde vector reference and now is using parent/
-                _entityCommanding.Manager.ManagerSubpulses.AddEntityInterupt(atDateTime + TimeSpan.FromSeconds(5), nameof(OrderableProcessor), _entityCommanding);
+                _entityCommanding.AttachedManager.ManagerSubpulses.AddEntityInterupt(atDateTime + TimeSpan.FromSeconds(5), nameof(OrderableProcessor), _entityCommanding);
 
             }
             else
@@ -367,7 +367,7 @@ namespace Pulsar4X.Movement
             double burnTime,
             (Vector3 Position, Vector3 Velocity) ourState,
             (Vector3 Position, Vector3 Velocity) tgtState,
-            DateTime atDateTime )
+            DateTime atDateTime)
         {
             var distanceToTgt = (ourState.Position - tgtState.Position).Length();
             var tgtBearing = tgtState.Position - ourState.Position;
@@ -429,7 +429,7 @@ namespace Pulsar4X.Movement
             //not fully accurate since we're not calculating for jerk.
             var distanceWhileAcclerating = 1.5 * acceleration * burnTime * burnTime;
             double timeToTarget;
-            if(distanceWhileAcclerating >  distanceToTgt)
+            if (distanceWhileAcclerating > distanceToTgt)
             {
                 distanceWhileAcclerating = distanceToTgt;
                 timeToTarget = Math.Sqrt(distanceToTgt / (1.5 * acceleration));
@@ -439,7 +439,7 @@ namespace Pulsar4X.Movement
                 Vector3 leadToTgt = targetVelocity - ourVelocity;
                 var closingSpeed = leadToTgt.Length() + dvToUse;
                 var timeAtFullVelocity = ((distanceToTgt - distanceWhileAcclerating) / closingSpeed);
-                timeToTarget = timeAtFullVelocity + burnTime ;
+                timeToTarget = timeAtFullVelocity + burnTime;
             }
 
             return timeToTarget;
@@ -490,12 +490,12 @@ namespace Pulsar4X.Movement
         public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement;
         public override bool IsBlocking => true;
 
-        Entity _factionEntity;
-        Entity _entityCommanding;
+        Entity _factionEntity = Entity.InvalidEntity;
+        Entity _entityCommanding = Entity.InvalidEntity;
         // private OrdnanceDesign _missileDesign;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
-        private Entity _targetEntity;
+        private Entity _targetEntity = Entity.InvalidEntity;
         NewtonMoveDB _newtonMovedb;
         NewtonThrustAbilityDB _newtonAbilityDB;
         private double _startDV;
@@ -520,7 +520,7 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
-            if(atDateTime < ActionOnDate)
+            if (atDateTime < ActionOnDate)
                 return;
             if (!IsRunning)
             {
@@ -532,10 +532,10 @@ namespace Pulsar4X.Movement
                 var soiParentEntity = _entityCommanding.GetSOIParentEntity();
                 _soiParentMass = soiParentEntity.GetDataBlob<MassVolumeDB>().MassDry;
                 var currentVel = MoveMath.GetRelativeFutureVelocity(_entityCommanding, atDateTime);
-                if(_entityCommanding.HasDataBlob<OrbitDB>())
-                _entityCommanding.RemoveDataBlob<OrbitDB>();
-                if(_entityCommanding.HasDataBlob<OrbitUpdateOftenDB>())
-                _entityCommanding.RemoveDataBlob<OrbitUpdateOftenDB>();
+                if (_entityCommanding.HasDataBlob<OrbitDB>())
+                    _entityCommanding.RemoveDataBlob<OrbitDB>();
+                if (_entityCommanding.HasDataBlob<OrbitUpdateOftenDB>())
+                    _entityCommanding.RemoveDataBlob<OrbitUpdateOftenDB>();
                 if (_entityCommanding.HasDataBlob<NewtonMoveDB>())
                     _newtonMovedb = _entityCommanding.GetDataBlob<NewtonMoveDB>();
                 else
@@ -548,7 +548,7 @@ namespace Pulsar4X.Movement
             var halfDV = _startDV * 0.5; //lets burn half the dv getting into a good intercept.
             var dvUsed = _startDV - _newtonAbilityDB.DeltaV;
             var dvToUse = halfDV - dvUsed;
-            if(dvToUse > 0)
+            if (dvToUse > 0)
             {
                 (Vector3 pos, Vector3 Velocity) curOurRalState = MoveMath.GetRelativeState(_entityCommanding);
                 (Vector3 pos, Vector3 Velocity) curTgtRalState = MoveMath.GetRelativeState(_targetEntity);
@@ -581,7 +581,7 @@ namespace Pulsar4X.Movement
             double burnTime,
             (Vector3 Position, Vector3 Velocity) ourState,
             (Vector3 Position, Vector3 Velocity) tgtState,
-            DateTime atDateTime )
+            DateTime atDateTime)
         {
             var distanceToTgt = (ourState.Position - tgtState.Position).Length();
             var tgtBearing = tgtState.Position - ourState.Position;
@@ -636,7 +636,7 @@ namespace Pulsar4X.Movement
             //not fully accurate since we're not calculating for jerk.
             var distanceWhileAcclerating = 1.5 * acceleration * burnTime * burnTime;
             double timeToTarget;
-            if(distanceWhileAcclerating >  distanceToTgt)
+            if (distanceWhileAcclerating > distanceToTgt)
             {
                 distanceWhileAcclerating = distanceToTgt;
                 timeToTarget = Math.Sqrt(distanceToTgt / (1.5 * acceleration));
@@ -646,7 +646,7 @@ namespace Pulsar4X.Movement
                 Vector3 leadToTgt = targetVelocity - ourVelocity;
                 var closingSpeed = leadToTgt.Length() + dvToUse;
                 var timeAtFullVelocity = ((distanceToTgt - distanceWhileAcclerating) / closingSpeed);
-                timeToTarget = timeAtFullVelocity + burnTime ;
+                timeToTarget = timeAtFullVelocity + burnTime;
             }
 
             return timeToTarget;

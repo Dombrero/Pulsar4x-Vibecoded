@@ -19,7 +19,7 @@ namespace Pulsar4X.Client
         {
             "Corporation", "Systems", "Celestial Bodies", "Colonies", "Fleets"
         };
-        private readonly Dictionary<string, bool> _sectionVisible = new ()
+        private readonly Dictionary<string, bool> _sectionVisible = new()
         {
             { "Corporation", true },
             { "Systems", true },
@@ -33,7 +33,7 @@ namespace Pulsar4X.Client
 
         // The celestial body kinds listed in the "Celestial Bodies" section. Colonies and
         // ships are intentionally excluded as they have their own sections above.
-        private static readonly BodyKind[] _celestialBodyKinds = new []
+        private static readonly BodyKind[] _celestialBodyKinds = new[]
         {
             BodyKind.Star,
             BodyKind.Planet,
@@ -51,7 +51,7 @@ namespace Pulsar4X.Client
 
         internal static Selector GetInstance()
         {
-            if(_uiState.TryGetUniqueWindow<Selector>(out var window))
+            if (_uiState.TryGetUniqueWindow<Selector>(out var window))
             {
                 return window;
             }
@@ -61,19 +61,19 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive || !_uiState.IsGameLoaded) return;
+            if (!IsActive || !_uiState.IsGameLoaded) return;
 
             ImGui.SetNextWindowSize(new Vector2(256, 0));
             ImGui.SetNextWindowPos(new Vector2(ImGui.GetMainViewport().WorkSize.X - 256, 0));
             ImGui.SetNextWindowBgAlpha(0);
-            if(Window.Begin("###selector", _flags))
+            if (Window.Begin("###selector", _flags))
             {
                 // TODO: re-implement this somewhere
                 // SystemViewPreferences.GetInstance().DisplayCombo("map", selectedIndex =>
                 // {
                 //     _uiState.SelectedMapView = SystemViewPreferences.GetInstance().GetViewByIndex(selectedIndex);
                 // });
-                if(_editing)
+                if (_editing)
                 {
                     DisplayEditor();
                 }
@@ -92,21 +92,21 @@ namespace Pulsar4X.Client
             // The gear button lives on the first visible section's header. If everything
             // is hidden we still need a way back into the editor, so draw a lone gear.
             string? firstVisible = Array.Find(_sectionNames, s => _sectionVisible[s]);
-            if(firstVisible == null)
+            if (firstVisible == null)
             {
                 DrawGearButton(sameLine: false);
                 return;
             }
 
-            if(_sectionVisible["Corporation"])
+            if (_sectionVisible["Corporation"])
                 Section("Corporation", CorporationHeaderLabel(), firstVisible == "Corporation", DisplayCorporation);
-            if(_sectionVisible["Systems"])
+            if (_sectionVisible["Systems"])
                 Section("Systems", "Systems", firstVisible == "Systems", DisplaySystems);
-            if(_sectionVisible["Celestial Bodies"])
+            if (_sectionVisible["Celestial Bodies"])
                 Section("Celestial Bodies", "Celestial Bodies", firstVisible == "Celestial Bodies", DisplayBodies);
-            if(_sectionVisible["Colonies"])
+            if (_sectionVisible["Colonies"])
                 Section("Colonies", "Colonies", firstVisible == "Colonies", DisplayColonies);
-            if(_sectionVisible["Fleets"])
+            if (_sectionVisible["Fleets"])
                 Section("Fleets", "Fleets", firstVisible == "Fleets", DisplayFleets);
         }
 
@@ -116,7 +116,7 @@ namespace Pulsar4X.Client
         /// </summary>
         private void Section(string sectionId, string headerLabel, bool drawGear, Action content)
         {
-            if(drawGear) ImGui.SetNextItemAllowOverlap();
+            if (drawGear) ImGui.SetNextItemAllowOverlap();
             bool open = ImGui.CollapsingHeader($"{headerLabel}###section-{sectionId}", ImGuiTreeNodeFlags.DefaultOpen);
             if (sectionId == "Colonies")
                 TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorColonies);
@@ -124,8 +124,8 @@ namespace Pulsar4X.Client
                 TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorFleets);
             else if (sectionId == "Corporation")
                 TutorialHighlight.ReportItem(TutorialHighlightRegion.RightSelectorFunds);
-            if(drawGear) DrawGearButton(sameLine: true);
-            if(open) content();
+            if (drawGear) DrawGearButton(sameLine: true);
+            if (open) content();
         }
 
         private void DrawGearButton(bool sameLine)
@@ -134,13 +134,13 @@ namespace Pulsar4X.Client
             string gear = "⚙"; // U+2699, merged in from DejaVuSans
             float btnWidth = ImGui.CalcTextSize(gear).X + style.FramePadding.X * 2f;
 
-            if(sameLine) ImGui.SameLine();
+            if (sameLine) ImGui.SameLine();
             ImGui.SetCursorPosX(ImGui.GetWindowWidth() - btnWidth - style.WindowPadding.X);
-            if(ImGui.SmallButton($"{gear}##selector-gear"))
+            if (ImGui.SmallButton($"{gear}##selector-gear"))
             {
                 _editing = true;
             }
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Configure sections");
         }
 
@@ -149,10 +149,10 @@ namespace Pulsar4X.Client
             ImGui.TextDisabled("Sections");
             ImGui.Separator();
 
-            foreach(var name in _sectionNames)
+            foreach (var name in _sectionNames)
             {
                 bool visible = _sectionVisible[name];
-                if(ImGui.Checkbox(name, ref visible))
+                if (ImGui.Checkbox(name, ref visible))
                     _sectionVisible[name] = visible;
             }
 
@@ -162,7 +162,7 @@ namespace Pulsar4X.Client
             const float buttonWidth = 80f;
             float regionWidth = ImGui.GetContentRegionAvail().X;
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (regionWidth - buttonWidth) * 0.5f);
-            if(ImGui.Button("Save", new Vector2(buttonWidth, 0)))
+            if (ImGui.Button("Save", new Vector2(buttonWidth, 0)))
             {
                 _editing = false;
             }
@@ -171,14 +171,14 @@ namespace Pulsar4X.Client
         private static string CorporationHeaderLabel()
         {
             var faction = _uiState.GameClient?.Galaxy.Faction;
-            if(faction == null) return "Corporation";
+            if (faction == null) return "Corporation";
             return $"{faction.Name} [{faction.Abbreviation}]";
         }
 
         private static void DisplayCorporation()
         {
             var faction = _uiState.GameClient?.Galaxy.Faction;
-            if(faction == null) return;
+            if (faction == null) return;
 
             string label = "Funds";
             string value = faction.Funds.ToString("C0", CultureInfo.CurrentCulture);

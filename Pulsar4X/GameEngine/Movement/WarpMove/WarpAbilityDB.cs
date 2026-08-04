@@ -13,7 +13,7 @@ namespace Pulsar4X.Movement
         [JsonProperty]
         public double TotalWarpPower { get; internal set; }
         [JsonProperty]
-        public string EnergyType { get; internal set; }
+        public string? EnergyType { get; internal set; }
         [JsonProperty]
         public double BubbleCreationCost { get; internal set; }
         [JsonProperty]

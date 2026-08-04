@@ -21,7 +21,7 @@ namespace Pulsar4X.Movement
 
         public override bool IsBlocking { get; } = false;
 
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
         internal override bool IsValidCommand(Game game)
         {
@@ -40,7 +40,7 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
-            if (!EntityCommanding.TryGetDataBlob(out NavSequenceDB navDB))
+            if (!EntityCommanding.TryGetDataBlob<NavSequenceDB>(out NavSequenceDB? navDB) || navDB is null)
             {
                 navDB = new NavSequenceDB();
                 EntityCommanding.SetDataBlob(navDB);

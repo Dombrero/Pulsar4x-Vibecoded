@@ -60,7 +60,6 @@ namespace Pulsar4X.Engine
         /// without polling; without it a paused client never sees the run-state clear.
         /// </summary>
         public event Action? SimulationStopped;
-
         // Observes the (possibly cancelled) simulation task's exception and notifies listeners once it
         // has fully stopped. ContinueWith fires after the task reaches a final state, so IsRunning is
         // false by the time SimulationStopped is raised.
@@ -96,7 +95,7 @@ namespace Pulsar4X.Engine
         public TimeSpan Ticklength { get; set; } = TimeSpan.FromSeconds(3600);
 
         [JsonIgnore]
-        private Game _game;
+        private Game? _game;
 
         /// <summary>
         /// length of time it took to process the last DoProcess
@@ -120,7 +119,6 @@ namespace Pulsar4X.Engine
 
         [JsonIgnore]
         private DateTime _gameGlobalDateTime;
-
         [JsonProperty]
         public DateTime GameGlobalDateTime
         {
@@ -139,8 +137,7 @@ namespace Pulsar4X.Engine
         /// Fired when the game date is incremented.
         /// All systems are in sync at this event.
         /// </summary>
-        public event DateChangedEventHandler GameGlobalDateChangedEvent;
-
+        public event DateChangedEventHandler? GameGlobalDateChangedEvent;
         /// <summary>
         /// Constructor
         /// </summary>

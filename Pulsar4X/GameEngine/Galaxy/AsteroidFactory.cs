@@ -36,13 +36,13 @@ namespace Pulsar4X.Galaxy
                 mass = asteroidMass;
 
             var speed = 40000;
-            Vector3 velocity = Vector3.UnitX*speed;
+            Vector3 velocity = Vector3.UnitX * speed;
 
 
             var massVolume = MassVolumeDB.NewFromMassAndRadius_m(mass, radius);
             var planetInfo = new SystemBodyInfoDB();
             var name = new NameDB("Ellie");
-            var AsteroidDmg = new AsteroidDamageDB{ FractureChance = new PercentValue(0.75f) };
+            var AsteroidDmg = new AsteroidDamageDB { FractureChance = new PercentValue(0.75f) };
             var dmgPfl = EntityDamageProfileDB.AsteroidDamageProfile(massVolume.Volume_km3, massVolume.DensityDry_gcm, massVolume.RadiusInM, 50, starSys.RNG);
             var sensorPfil = new SensorProfileDB();
 
@@ -54,6 +54,8 @@ namespace Pulsar4X.Galaxy
 
 
             var parent = target.GetDataBlob<OrbitDB>().Parent;
+            if (parent is not { IsValid: true })
+                throw new InvalidOperationException("Asteroid target has no valid orbit parent.");
             var parentMass = parent.GetDataBlob<MassVolumeDB>().MassDry;
             var myMass = massVolume.MassDry;
 
@@ -80,7 +82,7 @@ namespace Pulsar4X.Galaxy
             return newELE;
         }
 
-        public static Entity CreateAsteroid4(Vector3 position, OrbitDB origOrbit, DateTime atDateTime, Random rng, double asteroidMass = -1.0 )
+        public static Entity CreateAsteroid4(Vector3 position, OrbitDB origOrbit, DateTime atDateTime, Random rng, double asteroidMass = -1.0)
         {
             //todo rand these a bit.
             double radius = 500;
@@ -92,13 +94,13 @@ namespace Pulsar4X.Galaxy
                 mass = asteroidMass;
 
             var speed = 40000;
-            Vector3 velocity = Vector3.UnitX*speed;
+            Vector3 velocity = Vector3.UnitX * speed;
 
 
             var massVolume = MassVolumeDB.NewFromMassAndRadius_m(mass, radius);
             var planetInfo = new SystemBodyInfoDB();
             var name = new NameDB("Ellie");
-            var AsteroidDmg = new AsteroidDamageDB{ FractureChance = new PercentValue(0.75f) };
+            var AsteroidDmg = new AsteroidDamageDB { FractureChance = new PercentValue(0.75f) };
             var dmgPfl = EntityDamageProfileDB.AsteroidDamageProfile(massVolume.Volume_km3, massVolume.DensityDry_gcm, massVolume.RadiusInM, 50, rng);
             var sensorPfil = new SensorProfileDB();
 
@@ -107,6 +109,8 @@ namespace Pulsar4X.Galaxy
 
 
             var parent = origOrbit.Parent;
+            if (parent is not { IsValid: true })
+                throw new InvalidOperationException("Asteroid fragment has no valid orbit parent.");
             var parentMass = parent.GetDataBlob<MassVolumeDB>().MassDry;
             var myMass = massVolume.MassDry;
 
@@ -131,7 +135,7 @@ namespace Pulsar4X.Galaxy
             };
 
             Entity newELE = Entity.Create();
-            origOrbit.OwningEntity.Manager.AddEntity(newELE, planetDBs);
+            origOrbit.OwningEntity.AttachedManager.AddEntity(newELE, planetDBs);
             return newELE;
         }
     }

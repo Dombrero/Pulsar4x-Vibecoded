@@ -13,7 +13,7 @@ public class SystemMapHotKeys : IHotKeyHandler
             if (e.Key.Key == SDL.Keycode.Space)
             {
                 var tc = TimeControl.GetInstance();
-                if((e.Key.Mod & SDL.Keymod.Ctrl) != 0)
+                if ((e.Key.Mod & SDL.Keymod.Ctrl) != 0)
                 {
                     // Ctrl + Space for single step.
                     tc.OneStepPressed();
@@ -27,47 +27,47 @@ public class SystemMapHotKeys : IHotKeyHandler
             {
                 MainMenuItems.GetInstance().ToggleActive();
             }
-            else if(e.Key.Key == SDL.Keycode.F1)
+            else if (e.Key.Key == SDL.Keycode.F1)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("debug-window");
             }
-            else if(e.Key.Key == SDL.Keycode.F2)
+            else if (e.Key.Key == SDL.Keycode.F2)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("performance-window");
             }
-            else if(e.Key.Key == SDL.Keycode.F3)
+            else if (e.Key.Key == SDL.Keycode.F3)
             {
                 GameLogWindow.GetInstance().ToggleActive();
             }
-            else if(e.Key.Key == SDL.Keycode.F4)
+            else if (e.Key.Key == SDL.Keycode.F4)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("blueprints-window");
             }
-            else if(e.Key.Key == SDL.Keycode.F5)
+            else if (e.Key.Key == SDL.Keycode.F5)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("components-window");
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha1)
+            else if (e.Key.Key == SDL.Keycode.Alpha1)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("component-design");
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha2)
+            else if (e.Key.Key == SDL.Keycode.Alpha2)
             {
                 UniquePulsarGuiWindow._uiState.ToggleDevTool("ship-design");
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha3)
+            else if (e.Key.Key == SDL.Keycode.Alpha3)
             {
                 ColonyManagementWindow.GetInstance().ToggleActive();
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha4)
+            else if (e.Key.Key == SDL.Keycode.Alpha4)
             {
                 ResearchWindow.GetInstance().ToggleActive();
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha5)
+            else if (e.Key.Key == SDL.Keycode.Alpha5)
             {
                 FleetWindow.GetInstance().ToggleActive();
             }
-            else if(e.Key.Key == SDL.Keycode.Alpha6)
+            else if (e.Key.Key == SDL.Keycode.Alpha6)
             {
                 CommanderWindow.GetInstance().ToggleActive();
             }

@@ -116,7 +116,7 @@ namespace Pulsar4X.Orbital
         /// <summary>
         /// Returns a value that indicates whether this instance and a specified object are equal. (Overrides ValueType.Equals(Object).)
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is Vector2))
                 return false;
@@ -226,7 +226,7 @@ namespace Pulsar4X.Orbital
         /// Returns the string representation of the current instance using the specified format string to format individual elements
         /// and the specified format provider to define culture-specific formatting.
         /// </summary>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             return String.Format("({0}, {1})", X.ToString(format, formatProvider), Y.ToString(format, formatProvider));
         }
@@ -333,7 +333,7 @@ namespace Pulsar4X.Orbital
                 return $"(X:{strx},Y:{stry}), Magnitude: {strmag})";
             }
         }
-        private static string Distance(double length_m,  string format = "0.###")
+        private static string Distance(double length_m, string format = "0.###")
         {
 
             string stringDistance = "0 m";

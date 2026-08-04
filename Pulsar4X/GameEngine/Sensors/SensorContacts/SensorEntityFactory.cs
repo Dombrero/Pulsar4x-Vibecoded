@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Pulsar4X.Orbital;
 using Pulsar4X.Engine;
@@ -10,7 +11,7 @@ namespace Pulsar4X.Sensors
     {
 
 
-        internal static SensorContact UpdateSensorContact(Entity detectingFaction, SensorInfoDB sensorInfo)
+        internal static SensorContact? UpdateSensorContact(Entity detectingFaction, SensorInfoDB sensorInfo)
         {
             Entity detectedEntity = sensorInfo.DetectedEntity;
 
@@ -22,7 +23,7 @@ namespace Pulsar4X.Sensors
                     sensorInfo,
                     SetPositionClone(sensorInfo),
                     };
-                //sensorInfo.SensorEntity = Entity.Create(detectedEntity.Manager.FactionSensorManagers[detectingFaction.ID], detectingFaction.ID, datablobs);
+                //sensorInfo.SensorEntity = Entity.Create(detectedEntity.AttachedManager.FactionSensorManagers[detectingFaction.ID], detectingFaction.ID, datablobs);
                 var pos = SetPositionClone(sensorInfo);
 
                 //detectingFaction.GetDataBlob<FactionOwnerDB>().SetOwned(sensorInfo.SensorContact);
@@ -30,22 +31,22 @@ namespace Pulsar4X.Sensors
 
             //foreach (ISensorCloneMethod db in sensorInfo.DetectedEntity.DataBlobs.OfType<ISensorCloneMethod>())
             //{
-                /*
-                int typeIndex1 = EntityManager.DataBlobTypes[db.GetType()];
-                int typeIndex;
-                EntityManager.TryGetTypeIndex(db.GetType(), out typeIndex);
-                if (!sensorInfo.SensorContact.HasDataBlob(typeIndex))
-                {
-                    var cloned = db.SensorClone(sensorInfo);
-                    sensorInfo.SensorContact.SetDataBlob(cloned);
-                }
-                else
-                {
-                    //TODO: Optimize, Networking: don't do this if there are not going to be any changes. (ie no new sensor data)
-                    db.SensorUpdate(sensorInfo);
-                    //TODO: Networking: we need to send this DB to any listning network clients since it's a change that they wont(and shouldn't) know how to calculate on thier own.
-                    //TODO: Networking: write an EntityChangeListner to handle serverside DB change notification.
-                }*/
+            /*
+            int typeIndex1 = EntityManager.DataBlobTypes[db.GetType()];
+            int typeIndex;
+            EntityManager.TryGetTypeIndex(db.GetType(), out typeIndex);
+            if (!sensorInfo.SensorContact.HasDataBlob(typeIndex))
+            {
+                var cloned = db.SensorClone(sensorInfo);
+                sensorInfo.SensorContact.SetDataBlob(cloned);
+            }
+            else
+            {
+                //TODO: Optimize, Networking: don't do this if there are not going to be any changes. (ie no new sensor data)
+                db.SensorUpdate(sensorInfo);
+                //TODO: Networking: we need to send this DB to any listning network clients since it's a change that they wont(and shouldn't) know how to calculate on thier own.
+                //TODO: Networking: write an EntityChangeListner to handle serverside DB change notification.
+            }*/
             //}
 
 
@@ -54,10 +55,11 @@ namespace Pulsar4X.Sensors
             //if (sensorInfo.DetectedEntity.HasDataBlob<OrbitDB>())
             //{ SetOrbitClone(detectedEntity.GetDataBlob<OrbitDB>(), sensorInfo); }
 
+            // Sensor contact entity creation above is still incomplete; callers ignore a null return.
             return sensorInfo.SensorContact;
         }
 
-        private static SensorPositionDB SetPositionClone( SensorInfoDB sensorInfo)
+        private static SensorPositionDB SetPositionClone(SensorInfoDB sensorInfo)
         {
             PositionDB position = sensorInfo.DetectedEntity.GetDataBlob<PositionDB>();
             SensorPositionDB sensorEntityPosition = new SensorPositionDB(position);
@@ -87,7 +89,7 @@ namespace Pulsar4X.Sensors
             double signalNowMagnatude = sensorInfo.LatestDetectionQuality.SignalStrength_kW;
             if (signalNowMagnatude > 0.0)
             {
-                var sensorEntityMove =  GenericClone<WarpMovingDB>(detectedEntitiesMove, sensorInfo);
+                var sensorEntityMove = GenericClone<WarpMovingDB>(detectedEntitiesMove, sensorInfo);
 
                 sensorEntityMove.TargetPositionDB = null; //the sensorEntity shouldn't know the final destination.
 
@@ -101,7 +103,7 @@ namespace Pulsar4X.Sensors
 
 
 
-        private static T GenericClone<T>(T datablob, SensorInfoDB sensorInfo) where T: BaseDataBlob
+        private static T GenericClone<T>(T datablob, SensorInfoDB sensorInfo) where T : BaseDataBlob
         {
 
             T sensorEntitesDB;

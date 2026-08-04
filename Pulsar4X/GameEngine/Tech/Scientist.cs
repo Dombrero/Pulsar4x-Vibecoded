@@ -12,7 +12,7 @@ namespace Pulsar4X.Technology
         /// Bonuses that this scentist imparts.
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, float> Bonuses { get; internal set; }
+        public Dictionary<string, float> Bonuses { get; internal set; } = new();
 
         /// <summary>
         /// Max number of labs this scientist can manage.
@@ -29,21 +29,21 @@ namespace Pulsar4X.Technology
         /// <summary>
         /// Queue of projects currently being worked on by this scientist.
         /// </summary>
-        public SafeList<(string techID, bool cycle)> ProjectQueue { get; internal set; } = new ();
+        public SafeList<(string techID, bool cycle)> ProjectQueue { get; internal set; } = new();
 
-        public new string Name { get; set; }
+        public new string Name { get; set; } = "";
 
         public Scientist()
         {
             TeamType = TeamTypes.Science;
         }
 
-        public Scientist(Dictionary<string, float> bonuses, byte maxLabs )
+        public Scientist(Dictionary<string, float> bonuses, byte maxLabs)
         {
             Bonuses = bonuses;
             MaxLabs = maxLabs;
             AssignedLabs = 0;
-            ProjectQueue = new ();
+            ProjectQueue = new();
         }
 
         public Scientist(Scientist dB)

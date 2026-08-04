@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Numerics;
 using ImGuiNET;
@@ -11,9 +11,9 @@ namespace Pulsar4X.Client.ModFileEditing;
 
 public class ModInfoUI
 {
-    private bool[] _isActive;
+    private bool[] _isActive = Array.Empty<bool>();
     private ModManifest[] _modManafests;
-    private protected string[] _itemNames;
+    private protected string[] _itemNames = Array.Empty<string>();
 
     private protected Vector2 _childSize = new Vector2(640, 200);
 
@@ -22,7 +22,7 @@ public class ModInfoUI
     private protected string _fileDialogPath = "";
     private protected string _fileName = "";
     private protected int _selectedIndex = -1;
-    private protected ModManifest _newEmpty;
+    private protected ModManifest _newEmpty = new();
     public ModInfoUI(ModDataStore modDataStore)
     {
         _modManafests = modDataStore.ModManifests.ToArray();
@@ -47,14 +47,14 @@ public class ModInfoUI
     public void Display(string label)
     {
         int i = 0;
-        if(ImGui.TreeNode(label))
+        if (ImGui.TreeNode(label))
         {
 
-            ImGui.BeginChild(label,_childSize, ImGuiChildFlags.Borders);
+            ImGui.BeginChild(label, _childSize, ImGuiChildFlags.Borders);
 
             ImGui.Columns(2);
-            ImGui.SetColumnWidth(0,150);
-            ImGui.SetColumnWidth(1,500);
+            ImGui.SetColumnWidth(0, 150);
+            ImGui.SetColumnWidth(1, 500);
 
             foreach (var item in _modManafests)
             {
@@ -71,12 +71,12 @@ public class ModInfoUI
                 ImGui.SameLine();
                 ImGui.Button("SaveToMemory");
                 ImGui.SameLine();
-                if(ImGui.Button("Edit##" + label + item.Namespace))
+                if (ImGui.Button("Edit##" + label + item.Namespace))
                 {
                     _isActive[i] = !_isActive[i];
                 }
                 ImGui.SameLine();
-                if(ImGui.Button("Delete##" + label + item.Namespace))
+                if (ImGui.Button("Delete##" + label + item.Namespace))
                 {
                     RemoveAtIndex(i);
                     break;
@@ -85,7 +85,7 @@ public class ModInfoUI
                 ImGui.NextColumn();
                 i++;
             }
-            NewItem("+##"+label);
+            NewItem("+##" + label);
             ImGui.SameLine();
             if (ImGui.Button("Load"))
             {
@@ -115,7 +115,7 @@ public class ModInfoUI
     private static bool _showLoadFileDialogDatafiles = false;
     public void DisplayEditorWindow(int selectedIndex)
     {
-        if(!_isActive[selectedIndex])
+        if (!_isActive[selectedIndex])
             return;
         var selectedItem = _modManafests[selectedIndex];
         string name = selectedItem.ModName;
@@ -128,8 +128,8 @@ public class ModInfoUI
         if (ImGui.Begin($"Tech Category Editor: {name}###{selectedItem.Namespace}", ref _isActive[selectedIndex]))
         {
             ImGui.Columns(2);
-            ImGui.SetColumnWidth(0,150);
-            ImGui.SetColumnWidth(1,500);
+            ImGui.SetColumnWidth(0, 150);
+            ImGui.SetColumnWidth(1, 500);
             ImGui.Text("Name: ");
             ImGui.NextColumn();
             if (TextEditWidget.Display("##name" + name, ref name))
@@ -222,7 +222,7 @@ public class ModInfoUI
     {
         ModLoader modLoader = new ModLoader();
         ModDataStore modDataStore = new ModDataStore();
-        modLoader.LoadModManifest(Path.Combine(path,filename), modDataStore);
+        modLoader.LoadModManifest(Path.Combine(path, filename), modDataStore);
         var editor = ModFileEditor.GetInstance();
         editor.Refresh(modDataStore);
     }
@@ -249,7 +249,7 @@ public class ModInfoUI
         int i = 0;
         foreach (var item in _modManafests)
         {
-            if(i == index)
+            if (i == index)
             {
                 index = -1;
                 continue;

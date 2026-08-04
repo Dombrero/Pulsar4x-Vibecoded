@@ -19,11 +19,12 @@ namespace Pulsar4X.Tests
 
             _modLoader.LoadModManifest("Data/basemod/modInfo.json", _modDataStore);
 
-            var _settings = new NewGameSettings() {
+            var _settings = new NewGameSettings()
+            {
                 MaxSystems = 1
             };
 
-            _game  = new Game(_settings, _modDataStore);
+            _game = new Game(_settings, _modDataStore);
 
             _entityManager = new EntityManager();
             _entityManager.Initialize(_game);
@@ -63,7 +64,8 @@ namespace Pulsar4X.Tests
         [Test]
         public void TestFrozenWouldBeFrozenAtGiveTemperature()
         {
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 10
             };
@@ -73,7 +75,8 @@ namespace Pulsar4X.Tests
         [Test]
         public void TestNotFrozenWouldBeFrozenAtGiveTemperature()
         {
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 0
             };
@@ -84,7 +87,8 @@ namespace Pulsar4X.Tests
         public void TestNoFrozenGasGetAtmosphericPressure()
         {
             float pressure = 1f;
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 UniqueID = "NOT",
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 0
@@ -101,12 +105,14 @@ namespace Pulsar4X.Tests
         public void TestFrozenGasGetAtmosphericPressure()
         {
             float pressure = 1f;
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 UniqueID = "NOT",
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 0
             };
-            GasBlueprint frozen = new() {
+            GasBlueprint frozen = new()
+            {
                 UniqueID = "FRO",
                 ChemicalSymbol = "FRO",
                 MeltingPoint = 20
@@ -126,7 +132,8 @@ namespace Pulsar4X.Tests
         public void TestNoFrozenGasGetGreenhousePressure()
         {
             float pressure = 1f;
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 UniqueID = "NOT",
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 0,
@@ -144,19 +151,22 @@ namespace Pulsar4X.Tests
         public void TestFrozenGasGetGreenhousePressure()
         {
             float pressure = 1f;
-            GasBlueprint gas1 = new() {
+            GasBlueprint gas1 = new()
+            {
                 UniqueID = "NOT",
                 ChemicalSymbol = "NOT",
                 MeltingPoint = 0,
                 GreenhouseEffect = 1
             };
-            GasBlueprint gas2 = new() {
+            GasBlueprint gas2 = new()
+            {
                 UniqueID = "FRO",
                 ChemicalSymbol = "FRO",
                 MeltingPoint = 20,
                 GreenhouseEffect = 0
             };
-            GasBlueprint gas3 = new() {
+            GasBlueprint gas3 = new()
+            {
                 UniqueID = "FG",
                 ChemicalSymbol = "FG",
                 MeltingPoint = 20,
@@ -182,7 +192,8 @@ namespace Pulsar4X.Tests
         public void TestNoFrozenGasGetAntiGreenhousePressure()
         {
             float pressure = 1f;
-            GasBlueprint gas = new() {
+            GasBlueprint gas = new()
+            {
                 ChemicalSymbol = "NOT",
                 UniqueID = "NOT",
                 MeltingPoint = 0,
@@ -200,25 +211,29 @@ namespace Pulsar4X.Tests
         public void TestFrozenGasGetAntiGreenhousePressure()
         {
             float pressure = 1f;
-            GasBlueprint gas1 = new() {
+            GasBlueprint gas1 = new()
+            {
                 ChemicalSymbol = "NOT",
                 UniqueID = "NOT",
                 MeltingPoint = 0,
                 GreenhouseEffect = -1
             };
-            GasBlueprint gas2 = new() {
+            GasBlueprint gas2 = new()
+            {
                 ChemicalSymbol = "G2",
                 UniqueID = "G2",
                 MeltingPoint = 20,
                 GreenhouseEffect = -1
             };
-            GasBlueprint gas3 = new() {
+            GasBlueprint gas3 = new()
+            {
                 ChemicalSymbol = "G3",
                 UniqueID = "G3",
                 MeltingPoint = 20,
                 GreenhouseEffect = 1
             };
-            GasBlueprint gas4 = new() {
+            GasBlueprint gas4 = new()
+            {
                 ChemicalSymbol = "G4",
                 UniqueID = "G4",
                 MeltingPoint = 0,

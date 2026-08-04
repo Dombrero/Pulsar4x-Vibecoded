@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using ImGuiNET;
 using Pulsar4X.Blueprints;
@@ -10,18 +10,18 @@ namespace Pulsar4X.Client.ModFileEditing;
 
 public class ComponentPropertyBlueprintUI : BluePrintsUI
 {
-    public string ParentID {get; private set;}
+    public string ParentID { get; private set; }
     private ComponentTemplatePropertyBlueprint[] _blueprints;
-    private string[] _attributeTypeNames;
-    private string[] _attributeFullNames;
-    public ComponentPropertyBlueprintUI(ModDataStore modDataStore, ComponentTemplateBlueprint componentBlueprint) : base(modDataStore, ModInstruction.DataType.ComponentTemplate )
+    private string[] _attributeTypeNames = Array.Empty<string>();
+    private string[] _attributeFullNames = Array.Empty<string>();
+    public ComponentPropertyBlueprintUI(ModDataStore modDataStore, ComponentTemplateBlueprint componentBlueprint) : base(modDataStore, ModInstruction.DataType.ComponentTemplate)
     {
         ParentID = componentBlueprint.UniqueID;
-        if(componentBlueprint.Properties != null)
+        if (componentBlueprint.Properties != null)
             _blueprints = componentBlueprint.Properties.ToArray();
         else
             _blueprints = new ComponentTemplatePropertyBlueprint[1];
-        
+
         Refresh();
     }
 
@@ -55,7 +55,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
         foreach (var item in attributeTypes)
         {
             _attributeTypeNames[i] = item.Name;
-            _attributeFullNames[i] = item.FullName;
+            _attributeFullNames[i] = item.FullName ?? item.Name;
             i++;
         }
     }
@@ -63,10 +63,10 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
     public void Display()
     {
         ImGui.Columns(2);
-        ImGui.SetColumnWidth(0,150);
+        ImGui.SetColumnWidth(0, 150);
         //ImGui.SetColumnWidth(1,400);
 
-        
+
         for (int i = 0; i < _blueprints.Length; i++)
         {
             ImGui.Text("Properties: ");
@@ -77,7 +77,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
         if (ImGui.Button("Add New"))
         {
             var newItem = new ComponentTemplatePropertyBlueprint();
-            
+
             var newblueprints = new ComponentTemplatePropertyBlueprint[_blueprints.Length + 1];
             Array.Copy(_blueprints, newblueprints, _blueprints.Length);
             newblueprints[_blueprints.Length] = newItem;
@@ -94,7 +94,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
             selectedItem = new ComponentTemplatePropertyBlueprint();
             selectedItem.Name = "newProperty";
         }
-        
+
         string editStr;
         ImGui.NextColumn();
         ImGui.Text("Name: ");
@@ -105,16 +105,16 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
             selectedItem.Name = editStr;
         }
         ImGui.NextColumn();
-        
+
         ImGui.Text("DescriptionFormula: ");
         ImGui.NextColumn();
         editStr = selectedItem.DescriptionFormula;
-        if (FunctionEditWidget.Display("##descf"  + selectedItem.Name, ref editStr, _modDataStore, _itemNames))
+        if (FunctionEditWidget.Display("##descf" + selectedItem.Name, ref editStr, _modDataStore, _itemNames))
         {
             selectedItem.DescriptionFormula = editStr;
         }
         ImGui.NextColumn();
-        
+
         ImGui.Text("GUIHint: ");
         ImGui.NextColumn();
         GuiHint _hint = selectedItem.GuiHint;
@@ -123,8 +123,8 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
             selectedItem.GuiHint = _hint;
         }
         ImGui.NextColumn();
-        
-        
+
+
         ImGui.Text("Units: ");
         ImGui.NextColumn();
         var editIndex = Array.IndexOf(_units, selectedItem.Units);
@@ -144,7 +144,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
                 selectedItem.MaxFormula = editStr;
             }
             ImGui.NextColumn();
-            
+
             ImGui.Text("MinFormula: ");
             ImGui.NextColumn();
             editStr = selectedItem.MinFormula;
@@ -153,7 +153,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
                 selectedItem.MinFormula = editStr;
             }
             ImGui.NextColumn();
-            
+
             ImGui.Text("StepFormula: ");
             ImGui.NextColumn();
             editStr = selectedItem.StepFormula;
@@ -167,7 +167,7 @@ public class ComponentPropertyBlueprintUI : BluePrintsUI
         ImGui.Text("PropertyFormula: ");
         ImGui.NextColumn();
         editStr = selectedItem.PropertyFormula;
-        if (FunctionEditWidget.Display("##atbf"  + selectedItem.Name, ref editStr, _modDataStore, _itemNames))
+        if (FunctionEditWidget.Display("##atbf" + selectedItem.Name, ref editStr, _modDataStore, _itemNames))
         {
             selectedItem.PropertyFormula = editStr;
         }

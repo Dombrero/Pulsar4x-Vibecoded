@@ -6,9 +6,9 @@ namespace Pulsar4X.Weapons
     public interface IFireWeaponInstr
     {
         public string WeaponType { get; }
-        
+
         public void SetWeaponState(WeaponState state);
-        
+
         public bool CanLoadOrdnance(OrdnanceDesign ordnanceDesign);
         public bool AssignOrdnance(OrdnanceDesign ordnanceDesign);
 

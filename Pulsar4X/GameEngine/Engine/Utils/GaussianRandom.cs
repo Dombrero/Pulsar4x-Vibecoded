@@ -29,7 +29,7 @@ namespace Pulsar4X.Engine
             do
             {
                 result = (int)NextGaussian(rng, mean, standardDeviation);
-            } while(result < min || result > max);
+            } while (result < min || result > max);
 
             return result;
         }

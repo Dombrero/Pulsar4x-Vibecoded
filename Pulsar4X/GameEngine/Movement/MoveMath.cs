@@ -73,7 +73,7 @@ public static class MoveMath
         {
             var vel = NewtonionMovementProcessor.GetRelativeState(entity, entity.GetDataBlob<NewtonMoveDB>(), atDateTime).vel;
             var parentEntity = posDB.Parent;
-            if(parentEntity == null) throw new NullReferenceException("parentEntity cannot be null");
+            if (parentEntity == null) throw new NullReferenceException("parentEntity cannot be null");
             //recurse
             return GetAbsoluteFutureVelocity(parentEntity, atDateTime) + vel;
         }
@@ -94,62 +94,65 @@ public static class MoveMath
     public static Vector2 GetAbsoluteFuturePosition(Entity entity, DateTime atDateTime)
     {
         PositionDB position = entity.GetDataBlob<PositionDB>();
-        Vector2 pos = new Vector2(0,0);
+        Vector2 pos = new Vector2(0, 0);
         switch (position.MoveType)
         {
             case PositionDB.MoveTypes.None:
-            {
-                pos = position.AbsolutePosition2;
-                break;
-            }
-            case PositionDB.MoveTypes.Orbit:
-            {
-                if(entity.TryGetDataBlob<OrbitDB>(out var orbitDB))
-                {
-                    pos = (Vector2)OrbitMath.GetAbsolutePosition(orbitDB, atDateTime);
-                }
-                else if (entity.TryGetDataBlob<OrbitUpdateOftenDB>(out var orbitDB2))
-                {
-                    pos = (Vector2)OrbitMath.GetAbsolutePosition(orbitDB2, atDateTime);
-                }
-            }
-                break;
-            case PositionDB.MoveTypes.NewtonSimple:
-            {
-                pos = (Vector2)NewtonSimpleProcessor.GetAbsoluteState(entity, atDateTime).pos;
-            }
-                break;
-
-            case PositionDB.MoveTypes.NewtonComplex:
-            {
-                var db = entity.GetDataBlob<NewtonMoveDB>();
-                pos = (Vector2)NewtonionMovementProcessor.GetAbsoluteState(entity, db, atDateTime).pos;
-            }
-                break;
-            case PositionDB.MoveTypes.Warp:
-            {
-                // After aborting hover-warp at a static anomaly, MoveType can briefly still be
-                // Warp while WarpMovingDB is already gone — fall back to frozen AbsolutePosition.
-                if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
                 {
                     pos = position.AbsolutePosition2;
                     break;
                 }
-                if (atDateTime < db.PredictedExitTime)
+            case PositionDB.MoveTypes.Orbit:
                 {
-                    var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;
-                    pos = db._position + (Vector2)(db.CurrentNonNewtonionVectorMS * t);
+                    if (entity.TryGetDataBlob<OrbitDB>(out var orbitDB))
+                    {
+                        pos = (Vector2)OrbitMath.GetAbsolutePosition(orbitDB, atDateTime);
+                    }
+                    else if (entity.TryGetDataBlob<OrbitUpdateOftenDB>(out var orbitDB2))
+                    {
+                        pos = (Vector2)OrbitMath.GetAbsolutePosition(orbitDB2, atDateTime);
+                    }
                 }
-                else
+                break;
+            case PositionDB.MoveTypes.NewtonSimple:
                 {
-                    var endOrbit = db.EndpointTargetOrbit;
-                    var rpos = (Vector2)OrbitalMath.GetPosition(endOrbit, atDateTime);
-                    pos = GetAbsoluteFuturePosition(db.TargetEntity, atDateTime);
-                    if (rpos.X is not double.NaN)
-                        pos += rpos;
+                    pos = (Vector2)NewtonSimpleProcessor.GetAbsoluteState(entity, atDateTime).pos;
                 }
+                break;
 
-            }
+            case PositionDB.MoveTypes.NewtonComplex:
+                {
+                    var db = entity.GetDataBlob<NewtonMoveDB>();
+                    pos = (Vector2)NewtonionMovementProcessor.GetAbsoluteState(entity, db, atDateTime).pos;
+                }
+                break;
+            case PositionDB.MoveTypes.Warp:
+                {
+                    // After aborting hover-warp at a static anomaly, MoveType can briefly still be
+                    // Warp while WarpMovingDB is already gone — fall back to frozen AbsolutePosition.
+                    if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
+                    {
+                        pos = position.AbsolutePosition2;
+                        break;
+                    }
+                    if (atDateTime < db.PredictedExitTime)
+                    {
+                        var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;
+                        pos = db._position + (Vector2)(db.CurrentNonNewtonionVectorMS * t);
+                    }
+                    else
+                    {
+                        var endOrbit = db.EndpointTargetOrbit;
+                        var rpos = (Vector2)OrbitalMath.GetPosition(endOrbit, atDateTime);
+                        if (db.TargetEntity is { IsValid: true } warpTarget)
+                            pos = GetAbsoluteFuturePosition(warpTarget, atDateTime);
+                        else
+                            pos = (Vector2)db._position;
+                        if (rpos.X is not double.NaN)
+                            pos += rpos;
+                    }
+
+                }
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -161,56 +164,56 @@ public static class MoveMath
     public static Vector2 GetRelativeFuturePosition(Entity entity, DateTime atDateTime)
     {
         PositionDB position = entity.GetDataBlob<PositionDB>();
-        Vector2 pos = new Vector2(0,0);
+        Vector2 pos = new Vector2(0, 0);
         switch (position.MoveType)
         {
             case PositionDB.MoveTypes.None:
-            {
-                pos = position.RelativePosition2;
-                break;
-            }
-            case PositionDB.MoveTypes.Orbit:
-            {
-                if(entity.TryGetDataBlob<OrbitDB>(out var orbitDB))
-                {
-                    pos = (Vector2)OrbitMath.GetPosition(orbitDB, OrbitMath.GetTrueAnomaly(orbitDB, atDateTime));
-                }
-                else if (entity.TryGetDataBlob<OrbitUpdateOftenDB>(out var orbitDB2))
-                {
-                    pos = (Vector2)OrbitMath.GetPosition(orbitDB2, OrbitMath.GetTrueAnomaly(orbitDB2, atDateTime));
-                }
-            }
-                break;
-            case PositionDB.MoveTypes.NewtonSimple:
-            {
-                pos = (Vector2)NewtonSimpleProcessor.GetRelativeState(entity, atDateTime).pos;
-            }
-                break;
-
-            case PositionDB.MoveTypes.NewtonComplex:
-            {
-                var db = entity.GetDataBlob<NewtonMoveDB>();
-                pos = (Vector2)NewtonionMovementProcessor.GetRelativeState(entity, db, atDateTime).pos;
-            }
-                break;
-            case PositionDB.MoveTypes.Warp:
-            {
-                if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
                 {
                     pos = position.RelativePosition2;
                     break;
                 }
-                if (atDateTime < db.PredictedExitTime)
+            case PositionDB.MoveTypes.Orbit:
                 {
-                    var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;
-                    pos = db._position + (Vector2)(db.CurrentNonNewtonionVectorMS * t);
+                    if (entity.TryGetDataBlob<OrbitDB>(out var orbitDB))
+                    {
+                        pos = (Vector2)OrbitMath.GetPosition(orbitDB, OrbitMath.GetTrueAnomaly(orbitDB, atDateTime));
+                    }
+                    else if (entity.TryGetDataBlob<OrbitUpdateOftenDB>(out var orbitDB2))
+                    {
+                        pos = (Vector2)OrbitMath.GetPosition(orbitDB2, OrbitMath.GetTrueAnomaly(orbitDB2, atDateTime));
+                    }
                 }
-                else
+                break;
+            case PositionDB.MoveTypes.NewtonSimple:
                 {
-                    var endOrbit = db.EndpointTargetOrbit;
-                    pos = (Vector2)OrbitMath.GetPosition(endOrbit, atDateTime);
+                    pos = (Vector2)NewtonSimpleProcessor.GetRelativeState(entity, atDateTime).pos;
                 }
-            }
+                break;
+
+            case PositionDB.MoveTypes.NewtonComplex:
+                {
+                    var db = entity.GetDataBlob<NewtonMoveDB>();
+                    pos = (Vector2)NewtonionMovementProcessor.GetRelativeState(entity, db, atDateTime).pos;
+                }
+                break;
+            case PositionDB.MoveTypes.Warp:
+                {
+                    if (!entity.TryGetDataBlob<WarpMovingDB>(out var db) || db == null)
+                    {
+                        pos = position.RelativePosition2;
+                        break;
+                    }
+                    if (atDateTime < db.PredictedExitTime)
+                    {
+                        var t = (atDateTime - db.LastProcessDateTime).TotalSeconds;
+                        pos = db._position + (Vector2)(db.CurrentNonNewtonionVectorMS * t);
+                    }
+                    else
+                    {
+                        var endOrbit = db.EndpointTargetOrbit;
+                        pos = (Vector2)OrbitMath.GetPosition(endOrbit, atDateTime);
+                    }
+                }
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -266,8 +269,8 @@ public static class MoveMath
             var radius = pos.Length();
             var d = 2 * Math.PI * radius;
             double speed = 0;
-            if(daylen !=0)
-               speed = d / daylen;
+            if (daylen != 0)
+                speed = d / daylen;
 
             Vector3 vel = new Vector3(0, speed, 0);
 
@@ -277,14 +280,14 @@ public static class MoveMath
             Vector3 transformedVector = mtx.Transform(vel);
             return (pos, transformedVector);
         }
-        if(entity.HasDataBlob<WarpMovingDB>())
+        if (entity.HasDataBlob<WarpMovingDB>())
         {
             var warpdb = entity.GetDataBlob<WarpMovingDB>();
             return (pos, warpdb.CurrentNonNewtonionVectorMS);
         }
         else
         {
-            return(pos, Vector3.Zero);
+            return (pos, Vector3.Zero);
         }
     }
 
@@ -332,17 +335,17 @@ public static class MoveMath
 
         if (entity.HasDataBlob<NewtonSimpleMoveDB>())
         {
-            return  NewtonSimpleProcessor.GetAbsoluteState(entity, entity.StarSysDateTime);
+            return NewtonSimpleProcessor.GetAbsoluteState(entity, entity.StarSysDateTime);
         }
 
-        if(entity.HasDataBlob<WarpMovingDB>())
+        if (entity.HasDataBlob<WarpMovingDB>())
         {
             var vel = entity.GetDataBlob<WarpMovingDB>().CurrentNonNewtonionVectorMS;
-            return(pos,vel);
+            return (pos, vel);
         }
         else
         {
-            return(pos, Vector3.Zero);
+            return (pos, Vector3.Zero);
         }
     }
 

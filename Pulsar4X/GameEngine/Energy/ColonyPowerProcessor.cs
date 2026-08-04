@@ -80,7 +80,7 @@ namespace Pulsar4X.Energy
             double dockKW = 0;
             if (entity.Manager != null)
             {
-                foreach (var ship in entity.Manager.GetAllEntitiesWithDataBlob<EnergyRechargeDB>())
+                foreach (var ship in entity.AttachedManager.GetAllEntitiesWithDataBlob<EnergyRechargeDB>())
                 {
                     if (ship.TryGetDataBlob<EnergyRechargeDB>(out var recharge)
                         && recharge.ColonyEntityId == entity.Id)
@@ -180,7 +180,7 @@ namespace Pulsar4X.Energy
             double referenceFlux = 0;
             const double oneAU_m = 149597870700.0; // Distance.AuToMt(1)
 
-            foreach (var star in colony.Manager.GetAllEntitiesWithDataBlob<StarInfoDB>())
+            foreach (var star in colony.AttachedManager.GetAllEntitiesWithDataBlob<StarInfoDB>())
             {
                 if (!star.TryGetDataBlob<SensorProfileDB>(out var profile))
                     continue;
@@ -277,7 +277,7 @@ namespace Pulsar4X.Energy
                 return false;
             if (instance.SpawnedEntityId < 0 || colony.Manager == null)
                 return false;
-            if (!colony.Manager.TryGetEntityById(instance.SpawnedEntityId, out var labEntity))
+            if (!colony.AttachedManager.TryGetEntityById(instance.SpawnedEntityId, out var labEntity))
                 return false;
             if (!labEntity.TryGetDataBlob<ResearcherDB>(out var researcher))
                 return false;

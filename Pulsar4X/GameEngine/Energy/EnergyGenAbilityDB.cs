@@ -11,18 +11,18 @@ namespace Pulsar4X.Energy
         [JsonProperty]
         public DateTime dateTimeLastProcess;
         [JsonProperty]
-        public ICargoable EnergyType;
-        
+        public ICargoable? EnergyType;
+
         [JsonIgnore]
-        public double TotalOutputMax 
+        public double TotalOutputMax
         {
-            get =>  MaxOutputFromReactor + MaxOutputFromSolar;
-        }  
+            get => MaxOutputFromReactor + MaxOutputFromSolar;
+        }
         [JsonProperty]
         public double MaxOutputFromReactor = 0;
         [JsonProperty]
         public double MaxOutputFromSolar = 0;
-        
+
         [JsonProperty]
         public (string type, double maxUse) TotalFuelUseAtMax = ("", 0.0);
         [JsonProperty]
@@ -44,7 +44,7 @@ namespace Pulsar4X.Energy
         public double Output { get; internal set; }
         internal void AddDemand(double demand, DateTime atDateTime)
         {
-            if(OwningEntity != null)
+            if (OwningEntity.IsValid)
                 EnergyGenProcessor.EnergyGen(OwningEntity, atDateTime);
             Demand += demand;
         }
@@ -53,19 +53,19 @@ namespace Pulsar4X.Energy
         /// In Kjoules
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, double > EnergyStored = new ();
+        public Dictionary<string, double> EnergyStored = new();
         /// <summary>
         /// In Kjoules
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, double > EnergyStoreMax = new ();
+        public Dictionary<string, double> EnergyStoreMax = new();
         [JsonProperty]
         public double LocalFuel;
 
         private int _histogramSize = 60;
         public int HistogramSize
         {
-            get { return _histogramSize;}
+            get { return _histogramSize; }
             set
             {
                 if (_histogramSize > value)
@@ -97,10 +97,10 @@ namespace Pulsar4X.Energy
         {
             HistogramStartDate = gameTime - TimeSpan.FromSeconds(_histogramSize);
             dateTimeLastProcess = gameTime;// - TimeSpan.FromSeconds(_histogramSize);
-            
+
             for (int i = 0; i < _histogramSize; i++)
             {
-                Histogram.Add((0,0,0,i));
+                Histogram.Add((0, 0, 0, i));
             }
         }
 

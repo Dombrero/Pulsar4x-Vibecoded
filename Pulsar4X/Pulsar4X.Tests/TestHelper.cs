@@ -11,15 +11,16 @@ namespace Pulsar4X.Tests
 {
     internal class TestHelper
     {
-        protected Game _game;
-        protected EntityManager _entityManager;
-        protected Dictionary<string, GasBlueprint> _gasDictionary;
-        protected SpeciesDB _humans;
+        protected Game _game = null;
+        protected EntityManager _entityManager = null;
+        protected Dictionary<string, GasBlueprint> _gasDictionary = null;
+        protected SpeciesDB _humans = null;
         protected AtmosphereDB _atmosphere;
 
-        protected Entity GetPlanet(float baseTemperature, float albedo, double gravity, AtmosphereDB atmosphere = null)
+        protected Entity GetPlanet(float baseTemperature, float albedo, double gravity, AtmosphereDB? atmosphere = null)
         {
-            SystemBodyInfoDB planetBodyDB = new() {
+            SystemBodyInfoDB planetBodyDB = new()
+            {
                 BodyType = BodyType.Terrestrial,
                 SupportsPopulations = true,
                 Gravity = gravity,
@@ -28,8 +29,12 @@ namespace Pulsar4X.Tests
             };
             NameDB planetNameDB = new("Test Planet");
 
+            var blobs = new List<BaseDataBlob> { planetBodyDB, planetNameDB };
+            if (atmosphere != null)
+                blobs.Add(atmosphere);
+
             var result = Entity.Create();
-            _entityManager.AddEntity(result, new List<BaseDataBlob> { planetBodyDB, planetNameDB, atmosphere });
+            _entityManager.AddEntity(result, blobs);
 
             return result;
         }

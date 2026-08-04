@@ -27,14 +27,14 @@ namespace Pulsar4X.Engine.Orders
             return Compare(count);
         }
 
-        internal static bool TryGetFlagshipSystem(Entity fleet, out EntityManager manager)
+        internal static bool TryGetFlagshipSystem(Entity fleet, out EntityManager? manager)
         {
-            manager = null!;
+            manager = null;
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB) || fleetDB.FlagShipID < 0)
                 return false;
             if (fleet.Manager == null)
                 return false;
-            if (!fleet.Manager.TryGetEntityById(fleetDB.FlagShipID, out var flagship) || flagship.Manager == null)
+            if (!fleet.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship) || flagship.Manager == null)
                 return false;
 
             manager = flagship.Manager;

@@ -18,7 +18,7 @@ namespace Pulsar4X.DataStructures
             Pico = -12,
             Nano = -9,
             Micro = -6,
-            Milli = - 3,
+            Milli = -3,
             Centi = -2,
             Deci = -1,
             BaseUnit = 0,
@@ -32,7 +32,6 @@ namespace Pulsar4X.DataStructures
 
         public ValueTypes ValueType;
         public ValueSizes ValueSize;
-
         public ValueTypeStruct(ValueTypes type, ValueSizes size)
         {
             ValueType = type;

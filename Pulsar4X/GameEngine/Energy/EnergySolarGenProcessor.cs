@@ -31,13 +31,13 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
         }
         return entities.Count;
     }
-    
+
     public void ProcessEntity(Entity entity, int deltaSeconds)
     {
         EnergyGenAbilityDB _energyGenDB = entity.GetDataBlob<EnergyGenAbilityDB>();
         _energyGenDB.MaxOutputFromSolar = ComputeSolarMax(entity);
     }
-    
+
     private static double ComputeSolarMax(Entity entity)
     {
         double totalSolar = 0;
@@ -45,7 +45,7 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
 
         // Explicit: no star in system ⇒ solar generation is zero.
         bool hasStar = false;
-        foreach (var _ in entity.Manager.GetAllEntitiesWithDataBlob<StarInfoDB>())
+        foreach (var _ in entity.AttachedManager.GetAllEntitiesWithDataBlob<StarInfoDB>())
         {
             hasStar = true;
             break;
@@ -54,7 +54,7 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
             return 0;
 
         var position = entity.GetDataBlob<PositionDB>();
-        var emitters = entity.Manager.GetAllEntitiesWithDataBlob<SensorProfileDB>();
+        var emitters = entity.AttachedManager.GetAllEntitiesWithDataBlob<SensorProfileDB>();
 
         foreach (var panelAtb in genDB.SolarPanels)
         {
@@ -76,7 +76,7 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
         }
         return totalSolar;
     }
-    
+
     /// <summary>
     /// Calculates the absorbed power for a solar panel based on attenuated star emissions.
     /// Adapts DetectonQuality logic: computes overlap, interpolates efficiency (higher better),
@@ -87,45 +87,45 @@ public class EnergyGenHotloopProcessor : IHotloopProcessor
     /// <returns>Total absorbed power in kW.</returns>
     public static double AbsorbedPower(EnergySolarGenerationAtb panelAtb, List<EMData> attenuatedEmissions)
     {
-            double totalAbsorbed = 0.0;
+        double totalAbsorbed = 0.0;
 
-            foreach (var emData in attenuatedEmissions)
-            {
-                EMWaveForm signalWave = emData.WaveForm;
-                double magnitude = emData.Magnitude;
+        foreach (var emData in attenuatedEmissions)
+        {
+            EMWaveForm signalWave = emData.WaveForm;
+            double magnitude = emData.Magnitude;
 
-                // No overlap: skip
-                double minOverlap = Math.Max(signalWave.WavelengthMin_nm, panelAtb.AbsorptionWaveformCapability.WavelengthMin_nm);
-                double maxOverlap = Math.Min(signalWave.WavelengthMax_nm, panelAtb.AbsorptionWaveformCapability.WavelengthMax_nm);
-                if (minOverlap >= maxOverlap) continue;
+            // No overlap: skip
+            double minOverlap = Math.Max(signalWave.WavelengthMin_nm, panelAtb.AbsorptionWaveformCapability.WavelengthMin_nm);
+            double maxOverlap = Math.Min(signalWave.WavelengthMax_nm, panelAtb.AbsorptionWaveformCapability.WavelengthMax_nm);
+            if (minOverlap >= maxOverlap) continue;
 
-                // Overlap fraction
-                
-                double overlapWidth = maxOverlap - minOverlap;
-                double signalWidth = signalWave.WavelengthMax_nm - signalWave.WavelengthMin_nm;
-                double overlapFraction = overlapWidth / signalWidth;
+            // Overlap fraction
 
-                // Falloff: normalized distance from panel peak (0 at peak, 1 at edges)
-                double panelPeak = panelAtb.AbsorptionWaveformCapability.WavelengthAverage_nm;
-                double overlapCenter = (minOverlap + maxOverlap) / 2.0;
-                double distFromPeak = Math.Abs(overlapCenter - panelPeak);
-                double halfBandwidth = (panelAtb.AbsorptionWaveformCapability.WavelengthMax_nm - panelAtb.AbsorptionWaveformCapability.WavelengthMin_nm) / 2.0;
-                double falloff = halfBandwidth > 0 ? distFromPeak / halfBandwidth : 0.0;
-                falloff = Math.Clamp(falloff, 0.0, 1.0);
+            double overlapWidth = maxOverlap - minOverlap;
+            double signalWidth = signalWave.WavelengthMax_nm - signalWave.WavelengthMin_nm;
+            double overlapFraction = overlapWidth / signalWidth;
 
-                // Interpolate efficiency: Best at peak (falloff=0), Worst at edges (falloff=1)
-                // Note: For efficiency (higher better), use (1 - falloff) weighting
-                double bestEffFrac = panelAtb.BestEfficiency * 0.01;
-                double worstEffFrac = panelAtb.WorstEfficiency * 0.01;
-                double interpolatedEff = bestEffFrac * (1 - falloff) + worstEffFrac * falloff;
+            // Falloff: normalized distance from panel peak (0 at peak, 1 at edges)
+            double panelPeak = panelAtb.AbsorptionWaveformCapability.WavelengthAverage_nm;
+            double overlapCenter = (minOverlap + maxOverlap) / 2.0;
+            double distFromPeak = Math.Abs(overlapCenter - panelPeak);
+            double halfBandwidth = (panelAtb.AbsorptionWaveformCapability.WavelengthMax_nm - panelAtb.AbsorptionWaveformCapability.WavelengthMin_nm) / 2.0;
+            double falloff = halfBandwidth > 0 ? distFromPeak / halfBandwidth : 0.0;
+            falloff = Math.Clamp(falloff, 0.0, 1.0);
 
-                // Absorbed: fraction of magnitude * efficiency
-                totalAbsorbed += magnitude * interpolatedEff;
-            }
+            // Interpolate efficiency: Best at peak (falloff=0), Worst at edges (falloff=1)
+            // Note: For efficiency (higher better), use (1 - falloff) weighting
+            double bestEffFrac = panelAtb.BestEfficiency * 0.01;
+            double worstEffFrac = panelAtb.WorstEfficiency * 0.01;
+            double interpolatedEff = bestEffFrac * (1 - falloff) + worstEffFrac * falloff;
 
-            return totalAbsorbed * panelAtb.Area_m2;
+            // Absorbed: fraction of magnitude * efficiency
+            totalAbsorbed += magnitude * interpolatedEff;
+        }
+
+        return totalAbsorbed * panelAtb.Area_m2;
     }
-    
+
 
 }
 

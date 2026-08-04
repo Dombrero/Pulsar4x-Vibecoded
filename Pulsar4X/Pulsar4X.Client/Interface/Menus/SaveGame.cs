@@ -9,11 +9,11 @@ public class SaveGame : UniquePulsarGuiWindow<SaveGame>
     private string _filePath = Path.Combine(PulsarMainWindow.GetAppDataPath() ?? "", PulsarMainWindow.SavesPath);
     private string _fileName = "savegame.sav";
 
-    private SaveGame() {}
+    private SaveGame() { }
 
     internal static SaveGame GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<SaveGame>(out var window))
+        if (_uiState.TryGetUniqueWindow<SaveGame>(out var window))
         {
             return window;
         }

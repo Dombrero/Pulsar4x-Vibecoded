@@ -92,7 +92,7 @@ public static class Window
     /// <returns>Modified title string with class path in debug mode, original string in release mode</returns>
     private static string GetWindowTitle(string title, string callerFilePath)
     {
-        if(string.IsNullOrEmpty(title))
+        if (string.IsNullOrEmpty(title))
             throw new NullReferenceException("Title cannot be null");
 
 #if DEBUG

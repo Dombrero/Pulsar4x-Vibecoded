@@ -17,11 +17,9 @@ namespace Pulsar4X.Components
         [JsonProperty]
         public int ID { get; private set; } = Game.GetEntityID();
         [JsonProperty]
-        public string UniqueID { get; private set; }
+        public string? UniqueID { get; set; }
         [JsonProperty]
-        public string Name { get; private set; }
-
-
+        public string? Name { get; set; }
         public string CargoTypeID
         {
             get { return Design.CargoTypeID; }
@@ -65,19 +63,19 @@ namespace Pulsar4X.Components
             }
         }
         [JsonProperty]
-        private Entity _parentEntity;
+        private Entity _parentEntity = Entity.InvalidEntity;
 
         [JsonProperty]
         public int SpawnedEntityId { get; internal set; } = -1;
 
         [JsonProperty]
-        public ComponentInstancesDB ParentInstances { get; private set; }
+        public ComponentInstancesDB? ParentInstances { get; set; }
         /// <summary>
         /// This is the design of this component.
         /// </summary>
         /// <value>The design entity.</value>
         [JsonProperty]
-        public ComponentDesign Design { get; internal set; }
+        public ComponentDesign? Design { get; internal set; }
         [JsonProperty]
         public bool IsEnabled { get; internal set; }
         [JsonProperty]
@@ -122,7 +120,7 @@ namespace Pulsar4X.Components
             return false;
         }
 
-        internal void SetAbilityState<T>(ComponentAbilityState abilityState) where T: ComponentAbilityState
+        internal void SetAbilityState<T>(ComponentAbilityState abilityState) where T : ComponentAbilityState
         {
             _instanceAbilities[typeof(T)] = abilityState;
         }

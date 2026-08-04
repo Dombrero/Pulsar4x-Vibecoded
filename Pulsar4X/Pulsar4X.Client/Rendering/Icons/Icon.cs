@@ -27,7 +27,7 @@ namespace Pulsar4X.Client
     {
         internal bool DebugShowCenter = false;
 
-        protected IPosition _positionDB = null!;
+        protected IPosition? _positionDB;
         protected Orbital.Vector3 _worldPosition_m { get; set; }
         public Orbital.Vector3 WorldPosition_AU
         {
@@ -38,7 +38,7 @@ namespace Pulsar4X.Client
             get
             {
                 if (positionByDB)
-                    return _positionDB.AbsolutePosition + _worldPosition_m;
+                    return (_positionDB ?? throw new InvalidOperationException("Icon has no position source.")).AbsolutePosition + _worldPosition_m;
                 else
                     return _worldPosition_m;
             }
@@ -53,7 +53,7 @@ namespace Pulsar4X.Client
         protected bool positionByDB;
         public SDL.Point ViewScreenPos;
         public List<Shape> Shapes = new List<Shape>(); //these could change with entity changes.
-        public Shape[] DrawShapes = null!;
+        public Shape[] DrawShapes = Array.Empty<Shape>();
         //public bool ShapesScaleWithZoom = false; //this possibly could change if you're zoomed in enough? normaly though, false for entity icons, true for orbit rings
         public float Scale = 1;
         public float Heading = 0;
@@ -104,7 +104,7 @@ namespace Pulsar4X.Client
             if (DebugShowCenter)
             {
                 dsi = 3;
-                DrawShapes = new Shape[shapeCount+dsi];
+                DrawShapes = new Shape[shapeCount + dsi];
                 var mtxb = Matrix.IDTranslate(ViewScreenPos.X, ViewScreenPos.Y);
                 DrawShapes[0] = CreatePrimitiveShapes.CenterWidget(mtxb);
 
@@ -122,10 +122,10 @@ namespace Pulsar4X.Client
                 var ralpos = camera.ViewCoordinateV2_m(_positionDB.RelativePosition + _worldPosition_m);
                 Shape ralCtr = new Shape();
                 ralCtr.Points = CreatePrimitiveShapes.Crosshair();
-                 r = 200;
-                 g = 50;
-                 b = 150;
-                 a = 255;
+                r = 200;
+                g = 50;
+                b = 150;
+                a = 255;
                 colour = new SDL.Color() { R = r, G = g, B = b, A = a };
                 ralCtr.Color = colour;
                 DrawShapes[1] = ralCtr;
@@ -138,7 +138,7 @@ namespace Pulsar4X.Client
                 var manipulatedShape = new Shape();
                 manipulatedShape.Points = mtx.TransformToVector2(shape.Points);
                 manipulatedShape.Color = shape.Color;
-                DrawShapes[i+dsi] = manipulatedShape;
+                DrawShapes[i + dsi] = manipulatedShape;
             }
         }
 
@@ -177,21 +177,21 @@ namespace Pulsar4X.Client
 
                     int x2;
 
-                    if (shape.Points[i+1].X > int.MaxValue)
+                    if (shape.Points[i + 1].X > int.MaxValue)
                         x2 = int.MaxValue;
-                    else if ((shape.Points[i+1].X < int.MinValue))
+                    else if ((shape.Points[i + 1].X < int.MinValue))
                         x2 = int.MinValue;
                     else
-                        x2 = Convert.ToInt32(shape.Points[i+1].X);
+                        x2 = Convert.ToInt32(shape.Points[i + 1].X);
 
                     int y2;
 
-                    if (shape.Points[i+1].Y > int.MaxValue)
+                    if (shape.Points[i + 1].Y > int.MaxValue)
                         y2 = int.MaxValue;
-                    else if ((shape.Points[i+1].Y < int.MinValue))
+                    else if ((shape.Points[i + 1].Y < int.MinValue))
                         y2 = int.MinValue;
                     else
-                        y2 = Convert.ToInt32(shape.Points[i+1].Y);
+                        y2 = Convert.ToInt32(shape.Points[i + 1].Y);
 
                     SDL.RenderLine(rendererPtr, x1, y1, x2, y2);
                 }
@@ -205,7 +205,7 @@ namespace Pulsar4X.Client
     public class SimpleCircle : IDrawData
     {
         Shape _shape;
-        Shape _drawShape = null!;
+        Shape _drawShape;
         protected IPosition _positionDB;
         protected Vector3 _worldPosition;
         public SDL.Point ViewScreenPos;
@@ -279,7 +279,7 @@ namespace Pulsar4X.Client
     public class SimpleLine : IDrawData
     {
         Shape _shape;
-        Shape _drawShape = null!;
+        Shape _drawShape;
         protected IPosition _positionDB;
         protected Orbital.Vector3 _worldPosition;
         public SDL.Point ViewScreenPos;
@@ -300,7 +300,7 @@ namespace Pulsar4X.Client
 
             _shape = new Shape()
             {
-                Points = new Orbital.Vector2[] {p0, toPoint },
+                Points = new Orbital.Vector2[] { p0, toPoint },
                 Color = colour,
             };
         }

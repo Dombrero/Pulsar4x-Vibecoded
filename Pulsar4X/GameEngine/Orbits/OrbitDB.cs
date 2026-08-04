@@ -33,11 +33,11 @@ namespace Pulsar4X.Orbits
         [JsonProperty]
         public double Eccentricity { get; protected set; }
 
-		/// <summary>
-		/// Angle between the orbit and the flat reference plane.
-		/// in radians.
-		/// </summary>
-		[PublicAPI]
+        /// <summary>
+        /// Angle between the orbit and the flat reference plane.
+        /// in radians.
+        /// </summary>
+        [PublicAPI]
         [JsonProperty]
         public double Inclination { get; protected set; }
 
@@ -55,7 +55,7 @@ namespace Pulsar4X.Orbits
         /// </summary>
         [PublicAPI]
         [JsonProperty]
-        public  double ArgumentOfPeriapsis { get; protected set; }
+        public double ArgumentOfPeriapsis { get; protected set; }
 
 
         /// <summary>
@@ -74,12 +74,12 @@ namespace Pulsar4X.Orbits
         [JsonProperty]
         public DateTime Epoch { get; internal set; }
 
-		/// <summary>
-		/// 2-Body gravitational parameter of system in m^3/s^2
-		/// </summary>
-		[PublicAPI]
+        /// <summary>
+        /// 2-Body gravitational parameter of system in m^3/s^2
+        /// </summary>
+        [PublicAPI]
         [JsonProperty]
-		public double GravitationalParameter_m3S2 { get; protected set; }
+        public double GravitationalParameter_m3S2 { get; protected set; }
 
         [JsonProperty]
         public double SOI_m { get; protected set; } = double.MaxValue;
@@ -91,13 +91,12 @@ namespace Pulsar4X.Orbits
         [PublicAPI]
         [JsonProperty]
         public TimeSpan OrbitalPeriod { get; private set; }
-
-		/// <summary>
-		/// Mean Motion of orbit. in Radians/Sec.
-		/// </summary>
-		[PublicAPI]
+        /// <summary>
+        /// Mean Motion of orbit. in Radians/Sec.
+        /// </summary>
+        [PublicAPI]
         [JsonProperty]
-		public double MeanMotion { get; protected set; }
+        public double MeanMotion { get; protected set; }
 
         /// <summary>
         /// Point in orbit furthest from the ParentBody. Measured in m.
@@ -126,7 +125,6 @@ namespace Pulsar4X.Orbits
         internal double _myMass;
 
         internal Vector2 _position;
-
         // Cached trigonometric values for performance
         private double _cachedCosLoAN;
         private double _cachedSinLoAN;
@@ -148,7 +146,7 @@ namespace Pulsar4X.Orbits
         {
             var myMass = entity.GetDataBlob<MassVolumeDB>().MassDry;
 
-            //var epoch1 = parent.Manager.ManagerSubpulses.StarSysDateTime; //getting epoch from here is incorrect as the local datetime doesn't change till after the subpulse.
+            //var epoch1 = parent.AttachedManager.ManagerSubpulses.StarSysDateTime; //getting epoch from here is incorrect as the local datetime doesn't change till after the subpulse.
 
             //var parentPos = OrbitProcessor.GetAbsolutePosition_AU(parent.GetDataBlob<OrbitDB>(), atDateTime); //need to use the parent position at the epoch
             var posdb = entity.GetDataBlob<PositionDB>();
@@ -168,7 +166,7 @@ namespace Pulsar4X.Orbits
             var d = (pos - relativePos).Length();
             if (d > 1)
             {
-                Event e = Event.Create(EventType.Opps, atDateTime, $"Positional difference of {Stringify.Distance(d)} when creating orbit from velocity", entity.FactionOwnerID, entity.Manager.ManagerID, entity.Id);
+                Event e = Event.Create(EventType.Opps, atDateTime, $"Positional difference of {Stringify.Distance(d)} when creating orbit from velocity", entity.FactionOwnerID, entity.AttachedManager.ManagerID, entity.Id);
                 EventManager.Instance.Publish(e);
 
                 //other info:
@@ -391,7 +389,7 @@ namespace Pulsar4X.Orbits
             double o_loAN = Angle.NormaliseRadiansPositive(Angle.ToRadians(longitudeOfAscendingNode));
             double o_aoP = Angle.NormaliseRadiansPositive(Angle.ToRadians(argumentOfPeriapsis));
             double o_M = Angle.NormaliseRadiansPositive(Angle.ToRadians(meanAnomaly));
-			return new OrbitDB(parent, parentMass, myMass, sma_m, eccentricity, o_i, o_loAN, o_aoP, o_M, epoch);
+            return new OrbitDB(parent, parentMass, myMass, sma_m, eccentricity, o_i, o_loAN, o_aoP, o_M, epoch);
         }
 
         /// <summary>
@@ -573,9 +571,9 @@ namespace Pulsar4X.Orbits
             ke.Epoch = Epoch;
             ke.LinearEccentricity = Eccentricity * SemiMajorAxis;                        //ae
             ke.Period = OrbitalPeriod.TotalSeconds;
-			ke.StandardGravParameter = GravitationalParameter_m3S2;
-            ke.TrueAnomalyAtEpoch = OrbitMath.TrueAnomalyFromTime(GravitationalParameter_m3S2, SemiMajorAxis ,Eccentricity, MeanAnomalyAtEpoch, 0) ;   //ν or f or  θ
-			return ke;
+            ke.StandardGravParameter = GravitationalParameter_m3S2;
+            ke.TrueAnomalyAtEpoch = OrbitMath.TrueAnomalyFromTime(GravitationalParameter_m3S2, SemiMajorAxis, Eccentricity, MeanAnomalyAtEpoch, 0);   //ν or f or  θ
+            return ke;
         }
 
         public KeplerElements GetElements(double preCalculatedTrueAnomaly)
@@ -594,9 +592,9 @@ namespace Pulsar4X.Orbits
             ke.Epoch = Epoch;
             ke.LinearEccentricity = Eccentricity * SemiMajorAxis;                        //ae
             ke.Period = OrbitalPeriod.TotalSeconds;
-			ke.StandardGravParameter = GravitationalParameter_m3S2;
+            ke.StandardGravParameter = GravitationalParameter_m3S2;
             ke.TrueAnomalyAtEpoch = preCalculatedTrueAnomaly;                            //ν or f or  θ (use pre-calculated value)
-			return ke;
+            return ke;
         }
 
         public override object Clone()
@@ -634,11 +632,13 @@ namespace Pulsar4X.Orbits
             if (Eccentricity >= 1)
             {
                 var soiParent = OwningEntity.GetSOIParentEntity();
+                if (!soiParent.IsValid || !soiParent.HasDataBlob<OrbitDB>())
+                    return;
                 var soiRadius = OrbitMath.GetSOIRadius(soiParent.GetDataBlob<OrbitDB>());
                 if (soiRadius is not double.NaN)//radius will return nan if for example soiParent is the sun.
                 {
                     var soiChangeAt = OrbitMath.TimeToRadius(this, soiRadius);
-                    OwningEntity.Manager.ManagerSubpulses.AddEntityInterupt(soiChangeAt, nameof(ChangeSOIProcessor), OwningEntity);
+                    OwningEntity.AttachedManager.ManagerSubpulses.AddEntityInterupt(soiChangeAt, nameof(ChangeSOIProcessor), OwningEntity);
                 }
                 else//in this case we dont need to do a transition. might need to destroy it or something.
                 {
@@ -675,7 +675,7 @@ namespace Pulsar4X.Orbits
             {
                 // Hyperbolic: scan until SOI exit (already scheduled above), capped at 1 year
                 var soiParent = OwningEntity.GetSOIParentEntity();
-                if (soiParent != null && soiParent.HasDataBlob<OrbitDB>())
+                if (soiParent.IsValid && soiParent.HasDataBlob<OrbitDB>())
                 {
                     var soiRadius = OrbitMath.GetSOIRadius(soiParent.GetDataBlob<OrbitDB>());
                     if (!double.IsNaN(soiRadius))
@@ -771,7 +771,7 @@ namespace Pulsar4X.Orbits
 
             // Schedule slightly after the crossing so the entity is inside the SOI
             var crossTime = hi;
-            var manager = OwningEntity.Manager;
+            var manager = OwningEntity.AttachedManager;
             if (crossTime > manager.ManagerSubpulses.StarSysDateTime)
             {
                 manager.ManagerSubpulses.AddEntityInterupt(crossTime, nameof(EnterSOIProcessor), OwningEntity);
@@ -808,8 +808,8 @@ namespace Pulsar4X.Orbits
             Eccentricity = actualDB.Eccentricity;
             Inclination = actualDB.Inclination;
             LongitudeOfAscendingNode = actualDB.LongitudeOfAscendingNode;
-            ArgumentOfPeriapsis= actualDB.ArgumentOfPeriapsis;
-            MeanAnomalyAtEpoch= actualDB.MeanAnomalyAtEpoch;
+            ArgumentOfPeriapsis = actualDB.ArgumentOfPeriapsis;
+            MeanAnomalyAtEpoch = actualDB.MeanAnomalyAtEpoch;
             _parentMass = actualDB._parentMass;
             _myMass = actualDB._myMass;
             CalculateExtendedParameters();

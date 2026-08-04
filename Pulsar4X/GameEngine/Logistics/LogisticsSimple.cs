@@ -38,7 +38,7 @@ namespace Pulsar4X.Logistics
             Vector3 vel = startState.Velocity;
             var targetBody = target.GetSOIParentEntity();
 
-            if(targetBody == null) throw new NullReferenceException("targetBody cannot be null");
+            if (targetBody == null) throw new NullReferenceException("targetBody cannot be null");
 
             //var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
             var tgtBdyMass = target.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
@@ -68,7 +68,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
             var s = ship.GetDataBlob<WarpAbilityDB>().MaxSpeed;
             var d = pos.Length() - targetSMA;
             var t = d / s;
@@ -97,7 +97,7 @@ namespace Pulsar4X.Logistics
             Vector3 vel = startState.Velocity;
             var targetBody = target.GetSOIParentEntity();
 
-            if(targetBody == null) throw new NullReferenceException("targetBody cannot be null");
+            if (targetBody == null) throw new NullReferenceException("targetBody cannot be null");
 
             //var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
             var tgtBdyMass = target.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
@@ -130,7 +130,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.Manager.Game.OrderHandler.HandleOrder(cmd);
+            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
             (Vector3 position, DateTime atDateTime) targetIntercept = WarpMath.GetInterceptPosition
             (
                 ship,
@@ -160,7 +160,7 @@ namespace Pulsar4X.Logistics
             Vector3 vel = startState.Velocity;
             var targetBody = target.GetSOIParentEntity();
 
-            if(targetBody == null) throw new NullReferenceException("targetBody cannot be null");
+            if (targetBody == null) throw new NullReferenceException("targetBody cannot be null");
 
             //var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
             var tgtBdyMass = target.GetSOIParentEntity().GetDataBlob<MassVolumeDB>().MassTotal;
@@ -236,7 +236,7 @@ namespace Pulsar4X.Logistics
             pos = postManuverState.position;
             vel = new Vector3(postManuverState.velocity.X, postManuverState.velocity.Y, 0);
 
-            if(!ship.TryGetDataBlob<NavSequenceDB>(out NavSequenceDB? navDB))
+            if (!ship.TryGetDataBlob<NavSequenceDB>(out NavSequenceDB? navDB))
             {
                 navDB = new NavSequenceDB();
                 ship.SetDataBlob(navDB);

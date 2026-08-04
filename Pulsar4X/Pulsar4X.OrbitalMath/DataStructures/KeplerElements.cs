@@ -12,7 +12,7 @@ namespace Pulsar4X.Orbital
         /// </summary>
         /// <remarks>μ</remarks>
         public double StandardGravParameter;
-        
+
         /// <summary>
         /// SemiMajorAxis in Metres
         /// Will be negative for Hyperbola!!!
@@ -80,7 +80,7 @@ namespace Pulsar4X.Orbital
         /// </summary>
         /// <remarks>P</remarks>
         public double Period;
-        
+
         /// <summary>
         /// Mean Anomaly At Epoch
         /// </summary>
@@ -92,7 +92,7 @@ namespace Pulsar4X.Orbital
         /// </summary>
         /// <remarks>ν or f or θ</remarks>
         public double TrueAnomalyAtEpoch;
-        
+
         /// <summary>
         /// Eccentric Anomaly for Ellipse
         /// Hyperbolic Anomaly for Hyperbolic
@@ -105,7 +105,7 @@ namespace Pulsar4X.Orbital
         /// </summary>
         public DateTime Epoch;
 
-	}
+    }
 
     public struct KeplerElements2d
     {
@@ -114,44 +114,44 @@ namespace Pulsar4X.Orbital
         /// </summary>
         /// <remarks>μ</remarks>
         public double StandardGravParameter;
-        
+
         /// <summary>
         /// SemiMajorAxis in Metres
         /// Will be negative for Hyperbola!!!
         /// </summary>
         /// <remarks>a</remarks>
         public double SemiMajorAxis;
-        
+
         /// <summary>
         /// Eccentricity
         /// </summary>
         /// <remarks>e</remarks>
         public double Eccentricity;
-        
+
         /// <summary>
         /// Longitude of Periapsis
         /// </summary>
         /// <remarks>ϖ</remarks>
         public double LoP;
-        
+
         /// <summary>
         /// replaces inclination.
         /// </summary>
         /// <remarks>i</remarks>
         public bool IsPrograde;
-        
+
         /// <summary>
         /// Mean Anomaly At Epoch
         /// </summary>
         /// <remarks>M0</remarks>
         public double MeanAnomalyAtEpoch;
-        
+
         /// <summary>
         /// True Anomaly At Epoch
         /// </summary>
         /// <remarks>ν or f or θ</remarks>
         public double TrueAnomalyAtEpoch;
-        
+
         /// <summary>
         /// Eccentric Anomaly for Ellipse
         /// Hyperbolic Anomaly for Hyperbolic
@@ -180,7 +180,7 @@ namespace Pulsar4X.Orbital
         /// Velocity Vector Ralitive to SOI parent, but X is global East, Y global North Z global up. 
         /// </summary>
         public Vector3 Velocity;
-        
+
         /// <summary>
         /// Velocity as a prograde ie (0, velocity.length, 0) vector
         /// </summary>

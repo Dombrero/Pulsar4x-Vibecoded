@@ -28,11 +28,11 @@ namespace Pulsar4X.Client
             void ContextButton(Type T)
             {
                 //Creates a context button if it is valid
-                if(EntityUIWindows.CheckIfCanOpenWindow(T, _entityState, _state))
+                if (EntityUIWindows.CheckIfCanOpenWindow(T, _entityState, _state))
                 {
                     if (ImGui.SmallButton(GlobalUIState.NamesForMenus[T]))
                     {
-                        EntityUIWindows.OpenUIWindow(T, _entityState, _state, true ,true);
+                        EntityUIWindows.OpenUIWindow(T, _entityState, _state, true, true);
                     }
                 }
             }

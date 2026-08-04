@@ -137,7 +137,7 @@ namespace Pulsar4X.Client.ModFileEditing
                         {
                             InsertItem(func.Key);
                         }
-                        if(ImGui.IsItemActive())
+                        if (ImGui.IsItemActive())
                             _isSelectActive = true;
                         if (ImGui.IsItemHovered())
                         {
@@ -153,7 +153,7 @@ namespace Pulsar4X.Client.ModFileEditing
                         {
                             if (func.Key.StartsWith("PropertyValue"))
                             {
-                                if(ImGui.BeginMenu("PropertyValue"))
+                                if (ImGui.BeginMenu("PropertyValue"))
                                 {
                                     foreach (var prop in propertyNames)
                                     {
@@ -172,7 +172,7 @@ namespace Pulsar4X.Client.ModFileEditing
                             }
                             else if (func.Key.StartsWith("TechData"))
                             {
-                                if(ImGui.BeginMenu("TechData"))
+                                if (ImGui.BeginMenu("TechData"))
                                 {
                                     foreach (var tech in modDataStore.Techs)
                                     {
@@ -208,7 +208,7 @@ namespace Pulsar4X.Client.ModFileEditing
                                     ImGui.EndMenu();
                                 }
                             }
-                            
+
                             else if (func.Key.StartsWith("TechLevel"))
                             {
                                 if (ImGui.BeginMenu("TechLevel"))
@@ -228,12 +228,12 @@ namespace Pulsar4X.Client.ModFileEditing
                                     ImGui.EndMenu();
                                 }
                             }
-                            else 
+                            else
                             {
-                                if(ImGui.Selectable(func.Key))
+                                if (ImGui.Selectable(func.Key))
                                     InsertItem(func.Key);
                             }
-                            if(ImGui.IsItemActive())
+                            if (ImGui.IsItemActive())
                                 _isSelectActive = true;
                             if (ImGui.IsItemHovered()) ImGui.SetTooltip(func.Value);
                         }
@@ -247,10 +247,10 @@ namespace Pulsar4X.Client.ModFileEditing
                         {
                             InsertItem(param.Key);
                         }
-                        if(ImGui.IsItemActive())
+                        if (ImGui.IsItemActive())
                             _isSelectActive = true;
                         if (ImGui.IsItemHovered()) ImGui.SetTooltip(param.Value);
-                        
+
                     }
 
                     ImGui.EndCombo();

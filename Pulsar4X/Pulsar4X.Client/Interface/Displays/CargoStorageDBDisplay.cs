@@ -11,41 +11,41 @@ namespace Pulsar4X.Client
         /// <paramref name="holderId"/> is the colony/ship holding the cargo (the command target).</summary>
         public static void Display(this Pulsar4X.Api.CargoStorageView storage, int holderId, GlobalUIState uiState, ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.DefaultOpen)
         {
-            foreach(var store in storage.Stores)
+            foreach (var store in storage.Stores)
             {
                 double percent = ((store.MaxVolume - store.FreeVolume) / store.MaxVolume) * 100;
                 string header = store.TypeName + " Storage (" + percent.ToString("0.#") + "% full)";
 
                 ImGui.PushID(holderId.ToString());
-                if(ImGui.CollapsingHeader(header + "###" + store.TypeId, flags))
+                if (ImGui.CollapsingHeader(header + "###" + store.TypeId, flags))
                 {
                     ImGui.Columns(2);
                     DisplayHelpers.PrintRow("Total Volume", Stringify.VolumeLtr(store.MaxVolume));
                     DisplayHelpers.PrintRow("Available Volume", Stringify.VolumeLtr(store.FreeVolume), null, null, false);
                     ImGui.Columns(1);
 
-                    if(ImGui.BeginTable(header + "table", 3, Styles.TableFlags))
+                    if (ImGui.BeginTable(header + "table", 3, Styles.TableFlags))
                     {
                         ImGui.TableSetupColumn("Item");
                         ImGui.TableSetupColumn("Quantity");
                         ImGui.TableSetupColumn("Volume");
                         ImGui.TableHeadersRow();
 
-                        foreach(var item in store.Items)
+                        foreach (var item in store.Items)
                         {
                             ImGui.TableNextColumn();
-                            if(ImGui.Selectable(item.Name, false, ImGuiSelectableFlags.SpanAllColumns)) {}
-                            if(item.ItemKind.Length > 0)
+                            if (ImGui.Selectable(item.Name, false, ImGuiSelectableFlags.SpanAllColumns)) { }
+                            if (item.ItemKind.Length > 0)
                             {
                                 DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
                             }
-                            if(item.CanInstall)
+                            if (item.CanInstall)
                             {
                                 AddContextMenu(item, holderId, uiState);
                             }
                             ImGui.TableNextColumn();
                             ImGui.Text(Stringify.Quantity(item.Units, "##.##"));
-                            if(ImGui.IsItemHovered())
+                            if (ImGui.IsItemHovered())
                             {
                                 ImGui.BeginTooltip();
                                 ImGui.Text("+" + Stringify.Quantity(item.UnitsInEscrow) + " in escro");
@@ -74,18 +74,18 @@ namespace Pulsar4X.Client
         private static void AddContextMenu(Pulsar4X.Api.CargoItemView item, int holderId, GlobalUIState uiState)
         {
             ImGui.PushID(item.Id);
-            if(ImGui.BeginPopupContextItem("###cargo-item-" + item.Id))
+            if (ImGui.BeginPopupContextItem("###cargo-item-" + item.Id))
             {
                 ImGui.Text(item.Name);
                 ImGui.Separator();
 
-                if(ImGui.MenuItem("Install"))
+                if (ImGui.MenuItem("Install"))
                 {
                     uiState.GameClient?.SubmitCommandAsync(
                         new Pulsar4X.Api.InstallComponentCommand(holderId, item.Id));
                 }
                 ImGui.PushStyleColor(ImGuiCol.Text, Styles.TerribleColor);
-                if(ImGui.MenuItem("Destroy"))
+                if (ImGui.MenuItem("Destroy"))
                 {
 
                 }

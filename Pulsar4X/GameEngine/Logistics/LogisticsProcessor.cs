@@ -38,7 +38,7 @@ public class LogiBaseProcessor : IHotloopProcessor
     {
         var tradingBases = manager.GetAllDataBlobsOfType<LogiBaseDB>();
         var shippingEntities = manager.GetAllEntitiesWithDataBlob<LogiShipperDB>();
-        foreach(LogiBaseDB tradeBase in tradingBases)
+        foreach (LogiBaseDB tradeBase in tradingBases)
         {
             LogisticsCycle.LogiBaseBidding(tradeBase);
         }
@@ -64,7 +64,7 @@ public class LogiShipProcessor : IHotloopProcessor
 
     public void ProcessEntity(Entity entity, int deltaSeconds)
     {
-        var tradingBases = entity.Manager.GetAllDataBlobsOfType<LogiBaseDB>();
+        var tradingBases = entity.AttachedManager.GetAllDataBlobsOfType<LogiBaseDB>();
         LogisticsCycle.LogiShipBidding(entity, tradingBases);
     }
 
@@ -72,7 +72,7 @@ public class LogiShipProcessor : IHotloopProcessor
     {
         var tradingBases = manager.GetAllDataBlobsOfType<LogiBaseDB>();
         var shippingEntities = manager.GetAllEntitiesWithDataBlob<LogiShipperDB>();
-        foreach(Entity shipper in shippingEntities)
+        foreach (Entity shipper in shippingEntities)
         {
             LogisticsCycle.LogiShipBidding(shipper, tradingBases);
         }
@@ -92,10 +92,10 @@ public static class LogisticsCycle
     public class CargoTask
     {
         public double Profit = 0;
-        public Entity Source;
-        public Entity Destination;
+        public Entity Source = Entity.InvalidEntity;
+        public Entity Destination = Entity.InvalidEntity;
 
-        public ICargoable item;
+        public ICargoable? item;
 
         public long NumberOfItems;
         public double timeInSeconds;
@@ -110,7 +110,7 @@ public static class LogisticsCycle
         LogiShipperDB shiperdb = shippingEntity.GetDataBlob<LogiShipperDB>();
         List<CargoTask> cargoTasks = new List<CargoTask>();
 
-        if(shiperdb.CurrentState != LogiShipperDB.States.Waiting)
+        if (shiperdb.CurrentState != LogiShipperDB.States.Waiting)
             return;
         shiperdb.CurrentState = LogiShipperDB.States.Bidding;
 
@@ -121,17 +121,17 @@ public static class LogisticsCycle
         var demandTradeItems = new List<CargoTask>();
         double travelTimeToSource = 0;
 
-        foreach(var tbase in tradingBases)
+        foreach (var tbase in tradingBases)
         {
             OrbitDB odb;// = tbase.OwningEntity.GetDataBlob<OrbitDB>();
-            if(tbase.OwningEntity.HasDataBlob<OrbitDB>())
-                 odb = tbase.OwningEntity.GetDataBlob<OrbitDB>();
+            if (tbase.OwningEntity.HasDataBlob<OrbitDB>())
+                odb = tbase.OwningEntity.GetDataBlob<OrbitDB>();
             else
                 odb = tbase.OwningEntity.GetSOIParentEntity().GetDataBlob<OrbitDB>();
 
 
 
-            if(shippingEntity.Manager.Game.Settings.StrictNewtonion)
+            if (shippingEntity.AttachedManager.Game.Settings.StrictNewtonion)
             {
                 travelTimeToSource = LogisticsNewtonion.TravelTimeToSource(shippingEntity, tbase, odb, currentDateTime);
             }
@@ -153,20 +153,20 @@ public static class LogisticsCycle
 
             // double profit = 0; //this is used by the ship to decide where it should source and destination from.
 
-            foreach(var cargoSpace in shiperdb.TradeSpace) //for each type of cargospace
+            foreach (var cargoSpace in shiperdb.TradeSpace) //for each type of cargospace
             {
                 double possibleTradeVolume = cargoSpace.Value;
 
                 //cycle through the base items and add them to the above dictionary if we can carry them
-                foreach(var tradingItems in tbase.ListedItems)
+                foreach (var tradingItems in tbase.ListedItems)
                 {
-                    if(tradingItems.Key.CargoTypeID == cargoSpace.Key)
+                    if (tradingItems.Key.CargoTypeID == cargoSpace.Key)
                     {
                         //we abs this since if it's demand, it'll be negative. we want to find how much to carry.
                         var vpu = tradingItems.Key.VolumePerUnit;
                         var mpu = tradingItems.Key.MassPerUnit;
                         var tradeCount = tradingItems.Value.count;
-                        var shipCount = Math.Min(mpu * shiperdb.MaxTradeMass, Math.Pow(possibleTradeVolume,3) / vpu);
+                        var shipCount = Math.Min(mpu * shiperdb.MaxTradeMass, Math.Pow(possibleTradeVolume, 3) / vpu);
                         long numCanCarry = (long)Math.Min(Math.Abs(tradeCount), shipCount);
 
 
@@ -175,13 +175,13 @@ public static class LogisticsCycle
                         ct.item = tradingItems.Key;
                         ct.NumberOfItems = numCanCarry;
                         ct.Profit = tradingItems.Value.demandSupplyWeight;
-                        if(tradingItems.Value.count > 0) //if it's a supply (we ship FROM)
+                        if (tradingItems.Value.count > 0) //if it's a supply (we ship FROM)
                         {
 
                             //var loadRate = CargoTransferProcessor.CalcTransferRate(dvDif, tbase.OwningEntity.GetDataBlob<CargoStorageDB>(), shiperdb.OwningEntity.GetDataBlob<CargoStorageDB>())
                             ct.Source = tbase.OwningEntity;
                             sourceTradeItems.Add(ct);
-                            ct.timeInSeconds =  travelTimeToSource;
+                            ct.timeInSeconds = travelTimeToSource;
                             ct.fuelUseDV = fuelToSource;
                         }
                         else //it's a demand item. (we ship TO)
@@ -200,9 +200,9 @@ public static class LogisticsCycle
         //now we need to compare the source and demand lists and find the most profitable combinations.
 
         List<CargoTask> possibleCombos = new List<CargoTask>();
-        foreach(var stask in sourceTradeItems)
+        foreach (var stask in sourceTradeItems)
         {
-            foreach(var dtask in demandTradeItems)
+            foreach (var dtask in demandTradeItems)
             {
                 var sourceEntity = stask.Source;
                 var destinEntity = dtask.Destination;
@@ -219,11 +219,11 @@ public static class LogisticsCycle
                 DateTime DepartSourceTime = arriveSourceTime + loadTime;
 
                 OrbitDB odb;// = tbase.OwningEntity.GetDataBlob<OrbitDB>();
-                if(destinEntity.HasDataBlob<OrbitDB>())
+                if (destinEntity.HasDataBlob<OrbitDB>())
                     odb = destinEntity.GetDataBlob<OrbitDB>();
                 else
                     odb = destinEntity.GetSOIParentEntity().GetDataBlob<OrbitDB>();
-                    //throw new NotImplementedException("Currently we can only predict the movement of stable orbits - target must have an orbitDB");
+                //throw new NotImplementedException("Currently we can only predict the movement of stable orbits - target must have an orbitDB");
                 (Vector3 position, DateTime atDateTime) targetIntercept = WarpMath.GetInterceptPosition
                 (
                     shippingEntity,
@@ -250,7 +250,7 @@ public static class LogisticsCycle
 
                 pcombo.timeInSeconds = totalTimeInSeconds;
 
-                if(possibleCombos.Count < 1)
+                if (possibleCombos.Count < 1)
                 {
                     possibleCombos.Add(pcombo);
                 }
@@ -259,7 +259,7 @@ public static class LogisticsCycle
                     for (int i = possibleCombos.Count - 1; i >= 0; i--)
                     {
                         var listItem = possibleCombos[i];
-                        if(listItem.Profit > pcombo.Profit || i == 0)
+                        if (listItem.Profit > pcombo.Profit || i == 0)
                         {
                             possibleCombos.Insert(i, pcombo);
                             i = -1;
@@ -280,7 +280,7 @@ public static class LogisticsCycle
         {
             var tbdb = pcombo.Destination.GetDataBlob<LogiBaseDB>(); //we're going to add it to the *DESTINATON* base
 
-            if(tbdb.TradeShipBids.Count < 1)
+            if (tbdb.TradeShipBids.Count < 1)
             {
                 tbdb.TradeShipBids.Add((shippingEntity, pcombo));
             }
@@ -289,7 +289,7 @@ public static class LogisticsCycle
                 for (int i = tbdb.TradeShipBids.Count - 1; i >= 0; i--)
                 {
                     var listItem = tbdb.TradeShipBids[i];
-                    if(listItem.cargoTask.timeInSeconds > pcombo.timeInSeconds || i == 0) //TODONEXT: this needs to be largest to smallest not smallest to largest
+                    if (listItem.cargoTask.timeInSeconds > pcombo.timeInSeconds || i == 0) //TODONEXT: this needs to be largest to smallest not smallest to largest
                     {
                         tbdb.TradeShipBids.Insert(i, (shippingEntity, pcombo));
                         i = -1;
@@ -306,7 +306,7 @@ public static class LogisticsCycle
     {
         if (tradeBase.TradeShipBids.Count == 0)
             return;
-        int last = tradeBase.TradeShipBids.Count -1;
+        int last = tradeBase.TradeShipBids.Count - 1;
         var cargoTask = tradeBase.TradeShipBids[last].cargoTask;
         var ship = tradeBase.TradeShipBids[last].ship;
         var shiptradedb = ship.GetDataBlob<LogiShipperDB>();
@@ -314,28 +314,28 @@ public static class LogisticsCycle
         Entity destin = cargoTask.Destination;
 
         //start at last item in index, we can remove bidTasks from the tradebase.TradeShipBids.
-        for (int i = last; i > -1 ; i--)
+        for (int i = last; i > -1; i--)
         {
             var bidTask = tradeBase.TradeShipBids[i];
-            if(bidTask.ship == ship && bidTask.cargoTask.Source == source && bidTask.cargoTask.Destination == destin) //if the ship and the source are the same (it should be for the first one)
+            if (bidTask.ship == ship && bidTask.cargoTask.Source == source && bidTask.cargoTask.Destination == destin) //if the ship and the source are the same (it should be for the first one)
             {
 
                 var freespace = shiptradedb.TradeSpace[cargoTask.item.CargoTypeID];
                 var volOfItems = cargoTask.NumberOfItems * cargoTask.item.VolumePerUnit;
-                if(freespace >= volOfItems)
+                if (freespace >= volOfItems)
                 {
                     tradeBase.TradeShipBids.RemoveAt(i); //remove it from the list
                     shiptradedb.ActiveCargoTasks.Add(bidTask.cargoTask);
-                    shiptradedb.TradeSpace[cargoTask.item.CargoTypeID]-= cargoTask.NumberOfItems;
+                    shiptradedb.TradeSpace[cargoTask.item.CargoTypeID] -= cargoTask.NumberOfItems;
                     List<(ICargoable, long)> tradeItems = new List<(ICargoable, long)>();
                     tradeItems.Add((cargoTask.item, cargoTask.NumberOfItems));
 
                     var shipOwner = ship.FactionOwnerID;//.GetDataBlob<ObjectOwnershipDB>().OwningEntity;
-                    Entity? currentSOIParent = ship.GetSOIParentEntity();
-                    Entity? sourceSOIParent = source.GetSOIParentEntity(); //might need some checks in here.
+                    Entity currentSOIParent = ship.GetSOIParentEntity();
+                    Entity sourceSOIParent = source.GetSOIParentEntity(); //might need some checks in here.
 
-                    if(currentSOIParent == null) throw new NullReferenceException("currentSOIParent cannot be null");
-                    if(sourceSOIParent == null) throw new NullReferenceException("sourceSOIParent cannot be null");
+                    if (!currentSOIParent.IsValid) throw new NullReferenceException("currentSOIParent cannot be null");
+                    if (!sourceSOIParent.IsValid) throw new NullReferenceException("sourceSOIParent cannot be null");
 
                     //moveto source(if requred)
                     var myMass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
@@ -357,7 +357,7 @@ public static class LogisticsCycle
 
                     var smass = sourceSOIParent.GetDataBlob<MassVolumeDB>().MassTotal;
                     var sgp = GeneralMath.StandardGravitationalParameter(curstate.Mass + smass);
-                    var sstate = MoveMath.GetRelativeFutureState(currentSOIParent,curstate.At);
+                    var sstate = MoveMath.GetRelativeFutureState(currentSOIParent, curstate.At);
                     var dvd = CargoTransferProcessor.CalcDVDifference_m(sgp, (curstate.Position, curstate.Velocity), sstate);
                     var svs = source.GetDataBlob<CargoStorageDB>();
                     var mvs = ship.GetDataBlob<CargoStorageDB>();
@@ -408,7 +408,7 @@ public static class LogisticsCycle
             {
                 if (dvdif > dvMaxRangeDiff_ms * 0.01) //TODO:, whats the best dv dif for a colony on a planet? can we land? do we want to?
                 {
-                    if(ship.Manager.Game.Settings.StrictNewtonion)
+                    if (ship.AttachedManager.Game.Settings.StrictNewtonion)
                         mfstate = LogisticsNewtonion.ManuverToParentColony(ship, cur, target, startState);
                     else
                         mfstate = LogisticsSimple.ManuverToParentColony(ship, cur, target, startState);
@@ -420,7 +420,7 @@ public static class LogisticsCycle
             {
                 if (dvdif > dvMaxRangeDiff_ms * 0.01)//if we're less than 10% of perfect
                 {
-                    if (ship.Manager.Game.Settings.StrictNewtonion)
+                    if (ship.AttachedManager.Game.Settings.StrictNewtonion)
                         mfstate = LogisticsNewtonion.ManuverToSiblingObject(ship, cur, target, startState);
                     else
                         mfstate = LogisticsSimple.ManuverToSiblingObject(ship, cur, target, startState);
@@ -429,7 +429,7 @@ public static class LogisticsCycle
         }
         else //if we're not orbiting the same parent as the source, we have to warpmove
         {
-            if (ship.Manager.Game.Settings.StrictNewtonion)
+            if (ship.AttachedManager.Game.Settings.StrictNewtonion)
                 mfstate = LogisticsNewtonion.ManuverToExternalObject(ship, cur, target, startState);
             else
             {

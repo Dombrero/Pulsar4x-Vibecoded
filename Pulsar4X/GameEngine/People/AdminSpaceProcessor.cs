@@ -11,7 +11,7 @@ public class AdminSpaceProcessor : IInstanceProcessor
 {
     internal override void ProcessEntity(Entity entity, DateTime atDateTime)
     {
-        if(entity.TryGetDataBlob<AdminSpaceDB>(out var adminSpaceDB))
+        if (entity.TryGetDataBlob<AdminSpaceDB>(out var adminSpaceDB))
         {
             CalcEntityAdminSpace(entity, adminSpaceDB);
 

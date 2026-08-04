@@ -31,7 +31,7 @@ public static class DamageMapRendering
         // Create a buffer for the pixel data
         uint[] pixelData = new uint[width * height];
         // Get unique instances for color mapping
-        var uniqueInstances = damageMap.compIDMap.Distinct().Where(id => id != null).ToList();
+        var uniqueInstances = damageMap.compIDMap.Distinct().Where(id => id != 0).ToList();
         // Fill the pixel data
         for (int y = 0; y < height; y++)
         {
@@ -41,7 +41,7 @@ public static class DamageMapRendering
                 int id = damageMap.compIDMap[index];
 
                 // Calculate red value based on instance index
-                byte redValue = id != null
+                byte redValue = id != 0
                     ? (byte)(255 * uniqueInstances.IndexOf(id) / (float)uniqueInstances.Count)
                     : (byte)0;
 
@@ -85,9 +85,6 @@ public static class DamageMapRendering
         // Texture at high-res scale
         int highResTextureSize = textureSize;
         uint[] pixelData = new uint[highResTextureSize * highResTextureSize];
-        byte alpha = 255;
-
-        // Center on fastest particle in low-res baseMap coordinates
         int centerX = (int)Math.Round(fastestParticle.Position.X);
         int centerY = (int)Math.Round(fastestParticle.Position.Y);
 
@@ -134,7 +131,7 @@ public static class DamageMapRendering
                                 byte red = id != 0 ? (byte)(255 * uniqueInstances.IndexOf(id) / uniqueInstances.Count) : (byte)0;
                                 int pixelIndex = (highYBase + dy) * highResTextureSize + (highXBase + dx);
                                 if (pixelIndex >= 0 && pixelIndex < pixelData.Length)
-                                    pixelData[pixelIndex] = GetCompisiteDamageColor(particle);
+                                    pixelData[pixelIndex] = particle != null ? GetCompisiteDamageColor(particle) : Utils.GetColor(red, 0, 0, 255);
                             }
                         }
                     }
@@ -152,7 +149,7 @@ public static class DamageMapRendering
                         {
                             int pixelIndex = (highYBase + dy) * highResTextureSize + (highXBase + dx);
                             if (pixelIndex >= 0 && pixelIndex < pixelData.Length)
-                                pixelData[pixelIndex] = GetCompisiteDamageColor(particle);
+                                pixelData[pixelIndex] = particle != null ? GetCompisiteDamageColor(particle) : Utils.GetColor(red, 0, 0, 255);
                         }
                     }
                 }
@@ -172,7 +169,7 @@ public static class DamageMapRendering
             handle.Free();
         }
     }
-    private static uint GetCompisiteDamageColor(PhysicalParticle particle)
+    private static uint GetCompisiteDamageColor(PhysicalParticle? particle)
     {
         uint color = 0;
         if (particle != null)
@@ -198,7 +195,6 @@ public static class DamageMapRendering
     }
     internal static void CreateTextureForCompisiteMap(IntPtr renderer, DamageMap damageMap, ref IntPtr texture, int width, int height)
     {
-        byte alpha = 255;
         // Create a buffer for the pixel data
         uint[] pixelData = new uint[width * height];
 
@@ -269,7 +265,7 @@ public static class DamageMapRendering
         double maxVelocity = 0;
         foreach (var part in damageMap.PMap)
         {
-            if(part != null && part.Velocity.Length() > maxVelocity)
+            if (part != null && part.Velocity.Length() > maxVelocity)
                 maxVelocity = part.Velocity.Length();
         }
 
@@ -285,8 +281,8 @@ public static class DamageMapRendering
                 int index = damageMap.GetIndex(x, y);
                 var part = damageMap.PMap[index];
                 byte greenValue = 0;
-                if(part != null)
-                    greenValue = (byte)((damageMap.PMap[index].Velocity.Length() * 255.0) / maxVelocity);
+                if (part != null)
+                    greenValue = (byte)((part.Velocity.Length() * 255.0) / maxVelocity);
 
                 // Pack ARGB values into a single uint
                 pixelData[y * width + x] = Utils.GetColor(0, greenValue, 0, alpha);
@@ -322,7 +318,7 @@ public static class DamageMapRendering
             for (int x = 0; x < width; x++)
             {
                 int index = y * width + x;
-                PhysicalParticle physicalParticle = damageMap.PMap[index];
+                PhysicalParticle? physicalParticle = damageMap.PMap[index];
                 uint color = 0;
                 if (physicalParticle != null)
                 {
@@ -373,8 +369,8 @@ public static class DamageMapRendering
         {
             for (int x = 0; x < width; x++)
             {
-                int index = damageMap.GetIndex(x,y);
-                PhysicalParticle physicalParticle = damageMap.PMap[index];
+                int index = damageMap.GetIndex(x, y);
+                PhysicalParticle? physicalParticle = damageMap.PMap[index];
                 if (physicalParticle != null)
                 {
                     var phaseState = physicalParticle.StateOfPhase;
@@ -415,9 +411,9 @@ public static class DamageMapRendering
         {
             if (particle != null)
             {
-                if(particle.Temperature < minTemp)
+                if (particle.Temperature < minTemp)
                     minTemp = particle.Temperature;
-                if(particle.Temperature > maxTemp)
+                if (particle.Temperature > maxTemp)
                     maxTemp = particle.Temperature;
             }
         }
@@ -431,7 +427,7 @@ public static class DamageMapRendering
             for (int x = 0; x < width; x++)
             {
                 int index = y * width + x;
-                PhysicalParticle physicalParticle = damageMap.PMap[index];
+                PhysicalParticle? physicalParticle = damageMap.PMap[index];
 
                 if (physicalParticle != null)
                 {
@@ -454,7 +450,7 @@ public static class DamageMapRendering
                     {
                         r = 0;
                         g = 1;
-                        b = (byte)(1 - (tempNormalized - 0.2f) * 5f * 255) ;
+                        b = (byte)(1 - (tempNormalized - 0.2f) * 5f * 255);
                     }
                     else if (tempNormalized < 0.6f) // Cool - Cyan to Green
                     {

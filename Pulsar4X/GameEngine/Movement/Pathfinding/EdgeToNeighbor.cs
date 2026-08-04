@@ -20,7 +20,7 @@
         /// </remarks>
         public double Cost { get; }
 
-        public EdgeToNeighbor(Node neighbor) : this (neighbor, 0) { }
+        public EdgeToNeighbor(Node neighbor) : this(neighbor, 0) { }
 
         public EdgeToNeighbor(Node neighbor, double cost)
         {

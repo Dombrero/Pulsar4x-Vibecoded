@@ -8,7 +8,7 @@ namespace Pulsar4X.Events
         {
             EventType all = EventType.NoEventType;
 
-            foreach(EventType eventType in Enum.GetValues(typeof(EventType)))
+            foreach (EventType eventType in Enum.GetValues(typeof(EventType)))
             {
                 all |= eventType;
             }
@@ -432,7 +432,7 @@ namespace Pulsar4X.Events
         ColonyAdministratorUnassigned,
         AdministratorAssignedToColony, //from admin perspective
         AdministratorUnassignedFromColony,
-        
+
 
 
     }

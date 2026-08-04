@@ -5,7 +5,7 @@ namespace Pulsar4X.DataStructures
     public class WeightedValue<T>
     {
         public double Weight { get; set; }
-        public T Value { get; set; }
+        public T Value { get; set; } = default!;
 
         protected bool Equals(WeightedValue<T> other)
         {
@@ -14,7 +14,7 @@ namespace Pulsar4X.DataStructures
 
         public override bool Equals(object? obj)
         {
-            if(obj == null) return false;
+            if (obj == null) return false;
 
             if (ReferenceEquals(null, obj))
             {

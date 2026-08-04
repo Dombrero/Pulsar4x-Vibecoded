@@ -18,11 +18,10 @@ namespace Pulsar4X.Components
         }
 
         [JsonProperty]
-        public ComponentInstance ComponentInstance { get; private set; }
-
+        public ComponentInstance? ComponentInstance { get; set; }
         [JsonConstructor]
-        protected ComponentAbilityState(){}
-        
+        protected ComponentAbilityState() { }
+
         public ComponentAbilityState(ComponentInstance componentInstance)
         {
             ComponentInstance = componentInstance;

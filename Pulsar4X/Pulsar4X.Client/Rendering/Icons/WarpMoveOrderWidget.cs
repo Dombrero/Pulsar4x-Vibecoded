@@ -136,8 +136,8 @@ namespace Pulsar4X.Client
 
         //DateTime TransitDateTime;
         //Vector4 _transitPosition;
-        Shape _progradeArrow = null!;
-        Orbital.Vector2[] _arrow = null!;
+        Shape _progradeArrow;
+        Orbital.Vector2[] _arrow = Array.Empty<Orbital.Vector2>();
 
         private TransitIcon(IPosition parentPos) : base(parentPos)
         {
@@ -270,9 +270,9 @@ namespace Pulsar4X.Client
                     int x;
                     int y;
 
-                    var tranlsatedPoint = nonZoomMatrix.TransformToVector2( shape.Points[i2].X,  shape.Points[i2].Y);
-                    x = (int)(ViewScreenPos.X + tranlsatedPoint.X );
-                    y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y );
+                    var tranlsatedPoint = nonZoomMatrix.TransformToVector2(shape.Points[i2].X, shape.Points[i2].Y);
+                    x = (int)(ViewScreenPos.X + tranlsatedPoint.X);
+                    y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y);
                     drawPoints[i2] = new Orbital.Vector2() { X = x, Y = y };
                 }
                 DrawShapes[i] = new Shape() { Points = drawPoints, Color = shape.Color };
@@ -291,8 +291,8 @@ namespace Pulsar4X.Client
                 {
                     var x1 = Convert.ToInt32(shape.Points[i].X);
                     var y1 = Convert.ToInt32(shape.Points[i].Y);
-                    var x2 = Convert.ToInt32(shape.Points[i+1].X);
-                    var y2 = Convert.ToInt32(shape.Points[i+1].Y);
+                    var x2 = Convert.ToInt32(shape.Points[i + 1].X);
+                    var y2 = Convert.ToInt32(shape.Points[i + 1].Y);
                     SDL.RenderLine(rendererPtr, x1, y1, x2, y2);
                 }
             }

@@ -52,8 +52,12 @@ public class SystemBodyBlueprint : Blueprint
 
     public struct AtmosphericGasValue
     {
-        public string Symbol { get; set; }
+        public string? Symbol { get; set; }
         public float Percent { get; set; }
+
+        public AtmosphericGasValue()
+        {
+        }
     }
 
     public struct AtmosphereBlueprint
@@ -69,12 +73,16 @@ public class SystemBodyBlueprint : Blueprint
 
     public struct StartingMineralBlueprint
     {
-        public string Id { get; set; }
+        public string? Id { get; set; }
         public double Abundance { get; set; }
         public double Accessibility { get; set; }
+
+        public StartingMineralBlueprint()
+        {
+        }
     }
 
-    public string Name { get; set; }
+    public string? Name { get; set; }
 
     // Can this body be selected as a starting location
     public bool CanStartHere { get; set; } = false;

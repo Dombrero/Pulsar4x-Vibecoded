@@ -21,7 +21,7 @@ namespace Pulsar4X.Movement
 
         public bool IsComplete = false;
         [JsonProperty]
-        public Entity SOIParent { get; internal set; }
+        public Entity SOIParent { get; internal set; } = Entity.InvalidEntity;
         [JsonProperty]
         public double ParentMass { get; internal set; }
 

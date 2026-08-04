@@ -24,11 +24,12 @@ public class EventLogTests
 
         modLoader.LoadModManifest("Data/basemod/modInfo.json", modDataStore);
 
-        var settings = new NewGameSettings() {
+        var settings = new NewGameSettings()
+        {
             StartDateTime = new System.DateTime(2100, 9, 1)
         };
 
-        _game  = new Game(settings, modDataStore);
+        _game = new Game(settings, modDataStore);
 
         EventManager.Instance.Clear();
         _factionOneEventLog = FactionEventLog.Create(1, _game.TimePulse);
@@ -43,7 +44,7 @@ public class EventLogTests
     [Test]
     public void TestFactionEventLogs()
     {
-        if(_factionOneEventLog == null || _factionTwoEventLog == null)
+        if (_factionOneEventLog == null || _factionTwoEventLog == null)
             throw new NullReferenceException();
 
         Event e = Event.Create(EventType.ResearchCompleted, DateTime.Now, "Testing Events", 1);
@@ -86,7 +87,7 @@ public class EventLogTests
     [Test]
     public void TestSpaceMasterEventLog()
     {
-        if(_spaceMasterEventLog == null)
+        if (_spaceMasterEventLog == null)
             throw new NullReferenceException();
 
         Event e = Event.Create(EventType.ResearchCompleted, DateTime.Now, "Testing Events", 1);

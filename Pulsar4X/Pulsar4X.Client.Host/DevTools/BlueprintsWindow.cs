@@ -16,13 +16,13 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
 {
 
     List<object> _editStack = new List<object>();
-    
+
     private string _selectedBlueprintId = "";
     private Blueprint? _selectedBlueprint = null;
 
     public static BlueprintsWindow GetInstance()
     {
-        if(_uiState.TryGetUniqueWindow<BlueprintsWindow>(out var window))
+        if (_uiState.TryGetUniqueWindow<BlueprintsWindow>(out var window))
         {
             return window;
         }
@@ -32,11 +32,11 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
 
     private void DisplayBlueprintCategory(string label, List<string> items)
     {
-        if(ImGui.CollapsingHeader(label, ImGuiTreeNodeFlags.CollapsingHeader | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow))
+        if (ImGui.CollapsingHeader(label, ImGuiTreeNodeFlags.CollapsingHeader | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow))
         {
-            foreach(var template in items.OrderBy(k => k))
+            foreach (var template in items.OrderBy(k => k))
             {
-                if(ImGui.Selectable(template, _selectedBlueprintId.Equals(template), ImGuiSelectableFlags.AllowDoubleClick))
+                if (ImGui.Selectable(template, _selectedBlueprintId.Equals(template), ImGuiSelectableFlags.AllowDoubleClick))
                 {
                     _selectedBlueprintId = template;
                     _selectedBlueprint = FindBlueprint(_selectedBlueprintId);
@@ -47,12 +47,12 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
 
     internal override void Display()
     {
-        if(!IsActive) return;
+        if (!IsActive) return;
 
-        if(Window.Begin("Blueprints Window"))
+        if (Window.Begin("Blueprints Window"))
         {
             Vector2 windowContentSize = ImGui.GetContentRegionAvail();
-            if(ImGui.BeginChild("BlueprintListSelection", new Vector2(Styles.LeftColumnWidthLg, windowContentSize.Y), ImGuiChildFlags.Borders))
+            if (ImGui.BeginChild("BlueprintListSelection", new Vector2(Styles.LeftColumnWidthLg, windowContentSize.Y), ImGuiChildFlags.Borders))
             {
                 DisplayHelpers.Header("Blueprints", "Select a blueprint to view details.");
 
@@ -79,41 +79,41 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             //ImGui.SetCursorPosY(27f);
 
             windowContentSize = ImGui.GetContentRegionAvail();
-            if(_selectedBlueprint != null && ImGui.BeginChild("BlueprintContent", windowContentSize, ImGuiChildFlags.Borders))
+            if (_selectedBlueprint != null && ImGui.BeginChild("BlueprintContent", windowContentSize, ImGuiChildFlags.Borders))
             {
                 DisplayKeyValue("Full ID", _selectedBlueprint.FullIdentifier);
                 DisplayKeyValue("Unique ID", _selectedBlueprint.UniqueID);
                 DisplayKeyValue("Json File Name", _selectedBlueprint.JsonFileName);
 
-                if(_selectedBlueprint is ArmorBlueprint)
+                if (_selectedBlueprint is ArmorBlueprint)
                     DisplayArmorBlueprint((ArmorBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is CargoTypeBlueprint)
+                else if (_selectedBlueprint is CargoTypeBlueprint)
                     DisplayCargoTypeBlueprint((CargoTypeBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is ColonyBlueprint)
+                else if (_selectedBlueprint is ColonyBlueprint)
                     DisplayColonyBlueprint((ColonyBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is ComponentTemplateBlueprint)
+                else if (_selectedBlueprint is ComponentTemplateBlueprint)
                     DisplayComponentTemplateBlueprint((ComponentTemplateBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is GasBlueprint)
+                else if (_selectedBlueprint is GasBlueprint)
                     DisplayGasBlueprint((GasBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is IndustryTypeBlueprint)
+                else if (_selectedBlueprint is IndustryTypeBlueprint)
                     DisplayIndustryTypeBlueprint((IndustryTypeBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is MineralBlueprint)
+                else if (_selectedBlueprint is MineralBlueprint)
                     DisplayMineralBlueprint((MineralBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is ProcessedMaterialBlueprint)
+                else if (_selectedBlueprint is ProcessedMaterialBlueprint)
                     DisplayProcessedMaterialBlueprint((ProcessedMaterialBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is StarBlueprint)
+                else if (_selectedBlueprint is StarBlueprint)
                     DisplayStarBlueprint((StarBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is SystemBlueprint)
+                else if (_selectedBlueprint is SystemBlueprint)
                     DisplaySystemBlueprint((SystemBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is SystemBodyBlueprint)
+                else if (_selectedBlueprint is SystemBodyBlueprint)
                     DisplaySystemBodyBlueprint((SystemBodyBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is SystemGenSettingsBlueprint)
+                else if (_selectedBlueprint is SystemGenSettingsBlueprint)
                     DisplaySystemGenSettingsBlueprint((SystemGenSettingsBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is TechBlueprint)
+                else if (_selectedBlueprint is TechBlueprint)
                     DisplayTechBlueprint((TechBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is TechCategoryBlueprint)
+                else if (_selectedBlueprint is TechCategoryBlueprint)
                     DisplayTechCategoryBlueprint((TechCategoryBlueprint)_selectedBlueprint);
-                else if(_selectedBlueprint is ThemeBlueprint)
+                else if (_selectedBlueprint is ThemeBlueprint)
                     DisplayThemeBlueprint((ThemeBlueprint)_selectedBlueprint);
 
                 ImGui.EndChild();
@@ -125,35 +125,35 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
 
     private Blueprint? FindBlueprint(string key)
     {
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Armor.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Armor.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Armor[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.CargoTypes.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.CargoTypes.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.CargoTypes[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Colonies.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Colonies.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Colonies[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.ComponentTemplates.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.ComponentTemplates.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.ComponentTemplates[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.AtmosphericGas.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.AtmosphericGas.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.AtmosphericGas[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.IndustryTypes.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.IndustryTypes.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.IndustryTypes[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Minerals.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Minerals.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Minerals[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.ProcessedMaterials.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.ProcessedMaterials.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.ProcessedMaterials[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Stars.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Stars.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Stars[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Systems.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Systems.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Systems[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.SystemBodies.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.SystemBodies.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.SystemBodies[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.SystemGenSettings.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.SystemGenSettings.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.SystemGenSettings[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Techs.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Techs.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Techs[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.TechCategories.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.TechCategories.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.TechCategories[key];
-        if(GameLifecycle.Instance!.Game!.StartingGameData.Themes.ContainsKey(key))
+        if (GameLifecycle.Instance!.Game!.StartingGameData.Themes.ContainsKey(key))
             return GameLifecycle.Instance!.Game!.StartingGameData.Themes[key];
 
         return null;
@@ -163,7 +163,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
     {
         ImGui.Text(key + ":");
         ImGui.SameLine();
-        if(string.IsNullOrEmpty(value))
+        if (string.IsNullOrEmpty(value))
             ImGui.Text("null");
         else
             ImGui.Text(value);
@@ -175,7 +175,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         ImGui.SameLine();
         ImGui.Text(startingItemBlueprint.Amount.ToString());
         ImGui.SameLine();
-        if(string.IsNullOrEmpty(startingItemBlueprint.Type))
+        if (string.IsNullOrEmpty(startingItemBlueprint.Type))
             ImGui.Text("null");
         else
             ImGui.Text(startingItemBlueprint.Type);
@@ -187,7 +187,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         ImGui.Text("Density: ");
         ImGui.SameLine();
         float density = armorBlueprint.Density;
-        if (FloatEditWidget.Display("##density"+ armorBlueprint.UniqueID, ref density))
+        if (FloatEditWidget.Display("##density" + armorBlueprint.UniqueID, ref density))
         {
             armorBlueprint.Density = density;
         }
@@ -206,89 +206,89 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("Starting Population", colonyBlueprint.StartingPopulation.ToString());
 
         // Component Designs
-        if(colonyBlueprint?.ComponentDesigns?.Count > 0
+        if (colonyBlueprint?.ComponentDesigns?.Count > 0
             && ImGui.CollapsingHeader("Component Designs"))
         {
-            foreach(var value in colonyBlueprint.ComponentDesigns)
+            foreach (var value in colonyBlueprint.ComponentDesigns)
             {
                 ImGui.Text(value);
             }
         }
 
         // Ordnance Designs
-        if(colonyBlueprint?.OrdnanceDesigns?.Count > 0
+        if (colonyBlueprint?.OrdnanceDesigns?.Count > 0
             && ImGui.CollapsingHeader("Ordnance Designs"))
         {
-            foreach(var value in colonyBlueprint.OrdnanceDesigns)
+            foreach (var value in colonyBlueprint.OrdnanceDesigns)
             {
                 ImGui.Text(value);
             }
         }
 
         // Ship Designs
-        if(colonyBlueprint?.ShipDesigns?.Count > 0
+        if (colonyBlueprint?.ShipDesigns?.Count > 0
             && ImGui.CollapsingHeader("Ship Designs"))
         {
-            foreach(var value in colonyBlueprint.ShipDesigns)
+            foreach (var value in colonyBlueprint.ShipDesigns)
             {
                 ImGui.Text(value);
             }
         }
 
         // Starting Items
-        if(colonyBlueprint?.StartingItems?.Count > 0
+        if (colonyBlueprint?.StartingItems?.Count > 0
             && ImGui.CollapsingHeader("Starting Items"))
         {
-            foreach(var value in colonyBlueprint.StartingItems)
+            foreach (var value in colonyBlueprint.StartingItems)
             {
                 ImGui.Text(value);
             }
         }
 
         // Installations
-        if(colonyBlueprint?.Installations?.Count > 0
+        if (colonyBlueprint?.Installations?.Count > 0
             && ImGui.CollapsingHeader("Installations"))
         {
-            foreach(var item in colonyBlueprint.Installations)
+            foreach (var item in colonyBlueprint.Installations)
             {
                 DisplayStartingItemBlueprint(item);
             }
         }
 
         // Cargo
-        if(colonyBlueprint?.Cargo?.Count > 0
+        if (colonyBlueprint?.Cargo?.Count > 0
             && ImGui.CollapsingHeader("Cargo"))
         {
-            foreach(var item in colonyBlueprint.Cargo)
+            foreach (var item in colonyBlueprint.Cargo)
             {
                 DisplayStartingItemBlueprint(item);
             }
         }
 
         // Fleets
-        if(colonyBlueprint?.Fleets?.Count > 0
+        if (colonyBlueprint?.Fleets?.Count > 0
             && ImGui.CollapsingHeader("Fleets"))
         {
-            foreach(var fleet in colonyBlueprint.Fleets)
+            foreach (var fleet in colonyBlueprint.Fleets)
             {
                 ImGui.Text(fleet.Name);
 
-                if(fleet.Ships == null) continue;
+                if (fleet.Ships == null) continue;
 
                 ImGui.Indent();
-                if(ImGui.CollapsingHeader("Ships###" + fleet.Name))
+                if (ImGui.CollapsingHeader("Ships###" + fleet.Name))
                 {
-                    foreach(var ship in fleet.Ships)
+                    foreach (var ship in fleet.Ships)
                     {
                         ImGui.Text(ship.DesignId);
                         ImGui.Text(ship.Name);
 
-                        if(ship.Cargo == null) continue;
+                        if (ship.Cargo == null) continue;
 
                         ImGui.Indent();
-                        if(ImGui.CollapsingHeader("Cargo###" + ship.Name))
+                        if (ImGui.CollapsingHeader("Cargo###" + ship.Name))
                         {
-                            foreach(var item in ship.Cargo)
+                            foreach (var item in ship.Cargo)
                             {
                                 DisplayStartingItemBlueprint(item);
                             }
@@ -310,28 +310,28 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("CargoTypeID", componentTemplateBlueprint.CargoTypeID);
         DisplayKeyValue("IndustryTypeID", componentTemplateBlueprint.IndustryTypeID);
 
-        if(componentTemplateBlueprint.Formulas.Count > 0
+        if (componentTemplateBlueprint.Formulas.Count > 0
             && ImGui.CollapsingHeader("Formulas"))
         {
-            foreach(var kvp in componentTemplateBlueprint.Formulas)
+            foreach (var kvp in componentTemplateBlueprint.Formulas)
             {
                 DisplayKeyValue(kvp.Key, kvp.Value);
             }
         }
 
-        if(componentTemplateBlueprint.ResourceCost.Count > 0
+        if (componentTemplateBlueprint.ResourceCost.Count > 0
             && ImGui.CollapsingHeader("Resource Cost"))
         {
-            foreach(var kvp in componentTemplateBlueprint.ResourceCost)
+            foreach (var kvp in componentTemplateBlueprint.ResourceCost)
             {
                 DisplayKeyValue(kvp.Key, kvp.Value);
             }
         }
 
-        if(componentTemplateBlueprint.Properties.Count > 0
+        if (componentTemplateBlueprint.Properties.Count > 0
             && ImGui.CollapsingHeader("Properties"))
         {
-            foreach(var prop in componentTemplateBlueprint.Properties)
+            foreach (var prop in componentTemplateBlueprint.Properties)
             {
                 ImGui.Indent();
                 DisplayComponentTemplatePropertyBlueprint(prop);
@@ -355,10 +355,10 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("PropertyFormula", componentTemplatePropertyBlueprint.PropertyFormula);
         DisplayKeyValue("AtributeType", componentTemplatePropertyBlueprint.AttributeType);
 
-        if(componentTemplatePropertyBlueprint.DataDict?.Count > 0
+        if (componentTemplatePropertyBlueprint.DataDict?.Count > 0
             && ImGui.CollapsingHeader("DataDict"))
         {
-            foreach(var kvp in componentTemplatePropertyBlueprint.DataDict)
+            foreach (var kvp in componentTemplatePropertyBlueprint.DataDict)
             {
                 DisplayKeyValue(kvp.Key, kvp.Value);
             }
@@ -393,10 +393,10 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("MassPerUnit", mineralBlueprint.MassPerUnit.ToString());
         DisplayKeyValue("VolumePerUnit", mineralBlueprint.VolumePerUnit.ToString());
 
-        if(mineralBlueprint.Abundance?.Count > 0
+        if (mineralBlueprint.Abundance?.Count > 0
             && ImGui.CollapsingHeader("Abundance"))
         {
-            foreach(var kvp in mineralBlueprint.Abundance)
+            foreach (var kvp in mineralBlueprint.Abundance)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
@@ -416,19 +416,19 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("MassPerUnit", processedMaterialBlueprint.MassPerUnit.ToString());
         DisplayKeyValue("VolumePerUnit", processedMaterialBlueprint.VolumePerUnit.ToString());
 
-        if(processedMaterialBlueprint.Formulas?.Count > 0
+        if (processedMaterialBlueprint.Formulas?.Count > 0
             && ImGui.CollapsingHeader("Formulas"))
         {
-            foreach(var kvp in processedMaterialBlueprint.Formulas)
+            foreach (var kvp in processedMaterialBlueprint.Formulas)
             {
                 DisplayKeyValue(kvp.Key, kvp.Value);
             }
         }
 
-        if(processedMaterialBlueprint.ResourceCosts?.Count > 0
+        if (processedMaterialBlueprint.ResourceCosts?.Count > 0
             && ImGui.CollapsingHeader("Resource Costs"))
         {
-            foreach(var kvp in processedMaterialBlueprint.ResourceCosts)
+            foreach (var kvp in processedMaterialBlueprint.ResourceCosts)
             {
                 DisplayKeyValue(kvp.Key, kvp.Value.ToString());
             }
@@ -438,7 +438,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
     private void DisplayStarBlueprint(StarBlueprint starBlueprint)
     {
         DisplayKeyValue("Name", starBlueprint.Name);
-        if(ImGui.CollapsingHeader("Info"))
+        if (ImGui.CollapsingHeader("Info"))
         {
             DisplayKeyValue("Mass", starBlueprint.Info.Mass.ToString());
             DisplayKeyValue("Radius", starBlueprint.Info.Radius.ToString());
@@ -456,25 +456,25 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("Name", systemBlueprint.Name);
         DisplayKeyValue("Seed", systemBlueprint.Seed.ToString());
 
-        if(ImGui.CollapsingHeader("Stars"))
+        if (ImGui.CollapsingHeader("Stars"))
         {
-            foreach(var star in systemBlueprint.Stars)
+            foreach (var star in systemBlueprint.Stars)
             {
                 ImGui.Text(star);
             }
         }
 
-        if(ImGui.CollapsingHeader("Bodies"))
+        if (ImGui.CollapsingHeader("Bodies"))
         {
-            foreach(var body in systemBlueprint.Bodies)
+            foreach (var body in systemBlueprint.Bodies)
             {
                 ImGui.Text(body);
             }
         }
 
-        if(ImGui.CollapsingHeader("Survey Rings"))
+        if (ImGui.CollapsingHeader("Survey Rings"))
         {
-            foreach(var ring in systemBlueprint.SurveyRings)
+            foreach (var ring in systemBlueprint.SurveyRings)
             {
                 DisplayKeyValue("RingRadiusInAU", ring.RingRadiusInAU.ToString());
                 ImGui.SameLine();
@@ -492,7 +492,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("GeoSurveyPointsRequired", systemBodyBlueprint.GeoSurveyPointsRequired.ToString());
         DisplayKeyValue("GenerateMinerals", systemBodyBlueprint.GenerateMinerals);
 
-        if(ImGui.CollapsingHeader("Info"))
+        if (ImGui.CollapsingHeader("Info"))
         {
             DisplayKeyValue("Gravity", systemBodyBlueprint.Info.Gravity.ToString());
             DisplayKeyValue("Type", systemBodyBlueprint.Info.Type);
@@ -508,7 +508,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             DisplayKeyValue("Radius", systemBodyBlueprint.Info.Radius.ToString());
         }
 
-        if(ImGui.CollapsingHeader("Orbit"))
+        if (ImGui.CollapsingHeader("Orbit"))
         {
             DisplayKeyValue("SemiMajorAxis", systemBodyBlueprint.Orbit.SemiMajorAxis.ToString());
             DisplayKeyValue("SemiMajorAxis_m", systemBodyBlueprint.Orbit.SemiMajorAxis_m.ToString());
@@ -529,7 +529,7 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             DisplayKeyValue("MeanAnomaly_d", systemBodyBlueprint.Orbit.MeanAnomaly_d.ToString());
         }
 
-        if(systemBodyBlueprint.Atmosphere.HasValue && ImGui.CollapsingHeader("Atmosphere"))
+        if (systemBodyBlueprint.Atmosphere.HasValue && ImGui.CollapsingHeader("Atmosphere"))
         {
             var atmosphere = systemBodyBlueprint.Atmosphere.Value;
 
@@ -540,12 +540,12 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             DisplayKeyValue("GreenhousePressure", atmosphere.GreenhousePressure.ToString());
             DisplayKeyValue("SurfaceTemperature", atmosphere.SurfaceTemperature.ToString());
 
-            if(atmosphere.Gases != null)
+            if (atmosphere.Gases != null)
             {
                 ImGui.Indent();
-                if(ImGui.CollapsingHeader("Gases"))
+                if (ImGui.CollapsingHeader("Gases"))
                 {
-                    foreach(var gas in atmosphere.Gases)
+                    foreach (var gas in atmosphere.Gases)
                     {
                         DisplayKeyValue("Symbol", gas.Symbol);
                         ImGui.SameLine();
@@ -556,9 +556,9 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             }
         }
 
-        if(systemBodyBlueprint.Minerals != null && ImGui.CollapsingHeader("Minerals"))
+        if (systemBodyBlueprint.Minerals != null && ImGui.CollapsingHeader("Minerals"))
         {
-            foreach(var mineral in systemBodyBlueprint.Minerals)
+            foreach (var mineral in systemBodyBlueprint.Minerals)
             {
                 DisplayKeyValue("Id", mineral.Id); ImGui.SameLine();
                 DisplayKeyValue("Abundance", mineral.Abundance.ToString()); ImGui.SameLine();
@@ -604,255 +604,255 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
             }
         }
 
-        if(ImGui.CollapsingHeader("Star Type Distribution For Fake Stars"))
+        if (ImGui.CollapsingHeader("Star Type Distribution For Fake Stars"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarTypeDistributionForFakeStars)
+            foreach (var kvp in systemGenSettingsBlueprint.StarTypeDistributionForFakeStars)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.StarRadiusBySpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.StarRadiusBySpectralType?.Count > 0
             && ImGui.CollapsingHeader("Star Radius By Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarRadiusBySpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.StarRadiusBySpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.StarTemperatureBySpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.StarTemperatureBySpectralType?.Count > 0
             && ImGui.CollapsingHeader("Star Temperature By Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarTemperatureBySpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.StarTemperatureBySpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.StarLuminosityBySpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.StarLuminosityBySpectralType?.Count > 0
             && ImGui.CollapsingHeader("Star Luminosity By Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarLuminosityBySpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.StarLuminosityBySpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.StarMassBySpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.StarMassBySpectralType?.Count > 0
             && ImGui.CollapsingHeader("Star Mass By Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarMassBySpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.StarMassBySpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.StarAgeBySpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.StarAgeBySpectralType?.Count > 0
             && ImGui.CollapsingHeader("Star Age By Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarAgeBySpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.StarAgeBySpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.StarSpectralTypePlanetGenerationRatio?.Count > 0
+        if (systemGenSettingsBlueprint.StarSpectralTypePlanetGenerationRatio?.Count > 0
             && ImGui.CollapsingHeader("Star Spectral Type Planet Generation Ratio"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.StarSpectralTypePlanetGenerationRatio)
+            foreach (var kvp in systemGenSettingsBlueprint.StarSpectralTypePlanetGenerationRatio)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.SystemBodyMassByType?.Count > 0
+        if (systemGenSettingsBlueprint.SystemBodyMassByType?.Count > 0
             && ImGui.CollapsingHeader("System Body Mass By Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.SystemBodyMassByType)
+            foreach (var kvp in systemGenSettingsBlueprint.SystemBodyMassByType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.SystemBodyDensityByType?.Count > 0
+        if (systemGenSettingsBlueprint.SystemBodyDensityByType?.Count > 0
             && ImGui.CollapsingHeader("System Body Density By Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.SystemBodyDensityByType)
+            foreach (var kvp in systemGenSettingsBlueprint.SystemBodyDensityByType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType_AU?.Count > 0
+        if (systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType_AU?.Count > 0
             && ImGui.CollapsingHeader("Orbital Distance By Star Spectral Type (AU)"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType_AU)
+            foreach (var kvp in systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType_AU)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType?.Count > 0
+        if (systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType?.Count > 0
             && ImGui.CollapsingHeader("Orbital Distance By Star Spectral Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType)
+            foreach (var kvp in systemGenSettingsBlueprint.OrbitalDistanceByStarSpectralType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.BodyEccentricityByType?.Count > 0
+        if (systemGenSettingsBlueprint.BodyEccentricityByType?.Count > 0
             && ImGui.CollapsingHeader("Body Eccentricity By Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.BodyEccentricityByType)
+            foreach (var kvp in systemGenSettingsBlueprint.BodyEccentricityByType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.PlanetAlbedoByType?.Count > 0
+        if (systemGenSettingsBlueprint.PlanetAlbedoByType?.Count > 0
             && ImGui.CollapsingHeader("Planet Albedo By Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.PlanetAlbedoByType)
+            foreach (var kvp in systemGenSettingsBlueprint.PlanetAlbedoByType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.PlanetMagneticFieldByType?.Count > 0
+        if (systemGenSettingsBlueprint.PlanetMagneticFieldByType?.Count > 0
             && ImGui.CollapsingHeader("Planet Magnetic Field By Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.PlanetMagneticFieldByType)
+            foreach (var kvp in systemGenSettingsBlueprint.PlanetMagneticFieldByType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.AtmosphereGenerationModifier?.Count > 0
+        if (systemGenSettingsBlueprint.AtmosphereGenerationModifier?.Count > 0
             && ImGui.CollapsingHeader("Atmosphere Generation Modifier"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.AtmosphereGenerationModifier)
+            foreach (var kvp in systemGenSettingsBlueprint.AtmosphereGenerationModifier)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.MoonGenerationChanceByPlanetType?.Count > 0
+        if (systemGenSettingsBlueprint.MoonGenerationChanceByPlanetType?.Count > 0
             && ImGui.CollapsingHeader("Moon Generation Chance By Planet Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.MoonGenerationChanceByPlanetType)
+            foreach (var kvp in systemGenSettingsBlueprint.MoonGenerationChanceByPlanetType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.MaxMoonOrbitDistanceByPlanetType?.Count > 0
+        if (systemGenSettingsBlueprint.MaxMoonOrbitDistanceByPlanetType?.Count > 0
             && ImGui.CollapsingHeader("Max Moon Orbit Distance By Planet Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.MaxMoonOrbitDistanceByPlanetType)
+            foreach (var kvp in systemGenSettingsBlueprint.MaxMoonOrbitDistanceByPlanetType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.MaxNoOfMoonsByPlanetType?.Count > 0
+        if (systemGenSettingsBlueprint.MaxNoOfMoonsByPlanetType?.Count > 0
             && ImGui.CollapsingHeader("Max No Of Moons By Planet Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.MaxNoOfMoonsByPlanetType)
+            foreach (var kvp in systemGenSettingsBlueprint.MaxNoOfMoonsByPlanetType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.BodyTectonicsThresholds?.Count > 0
+        if (systemGenSettingsBlueprint.BodyTectonicsThresholds?.Count > 0
             && ImGui.CollapsingHeader("Body Tectonics Thresholds"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.BodyTectonicsThresholds)
+            foreach (var kvp in systemGenSettingsBlueprint.BodyTectonicsThresholds)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Band Body Weight"))
+        if (ImGui.CollapsingHeader("Band Body Weight"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.BandBodyWeight)
+            foreach (var kvp in systemGenSettingsBlueprint.BandBodyWeight)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Inner Band Type Weights"))
+        if (ImGui.CollapsingHeader("Inner Band Type Weights"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.InnerBandTypeWeights)
+            foreach (var kvp in systemGenSettingsBlueprint.InnerBandTypeWeights)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Habitable Band Type Weights"))
+        if (ImGui.CollapsingHeader("Habitable Band Type Weights"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.HabitableBandTypeWeights)
+            foreach (var kvp in systemGenSettingsBlueprint.HabitableBandTypeWeights)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Outer Band Type Weights"))
+        if (ImGui.CollapsingHeader("Outer Band Type Weights"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.OuterBandTypeWeights)
+            foreach (var kvp in systemGenSettingsBlueprint.OuterBandTypeWeights)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Ruins Size Distribution"))
+        if (ImGui.CollapsingHeader("Ruins Size Distribution"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.RuinsSizeDistribution)
+            foreach (var kvp in systemGenSettingsBlueprint.RuinsSizeDistribution)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(ImGui.CollapsingHeader("Ruins Quality Distribution"))
+        if (ImGui.CollapsingHeader("Ruins Quality Distribution"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.RuinsQualityDistribution)
+            foreach (var kvp in systemGenSettingsBlueprint.RuinsQualityDistribution)
             {
                 DisplayKeyValue(kvp.Value.ToString(), kvp.Weight.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.RuinsCountRangeBySize?.Count > 0
+        if (systemGenSettingsBlueprint.RuinsCountRangeBySize?.Count > 0
             && ImGui.CollapsingHeader("Ruins Count Range By Size"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.RuinsCountRangeBySize)
+            foreach (var kvp in systemGenSettingsBlueprint.RuinsCountRangeBySize)
             {
                 DisplayKeyValue(kvp.Key.ToString(), $"Min: {kvp.Value.Min}, Max: {kvp.Value.Max}");
             }
         }
 
-        if(systemGenSettingsBlueprint.RuinsQualityAdjustment?.Count > 0
+        if (systemGenSettingsBlueprint.RuinsQualityAdjustment?.Count > 0
             && ImGui.CollapsingHeader("Ruins Quality Adjustment"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.RuinsQualityAdjustment)
+            foreach (var kvp in systemGenSettingsBlueprint.RuinsQualityAdjustment)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.MineralGenerationChanceByBodyType?.Count > 0
+        if (systemGenSettingsBlueprint.MineralGenerationChanceByBodyType?.Count > 0
             && ImGui.CollapsingHeader("Mineral Generation Chance By Body Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.MineralGenerationChanceByBodyType)
+            foreach (var kvp in systemGenSettingsBlueprint.MineralGenerationChanceByBodyType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
         }
 
-        if(systemGenSettingsBlueprint.MaxMineralAmmountByBodyType?.Count > 0
+        if (systemGenSettingsBlueprint.MaxMineralAmmountByBodyType?.Count > 0
             && ImGui.CollapsingHeader("Max Mineral Amount By Body Type"))
         {
-            foreach(var kvp in systemGenSettingsBlueprint.MaxMineralAmmountByBodyType)
+            foreach (var kvp in systemGenSettingsBlueprint.MaxMineralAmmountByBodyType)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value.ToString());
             }
@@ -868,15 +868,15 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
         DisplayKeyValue("DataFormula", techBlueprint.DataFormula);
         DisplayKeyValue("Category", techBlueprint.Category);
 
-        if(techBlueprint.Unlocks?.Count > 0
+        if (techBlueprint.Unlocks?.Count > 0
             && ImGui.CollapsingHeader("Unlocks"))
         {
-            foreach(var kvp in techBlueprint.Unlocks)
+            foreach (var kvp in techBlueprint.Unlocks)
             {
                 ImGui.Indent();
-                if(ImGui.CollapsingHeader(kvp.Key.ToString()))
+                if (ImGui.CollapsingHeader(kvp.Key.ToString()))
                 {
-                    foreach(var value in kvp.Value)
+                    foreach (var value in kvp.Value)
                     {
                         ImGui.Text(value);
                     }
@@ -896,55 +896,55 @@ public class BlueprintsWindow : UniquePulsarGuiWindow<BlueprintsWindow>
     {
         DisplayKeyValue("Name", themeBlueprint.Name);
 
-        if(themeBlueprint.FleetNames?.Count > 0
+        if (themeBlueprint.FleetNames?.Count > 0
             && ImGui.CollapsingHeader("Fleet Names"))
         {
-            foreach(var fleetName in themeBlueprint.FleetNames)
+            foreach (var fleetName in themeBlueprint.FleetNames)
             {
                 ImGui.Text(fleetName);
             }
         }
 
-        if(themeBlueprint.ShipNames?.Count > 0
+        if (themeBlueprint.ShipNames?.Count > 0
             && ImGui.CollapsingHeader("Ship Names"))
         {
-            foreach(var shipName in themeBlueprint.ShipNames)
+            foreach (var shipName in themeBlueprint.ShipNames)
             {
                 ImGui.Text(shipName);
             }
         }
 
-        if(themeBlueprint.FirstNames?.Count > 0
+        if (themeBlueprint.FirstNames?.Count > 0
             && ImGui.CollapsingHeader("First Names"))
         {
-            foreach(var firstName in themeBlueprint.FirstNames)
+            foreach (var firstName in themeBlueprint.FirstNames)
             {
                 ImGui.Text(firstName);
             }
         }
 
-        if(themeBlueprint.LastNames?.Count > 0
+        if (themeBlueprint.LastNames?.Count > 0
             && ImGui.CollapsingHeader("Last Names"))
         {
-            foreach(var lastName in themeBlueprint.LastNames)
+            foreach (var lastName in themeBlueprint.LastNames)
             {
                 ImGui.Text(lastName);
             }
         }
 
-        if(themeBlueprint.NavyRanks?.Count > 0
+        if (themeBlueprint.NavyRanks?.Count > 0
             && ImGui.CollapsingHeader("Navy Ranks"))
         {
-            foreach(var kvp in themeBlueprint.NavyRanks)
+            foreach (var kvp in themeBlueprint.NavyRanks)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value);
             }
         }
 
-        if(themeBlueprint.NavyRanksAbbreviations?.Count > 0
+        if (themeBlueprint.NavyRanksAbbreviations?.Count > 0
             && ImGui.CollapsingHeader("Navy Ranks Abbreviations"))
         {
-            foreach(var kvp in themeBlueprint.NavyRanksAbbreviations)
+            foreach (var kvp in themeBlueprint.NavyRanksAbbreviations)
             {
                 DisplayKeyValue(kvp.Key.ToString(), kvp.Value);
             }

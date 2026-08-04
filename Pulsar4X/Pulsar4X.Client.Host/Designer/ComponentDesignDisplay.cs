@@ -44,7 +44,7 @@ namespace Pulsar4X.Client
 
         private NoTemplateState NoTemplateState = NoTemplateState.PleaseSelect;
         private ComponentDesigner? _componentDesigner;
-        public ComponentTemplateBlueprint? Template { get; private set;}
+        public ComponentTemplateBlueprint? Template { get; private set; }
         // Set when the server rejects a submitted design; shown so a failed save isn't silent.
         private string? _saveError;
         private static byte[] _nameInputBuffer = new byte[128];
@@ -56,10 +56,11 @@ namespace Pulsar4X.Client
 
         private ComponentDesignDisplay() { }
 
-        internal static ComponentDesignDisplay GetInstance() {
-            lock(padlock)
+        internal static ComponentDesignDisplay GetInstance()
+        {
+            lock (padlock)
             {
-                if(instance == null)
+                if (instance == null)
                 {
                     instance = new ComponentDesignDisplay();
                 }
@@ -68,13 +69,13 @@ namespace Pulsar4X.Client
             return instance;
         }
 
-        private static bool TryGetDesignData(GlobalUIState state, out FactionInfoDB info, out FactionTechDB techs)
+        private static bool TryGetDesignData(GlobalUIState state, out FactionInfoDB? info, out FactionTechDB? techs)
         {
             if (state.Lifecycle is IDesignDataProvider provider)
                 return provider.TryGetDesignData(out info, out techs);
 
-            info = null!;
-            techs = null!;
+            info = null;
+            techs = null;
             return false;
         }
 
@@ -118,7 +119,7 @@ namespace Pulsar4X.Client
 
         internal void Display(GlobalUIState uiState)
         {
-            if(Template == null)
+            if (Template == null)
             {
                 switch (NoTemplateState)
                 {
@@ -167,9 +168,9 @@ namespace Pulsar4X.Client
                 if (_saveError != null)
                     ImGui.TextColored(Styles.BadColor, _saveError);
                 ImGui.SetCursorPosY(sizeAvailable.Y - 12f);
-                if(ImGui.Button("Save", new Vector2(sizeAvailable.X, 0)))
+                if (ImGui.Button("Save", new Vector2(sizeAvailable.X, 0)))
                 {
-                    if(!_nameInputBuffer.All(b => b == 0)
+                    if (!_nameInputBuffer.All(b => b == 0)
                        && _componentDesigner != null
                        && uiState.GameClient != null)
                     {
@@ -286,7 +287,7 @@ namespace Pulsar4X.Client
             {
                 DisplayHelpers.Header("Statistics");
 
-                if(ImGui.BeginTable("DesignStatsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
+                if (ImGui.BeginTable("DesignStatsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
                 {
                     ImGui.TableSetupColumn("Attribute", ImGuiTableColumnFlags.None);
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.None);
@@ -300,18 +301,18 @@ namespace Pulsar4X.Client
                     ImGui.Text(_componentDesigner.ComponentType);
 
                     var activeMountTypes = _componentDesigner.GetActiveMountTypes();
-                    if(activeMountTypes.Count > 0)
+                    if (activeMountTypes.Count > 0)
                     {
                         ImGui.TableNextColumn();
                         ImGui.Text("");
                         ImGui.SameLine();
                         ImGui.Text("Installs On or In");
                         ImGui.TableNextColumn();
-                        for(int i = 0; i < activeMountTypes.Count; i++)
+                        for (int i = 0; i < activeMountTypes.Count; i++)
                         {
-                            if(i < activeMountTypes.Count - 1)
+                            if (i < activeMountTypes.Count - 1)
                             {
-                                ImGui.Text(activeMountTypes[i].ToDescription() +  ",");
+                                ImGui.Text(activeMountTypes[i].ToDescription() + ",");
                                 ImGui.SameLine();
                             }
                             else
@@ -335,7 +336,7 @@ namespace Pulsar4X.Client
                     ImGui.TableNextColumn();
                     ImGui.Text(Stringify.VolumeLtr(_componentDesigner.VolumeM3Value));
 
-                    if(_componentDesigner.CrewReqValue > 0)
+                    if (_componentDesigner.CrewReqValue > 0)
                     {
                         ImGui.TableNextColumn();
                         ImGui.Text("");
@@ -347,17 +348,17 @@ namespace Pulsar4X.Client
 
                     foreach (ComponentDesignProperty attribute in _componentDesigner.ComponentDesignProperties.Values) //For each property of the comp type
                     {
-                        if(attribute.IsEnabled && attribute.GuiHint == GuiHint.GuiTextDisplay)
+                        if (attribute.IsEnabled && attribute.GuiHint == GuiHint.GuiTextDisplay)
                         {
                             ImGui.TableNextColumn();
                             ImGui.Text("");
                             ImGui.SameLine();
                             ImGui.Text(attribute.Name);
-                            if(ImGui.IsItemHovered())
+                            if (ImGui.IsItemHovered())
                                 ImGui.SetTooltip(attribute.Description);
                             ImGui.TableNextColumn();
 
-                            if(attribute.Unit.IsNotNullOrEmpty())
+                            if (attribute.Unit.IsNotNullOrEmpty())
                             {
                                 var value = attribute.Value;
                                 var strUnit = attribute.Unit;
@@ -366,66 +367,66 @@ namespace Pulsar4X.Client
                                 switch (strUnit)
                                 {
                                     case "KJ":
-                                    {
-                                        displayStr = Stringify.Energy(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Energy(value);
+                                            break;
+                                        }
                                     case "KW":
-                                    {
-                                        displayStr = Stringify.Power(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Power(value);
+                                            break;
+                                        }
                                     case "m^2":
-                                    {
-                                        displayStr = Stringify.Area(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Area(value);
+                                            break;
+                                        }
                                     case "nm":
-                                    {
-                                        displayStr = Stringify.DistanceSmall(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.DistanceSmall(value);
+                                            break;
+                                        }
                                     case "kg":
-                                    {
-                                        displayStr = Stringify.Mass(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Mass(value);
+                                            break;
+                                        }
                                     case "m":
-                                    {
-                                        displayStr = Stringify.Distance(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Distance(value);
+                                            break;
+                                        }
                                     case "N":
-                                    {
-                                        displayStr = Stringify.Thrust(value);
-                                        break;
-                                    }
+                                        {
+                                            displayStr = Stringify.Thrust(value);
+                                            break;
+                                        }
                                     case "m/s":
                                         displayStr = Stringify.Velocity(value);
                                         break;
                                     case "s":
-                                        displayStr = TimeSpan.FromSeconds(value).ToString() ;
+                                        displayStr = TimeSpan.FromSeconds(value).ToString();
                                         break;
                                     default:
-                                    {
-                                        displayStr = attribute.Value.ToString(Styles.DecimalFormat) + " " + attribute.Unit;
-                                        break;
-                                    }
+                                        {
+                                            displayStr = attribute.Value.ToString(Styles.DecimalFormat) + " " + attribute.Unit;
+                                            break;
+                                        }
                                 }
 
                                 ImGui.TextUnformatted(displayStr);
-                                if(ImGui.IsItemHovered())
+                                if (ImGui.IsItemHovered())
                                     ImGui.SetTooltip(@attribute.Value.ToString(Styles.IntFormat) + " " + attribute.Unit.Replace("%", "%%"));
 
                             }
                             else
                             {
                                 ImGui.Text(attribute.Value.ToString(Styles.IntFormat));
-                                if(ImGui.IsItemHovered())
+                                if (ImGui.IsItemHovered())
                                     ImGui.SetTooltip(attribute.Value.ToString(Styles.DecimalFormat));
                             }
                         }
-                        else if(attribute.IsEnabled && attribute.GuiHint == GuiHint.GuiFuelTypeSelection)
+                        else if (attribute.IsEnabled && attribute.GuiHint == GuiHint.GuiFuelTypeSelection)
                         {
                             var cargo = (ProcessedMaterial)designInfo.Data.CargoGoods.GetMaterial(attribute.ValueString);
                             ImGui.TableNextColumn();
@@ -434,7 +435,7 @@ namespace Pulsar4X.Client
                             ImGui.Text("Fuel Type");
                             ImGui.TableNextColumn();
                             ImGui.Text(cargo.Name);
-                            if(ImGui.IsItemHovered())
+                            if (ImGui.IsItemHovered())
                                 ImGui.SetTooltip(cargo.Description);
                         }
                     }
@@ -444,7 +445,7 @@ namespace Pulsar4X.Client
                 ImGui.NewLine();
                 DisplayHelpers.Header("Costs");
 
-                if(ImGui.BeginTable("DesignCostsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
+                if (ImGui.BeginTable("DesignCostsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
                 {
                     ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.None);
                     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.None);
@@ -477,7 +478,7 @@ namespace Pulsar4X.Client
                 ImGui.NewLine();
                 DisplayHelpers.Header("Resources Required");
 
-                if(ImGui.BeginTable("DesignResourceCostsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
+                if (ImGui.BeginTable("DesignResourceCostsTables", 2, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg))
                 {
                     ImGui.TableSetupColumn("Resource", ImGuiTableColumnFlags.None);
                     ImGui.TableSetupColumn("Quantity Needed", ImGuiTableColumnFlags.None);
@@ -509,15 +510,15 @@ namespace Pulsar4X.Client
             switch (strUnit)
             {
                 case "KJ":
-                {
-                    displayStr = Stringify.Energy(value);
-                    break;
-                }
+                    {
+                        displayStr = Stringify.Energy(value);
+                        break;
+                    }
                 default:
-                {
-                    displayStr = property.Value.ToString() + " " + property.Unit;
-                    break;
-                }
+                    {
+                        displayStr = property.Value.ToString() + " " + property.Unit;
+                        break;
+                    }
 
 
             }
@@ -583,13 +584,13 @@ namespace Pulsar4X.Client
 
             var sizeAvailable = ImGui.GetContentRegionAvail();
             ImGui.SetNextItemWidth(sizeAvailable.X);
-            if(ImGui.SliderInt("##scaler" + property.Name, ref val, (int)min, (int)max))
+            if (ImGui.SliderInt("##scaler" + property.Name, ref val, (int)min, (int)max))
             {
                 property.SetValueFromInput(val);
             }
 
             ImGui.SetNextItemWidth(sizeAvailable.X);
-            if(ImGui.InputInt("##input" + property.Name, ref val, (int)step, (int)fstep))
+            if (ImGui.InputInt("##input" + property.Name, ref val, (int)step, (int)fstep))
             {
                 property.SetValueFromInput(val);
             }
@@ -648,7 +649,6 @@ namespace Pulsar4X.Client
             if (trackWidth < 1f) { ImGui.Dummy(new Vector2(width, 1f)); return; }
 
             double ValueToPx(double v) => trackLeftX + (v - axisMin) / (axisMax - axisMin) * trackWidth;
-            double PxToValue(float x) => axisMin + (x - trackLeftX) / trackWidth * (axisMax - axisMin);
             double PxDeltaToValue(float dx) => dx / trackWidth * (axisMax - axisMin);
 
             float lowPx = (float)ValueToPx(lowVal);
@@ -913,7 +913,7 @@ namespace Pulsar4X.Client
 
             var sizeAvailable = ImGui.GetContentRegionAvail();
             ImGui.SetNextItemWidth(sizeAvailable.X);
-            if(ImGui.Combo("###cargotypeselection", ref property.ListSelection, arrayNames, arrayNames.Length))
+            if (ImGui.Combo("###cargotypeselection", ref property.ListSelection, arrayNames, arrayNames.Length))
             {
                 property.SetValueFromString(cargoTypesToDisplay[property.ListSelection].UniqueID);
             }
@@ -923,14 +923,14 @@ namespace Pulsar4X.Client
         {
             var cargoTypesToDisplay = new List<ICargoable>();
 
-            foreach(string cargoType in property.GuidDictionary.Keys)
+            foreach (string cargoType in property.GuidDictionary.Keys)
             {
                 var fuelType = property.GuidDictionary[cargoType].StrResult;
                 string cargoTypeID = cargoType.ToString();
                 var cargos = designInfo.Data.CargoGoods.GetAll().Where(c => c.Value.CargoTypeID.Equals(cargoTypeID));
-                foreach(var cargo in cargos)
+                foreach (var cargo in cargos)
                 {
-                    if(cargo.Value is ProcessedMaterial
+                    if (cargo.Value is ProcessedMaterial
                        && ((ProcessedMaterial)cargo.Value).Formulas != null
                        && ((ProcessedMaterial)cargo.Value).Formulas.ContainsKey("ExhaustVelocity")
                        && ((ProcessedMaterial)cargo.Value).Formulas["ExhaustVelocity"].IsNotNullOrEmpty()
@@ -1023,11 +1023,11 @@ namespace Pulsar4X.Client
         {
             ImGui.Text(title);
 
-            if(tooltip.IsNullOrEmpty()) return;
+            if (tooltip.IsNullOrEmpty()) return;
 
             ImGui.SameLine();
             ImGui.Text("[?]");
-            if(ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(tooltip);
         }
     }

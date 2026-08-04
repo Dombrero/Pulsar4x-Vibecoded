@@ -1,4 +1,4 @@
-﻿/*
+/*
 using NUnit.Framework;
 using Pulsar4X.Colonies;
 using Pulsar4X.Engine;
@@ -17,7 +17,7 @@ namespace Pulsar4X.Tests
     [Description("Test for all existing factories")]
     public class FactoryTests
     {
-        private Game _game;
+        private Game _game = null;
         private AuthenticationToken _smAuthToken;
 
         [SetUp]

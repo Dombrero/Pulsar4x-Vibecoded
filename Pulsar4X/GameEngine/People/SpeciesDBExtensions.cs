@@ -59,24 +59,24 @@ namespace Pulsar4X.People
 
             double totalPressure = atmosphere.Composition.Values.Sum();
 
-            foreach(var id in atmosphere.Composition.Keys)
+            foreach (var id in atmosphere.Composition.Keys)
             {
-                var gas = planet.Manager.Game.AtmosphericGases[id];
+                var gas = planet.AttachedManager.Game.AtmosphericGases[id];
                 // FIXME: where do the 3.0 and 2.0 come from?
                 // If we hit a cost return it
-                if(gas.IsHighlyToxic) return MAX_COST;
-                if(gas.IsToxic) return MIN_COST;
+                if (gas.IsHighlyToxic) return MAX_COST;
+                if (gas.IsToxic) return MIN_COST;
 
-                if(gas.IsHighlyToxicAtPercentage.HasValue)
+                if (gas.IsHighlyToxicAtPercentage.HasValue)
                 {
                     var percentageOfAtmosphere = Math.Round(atmosphere.Composition[id] / totalPressure * 100.0f, 4);
-                    if(percentageOfAtmosphere >= gas.IsHighlyToxicAtPercentage.Value) return MAX_COST;
+                    if (percentageOfAtmosphere >= gas.IsHighlyToxicAtPercentage.Value) return MAX_COST;
                 }
 
-                if(gas.IsToxicAtPercentage.HasValue)
+                if (gas.IsToxicAtPercentage.HasValue)
                 {
                     var percentageOfAtmosphere = Math.Round(atmosphere.Composition[id] / totalPressure * 100.0f, 4);
-                    if(percentageOfAtmosphere >= gas.IsToxicAtPercentage.Value) return MIN_COST;
+                    if (percentageOfAtmosphere >= gas.IsToxicAtPercentage.Value) return MIN_COST;
                 }
             }
 
@@ -177,7 +177,7 @@ namespace Pulsar4X.People
 
             foreach (KeyValuePair<string, float> kvp in atmosphere.Composition)
             {
-                var gas = planet.Manager.Game.AtmosphericGases[kvp.Key];
+                var gas = planet.AttachedManager.Game.AtmosphericGases[kvp.Key];
                 string symbol = gas.ChemicalSymbol;
                 totalPressure += kvp.Value;
 

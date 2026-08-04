@@ -19,10 +19,10 @@ namespace Pulsar4X.Sensors
     public class SensorContact
     {
         public int ActualEntityId;
-        public Entity ActualEntity;
+        public Entity ActualEntity = Entity.InvalidEntity;
 
-        public SensorInfoDB SensorInfo;
-        public SensorPositionDB Position;
+        public SensorInfoDB? SensorInfo;
+        public SensorPositionDB? Position;
         //public SensorOrbitDB Orbit;
 
         public string Name = "UnNamed";
@@ -35,6 +35,7 @@ namespace Pulsar4X.Sensors
             ActualEntity = actualEntity;
             ActualEntityId = actualEntity.Id;
             SensorInfo = new SensorInfoDB(factionEntity, actualEntity, atDateTime);
+            SensorInfo.SensorContact = this;
             Position = new SensorPositionDB(actualEntity.GetDataBlob<PositionDB>());
             var factionInfoDB = factionEntity.GetDataBlob<FactionInfoDB>();
             if (!factionInfoDB.SensorContacts.ContainsKey(actualEntity.Id))
@@ -46,7 +47,11 @@ namespace Pulsar4X.Sensors
 
         async Task EntityRemoved(Message message)
         {
-            await Task.Run(() => Position.GetDataFrom = DataFrom.Memory);
+            await Task.Run(() =>
+            {
+                if (Position is not null)
+                    Position.GetDataFrom = DataFrom.Memory;
+            });
         }
 
     }

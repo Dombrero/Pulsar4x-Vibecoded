@@ -173,7 +173,8 @@ namespace Pulsar4X.Tests
 
             DumpOrders("Ship at colony after RefuelWhenAt", ship);
             Assert.That(ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>(), Is.Not.Empty);
-            Assert.That(order.GetIsFinished, Is.True);
+            Assert.That(order.GetIsFinished, Is.False,
+                "Order stays active until refuel cargo transfers complete.");
         }
 
         [Test]

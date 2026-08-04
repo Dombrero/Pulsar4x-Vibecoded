@@ -34,7 +34,7 @@ namespace Pulsar4X.Client
 
         public static NavWindow GetInstance(EntityState orderEntity)
         {
-            if(!_uiState.TryGetUniqueWindow<NavWindow>(out var window))
+            if (!_uiState.TryGetUniqueWindow<NavWindow>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new NavWindow(orderEntity.Id, orderEntity.StarSystemId!));
                 window.HardRefresh();
@@ -318,12 +318,14 @@ namespace Pulsar4X.Client
             {
                 _progradeDV -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##pg"))
             {
                 _progradeDV += 1;
                 changes = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.SliderFloat("Prograde Δv", ref _progradeDV, -maxprogradeDV, maxprogradeDV))
             {
                 changes = true;
@@ -333,12 +335,14 @@ namespace Pulsar4X.Client
             {
                 _radialDV -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##rd"))
             {
                 _radialDV += 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.SliderFloat("Radial Δv", ref _radialDV, -maxradialDV, maxradialDV))
             {
                 changes = true;
@@ -351,26 +355,30 @@ namespace Pulsar4X.Client
                 _atDatetime -= TimeSpan.FromSeconds(1);
                 tseconds -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##t"))
             {
                 _atDatetime += TimeSpan.FromSeconds(1);
                 tseconds += 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             var halfPeriod = _manuverLines.EditingNodes[0].PriorOrbit.Period * .5;
             if (ImGui.Button("-Apsis##t"))
             {
                 _atDatetime -= TimeSpan.FromSeconds(halfPeriod);
                 tseconds -= halfPeriod;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+Apsis##t"))
             {
                 _atDatetime -= TimeSpan.FromSeconds(halfPeriod);
                 tseconds += halfPeriod;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
 
             if (changes)
             {
@@ -399,12 +407,14 @@ namespace Pulsar4X.Client
             {
                 _progradeDV -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##pg"))
             {
                 _progradeDV += 1;
                 changes = true;
-            }ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.SliderFloat("Prograde Δv", ref _progradeDV, -maxprogradeDV, maxprogradeDV))
             {
                 changes = true;
@@ -414,12 +424,14 @@ namespace Pulsar4X.Client
             {
                 _radialDV -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##rd"))
             {
                 _radialDV += 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.SliderFloat("Radial Δv", ref _radialDV, -maxradialDV, maxradialDV))
             {
                 changes = true;
@@ -432,7 +444,8 @@ namespace Pulsar4X.Client
                 _atDatetime -= TimeSpan.FromSeconds(1);
                 tseconds -= 1;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+1##t"))
             {
                 _atDatetime += TimeSpan.FromSeconds(1);
@@ -446,7 +459,8 @@ namespace Pulsar4X.Client
                 _atDatetime -= TimeSpan.FromSeconds(halfPeriod);
                 tseconds -= halfPeriod;
                 changes = true;
-            } ImGui.SameLine();
+            }
+            ImGui.SameLine();
             if (ImGui.Button("+Apsis##t"))
             {
                 _atDatetime -= TimeSpan.FromSeconds(halfPeriod);
@@ -534,15 +548,15 @@ namespace Pulsar4X.Client
 
             }
 
-            if(totalManuverDV > thrust.DeltaVMps)
+            if (totalManuverDV > thrust.DeltaVMps)
                 ImGui.TextColored(new Vector4(0.9f, 0, 0, 1), "Total Δv for all manuvers: " + Stringify.Velocity(totalManuverDV));
             else
                 ImGui.Text("Total Δv for all manuvers: " + Stringify.Velocity(totalManuverDV));
-            if(totalManuverDV > 0 && _manuverLines.EditingNodes.Length >= 2)
+            if (totalManuverDV > 0 && _manuverLines.EditingNodes.Length >= 2)
             {
                 DateTime t1 = _uiState.PrimarySystemDateTime + TimeSpan.FromSeconds(_manuvers[0].tSec);
                 DateTime t2 = t1 + TimeSpan.FromSeconds(_manuvers[1].tSec);
-                _manuverLines.EditingNodes[0].SetNode(_manuvers[0].deltaV, t1 );
+                _manuverLines.EditingNodes[0].SetNode(_manuvers[0].deltaV, t1);
                 _manuverLines.EditingNodes[1].PriorOrbit = _manuverLines.EditingNodes[0].TargetOrbit;
                 _manuverLines.EditingNodes[1].SetNode(_manuvers[1].deltaV, t2);
             }
@@ -646,7 +660,7 @@ namespace Pulsar4X.Client
 
             manuver.deltaV.Y += 1;
             var totalManuverDV = manuver.deltaV.Length();
-            if(totalManuverDV > thrust.DeltaVMps)
+            if (totalManuverDV > thrust.DeltaVMps)
                 ImGui.TextColored(new Vector4(0.9f, 0, 0, 1), "Total Δv for all manuvers: " + Stringify.Velocity(totalManuverDV));
             else
                 ImGui.Text("Total Δv for all manuvers: " + Stringify.Velocity(totalManuverDV));

@@ -7,7 +7,7 @@ namespace Pulsar4X.Engine
     public class TimeQueueItem<T>
     {
         public DateTime Time { get; private set; }
-        public T Item { get; private set; }
+        public T Item { get; set; } = default!;
 
         public TimeQueueItem(DateTime time, T item)
         {
@@ -19,8 +19,16 @@ namespace Pulsar4X.Engine
     // TimeQueueItem comparer. Uses DateTime.Compare.
     public class TimeQueueItemComparer<T> : IComparer<TimeQueueItem<T>>
     {
-        public int Compare(TimeQueueItem<T> x, TimeQueueItem<T> y) =>
-            DateTime.Compare(x.Time, y.Time);
+        public int Compare(TimeQueueItem<T>? x, TimeQueueItem<T>? y)
+        {
+            if (ReferenceEquals(x, y))
+                return 0;
+            if (x is null)
+                return -1;
+            if (y is null)
+                return 1;
+            return DateTime.Compare(x.Time, y.Time);
+        }
     }
 
     public class TimeQueue<T> : IEnumerable<TimeQueueItem<T>>

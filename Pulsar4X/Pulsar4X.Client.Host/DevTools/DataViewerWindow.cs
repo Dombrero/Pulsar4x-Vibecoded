@@ -25,9 +25,9 @@ public class DataViewerWindow : UniquePulsarGuiWindow<DataViewerWindow>
 
     internal static DataViewerWindow GetInstance()
     {
-        if(!_uiState.TryGetUniqueWindow<DataViewerWindow>(out var window))
+        if (!_uiState.TryGetUniqueWindow<DataViewerWindow>(out var window))
         {
-            window = _uiState.AddUniqueWindow(new DataViewerWindow(GameLifecycle.Instance?.Game?.StartingGameData));
+            window = _uiState.AddUniqueWindow(new DataViewerWindow(GameLifecycle.Instance?.Game?.StartingGameData ?? new ModDataStore()));
         }
 
         if (_uiState.IsGameLoaded && !string.IsNullOrEmpty(_uiState.SelectedStarSystemId))
@@ -68,7 +68,6 @@ public static class ModDataInspector
     private static int _numLines;
     private static float _heightMultiplyer = ImGui.GetTextLineHeightWithSpacing();
 
-    private static bool _isActive = false;
     private static int _selectedItem = 0;
 
     public static void DisplayDataObj(object dataObj)

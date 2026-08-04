@@ -22,25 +22,25 @@ public class SimpleDamage
     /// <returns>Returns true if the entity was destroyed.</returns>
     public static DamageResult OnTakingDamage(Entity entityToDamage, int damageMin, int damageMax)
     {
-        if(entityToDamage.TryGetDataBlob<ComponentInstancesDB>(out var componentInstancesDB)
+        if (entityToDamage.TryGetDataBlob<ComponentInstancesDB>(out var componentInstancesDB)
             && componentInstancesDB.AllComponents.Count > 0)
         {
-            var mgr = entityToDamage.Manager;
+            var mgr = entityToDamage.AttachedManager;
             var components = componentInstancesDB.AllComponents.Values.ToList();
             var damagedIndex = mgr.RNGNext(components.Count);
             var damage = mgr.RNGNext(damageMin, damageMax);
 
             components[damagedIndex].HealthPercent -= damage;
 
-            if(components[damagedIndex].HealthPercent <= 0)
+            if (components[damagedIndex].HealthPercent <= 0)
             {
                 componentInstancesDB.RemoveComponentInstance(components[damagedIndex]);
             }
 
             // Check if the entity should be removed
-            if(componentInstancesDB.AllComponents.Count <= 0)
+            if (componentInstancesDB.AllComponents.Count <= 0)
             {
-                if(entityToDamage.HasDataBlob<ShipInfoDB>())
+                if (entityToDamage.HasDataBlob<ShipInfoDB>())
                 {
                     ShipFactory.DestroyShip(entityToDamage);
                 }

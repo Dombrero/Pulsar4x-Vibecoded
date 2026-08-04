@@ -5,13 +5,13 @@ namespace Pulsar4X.Events;
 
 public class Event
 {
-    public EventType EventType { get; private set; }
+    public EventType EventType { get; set; }
     public DateTime StarDate { get; private set; }
-    public string Message { get; private set; }
+    public string? Message { get; set; }
     public int? FactionId { get; private set; }
     public string? SystemId { get; private set; }
     public int? EntityId { get; private set; }
-    public List<int> ConcernedFactions { get; private set; } = new ();
+    public List<int> ConcernedFactions { get; private set; } = new();
 
     private Event() { }
 

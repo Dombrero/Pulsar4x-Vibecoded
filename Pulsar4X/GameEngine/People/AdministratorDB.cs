@@ -13,14 +13,14 @@ public class AdministratorDB : BaseDataBlob
     /// The amount of points per day the researcher outputs
     /// </summary>
     [JsonProperty]
-    public ModifiableValue<int> PointsPerDay { get; internal set; } = new (0);
+    public ModifiableValue<int> PointsPerDay { get; internal set; } = new(0);
 
     /// <summary>
     /// key = category Id
     /// value = percentage bonus to the category (0-1 range IE: 0.1 is a 10 percent bonus)
     /// </summary>
     [JsonProperty]
-    public Dictionary<string, double> BonusCategories { get; internal set; } = new ();
+    public Dictionary<string, double> BonusCategories { get; internal set; } = new();
 
     /// <summary>
     /// The *base* cost per day to operate the researcher
@@ -64,8 +64,7 @@ public class AdministratorDB : BaseDataBlob
     /// Needed for the UI
     /// </summary>
     [JsonProperty]
-    public IConstructableDesign Design { get; internal set; }
-
+    public IConstructableDesign? Design { get; internal set; }
     public AdministratorDB(IConstructableDesign design)
     {
         Design = design;

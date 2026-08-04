@@ -8,9 +8,12 @@ public class ComponentDesignBlueprint : Blueprint
 {
     public struct Property
     {
-        public string Key { get; set; }
+        public string? Key { get; set; }
+        private JToken? _value;
 
-        private JToken _value;
+        public Property()
+        {
+        }
         public JToken Value
         {
             get => _value;
@@ -26,8 +29,7 @@ public class ComponentDesignBlueprint : Blueprint
         public string? AsString => _value.Value<string>();
     }
 
-    public string Name { get; set; }
-    public string TemplateId { get; set; }
+    public string? Name { get; set; }
+    public string? TemplateId { get; set; }
     public List<Property>? Properties { get; set; }
-
 }

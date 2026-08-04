@@ -11,23 +11,23 @@ namespace Pulsar4X.Storage;
 public class CargoTransferDataDB : BaseDataBlob
 {
     [JsonProperty]
-    internal Entity PrimaryEntity { get; private set; }
+    internal Entity PrimaryEntity { get; private set; } = Entity.InvalidEntity;
     [JsonProperty]
-    internal Entity SecondaryEntity { get; private set; }
-    
+    internal Entity SecondaryEntity { get; private set; } = Entity.InvalidEntity;
+
     /// <summary>
     /// positive amounts move INTO this entity, negitive amounts move OUT from this entity
     /// </summary>
     [JsonProperty]
-    internal CargoStorageDB PrimaryStorageDB { get; private set; }
-    
+    internal CargoStorageDB? PrimaryStorageDB { get; private set; }
+
     /// <summary>
     /// positive amounts move OUT from this entity, negitive amounts move INTO this entity.
     /// </summary>
     [JsonProperty]
-    internal CargoStorageDB SecondaryStorageDB { get; private set; }
+    internal CargoStorageDB? SecondaryStorageDB { get; private set; }
     [JsonProperty]
-    internal List<(ICargoable item, long amount)> OrderedToTransfer { get; private set; }
+    internal List<(ICargoable item, long amount)> OrderedToTransfer { get; private set; } = new();
 
     [JsonProperty]
     internal SafeList<(ICargoable item, long count, double mass)> EscroHeldInPrimary { get; private set; } = new();
@@ -35,8 +35,8 @@ public class CargoTransferDataDB : BaseDataBlob
     internal SafeList<(ICargoable item, long count, double mass)> EscroHeldInSecondary { get; private set; } = new();
 
     [JsonConstructor]
-    private CargoTransferDataDB(){}
-        
+    private CargoTransferDataDB() { }
+
     internal CargoTransferDataDB(Entity primary, Entity secondary, List<(ICargoable item, long amount)> itemsToTransfer)
     {
         PrimaryEntity = primary;
@@ -44,10 +44,10 @@ public class CargoTransferDataDB : BaseDataBlob
         PrimaryStorageDB = primary.GetDataBlob<CargoStorageDB>();
         SecondaryStorageDB = secondary.GetDataBlob<CargoStorageDB>();
         OrderedToTransfer = itemsToTransfer;
-        
+
         PrimaryStorageDB.EscroItems.Add(this);
         SecondaryStorageDB.EscroItems.Add(this);
-        
+
         for (int index = 0; index < OrderedToTransfer.Count; index++)
         {
             (ICargoable item, long amount) tuple = OrderedToTransfer[index];
@@ -100,12 +100,12 @@ public class CargoTransferDataDB : BaseDataBlob
         for (int index = 0; index < OrderedToTransfer.Count; index++)
         {
             (ICargoable item, long amount) tuple = OrderedToTransfer[index];
-            if(tuple.item != cargoItem)
+            if (tuple.item != cargoItem)
                 continue;
             OrderedToTransfer[index] = (cargoItem, tuple.amount + unitAmount);
             TypeStore store;
             SafeList<(ICargoable item, long count, double mass)> itemsToRemove; //reference which list.
-            long unitsStorable; 
+            long unitsStorable;
             if (unitAmount < 0) //if we're removing items
             {
                 unitAmount *= -1;
@@ -122,17 +122,17 @@ public class CargoTransferDataDB : BaseDataBlob
             if (store.CurrentStoreInUnits.ContainsKey(cargoItem.ID))
             {
                 long amountInStore = store.CurrentStoreInUnits[cargoItem.ID];
-                
+
                 long amountToRemove = Math.Min(unitAmount, amountInStore);
                 amountToRemove = Math.Min(unitsStorable, amountToRemove);
                 store.CurrentStoreInUnits[cargoItem.ID] -= amountToRemove;
                 double massToRemove = cargoItem.MassPerUnit * amountToRemove;
-                itemsToRemove.Add((cargoItem,amountToRemove, massToRemove));
+                itemsToRemove.Add((cargoItem, amountToRemove, massToRemove));
             }
             else
             {
                 //in this case we're trying to remove items that don't exist. not sure how we should handle this yet.
-                itemsToRemove.Add((cargoItem,0,0));
+                itemsToRemove.Add((cargoItem, 0, 0));
             }
             break;
         }

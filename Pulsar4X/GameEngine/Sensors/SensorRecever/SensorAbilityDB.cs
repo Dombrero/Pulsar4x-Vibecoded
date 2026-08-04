@@ -10,7 +10,7 @@ namespace Pulsar4X.Sensors
     {
         public new static List<Type> GetDependencies() => new List<Type>() { typeof(ComponentInstancesDB) };
 
- 
+
         public List<(Entity entity, SensorReturnValues returnValues)> CurrentContacts = new();
         /// <summary>
         /// NOTE: the below InstanceAtributes list assumes parity with the InstanceStates list,

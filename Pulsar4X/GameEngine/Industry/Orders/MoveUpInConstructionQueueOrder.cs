@@ -18,9 +18,8 @@ public class MoveUpInConstructionQueueOrder : EntityCommand
 
     internal override Entity EntityCommanding => _colonyEntity;
 
-    private Entity _colonyEntity;
-    private LocalConstructionJob _job;
-
+    private Entity _colonyEntity = Entity.InvalidEntity;
+    private LocalConstructionJob? _job;
     private MoveUpInConstructionQueueOrder(Entity colonyEntity, LocalConstructionJob job)
     {
         _colonyEntity = colonyEntity;

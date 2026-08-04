@@ -17,8 +17,8 @@ public class MoveUpInQueueOrder : EntityCommand
 
     internal override Entity EntityCommanding => _labEntity;
 
-    private Entity _labEntity;
-    private string _techId;
+    private Entity _labEntity = Entity.InvalidEntity;
+    private string? _techId;
 
     private MoveUpInQueueOrder(Entity labEntity, string techId)
     {
@@ -38,10 +38,10 @@ public class MoveUpInQueueOrder : EntityCommand
 
     internal override void Execute(DateTime atDateTime)
     {
-        if(!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
+        if (!_labEntity.TryGetDataBlob<ResearcherDB>(out var researcherDB))
             return;
 
-        if(string.IsNullOrEmpty(_techId))
+        if (string.IsNullOrEmpty(_techId))
             return;
 
         researcherDB.TechQueue.TryMoveUp(_techId);
@@ -52,7 +52,7 @@ public class MoveUpInQueueOrder : EntityCommand
                     atDateTime,
                     "Technology moved up in queue",
                     _labEntity.FactionOwnerID,
-                    _labEntity.Manager.ManagerID,
+                    _labEntity.AttachedManager.ManagerID,
                     _labEntity.Id));
     }
 

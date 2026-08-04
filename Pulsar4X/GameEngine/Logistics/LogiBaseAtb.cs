@@ -30,12 +30,12 @@ public class LogiBaseAtb : IComponentDesignAttribute
 
     public void OnComponentUninstallation(Entity parentEntity, ComponentInstance componentInstance)
     {
-        if(parentEntity.TryGetDataBlob<LogiBaseDB>(out var logiBaseDB)
+        if (parentEntity.TryGetDataBlob<LogiBaseDB>(out var logiBaseDB)
             && parentEntity.TryGetDataBlob<ComponentInstancesDB>(out var componentInstancesDB))
         {
             logiBaseDB.Capacity -= LogisicCapacity;
 
-            if(logiBaseDB.Capacity == 0)
+            if (logiBaseDB.Capacity == 0)
             {
                 parentEntity.RemoveDataBlob<LogiBaseDB>();
             }

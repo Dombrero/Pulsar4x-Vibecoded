@@ -32,7 +32,7 @@ namespace Pulsar4X.Galaxy
                 foreach (var gas in atmoDB.Composition)
                 {
                     atmoDB.Pressure += gas.Value;
-                    var blueprint = atmoDB.OwningEntity.Manager.Game.AtmosphericGases[gas.Key];
+                    var blueprint = atmoDB.OwningEntity.AttachedManager.Game.AtmosphericGases[gas.Key];
 
                     // only add a greenhouse gas if it is not frozen or liquid:
                     if (atmoDB.SurfaceTemperature >= blueprint.BoilingPoint)

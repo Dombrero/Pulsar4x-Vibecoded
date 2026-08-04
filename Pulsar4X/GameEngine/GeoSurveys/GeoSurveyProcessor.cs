@@ -12,10 +12,9 @@ namespace Pulsar4X.GeoSurveys;
 
 public class GeoSurveyProcessor : IInstanceProcessor
 {
-    public Entity Fleet { get; internal set; }
-    public Entity Target { get; internal set; }
-
-    public GeoSurveyProcessor() {}
+    public Entity Fleet { get; internal set; } = Entity.InvalidEntity;
+    public Entity Target { get; internal set; } = Entity.InvalidEntity;
+    public GeoSurveyProcessor() { }
 
     public GeoSurveyProcessor(Entity fleet, Entity target)
     {
@@ -30,12 +29,12 @@ public class GeoSurveyProcessor : IInstanceProcessor
         if (totalSurveyPoints == 0)
             return; // Nobody on station yet — do not progress remotely.
 
-        if(Target.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
+        if (Target.TryGetDataBlob<GeoSurveyableDB>(out var geoSurveyableDB))
         {
-            if(!geoSurveyableDB.GeoSurveyStatus.ContainsKey(Fleet.FactionOwnerID))
+            if (!geoSurveyableDB.GeoSurveyStatus.ContainsKey(Fleet.FactionOwnerID))
                 geoSurveyableDB.GeoSurveyStatus[Fleet.FactionOwnerID] = geoSurveyableDB.PointsRequired;
 
-            if(totalSurveyPoints >= geoSurveyableDB.GeoSurveyStatus[Fleet.FactionOwnerID])
+            if (totalSurveyPoints >= geoSurveyableDB.GeoSurveyStatus[Fleet.FactionOwnerID])
             {
                 // Survey is complete
                 geoSurveyableDB.GeoSurveyStatus[Fleet.FactionOwnerID] = 0;
@@ -53,7 +52,7 @@ public class GeoSurveyProcessor : IInstanceProcessor
                         atDateTime,
                         $"Geo Survey of {Target.GetName(Fleet.FactionOwnerID)} complete",
                         Fleet.FactionOwnerID,
-                        Target.Manager.ManagerID,
+                        Target.AttachedManager.ManagerID,
                         Target.Id));
 
                 PublishTargetChanged();
@@ -68,10 +67,10 @@ public class GeoSurveyProcessor : IInstanceProcessor
 
     private void PublishTargetChanged()
     {
-        MessagePublisher.Instance.Publish(Message.Create(
+        _ = MessagePublisher.Instance.Publish(Message.Create(
             MessageTypes.EntityChanged,
             entityId: Target.Id,
-            systemId: Target.Manager.ManagerID,
+            systemId: Target.AttachedManager.ManagerID,
             factionId: Fleet.FactionOwnerID));
     }
 

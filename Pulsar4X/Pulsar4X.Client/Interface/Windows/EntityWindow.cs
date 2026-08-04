@@ -150,7 +150,7 @@ namespace Pulsar4X.Client
 
         internal override void Display()
         {
-            if(!IsActive && _animationState == AnimationState.Closed) return;
+            if (!IsActive && _animationState == AnimationState.Closed) return;
 
             UpdateAnimation();
 

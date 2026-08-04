@@ -19,8 +19,12 @@ namespace Pulsar4X.Industry
     /// </summary>
     public struct InstallationEmployment
     {
-        public string Type;
+        public string? Type;
         public bool Enabled;
+
+        public InstallationEmployment()
+        {
+        }
     }
 
     public class InstallationsDB : BaseDataBlob
@@ -30,9 +34,8 @@ namespace Pulsar4X.Industry
         /// </summary>
         public Dictionary<string, float> Installations { get; set; }
 
-        public Dictionary<string,int> WorkingInstallations { get; set; }
-
-        public List<InstallationEmployment> EmploymentList { get; set; }
+        public Dictionary<string, int> WorkingInstallations { get; set; } = new();
+        public List<InstallationEmployment> EmploymentList { get; set; } = new();
         /// <summary>
         /// list of ConstructJob Structs.
         /// </summary>

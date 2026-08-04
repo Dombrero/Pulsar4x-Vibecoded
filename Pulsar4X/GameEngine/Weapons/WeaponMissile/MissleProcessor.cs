@@ -17,7 +17,7 @@ namespace Pulsar4X.Weapons
         public static void LaunchMissile(Entity launchingEntity, Entity targetEntity, double launchForce, OrdnanceDesign missileDesign, int count)
         {
 
-            var atDatetime = launchingEntity.Manager.StarSysDateTime;
+            var atDatetime = launchingEntity.AttachedManager.StarSysDateTime;
             var parentPositionDB = launchingEntity.GetDataBlob<PositionDB>();
             Vector3 parentPosition = parentPositionDB.AbsolutePosition;
             var parentPosRal = parentPositionDB.RelativePosition;
@@ -48,7 +48,7 @@ namespace Pulsar4X.Weapons
 
             var orderabledb = new OrderableDB();
 
-            if(misslPositionDB.Parent == null) throw new NullReferenceException("misslePositionDB.Parent cannot be null");
+            if (misslPositionDB.Parent == null) throw new NullReferenceException("misslePositionDB.Parent cannot be null");
 
             var newtmovedb = new NewtonMoveDB(misslPositionDB.Parent, parentVelocity);
 
@@ -65,12 +65,12 @@ namespace Pulsar4X.Weapons
             dataBlobs.Add(new ComponentInstancesDB());
             dataBlobs.Add(misslPositionDB);
             dataBlobs.Add(MassVolumeDB.NewFromMassAndVolume(missileDesign.WetMass, missileDesign.WetMass));
-            dataBlobs.Add(new NameDB(defaultName, launchingEntity.FactionOwnerID,  factionsName));
+            dataBlobs.Add(new NameDB(defaultName, launchingEntity.FactionOwnerID, factionsName));
             dataBlobs.Add(newtmovedb);
             dataBlobs.Add(orderabledb);
             var newMissile = Entity.Create();
             newMissile.FactionOwnerID = launchingEntity.FactionOwnerID;
-            launchingEntity.Manager.AddEntity(newMissile, dataBlobs);
+            launchingEntity.AttachedManager.AddEntity(newMissile, dataBlobs);
 
             foreach (var tuple in missileDesign.Components)
             {
@@ -85,7 +85,7 @@ namespace Pulsar4X.Weapons
             bool directAttack = false;
 
 
-            if(directAttack)
+            if (directAttack)
             {
                 /*
                 var tgtintercept = OrbitMath.GetInterceptPosition_m(parentPosition, speed, tgtEntityOrbit, atDatetime);

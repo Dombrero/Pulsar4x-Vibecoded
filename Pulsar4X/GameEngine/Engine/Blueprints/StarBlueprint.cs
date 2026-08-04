@@ -14,6 +14,6 @@ public class StarBlueprint : Blueprint
         public string? SpectralType { get; set; }
     }
 
-    public string Name { get; set; }
+    public string? Name { get; set; }
     public StarInfoBlueprint Info { get; set; }
 }

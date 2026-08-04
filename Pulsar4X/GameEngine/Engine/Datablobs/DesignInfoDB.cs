@@ -10,7 +10,7 @@ namespace Pulsar4X.Datablobs
     /// </summary>
     public class DesignInfoDB : BaseDataBlob
     {
-        internal Entity DesignEntity { get; private set; }
+        internal Entity DesignEntity { get; private set; } = Entity.InvalidEntity;
 
         internal List<IComponentDesignAttribute> DesignAttributes = new List<IComponentDesignAttribute>();
 

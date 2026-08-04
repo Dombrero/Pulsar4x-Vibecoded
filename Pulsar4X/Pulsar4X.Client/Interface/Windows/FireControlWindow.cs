@@ -26,7 +26,7 @@ namespace Pulsar4X.Client
 
         public static FireControl GetInstance(EntityState orderEntity)
         {
-            if(!_uiState.TryGetUniqueWindow<FireControl>(out var window))
+            if (!_uiState.TryGetUniqueWindow<FireControl>(out var window))
             {
                 window = _uiState.AddUniqueWindow(new FireControl());
             }

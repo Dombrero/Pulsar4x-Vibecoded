@@ -23,11 +23,10 @@ public class JumpOrder : EntityCommand
 
     public override string Details { get; } = "Warp fleet to jump gate and transit";
 
-    Entity _factionEntity;
-    Entity _entityCommanding;
+    Entity _factionEntity = Entity.InvalidEntity;
+    Entity _entityCommanding = Entity.InvalidEntity;
 
-    public JumpPointDB JumpGate { get; private set; }
-
+    public JumpPointDB? JumpGate { get; set; }
     internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
     List<ShipJumpCommand> _shipJumpCommands = new List<ShipJumpCommand>();
@@ -38,7 +37,7 @@ public class JumpOrder : EntityCommand
         {
             RequestingFactionGuid = faction.Id,
             EntityCommandingGuid = fleetEntity.Id,
-            CreatedDate = fleetEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = fleetEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             JumpGate = jumpGate
         };
 
@@ -49,7 +48,7 @@ public class JumpOrder : EntityCommand
     {
         if (IsRunning) return;
         if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-        if (JumpGate.OwningEntity == null) return;
+        if (!JumpGate.OwningEntity.IsValid) return;
 
         var gateEntity = JumpGate.OwningEntity;
         var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
@@ -63,12 +62,12 @@ public class JumpOrder : EntityCommand
                 if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
 
                 var warpCmd = WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
-                ship.Manager.Game.OrderHandler.HandleOrder(warpCmd);
+                ship.AttachedManager.Game.OrderHandler.HandleOrder(warpCmd);
             }
 
             // Queue a per-ship jump command (will execute after warp completes)
             var jumpCmd = ShipJumpCommand.Create(ship, JumpGate);
-            ship.Manager.Game.OrderHandler.HandleOrder(jumpCmd);
+            ship.AttachedManager.Game.OrderHandler.HandleOrder(jumpCmd);
             _shipJumpCommands.Add(jumpCmd);
         }
 
@@ -89,9 +88,9 @@ public class JumpOrder : EntityCommand
         // All ships have jumped — transfer the fleet entity to the destination system
         if (!_isFinished)
         {
-            if (JumpGate.OwningEntity.Manager.TryGetGlobalEntityById(JumpGate.DestinationId, out var destinationEntity))
+            if (JumpGate.OwningEntity.AttachedManager.TryGetGlobalEntityById(JumpGate.DestinationId, out var destinationEntity))
             {
-                destinationEntity.Manager.Transfer(_entityCommanding);
+                destinationEntity.AttachedManager.Transfer(_entityCommanding);
             }
             _isFinished = true;
         }
@@ -128,8 +127,8 @@ public class ShipJumpCommand : EntityCommand
 
     public override string Details { get; } = "Transit through the jump gate";
 
-    Entity _factionEntity;
-    Entity _entityCommanding;
+    Entity _factionEntity = Entity.InvalidEntity;
+    Entity _entityCommanding = Entity.InvalidEntity;
     JumpPointDB _jumpGate;
 
     internal override Entity EntityCommanding => _entityCommanding;
@@ -140,21 +139,21 @@ public class ShipJumpCommand : EntityCommand
         {
             RequestingFactionGuid = ship.FactionOwnerID,
             EntityCommandingGuid = ship.Id,
-            CreatedDate = ship.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = ship.AttachedManager.ManagerSubpulses.StarSysDateTime,
             _jumpGate = jumpGate,
         };
     }
 
     internal override void Execute(DateTime atDateTime)
     {
-        if (_jumpGate.OwningEntity == null) { _isFinished = true; return; }
+        if (!_jumpGate.OwningEntity.IsValid) { _isFinished = true; return; }
 
-        if (_entityCommanding.Manager.TryGetGlobalEntityById(_jumpGate.DestinationId, out var destinationEntity))
+        if (_entityCommanding.AttachedManager.TryGetGlobalEntityById(_jumpGate.DestinationId, out var destinationEntity))
         {
             var destinationPositionDB = destinationEntity.GetDataBlob<PositionDB>();
 
             // Transfer this ship to the destination system
-            destinationEntity.Manager.Transfer(_entityCommanding);
+            destinationEntity.AttachedManager.Transfer(_entityCommanding);
 
             // Update position to the destination gate
             var positionDB = _entityCommanding.GetDataBlob<PositionDB>();

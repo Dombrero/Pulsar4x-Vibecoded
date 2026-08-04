@@ -71,7 +71,8 @@ namespace Pulsar4X.Galaxy
         //In Earth Atmospheres (atm).
         //</summary>
         [JsonProperty]
-        public Dictionary<string, float> CompositionByPercent {
+        public Dictionary<string, float> CompositionByPercent
+        {
             get
             {
                 var totalAtm = Composition.Values.Sum();
@@ -89,14 +90,12 @@ namespace Pulsar4X.Galaxy
         /// "75% Nitrogen (N), 21% Oxygen (O), 3% Carbon dioxide (CO2), 1% Argon (Ar)"
         /// By Default ToString return this.
         /// </summary>
-        public string AtomsphereDescriptionInPercent { get; internal set; }
-
+        public string? AtomsphereDescriptionInPercent { get; internal set; }
         /// <summary>
         /// A sting describing the Atmosphere in Atmospheres (atm), like this:
         /// "0.75atm Nitrogen (N), 0.21atm Oxygen (O), 0.03atm Carbon dioxide (CO2), 0.01atm Argon (Ar)"
         /// </summary>
-        public string AtomsphereDescriptionAtm { get; internal set; }
-
+        public string? AtomsphereDescriptionAtm { get; internal set; }
         /// <summary>
         /// indicates if the body as a valid atmosphere.
         /// </summary>
@@ -120,7 +119,7 @@ namespace Pulsar4X.Galaxy
         /// <param name="greenhousePressue"></param>
         /// <param name="surfaceTemp">AFTER greenhouse effects, In Degrees C.</param>
         /// <param name="composition">a Dictionary of gas types as keys and amounts as values</param>
-        internal AtmosphereDB(float pressure, bool hydrosphere, decimal hydroExtent, float greenhouseFactor, float greenhousePressue, float surfaceTemp, Dictionary<string,float> composition)
+        internal AtmosphereDB(float pressure, bool hydrosphere, decimal hydroExtent, float greenhouseFactor, float greenhousePressue, float surfaceTemp, Dictionary<string, float> composition)
         {
             Pressure = pressure;
             Hydrosphere = hydrosphere;
@@ -156,7 +155,7 @@ namespace Pulsar4X.Galaxy
 
             foreach (var gas in Composition)
             {
-                var blueprint = OwningEntity.Manager.Game.AtmosphericGases[gas.Key];
+                var blueprint = OwningEntity.AttachedManager.Game.AtmosphericGases[gas.Key];
                 AtomsphereDescriptionAtm += gas.Value.ToString("N4") + "atm " + blueprint.Name + " " + blueprint.ChemicalSymbol + ", ";
 
                 if (Pressure != 0) // for extra safety.

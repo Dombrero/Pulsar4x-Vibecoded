@@ -55,8 +55,8 @@ public class PointOfInterestIcon : Icon
             for (int i2 = 0; i2 < shape.Points.Length; i2++)
             {
                 var tranlsatedPoint = shipMatrix.TransformD(shape.Points[i2].X, shape.Points[i2].Y);
-                int x = (int)(ViewScreenPos.X + tranlsatedPoint.X );
-                int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y );
+                int x = (int)(ViewScreenPos.X + tranlsatedPoint.X);
+                int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y);
                 drawPoints[i2] = new Vector2() { X = x, Y = y };
             }
             DrawShapes[i] = new Shape() { Points = drawPoints, Color = shape.Color };

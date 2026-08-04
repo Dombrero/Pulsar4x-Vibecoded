@@ -15,8 +15,7 @@ namespace Pulsar4X.People
         /// </summary>
         [PublicAPI]
         [JsonProperty]
-        public string BreathableGasSymbol { get; internal set; }
-
+        public string? BreathableGasSymbol { get; internal set; }
         /// <summary>
         /// The ideal gravity for this species.
         /// </summary>

@@ -18,11 +18,11 @@ public class Displays
         ImGui.SetColumnWidth(0, 140);
 
         TooltipLabel("Gravity Survey");
-        if(gravSurvey.IsSurveyComplete)
+        if (gravSurvey.IsSurveyComplete)
         {
             ImGui.TextColored(Styles.GoodColor, "Complete");
         }
-        else if(gravSurvey.HasSurveyStarted)
+        else if (gravSurvey.HasSurveyStarted)
         {
             ImGui.TextColored(Styles.OkColor, "In progress " + gravSurvey.PercentComplete.ToString("0.#") + "%");
         }

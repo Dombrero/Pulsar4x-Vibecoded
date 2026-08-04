@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Auth;
 using Pulsar4X.Datablobs;
@@ -26,7 +26,7 @@ namespace Pulsar4X.Tests
             double parentMass = 1.989e30;
             BaseDataBlob[] parentblobs = new BaseDataBlob[4];
             parentblobs[0] = new PositionDB() { AbsolutePosition = Vector3.Zero };
-            parentblobs[1] = MassVolumeDB.NewFromMassAndRadius_m(parentMass, 696342000.0 );
+            parentblobs[1] = MassVolumeDB.NewFromMassAndRadius_m(parentMass, 696342000.0);
             parentblobs[2] = new OrbitDB();
             parentblobs[3] = new NameDB();
             var ent = Entity.Create();
@@ -53,7 +53,7 @@ namespace Pulsar4X.Tests
             ModLoader modLoader = new ModLoader();
             ModDataStore modDataStore = new ModDataStore();
             modLoader.LoadModManifest("Data/basemod/modInfo.json", modDataStore);
-            var game = new Game(gamesettings, modDataStore );
+            var game = new Game(gamesettings, modDataStore);
 
             var smAuthToken = new AuthenticationToken(game.SpaceMaster);
 
@@ -105,33 +105,22 @@ namespace Pulsar4X.Tests
     public class TestGame
     {
         public NewGameSettings GameSettings { get; set; }
-
         public Game Game { get; set; }
-
-        public Entity HumanFaction { get; set; }
-
-        public Entity HumanSpecies { get; set; }
-
-        public Entity GreyAlienFaction { get; set; }
-
-        public Entity GreyAlienSpecies { get; set; }
-
+        public Entity HumanFaction { get; set; } = Entity.InvalidEntity;
+        public Entity HumanSpecies { get; set; } = Entity.InvalidEntity;
+        public Entity GreyAlienFaction { get; set; } = Entity.InvalidEntity;
+        public Entity GreyAlienSpecies { get; set; } = Entity.InvalidEntity;
         public ComponentDesign DefaultEngineDesign { get; set; }
-
         public ComponentDesign DefaultWeaponDesign { get; set; }
-
         public ShipDesign DefaultShipDesign { get; set; }
-
-        public Entity EarthColony { get; set; }
-
-        public Entity DefaultShip { get; set; }
+        public Entity EarthColony { get; set; } = Entity.InvalidEntity;
+        public Entity DefaultShip { get; set; } = Entity.InvalidEntity;
         public StarSystem Sol { get; set; }
-        public Entity Earth { get; set; }
-
+        public Entity Earth { get; set; } = Entity.InvalidEntity;
         internal TestGame(int numSystems = 10)
         {
 
-            GameSettings = new  NewGameSettings { MaxSystems = numSystems, CreatePlayerFaction = false };
+            GameSettings = new NewGameSettings { MaxSystems = numSystems, CreatePlayerFaction = false };
             ModLoader modLoader = new ModLoader();
             ModDataStore modDataStore = new ModDataStore();
             modLoader.LoadModManifest("Data/basemod/modInfo.json", modDataStore);
@@ -158,14 +147,14 @@ namespace Pulsar4X.Tests
             Sol = starfac.CreateSol(Game);
             Sol.SetActivityState(SystemActivityState.Foreground);
             Earth = NameLookup.GetFirstEntityWithName(Sol, "Earth"); //Sol.Entities[3]; //should be fourth entity created
-             EarthColony = ColonyFactory.CreateColony(HumanFaction, HumanSpecies, Earth);
-             var humondatastore = HumanFaction.GetDataBlob<FactionInfoDB>().Data;
+            EarthColony = ColonyFactory.CreateColony(HumanFaction, HumanSpecies, Earth);
+            var humondatastore = HumanFaction.GetDataBlob<FactionInfoDB>().Data;
             DefaultEngineDesign = DefaultStartFactory.DefaultThrusterDesign(HumanFaction, humondatastore);
             DefaultWeaponDesign = DefaultStartFactory.DefaultSimpleLaser(HumanFaction, humondatastore);
             DefaultShipDesign = DefaultStartFactory.DefaultShipDesign(HumanFaction, humondatastore);
 
             Vector3 position = Earth.GetDataBlob<PositionDB>().AbsolutePosition;
-            DefaultShip = ShipFactory.CreateShip(DefaultShipDesign, HumanFaction, position, Earth,  "Serial Peacemaker");
+            DefaultShip = ShipFactory.CreateShip(DefaultShipDesign, HumanFaction, position, Earth, "Serial Peacemaker");
             Sol.SetDataBlob(DefaultShip.Id, new JumpPointDB());
         }
 

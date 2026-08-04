@@ -30,66 +30,57 @@ namespace Pulsar4X.Engine
         public static readonly int NeutralFactionId = -99;
 
         [JsonProperty]
-        public string Name { get; set; }
+        public string? Name { get; set; }
+        [JsonProperty]
+        public string? CreatedOnGitHash { get; set; }
+        [JsonProperty]
+        public string? LastSaveGitHash { get; set; }
+        [JsonProperty]
+        public MasterTimePulse? TimePulse { get; internal set; }
+        [JsonProperty]
+        public SafeDictionary<string, ThemeBlueprint> Themes { get; internal set; } = new();
 
         [JsonProperty]
-        public string CreatedOnGitHash { get; set; }
+        public SafeDictionary<string, GasBlueprint> AtmosphericGases { get; internal set; } = new();
 
         [JsonProperty]
-        public string LastSaveGitHash { get; set; }
+        public SafeDictionary<string, TechCategoryBlueprint> TechCategories { get; internal set; } = new();
 
         [JsonProperty]
-        public MasterTimePulse TimePulse { get; internal set; }
-
-        [JsonProperty]
-        public SafeDictionary<string, ThemeBlueprint> Themes { get; internal set; }
-
-        [JsonProperty]
-        public SafeDictionary<string, GasBlueprint> AtmosphericGases { get; internal set; }
-
-        [JsonProperty]
-        public SafeDictionary<string, TechCategoryBlueprint> TechCategories { get; internal set; }
-
-        [JsonProperty]
-        public SystemGenSettingsBlueprint SystemGenSettings { get; internal set; }
+        public SystemGenSettingsBlueprint? SystemGenSettings { get; internal set; }
         /// <summary>
         /// List of StarSystems currently in the game.
         /// </summary>
         [JsonProperty]
-        public List<StarSystem> Systems { get; internal set; } = new ();
+        public List<StarSystem> Systems { get; internal set; } = new();
 
         [JsonProperty]
-        public EntityManager GlobalManager { get; internal set; }
-
+        public EntityManager? GlobalManager { get; internal set; }
         [JsonProperty]
-        internal readonly SafeDictionary<string, EntityManager> GlobalManagerDictionary = new ();
+        internal readonly SafeDictionary<string, EntityManager> GlobalManagerDictionary = new();
 
         [JsonIgnore]
-        internal ProcessorManager ProcessorManager { get; private set; }
-
+        internal ProcessorManager? ProcessorManager { get; set; }
         [JsonProperty]
         public Player SpaceMaster { get; internal set; } = new Player("Space Master", "");
 
         [JsonProperty]
-        public List<Player> Players { get; internal set; }= new List<Player>();
+        public List<Player> Players { get; internal set; } = new List<Player>();
 
         [JsonIgnore]
-        public IOrderHandler OrderHandler { get; internal set; }
+        public IOrderHandler? OrderHandler { get; internal set; }
+        [JsonProperty]
+        public Entity GameMasterFaction { get; internal set; } = Entity.InvalidEntity;
+        [JsonProperty]
+        public GameSettings? Settings { get; internal set; }
+        [JsonProperty]
+        public ModDataStore? StartingGameData { get; set; }
 
         [JsonProperty]
-        public Entity GameMasterFaction { get; internal set; }
+        public GalaxyFactory? GalaxyGen { get; set; }
 
         [JsonProperty]
-        public GameSettings Settings { get; internal set; }
-
-        [JsonProperty]
-        public ModDataStore StartingGameData { get; private set; }
-
-        [JsonProperty]
-        public GalaxyFactory GalaxyGen { get; private set; }
-
-        [JsonProperty]
-        public Dictionary<int, Entity> Factions { get; } = new ();
+        public Dictionary<int, Entity> Factions { get; } = new();
 
         /// <summary>
         /// Tracks the next available faction mask index (0-31).
@@ -122,8 +113,6 @@ namespace Pulsar4X.Engine
 
         private static int EntityIDCounter = 0;
 
-        internal event EventHandler PostLoad;
-
         internal Random RNG => GlobalManager.RNG;
 
         public Game() { }
@@ -148,10 +137,10 @@ namespace Pulsar4X.Engine
             ApplyModData(modDataStore);
             ApplySettings(settings);
 
-            if(SystemGenSettings == null) throw new ArgumentNullException("SystemGenSettings cannot be null");
-            if(Settings == null) throw new ArgumentNullException("Settings cannot be null");
+            if (SystemGenSettings == null) throw new ArgumentNullException("SystemGenSettings cannot be null");
+            if (Settings == null) throw new ArgumentNullException("Settings cannot be null");
 
-            TimePulse = new (this);
+            TimePulse = new(this);
             TimePulse.Initialize(this);
             ProcessorManager = new ProcessorManager(this);
             OrderHandler = new StandAloneOrderHandler(this);
@@ -234,7 +223,8 @@ namespace Pulsar4X.Engine
 
         public static string Save(Game game)
         {
-            JsonSerializerSettings settings = new JsonSerializerSettings() {
+            JsonSerializerSettings settings = new JsonSerializerSettings()
+            {
                 Formatting = Formatting.Indented,
                 PreserveReferencesHandling = PreserveReferencesHandling.Objects,
                 TypeNameHandling = TypeNameHandling.Objects,
@@ -246,7 +236,8 @@ namespace Pulsar4X.Engine
 
         public static Game Load(string json)
         {
-            JsonSerializerSettings settings = new JsonSerializerSettings() {
+            JsonSerializerSettings settings = new JsonSerializerSettings()
+            {
                 Formatting = Formatting.Indented,
                 PreserveReferencesHandling = PreserveReferencesHandling.Objects,
                 TypeNameHandling = TypeNameHandling.Objects,
@@ -256,7 +247,8 @@ namespace Pulsar4X.Engine
             // Reset statics before deserialize so EventManager/etc. are clean; ID counters are
             // restored from the JSON via NextEntityID / EntityIDCounterValue setters.
             ClearGlobalState();
-            var loadedGame = JsonConvert.DeserializeObject<Game>(json, settings);
+            var loadedGame = JsonConvert.DeserializeObject<Game>(json, settings)
+                ?? throw new JsonSerializationException("Failed to deserialize game save.");
             // Safety net: even old saves / partial counter writes must not collide with live IDs.
             loadedGame.ResyncEntityIdGenerator();
 
@@ -272,7 +264,7 @@ namespace Pulsar4X.Engine
             }
 
             // Hook up the event logs (TimePulse is [JsonIgnore] on FactionEventLog — rebind it).
-            foreach(var (id, faction) in loadedGame.Factions)
+            foreach (var (id, faction) in loadedGame.Factions)
             {
                 var info = faction.GetDataBlob<FactionInfoDB>();
                 if (info.EventLog is FactionEventLog factionLog)
@@ -331,7 +323,7 @@ namespace Pulsar4X.Engine
             JPFactory.LinkAllJumpPoints(this);
 
             // There are few DB's that need to run the processor when the game begins
-            foreach(var system in Systems)
+            foreach (var system in Systems)
             {
                 var entitiesWithEnergyGen = system.GetAllEntitiesWithDataBlob<EnergyGenAbilityDB>();
                 foreach (var entity in entitiesWithEnergyGen)

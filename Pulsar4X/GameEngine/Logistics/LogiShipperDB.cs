@@ -21,11 +21,11 @@ namespace Pulsar4X.Logistics
 
         public string StateString = "";
 
-        public string From;
-        public List<(ICargoable item, int count)>  ItemsToShip =  new List<(ICargoable item, int count)>();
-        public Dictionary<string, double>  TradeSpace =  new Dictionary<string, double>();
+        public string? From;
+        public List<(ICargoable item, int count)> ItemsToShip = new List<(ICargoable item, int count)>();
+        public Dictionary<string, double> TradeSpace = new Dictionary<string, double>();
         public double MaxTradeMass = 1;
-        public string To;
+        public string? To;
 
         public States CurrentState = States.Waiting;
         public List<LogisticsCycle.CargoTask> BiddingTasks = new List<LogisticsCycle.CargoTask>();
@@ -41,13 +41,13 @@ namespace Pulsar4X.Logistics
         {
             var cdb = base.OwningEntity.GetDataBlob<CargoStorageDB>();
             TradeSpace = new Dictionary<string, double>();
-            foreach(var kvp in cdb.TypeStores)
+            foreach (var kvp in cdb.TypeStores)
             {
                 TradeSpace.Add(kvp.Key, 0);
             }
-            if(!OwningEntity.HasDataBlob<NewtonThrustAbilityDB>())
+            if (!OwningEntity.HasDataBlob<NewtonThrustAbilityDB>())
                 throw new Exception("Non moving entites can't be shippers");
-            if(OwningEntity.HasDataBlob<OrderableDB>())
+            if (OwningEntity.HasDataBlob<OrderableDB>())
             {
                 var order = new ShipLogisticsOrders()
                 {

@@ -17,8 +17,8 @@ public class AddToConstructionQueueOrder : EntityCommand
 
     internal override Entity EntityCommanding => _colonyEntity;
 
-    private Entity _colonyEntity;
-    private ComponentDesign _design;
+    private Entity _colonyEntity = Entity.InvalidEntity;
+    private ComponentDesign? _design;
 
     private AddToConstructionQueueOrder(Entity colonyEntity, ComponentDesign design)
     {

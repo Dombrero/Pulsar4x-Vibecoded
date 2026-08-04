@@ -10,8 +10,8 @@ namespace Pulsar4X.Interfaces
     {
         ConstructableGuiHints GuiHints { get; }
 
-        string UniqueID { get;  }
-        string Name { get;  } //player defined name. ie "5t 2kn Thruster".
+        string UniqueID { get; }
+        string Name { get; } //player defined name. ie "5t 2kn Thruster".
 
         bool IsValid { get; }
 

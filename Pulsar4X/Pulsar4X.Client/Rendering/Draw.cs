@@ -63,7 +63,7 @@ namespace Pulsar4X.Client
     public class Shape : IShape
     {
         public SDL.Color Color;    //could change due to entity changes.
-        public Vector2[] Points = null!; //relative to the IconPosition. could change with entity changes.
+        public Vector2[] Points = Array.Empty<Vector2>(); //relative to the IconPosition. could change with entity changes.
 
         // https://stackoverflow.com/a/14998816
         public bool Contains(System.Drawing.PointF point)
@@ -111,7 +111,7 @@ namespace Pulsar4X.Client
 
         internal void SetHighlight(bool isHighlighted)
         {
-            if(Shape == null) return;
+            if (Shape == null) return;
 
             if (isHighlighted)
                 Shape.Colors = HighlightColour;

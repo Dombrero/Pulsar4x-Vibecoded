@@ -48,13 +48,11 @@ namespace Pulsar4X.Galaxy
         /// </summary>
         [JsonProperty]
         public RSize RuinSize { get; internal set; }
-
         /// <summary>
         /// What shape are these ruins in?
         /// </summary>
         [JsonProperty]
         public RQuality RuinQuality { get; internal set; }
-
         /// <summary>
         /// Empty constructor for RuinsDataBlob.
         /// </summary>

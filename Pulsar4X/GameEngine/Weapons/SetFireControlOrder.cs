@@ -19,17 +19,17 @@ namespace Pulsar4X.Weapons
         public override string Details { get; } = "";
 
         [JsonIgnore]
-        Entity _factionEntity;
+        Entity _factionEntity = Entity.InvalidEntity;
 
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
 
 
         [JsonProperty]
-        public string FireControlGuid;
+        public string? FireControlGuid;
         [JsonIgnore]
-        private ComponentInstance _fireControlComponent;
+        private ComponentInstance? _fireControlComponent;
 
         public List<string> WeaponsAssigned = new List<string>();
         private List<WeaponState> _weaponsAssigned = new List<WeaponState>();
@@ -121,21 +121,21 @@ namespace Pulsar4X.Weapons
 
 
         [JsonIgnore]
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
         [JsonIgnore]
-        Entity _factionEntity;
+        Entity _factionEntity = Entity.InvalidEntity;
 
         [JsonProperty]
         public int TargetSensorEntityGuid { get; set; }
-        private Entity _targetSensorEntity;
-        private Entity _targetActualEntity;
+        private Entity _targetSensorEntity = Entity.InvalidEntity;
+        private Entity _targetActualEntity = Entity.InvalidEntity;
 
         [JsonProperty]
-        public string FireControlGuid;
+        public string? FireControlGuid;
         [JsonIgnore]
-        private ComponentInstance _fireControlComponent;
+        private ComponentInstance? _fireControlComponent;
 
 
         public static bool CreateCommand(Game game, DateTime starSysDate, int factionGuid, int orderEntity, string fireControlGuid, int targetGuid)
@@ -212,7 +212,7 @@ namespace Pulsar4X.Weapons
 
     public class SetOpenFireControlOrder : EntityCommand
     {
-        public enum FireModes:byte //this could be made more complex, rapid/overdrive, staggered, alphastrike,
+        public enum FireModes : byte //this could be made more complex, rapid/overdrive, staggered, alphastrike,
         {
             OpenFire,
             CeaseFire
@@ -220,7 +220,8 @@ namespace Pulsar4X.Weapons
 
 
         public override string Name { get; } = "Fire Control Set Firemode";
-        public override string Details {
+        public override string Details
+        {
             get
             {
                 return IsFiring.ToString();
@@ -232,20 +233,19 @@ namespace Pulsar4X.Weapons
         public override bool IsBlocking => false;
 
         [JsonIgnore]
-        Entity _factionEntity;
+        Entity _factionEntity = Entity.InvalidEntity;
 
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
 
 
         [JsonProperty]
-        public string FireControlGuid;
+        public string? FireControlGuid;
         [JsonIgnore]
-        private ComponentInstance _fireControlComponent;
+        private ComponentInstance? _fireControlComponent;
 
         public FireModes IsFiring;
-        private Game _game;
 
         public static bool CreateCmd(Game game, int factionId, int shipEntityId, string fireControlGuid, FireModes isFiring)
         {
@@ -256,7 +256,6 @@ namespace Pulsar4X.Weapons
                 CreatedDate = game.TimePulse.GameGlobalDateTime,
                 FireControlGuid = fireControlGuid,
                 IsFiring = isFiring,
-                _game = game
             };
             return game.OrderHandler.HandleOrder(cmd);
         }
@@ -269,8 +268,8 @@ namespace Pulsar4X.Weapons
                 if (IsFiring == FireModes.OpenFire)
                 {
                     fcState.IsEngaging = true;
-                    DateTime dateTimeNow = _entityCommanding.Manager.ManagerSubpulses.StarSysDateTime;
-                    if(!_entityCommanding.TryGetDataBlob<GenericFiringWeaponsDB>(out var blob))
+                    DateTime dateTimeNow = _entityCommanding.AttachedManager.ManagerSubpulses.StarSysDateTime;
+                    if (!_entityCommanding.TryGetDataBlob<GenericFiringWeaponsDB>(out var blob))
                     {
                         blob = new GenericFiringWeaponsDB(fcState.GetChildrenInstances());
                         _entityCommanding.SetDataBlob(blob);
@@ -335,20 +334,20 @@ namespace Pulsar4X.Weapons
         public override bool IsBlocking => false;
 
         [JsonIgnore]
-        Entity _factionEntity;
+        Entity _factionEntity = Entity.InvalidEntity;
 
-        Entity _entityCommanding;
+        Entity _entityCommanding = Entity.InvalidEntity;
         internal override Entity EntityCommanding { get { return _entityCommanding; } }
 
 
 
         [JsonProperty]
-        public string WeaponGuid;
+        public string? WeaponGuid;
         [JsonIgnore]
-        private ComponentInstance _weaponInstance;
+        private ComponentInstance? _weaponInstance;
 
-        public string OrdnanceAssigned;
-        private OrdnanceDesign _ordnanceAssigned;
+        public string? OrdnanceAssigned;
+        private OrdnanceDesign? _ordnanceAssigned;
 
 
         public static bool CreateCommand(Game game, DateTime starSysDate, int factionId, int orderEntityId, string weaponId, string ordnanceAssigned)
@@ -393,9 +392,11 @@ namespace Pulsar4X.Weapons
 
                 if (instancesdb.AllComponents.TryGetValue(WeaponGuid, out ComponentInstance? wpn))
                 {
-                    if (!_factionEntity.GetDataBlob<FactionInfoDB>().MissileDesigns.TryGetValue(OrdnanceAssigned, out _ordnanceAssigned))
+                    if (!_factionEntity.GetDataBlob<FactionInfoDB>().MissileDesigns.TryGetValue(OrdnanceAssigned, out OrdnanceDesign? ordnance)
+                        || ordnance is null)
                         return false;
-                    if(wpn.TryGetAbilityState(out WeaponState? wpnState))
+                    _ordnanceAssigned = ordnance;
+                    if (wpn.TryGetAbilityState(out WeaponState? wpnState))
                     {
                         _weaponInstance = wpn;
                         return wpnState.FireWeaponInstructions.CanLoadOrdnance(_ordnanceAssigned);

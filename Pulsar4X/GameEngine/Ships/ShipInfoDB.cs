@@ -15,8 +15,7 @@ namespace Pulsar4X.Ships
         public int CommanderID { get; internal set; } = -1;
 
         [JsonProperty]
-        public ShipDesign Design { get; private set; }
-
+        public ShipDesign? Design { get; set; }
         [JsonProperty]
         public bool Conscript { get; set; }
 

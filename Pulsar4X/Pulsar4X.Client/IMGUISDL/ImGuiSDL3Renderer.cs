@@ -254,11 +254,11 @@ public class ImGuiSDL3Renderer : IDisposable
 
     private void RestoreRendererState(BackupSDLRendererState state)
     {
-        if(state.ViewportEnabled)
+        if (state.ViewportEnabled)
             SDL.SetRenderViewport(Renderer, state.Viewport);
         else
             SDL.SetRenderViewport(Renderer, IntPtr.Zero);
-        if(state.ClipEnabled)
+        if (state.ClipEnabled)
             SDL.SetRenderClipRect(Renderer, state.ClipRect);
         else
             SDL.SetRenderClipRect(Renderer, IntPtr.Zero);
@@ -299,7 +299,7 @@ public class ImGuiSDL3Renderer : IDisposable
 
     private void DestroyFontsTexture()
     {
-        if(_fontTexture != IntPtr.Zero)
+        if (_fontTexture != IntPtr.Zero)
         {
             SDL.DestroyTexture(_fontTexture);
             _fontTexture = IntPtr.Zero;

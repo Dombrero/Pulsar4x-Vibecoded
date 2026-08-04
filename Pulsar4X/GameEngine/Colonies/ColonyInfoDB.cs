@@ -13,7 +13,7 @@ namespace Pulsar4X.Colonies
         /// Species Entity and amount
         /// </summary>
         [JsonProperty]
-        public Dictionary<int, long> Population { get; internal set; } = new ();
+        public Dictionary<int, long> Population { get; internal set; } = new();
 
 
         /// <summary>
@@ -21,13 +21,13 @@ namespace Pulsar4X.Colonies
         /// Construction pulls and pushes from here.
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, int> ComponentStockpile { get; internal set; } = new ();
+        public Dictionary<string, int> ComponentStockpile { get; internal set; } = new();
 
         /// <summary>
         /// Construction pushes here.
         /// </summary>
         [JsonProperty]
-        public Dictionary<string, float> OrdinanceStockpile { get; internal set; } = new ();
+        public Dictionary<string, float> OrdinanceStockpile { get; internal set; } = new();
 
         /// <summary>
         /// Construction *adds* to this list. damaged and partialy constructed fighters will go here too, but shouldnt launch.
@@ -45,7 +45,7 @@ namespace Pulsar4X.Colonies
         /// <summary>
         /// Installation list for damage calculations. Colony installations are considered components.
         /// </summary>
-        public Dictionary<Entity, double> ColonyComponentDictionary { get; set; }
+        public Dictionary<Entity, double> ColonyComponentDictionary { get; set; } = new();
 
         public ColonyInfoDB() { }
 
@@ -65,8 +65,8 @@ namespace Pulsar4X.Colonies
             ColonyComponentDictionary = new Dictionary<Entity, double>();
         }
 
-        public ColonyInfoDB(Entity species, long populationCount, Entity planet):this(
-            new Dictionary<int, long> {{species.Id, populationCount}},
+        public ColonyInfoDB(Entity species, long populationCount, Entity planet) : this(
+            new Dictionary<int, long> { { species.Id, populationCount } },
             planet)
         {
         }

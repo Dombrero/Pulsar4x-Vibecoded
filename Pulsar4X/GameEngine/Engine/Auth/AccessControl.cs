@@ -14,7 +14,7 @@ namespace Pulsar4X.Engine.Auth
             // Initial player verification.
             Player? authorizedPlayer = game?.GetPlayerForToken(authToken);
 
-            if (authorizedPlayer is null || entity == null || !entity.IsValid)
+            if (game is null || authorizedPlayer is null || !entity.IsValid)
             {
                 return false;
             }
@@ -24,7 +24,7 @@ namespace Pulsar4X.Engine.Auth
         private static bool CheckAuthorization(Player authorizedPlayer, Entity entity)
         {
             // Get the datablob mask to avoid unnecessary validation checks on method calls.
-            List<Type> blobTypes = entity.Manager.GetAllDataBlobTypesForEntity(entity.Id);
+            List<Type> blobTypes = entity.AttachedManager.GetAllDataBlobTypesForEntity(entity.Id);
 
             if (IsSystemBodyAuthorized(authorizedPlayer, entity, blobTypes))
             {
@@ -104,7 +104,7 @@ namespace Pulsar4X.Engine.Auth
 
         private static bool IsSystemBodyAuthorized(Player authorizedPlayer, Entity entity, List<Type> dataBlobTypes)
         {
-            if(dataBlobTypes.Contains(typeof(StarInfoDB)) ||
+            if (dataBlobTypes.Contains(typeof(StarInfoDB)) ||
                 dataBlobTypes.Contains(typeof(SystemBodyInfoDB)) ||
                 dataBlobTypes.Contains(typeof(JPSurveyableDB)) ||
                 dataBlobTypes.Contains(typeof(JumpPointDB)))
@@ -115,11 +115,11 @@ namespace Pulsar4X.Engine.Auth
                 List<int> factions = FactionsWithAccess(authorizedPlayer, AccessRole.SystemKnowledge);
                 foreach (int factionId in factions)
                 {
-                    var faction = entity.Manager.Game.Factions[factionId];
+                    var faction = entity.AttachedManager.Game.Factions[factionId];
                     var factionInfoDB = faction.GetDataBlob<FactionInfoDB>();
                     foreach (var knownSystem in factionInfoDB.KnownSystems)
                     {
-                        if (knownSystem == entity.Manager.ManagerID)
+                        if (knownSystem == entity.AttachedManager.ManagerID)
                         {
                             if (!dataBlobTypes.Contains(typeof(JumpPointDB)))
                             {

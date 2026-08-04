@@ -19,7 +19,7 @@ namespace Pulsar4X.Engine
 
         public Type GetParameterType => typeof(OrderableDB);
 
-        private Game _game;
+        private Game? _game;
 
         public void Init(Game game)
         {
@@ -46,14 +46,14 @@ namespace Pulsar4X.Engine
 
         internal override void ProcessEntity(Entity entity, DateTime atDateTime)
         {
-            if(entity.TryGetDataBlob<OrderableDB>(out var orderableDB))
+            if (entity.TryGetDataBlob<OrderableDB>(out var orderableDB))
             {
                 bool hadIssued = orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued);
                 int mask = 0;
 
                 // Snapshot — Execute may insert/remove orders (e.g. Refuel follow-ups).
                 var commands = orderableDB.ActionList.ToList();
-                foreach(var entityCommand in commands)
+                foreach (var entityCommand in commands)
                 {
                     if (!orderableDB.ActionList.Contains(entityCommand))
                         continue;
@@ -66,13 +66,13 @@ namespace Pulsar4X.Engine
                         }
                         if (atDateTime >= entityCommand.ActionOnDate)
                         {
-                            if(entityCommand.PauseOnAction &! entityCommand.IsRunning)
+                            if (entityCommand.PauseOnAction & !entityCommand.IsRunning)
                             {
                                 var e = Event.Create(EventType.OrdersHalt,
                                                         atDateTime,
                                                         "",
                                                         entityCommand.RequestingFactionGuid,
-                                                        entityCommand.EntityCommanding.Manager.ManagerID,
+                                                        entityCommand.EntityCommanding.AttachedManager.ManagerID,
                                                         entityCommand.EntityCommandingGuid);
                                 EventManager.Instance.Publish(e);
                             }

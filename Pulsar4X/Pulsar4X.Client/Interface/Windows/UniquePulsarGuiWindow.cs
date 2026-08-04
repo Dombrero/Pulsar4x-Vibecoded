@@ -16,13 +16,12 @@ namespace Pulsar4X.Client
 
         protected UniquePulsarGuiWindow(string name)
         {
-            int x = 1;
             // _uiState.LoadedWindows[this.GetType()] = this;
         }
 
         public void SetActive(bool ActiveVal = true)
         {
-            if(CanActive)
+            if (CanActive)
                 IsActive = ActiveVal;
             else
                 IsActive = false;
@@ -31,7 +30,7 @@ namespace Pulsar4X.Client
 
         public void ToggleActive()
         {
-            if(CanActive)
+            if (CanActive)
                 IsActive = !IsActive;
             else
                 IsActive = false;
@@ -72,6 +71,6 @@ namespace Pulsar4X.Client
     public abstract class UniquePulsarGuiWindow<T> : UniquePulsarGuiWindow
     {
         protected UniquePulsarGuiWindow() : base(typeof(T).FullName ?? typeof(T).Name)
-        {}
+        { }
     }
 }

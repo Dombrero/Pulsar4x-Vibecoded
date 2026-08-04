@@ -8,7 +8,7 @@ public class EventManager
     private static readonly EventManager instance = new EventManager();
 
     private Dictionary<EventType, Action<Event>> _subscribers = new();
-    private EventManager() {}
+    private EventManager() { }
 
     public static EventManager Instance => instance;
 
@@ -19,7 +19,7 @@ public class EventManager
 
     public void Subscribe(EventType eventType, Action<Event> subscriber)
     {
-        if(!_subscribers.ContainsKey(eventType))
+        if (!_subscribers.ContainsKey(eventType))
         {
             _subscribers[eventType] = subscriber;
         }
@@ -31,17 +31,21 @@ public class EventManager
 
     public void Unsubscribe(EventType eventType, Action<Event> subscriber)
     {
-        if(_subscribers.ContainsKey(eventType))
+        if (_subscribers.ContainsKey(eventType))
         {
-            _subscribers[eventType] -= subscriber;
+            var updated = _subscribers[eventType] - subscriber;
+            if (updated is null)
+                _subscribers.Remove(eventType);
+            else
+                _subscribers[eventType] = updated;
         }
     }
 
     public void Publish(Event e)
     {
-        foreach(var (eventType, subscriber) in _subscribers)
+        foreach (var (eventType, subscriber) in _subscribers)
         {
-            if((e.EventType & eventType) != 0)
+            if ((e.EventType & eventType) != 0)
             {
                 subscriber?.Invoke(e);
             }

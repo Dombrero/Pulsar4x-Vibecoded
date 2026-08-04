@@ -24,7 +24,7 @@ namespace Pulsar4X.Client
         public byte Blu = 0;
         byte alpha = 100;
         //SDL.SDL_Point[] _drawPoints = new SDL.SDL_Point[2];
-        private Vector2[] _bezierCurve = null!;
+        private Vector2[] _bezierCurve = Array.Empty<Vector2>();
         SDL.FPoint[] _bezierDrawPoints = new SDL.FPoint[10];
         public WarpMovingIcon(Pulsar4X.Api.WarpMovingView warp, IPosition position,
             IPosition? targetParentPosition) : base(new Vector3())
@@ -40,7 +40,7 @@ namespace Pulsar4X.Client
         public override void OnPhysicsUpdate()
         {
             _currentPosition = _positionDB.AbsolutePosition;
-            if(_targetParentPos != null)
+            if (_targetParentPos != null)
                 _currentRelativeEndPoint = _targetParentPos.AbsolutePosition + _relativeEndPoint;
 
             Vector2 spos = (Vector2)_currentPosition;
@@ -52,12 +52,12 @@ namespace Pulsar4X.Client
             var spMult = range * 0.75;
             var epMult = range * 0.25;
             _bzsp = new Vector2(spos.X, spos.Y);
-            _bzsp2 = spos -  Angle.PositionFromAngle(ang, spMult);
-            _bzep2 = rpos +  Angle.PositionFromAngle(ang, epMult);
+            _bzsp2 = spos - Angle.PositionFromAngle(ang, spMult);
+            _bzep2 = rpos + Angle.PositionFromAngle(ang, epMult);
             _bzep = new Vector2(rpos.X, rpos.Y);
 
             _bezierCurve = CreatePrimitiveShapes.BezierPoints(_bzsp, _bzsp2, _bzep2, _bzep, 0.025f);
-            if(_bezierDrawPoints.Length != _bezierCurve.Length)
+            if (_bezierDrawPoints.Length != _bezierCurve.Length)
                 _bezierDrawPoints = new SDL.FPoint[_bezierCurve.Length];
 
         }
@@ -81,7 +81,7 @@ namespace Pulsar4X.Client
             for (int index = 0; index < _bezierCurve.Length; index++)
             {
                 var pos = camera.ViewCoordinateV2_m(_bezierCurve[index]);
-                _bezierDrawPoints[index] = new SDL.FPoint(){ X = Convert.ToInt32(pos.X), Y = Convert.ToInt32(pos.Y)};
+                _bezierDrawPoints[index] = new SDL.FPoint() { X = Convert.ToInt32(pos.X), Y = Convert.ToInt32(pos.Y) };
             }
         }
 
@@ -89,14 +89,14 @@ namespace Pulsar4X.Client
         public override void Draw(IntPtr rendererPtr, Camera camera)
         {
 
-                SDL.SetRenderDrawColor(rendererPtr, Red, Grn, Blu, alpha);
-                //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[1].x, _drawPoints[1].y);
-                //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[2].x, _drawPoints[2].y);
+            SDL.SetRenderDrawColor(rendererPtr, Red, Grn, Blu, alpha);
+            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[1].x, _drawPoints[1].y);
+            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[2].x, _drawPoints[2].y);
 
 
-                SDL.RenderLines(rendererPtr, _bezierDrawPoints, _bezierDrawPoints.Length );
-                int lp = _bezierDrawPoints.Length -1;
-                //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[2].x, _drawPoints[2].y, _bezierDrawPoints[lp].x, _bezierDrawPoints[lp].y);
+            SDL.RenderLines(rendererPtr, _bezierDrawPoints, _bezierDrawPoints.Length);
+            int lp = _bezierDrawPoints.Length - 1;
+            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[2].x, _drawPoints[2].y, _bezierDrawPoints[lp].x, _bezierDrawPoints[lp].y);
 
         }
     }

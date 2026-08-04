@@ -13,7 +13,7 @@ public class NewtonSimpleCommand : EntityCommand
 {
     public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement;
     public override bool IsBlocking => true;
-    public override string Name { get {return _name;}}
+    public override string Name { get { return _name; } }
 
     string _name = "Newtonion Simple thrust";
 
@@ -26,20 +26,17 @@ public class NewtonSimpleCommand : EntityCommand
     }
     string _details = "";
 
-    Entity _factionEntity;
-    Entity _entityCommanding;
+    Entity _factionEntity = Entity.InvalidEntity;
+    Entity _entityCommanding = Entity.InvalidEntity;
     internal override Entity EntityCommanding { get { return _entityCommanding; } }
     public Vector3 OrbitrelativeDeltaV;
     public KeplerElements StartKE;
     public KeplerElements TargetKE;
-
     NewtonSimpleMoveDB _db;
-
-    DateTime _vectorDateTime;
 
     public List<(string item, double value)> DebugDetails = new List<(string, double)>();
 
-    public static void CreateCommand(int faction, Entity orderEntity, Vector3 position, Vector3 startvelocity, Vector3 endvelocity, DateTime manuverNodeTime, string name="Newtonion thrust")
+    public static void CreateCommand(int faction, Entity orderEntity, Vector3 position, Vector3 startvelocity, Vector3 endvelocity, DateTime manuverNodeTime, string name = "Newtonion thrust")
     {
         var sgp = orderEntity.GetDataBlob<OrbitDB>().GravitationalParameter_m3S2;
         KeplerElements startKE = OrbitMath.KeplerFromPositionAndVelocity(sgp, position, startvelocity, manuverNodeTime);
@@ -47,7 +44,7 @@ public class NewtonSimpleCommand : EntityCommand
         CreateCommand(faction, orderEntity, manuverNodeTime, startKE, tgtKE);
     }
 
-    public static void CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, KeplerElements startKE, KeplerElements finKE, string name="Newtonion Simple thrust")
+    public static void CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, KeplerElements startKE, KeplerElements finKE, string name = "Newtonion Simple thrust")
     {
 
         var startVec = OrbitalMath.GetStateVectors(startKE, manuverNodeTime);
@@ -63,11 +60,10 @@ public class NewtonSimpleCommand : EntityCommand
             RequestingFactionGuid = faction,
             EntityCommandingGuid = orderEntity.Id,
             _entityCommanding = orderEntity,
-            CreatedDate = orderEntity.Manager.ManagerSubpulses.StarSysDateTime,
+            CreatedDate = orderEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             OrbitrelativeDeltaV = new Vector3(manuverVector.X, manuverVector.Y, 0),
             StartKE = startKE,
             TargetKE = finKE,
-            _vectorDateTime = manuverNodeTime,
             ActionOnDate = manuverNodeTime,
             _name = name,
 
@@ -84,7 +80,7 @@ public class NewtonSimpleCommand : EntityCommand
         {
             var parent = _entityCommanding.GetSOIParentEntity();
 
-            if(parent == null) throw new NullReferenceException("parent cannot be null");
+            if (!parent.IsValid) throw new NullReferenceException("parent cannot be null");
 
             // var currentVel = _entityCommanding.GetRelativeFutureVelocity(atDateTime);
 
@@ -105,10 +101,10 @@ public class NewtonSimpleCommand : EntityCommand
 
     public override void UpdateDetailString()
     {
-        if(ActionOnDate > _entityCommanding.StarSysDateTime)
+        if (ActionOnDate > _entityCommanding.StarSysDateTime)
             _details = "Waiting " + (ActionOnDate - _entityCommanding.StarSysDateTime).ToString("d'd 'h'h 'm'm 's's'") + "\n"
                        + "   to expend  " + Stringify.Velocity(OrbitrelativeDeltaV.Length()) + " Δv";
-        else if(IsRunning)
+        else if (IsRunning)
             _details = "Manuvering ";
     }
 
