@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+using ImGuiNET;
 using SDL3;
 using System;
 using System.Diagnostics;
@@ -209,6 +209,9 @@ namespace Pulsar4X.Client
 
             while (SDL.PollEvent(out var ev))
             {
+                if (TryConsumeEventBeforeImGui(ev))
+                    continue;
+
                 PlatformBackend.ProcessEvent(ev);
 
                 switch ((SDL.EventType)ev.Type)
@@ -227,6 +230,9 @@ namespace Pulsar4X.Client
         }
 
         public virtual void HandleEvent(SDL.Event ev) { }
+
+        /// <summary>When true, the event is not passed to ImGui (game-level shortcuts).</summary>
+        protected virtual bool TryConsumeEventBeforeImGui(SDL.Event ev) => false;
 
         public virtual void Update() { }
 

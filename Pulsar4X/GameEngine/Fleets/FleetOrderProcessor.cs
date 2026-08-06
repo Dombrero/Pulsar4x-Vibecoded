@@ -96,8 +96,12 @@ namespace Pulsar4X.Fleets
             if (fleet == null || !fleet.TryGetDataBlob<OrderableDB>(out var orderableDB))
                 return;
 
+            FleetFlagshipSync.TryResolveFlagship(fleet, fleetDB, out _);
+
             DateTime gameTime = fleet.StarSysDateTime;
             string fleetName = FleetLabel(fleet);
+
+            FleetStandingSystemSync.OnFlagshipSystemChanged(fleet, fleetDB);
 
             // Issue Orders outrank Standing.
             if (orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued))
@@ -264,7 +268,18 @@ namespace Pulsar4X.Fleets
                     fleetDB.StandingSuppressUntil = gameTime + TimeSpan.FromDays(1);
                 }
 
-                DebugTraceLog.Info("Standing",
+                bool staleCounts = anomalies < 0 || geo < 0;
+                if (staleCounts)
+                {
+                    fleetDB.StandingSuppressUntil = gameTime + TimeSpan.FromDays(1);
+                    DebugTraceLog.Warn("Standing",
+                        $"{fleetName}: idle — flagship system unresolved (anomalies={anomalies}, geo={geo}); " +
+                        "standing suppressed 1 day — check FlagShipID after jump",
+                        gameTime);
+                    return;
+                }
+
+                DebugTraceLog.Trace("Standing",
                     $"{fleetName}: idle — no ENTER match (fuel={fuelPct:0.#}%, " +
                     $"unsurveyed anomalies={anomalies}, geo={geo}, orders={fleetDB.StandingOrders.Count}" +
                     (string.IsNullOrEmpty(fleetDB.StandingStatusMessage)
@@ -765,7 +780,8 @@ namespace Pulsar4X.Fleets
             => cmd is RefuelAction
                || cmd is RefuelWhenAtColonyOrder
                || cmd is WarpFleetTowardsTargetOrder
-               || cmd is MoveToNearestColonyAction;
+               || cmd is MoveToNearestColonyAction
+               || cmd is JumpOrder;
 
         private static bool IsRechargeFleetOrder(EntityCommand cmd)
             => cmd is RechargeEnergyAction

@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pulsar4X.Api;
+using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Fleets;
+using Pulsar4X.Messaging;
 using Pulsar4X.Movement;
+using Pulsar4X.Orbits;
 using Pulsar4X.Ships;
 
 namespace Pulsar4X.JumpPoints;
@@ -48,10 +52,12 @@ public class JumpOrder : EntityCommand
     {
         if (IsRunning) return;
         if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-        if (!JumpGate.OwningEntity.IsValid) return;
+        if (JumpGate == null || !JumpGate.OwningEntity.IsValid) return;
 
         var gateEntity = JumpGate.OwningEntity;
-        var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
+        var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
+
+        IsRunning = true;
 
         foreach (var ship in ships)
         {
@@ -59,9 +65,10 @@ public class JumpOrder : EntityCommand
             var shipParent = ship.GetDataBlob<PositionDB>().Parent;
             if (shipParent != gateEntity)
             {
-                if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
+                if (!ship.HasDataBlob<WarpAbilityDB>())
+                    continue;
 
-                var warpCmd = WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
+                var warpCmd = Movement.WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
                 ship.AttachedManager.Game.OrderHandler.HandleOrder(warpCmd);
             }
 
@@ -71,31 +78,127 @@ public class JumpOrder : EntityCommand
             _shipJumpCommands.Add(jumpCmd);
         }
 
-        IsRunning = true;
+        if (_shipJumpCommands.Count == 0)
+        {
+            DebugTraceLog.Warn("Jump",
+                $"fleet#{_entityCommanding.Id}: jump issued but no ship received a transit command (no warp / not at gate)",
+                atDateTime);
+        }
     }
 
     internal override bool IsFinished()
     {
+        if (_isFinished)
+            return true;
+
         if (!IsRunning)
-            return _isFinished = false;
+            return false;
+
+        if (!AllShipJumpWorkComplete())
+            return false;
+
+        CompleteFleetJump();
+        return _isFinished;
+    }
+
+    private bool AllShipJumpWorkComplete()
+    {
+        if (!TryGetDestinationGate(out var destinationEntity))
+            return _shipJumpCommands.All(c => c.IsFinished());
+
+        var destManager = destinationEntity.AttachedManager;
 
         foreach (var cmd in _shipJumpCommands)
         {
-            if (!cmd.IsFinished())
-                return _isFinished = false;
+            if (cmd.IsFinished())
+                continue;
+
+            if (cmd.EntityCommanding.IsValid && cmd.EntityCommanding.AttachedManager == destManager)
+                continue;
+
+            return false;
         }
 
-        // All ships have jumped — transfer the fleet entity to the destination system
-        if (!_isFinished)
+        return true;
+    }
+
+    private void CompleteFleetJump()
+    {
+        if (_isFinished)
+            return;
+
+        if (!TryGetDestinationGate(out var destinationEntity))
         {
-            if (JumpGate.OwningEntity.AttachedManager.TryGetGlobalEntityById(JumpGate.DestinationId, out var destinationEntity))
-            {
-                destinationEntity.AttachedManager.Transfer(_entityCommanding);
-            }
             _isFinished = true;
+            return;
         }
 
-        return _isFinished;
+        JumpTransitDiscovery.EnsureDestinationKnown(_entityCommanding, destinationEntity, _entityCommanding.StarSysDateTime);
+
+        var destManager = destinationEntity.AttachedManager;
+        var destPos = destinationEntity.GetDataBlob<PositionDB>();
+
+        if (_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+        {
+            foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList())
+            {
+                if (ship.AttachedManager == destManager)
+                    continue;
+
+                ShipJumpCommand.ClearMovementState(ship);
+                destManager.Transfer(ship);
+                var positionDB = ship.GetDataBlob<PositionDB>();
+                positionDB.AbsolutePosition = destPos.AbsolutePosition;
+                positionDB.SetParent(destinationEntity);
+                positionDB.MoveType = PositionDB.MoveTypes.None;
+            }
+        }
+
+        if (_entityCommanding.AttachedManager != destManager)
+        {
+            destManager.Transfer(_entityCommanding);
+            if (_entityCommanding.TryGetDataBlob<FleetDB>(out fleetDB))
+            {
+                FleetFlagshipSync.TryResolveFlagship(_entityCommanding, fleetDB, out _);
+                FleetStandingSystemSync.OnFlagshipSystemChanged(_entityCommanding, fleetDB);
+            }
+        }
+        else if (_entityCommanding.TryGetDataBlob<FleetDB>(out fleetDB))
+        {
+            FleetFlagshipSync.TryResolveFlagship(_entityCommanding, fleetDB, out _);
+        }
+
+        var game = _entityCommanding.AttachedManager?.Game;
+        if (game != null && game.Factions.TryGetValue(_entityCommanding.FactionOwnerID, out var factionEntity))
+            FleetHierarchy.EnsureFleetRegistered(factionEntity, _entityCommanding);
+
+        DebugTraceLog.Info("Jump",
+            $"fleet#{_entityCommanding.Id}: jump complete → system {destManager.ManagerID}",
+            _entityCommanding.StarSysDateTime);
+
+        PublishOrdersChanged(_entityCommanding);
+        _ = MessagePublisher.Instance.Publish(Message.Create(
+            MessageTypes.FleetReorganized,
+            factionId: _entityCommanding.FactionOwnerID));
+        _isFinished = true;
+    }
+
+    private bool TryGetDestinationGate(out Entity destinationEntity)
+    {
+        destinationEntity = Entity.InvalidEntity;
+        if (JumpGate == null || !JumpGate.OwningEntity.IsValid)
+            return false;
+
+        return JumpGate.OwningEntity.AttachedManager.TryGetGlobalEntityById(JumpGate.DestinationId, out destinationEntity);
+    }
+
+    private static void PublishOrdersChanged(Entity fleet)
+    {
+        _ = MessagePublisher.Instance.Publish(Message.Create(
+            MessageTypes.OrdersChanged,
+            entityId: fleet.Id,
+            systemId: fleet.AttachedManager.ManagerID,
+            factionId: fleet.FactionOwnerID));
     }
 
     internal override bool IsValidCommand(Game game)
@@ -150,18 +253,63 @@ public class ShipJumpCommand : EntityCommand
 
         if (_entityCommanding.AttachedManager.TryGetGlobalEntityById(_jumpGate.DestinationId, out var destinationEntity))
         {
+            JumpTransitDiscovery.EnsureDestinationKnown(_entityCommanding, destinationEntity, atDateTime);
+
             var destinationPositionDB = destinationEntity.GetDataBlob<PositionDB>();
 
-            // Transfer this ship to the destination system
+            ClearMovementState(_entityCommanding);
+
             destinationEntity.AttachedManager.Transfer(_entityCommanding);
 
-            // Update position to the destination gate
             var positionDB = _entityCommanding.GetDataBlob<PositionDB>();
             positionDB.AbsolutePosition = destinationPositionDB.AbsolutePosition;
             positionDB.SetParent(destinationEntity);
+            positionDB.MoveType = PositionDB.MoveTypes.None;
         }
 
         _isFinished = true;
+        RefreshOwningFleetJumpOrder(atDateTime);
+    }
+
+    internal static void ClearMovementState(Entity ship)
+    {
+        if (ship.HasDataBlob<OrbitDB>())
+            ship.RemoveDataBlob<OrbitDB>();
+        if (ship.HasDataBlob<OrbitUpdateOftenDB>())
+            ship.RemoveDataBlob<OrbitUpdateOftenDB>();
+        if (ship.HasDataBlob<WarpMovingDB>())
+            ship.RemoveDataBlob<WarpMovingDB>();
+        if (ship.HasDataBlob<NewtonMoveDB>())
+            ship.RemoveDataBlob<NewtonMoveDB>();
+        if (ship.HasDataBlob<NewtonSimpleMoveDB>())
+            ship.RemoveDataBlob<NewtonSimpleMoveDB>();
+    }
+
+    /// <summary>
+    /// Fleet jump completion is driven by per-ship transits; poke the fleet processor so
+    /// the issued Jump order is removed as soon as the last ship arrives (not only on the
+    /// next fleet hotloop tick in the old system).
+    /// </summary>
+    private void RefreshOwningFleetJumpOrder(DateTime atDateTime)
+    {
+        var game = _entityCommanding.AttachedManager?.Game;
+        if (game == null)
+            return;
+
+        var fleet = FleetLookup.FindFleetContainingShip(game, _entityCommanding.Id);
+        if (!fleet.IsValid || !fleet.TryGetDataBlob<OrderableDB>(out _))
+            return;
+
+        try
+        {
+            game.ProcessorManager
+                .GetInstanceProcessor(nameof(OrderableProcessor))
+                .ProcessEntity(fleet, atDateTime);
+        }
+        catch
+        {
+            // Fleet cleanup will run on the next OrderableProcessor pass.
+        }
     }
 
     internal override bool IsFinished()

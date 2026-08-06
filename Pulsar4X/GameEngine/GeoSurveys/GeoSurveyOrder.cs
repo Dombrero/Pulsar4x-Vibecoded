@@ -86,6 +86,16 @@ public class GeoSurveyOrder : EntityCommand
         if (TargetGeoSurveyDB == null || IsFinished())
             return;
 
+        if (Target.IsValid
+            && UnsurveyedGeoCondition.TryGetFlagshipSystem(_entityCommanding, out var flagshipSystem)
+            && Target.AttachedManager.ManagerID != flagshipSystem.ManagerID)
+        {
+            ClearSurveyingBlobs();
+            IsRunning = true;
+            _isFinished = true;
+            return;
+        }
+
         IsRunning = true;
 
         if (!IsAtTarget())

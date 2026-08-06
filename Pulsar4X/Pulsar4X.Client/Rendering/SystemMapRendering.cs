@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Concurrent;
 using Pulsar4X.Api;
 using Pulsar4X.Client.BodyVisuals;
+using Pulsar4X.Input;
 using Pulsar4X.Orbital;
 using SDL3;
 
@@ -213,9 +214,11 @@ namespace Pulsar4X.Client.Rendering
             var l = new EntityLabelExtCombo(_state, entity, _systemId!);
             l.Padding = 3;
 
-            _interactable.TryAdd(
-                    entity.Id,
-                    new[] { new InteractableState(l) });
+            var interactables = new List<InteractableState> { new(l) };
+            if (icon is IInteractable interactable)
+                interactables.Add(new InteractableState(interactable));
+
+            _interactable.TryAdd(entity.Id, interactables.ToArray());
             _entityIcons.TryAdd(entity.Id, icon);
             _allLabels.Add(l);
         }
@@ -407,9 +410,8 @@ namespace Pulsar4X.Client.Rendering
 
             SyncIcons();
 
-            // The galaxy clock only moves on server pushes; re-run the physics pass (orbit tail
-            // indexes, warp curves) when it does.
-            var galaxyTime = _state.GameClient?.Galaxy.Time.GameDateTime;
+            // The galaxy clock only moves on server pushes; re-run the physics pass when it does.
+            var galaxyTime = _state.GameClient?.Galaxy.Time?.GameDateTime;
             if (galaxyTime is { } time && time != _lastPhysicsTime)
             {
                 _lastPhysicsTime = time;
@@ -463,6 +465,20 @@ namespace Pulsar4X.Client.Rendering
                     foreach (var j in states)
                         j.IsDisabled = false;
                     _visibleLabels.Add(i);
+                }
+
+                // Ship sprites stay clickable even when name labels are culled by zoom / prefs.
+                foreach (var (entityId, icon) in _entityIcons)
+                {
+                    if (icon is not ShipIcon)
+                        continue;
+                    if (!_interactable.TryGetValue(entityId, out var states))
+                        continue;
+                    foreach (var j in states)
+                    {
+                        if (j.Item is ShipIcon)
+                            j.IsDisabled = false;
+                    }
                 }
 
                 _interactableGrouped = _interactable

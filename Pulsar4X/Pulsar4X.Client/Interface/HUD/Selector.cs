@@ -366,9 +366,10 @@ namespace Pulsar4X.Client
             if (galaxy == null) return;
 
             foreach (var fleet in galaxy.Fleets)
-            {
                 DisplayFleetNode(fleet, 0);
-            }
+
+            foreach (var ship in galaxy.UnattachedShips.OrderBy(s => s.Name))
+                DisplayShipNode(ship, 0, isFlagship: false);
         }
 
         private static void DisplayFleetNode(FleetSnapshot fleet, int depth)

@@ -237,7 +237,7 @@ public static class ModDataInspector
                 ImGui.NextColumn();
             }
 
-            ImGui.Columns(0);
+            ImGui.Columns(1);
             ImGui.EndChild();
         }
 

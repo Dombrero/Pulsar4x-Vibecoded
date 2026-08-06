@@ -135,6 +135,7 @@ namespace Pulsar4X.Client
                 }
                 if (selectedColony.GetView<ColonyPowerView>() is { } power && ImGui.BeginTabItem("Energy"))
                 {
+                    TutorialHighlight.ReportItem(TutorialHighlightRegion.ColonyTabEnergy);
                     _energyDisplay ??= new ColonyEnergyDisplay();
                     _energyDisplay.Display(power);
                     ImGui.EndTabItem();

@@ -38,6 +38,22 @@ namespace Pulsar4X.Fleets
         [JsonProperty]
         public string? StandingStatusMessage { get; set; }
 
+        /// <summary>
+        /// Last star system id the flagship occupied when standing orders were evaluated.
+        /// Used to detect jumps and clear stale suppress / cross-system survey queues.
+        /// </summary>
+        [JsonProperty]
+        public string? StandingLastFlagshipSystemId { get; set; }
+
+        /// <summary>
+        /// Star system where the fleet last refuelled (for cross-system return when local stores are missing).
+        /// </summary>
+        [JsonProperty]
+        public string? LastRefuelSystemId { get; set; }
+
+        [JsonProperty]
+        public int LastRefuelColonyId { get; set; } = -1;
+
         public FleetDB() : base(null) { }
 
         public override object Clone()

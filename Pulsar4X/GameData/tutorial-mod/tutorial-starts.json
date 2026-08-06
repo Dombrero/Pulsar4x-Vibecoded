@@ -4,42 +4,42 @@
     "Payload": {
       "UniqueID": "tutorial-start-guided-economy",
       "Name": "Tutorial Start - Guided Economy",
-      "StartingPopulation": 8200000000,
+      "StartingPopulation": 8.2E9,
       "Installations": [
         { "Id": "default-design-infrastructure", "Amount": 100 },
-        { "Id": "default-design-passive-sensor", "Amount": 1 },
-        { "Id": "default-design-mine", "Amount": 2 },
-        { "Id": "default-design-warehouse", "Amount": 2 },
-        { "Id": "default-design-spaceport", "Amount": 1 },
+        { "Id": "default-design-mine", "Amount": 1 },
+        { "Id": "default-design-warehouse", "Amount": 1 },
         { "Id": "default-design-fuel-farm-5000k", "Amount": 1 },
-        { "Id": "default-design-refinery", "Amount": 2 },
-        { "Id": "default-design-factory", "Amount": 3 },
+        { "Id": "default-design-passive-sensor", "Amount": 1 },
+        { "Id": "default-design-refinery", "Amount": 1 },
+        { "Id": "default-design-factory", "Amount": 1 },
         { "Id": "default-design-shipyard", "Amount": 1 },
+        { "Id": "default-design-spaceport", "Amount": 1 },
         { "Id": "default-design-research-lab", "Amount": 2 },
-        { "Id": "default-design-city-hall", "Amount": 1 },
+        { "id": "default-design-city-hall", "amount": 1 },
         { "Id": "default-design-local-construction", "Amount": 1 },
         { "Id": "default-design-launch-complex", "Amount": 1 },
         { "Id": "default-design-coal-plant", "Amount": 1 },
         { "Id": "default-design-colony-battery", "Amount": 1 }
       ],
       "Cargo": [
-        { "Id": "iron", "Amount": 1000000 },
-        { "Id": "hydrocarbons", "Amount": 100000 },
-        { "Id": "stainless-steel", "Amount": 250000 },
-        { "Id": "chromium", "Amount": 100000 },
-        { "Id": "fissionables", "Amount": 100000 },
-        { "Id": "copper", "Amount": 100000 },
-        { "Id": "aluminium", "Amount": 100000 },
-        { "Id": "lithium", "Amount": 100000 },
-        { "Id": "titanium", "Amount": 100000 },
-        { "Id": "silicon", "Amount": 10000 },
-        { "Id": "graphite", "Amount": 10000 },
-        { "Id": "tungsten", "Amount": 10000 },
-        { "Id": "nickel", "Amount": 10000 },
-        { "Id": "default-design-merlin", "Amount": 10, "Type": "byCount" },
-        { "Id": "rp-1", "Amount": 75000000, "Type": "byCount" },
-        { "Id": "methalox", "Amount": 25000, "Type": "byCount" },
-        { "Id": "hydrolox", "Amount": 25000, "Type": "byCount" }
+        { "Id": "iron", "Amount": 500000 },
+        { "Id": "hydrocarbons", "Amount": 50000 },
+        { "Id": "stainless-steel", "Amount": 100000 },
+        { "Id": "chromium", "Amount": 50000 },
+        { "Id": "fissionables", "Amount": 50000 },
+        { "Id": "copper", "Amount": 50000 },
+        { "Id": "aluminium", "Amount": 50000 },
+        { "Id": "lithium", "Amount": 50000 },
+        { "Id": "titanium", "Amount": 50000 },
+        { "Id": "silicon", "Amount": 5000 },
+        { "Id": "graphite", "Amount": 5000 },
+        { "Id": "tungsten", "Amount": 5000 },
+        { "Id": "nickel", "Amount": 5000 },
+        { "Id": "default-design-merlin", "Amount": 5, "Type": "byCount" },
+        { "Id": "rp-1", "Amount": 50000000, "Type": "byCount" },
+        { "Id": "methalox", "Amount": 10000, "Type": "byCount" },
+        { "Id": "hydrolox", "Amount": 10000, "Type": "byCount" }
       ],
       "StartingItems": [
         "tech-modern-technology",
@@ -60,6 +60,7 @@
         "beam-fire-control",
         "reactor",
         "battery-bank",
+        "colony-battery-bank",
         "rtg",
         "steam-turbine-reactor",
         "conventional-engine",
@@ -78,6 +79,7 @@
         "general-cargo-hold",
         "fuel-cargo-hold",
         "stainless-steel-fuel-tank",
+        "colony-fuel-storage",
         "infrastructure",
         "stainless-steel",
         "rp-1",
@@ -166,30 +168,54 @@
         "default-ship-design-sensorsat"
       ],
       "LaunchQueue": [
-        { "DesignId": "default-ship-design-courier", "Name": "ISS Hermes Tutorial" }
+        { "DesignId": "default-ship-design-courier", "Name": "ISS Hermes" }
       ],
       "Fleets": [
         {
-          "Name": "Tutorial Logistics Fleet",
+          "Name": "Freight Fleet",
           "Ships": [
             {
               "DesignId": "default-ship-design-freighter",
-              "Name": "Tutorial Freighter",
+              "Name": "Planet Express Ship",
               "Cargo": [
-                { "Id": "methalox", "Amount": 20000000, "Type": "byVolume" }
+                { "Id": "methalox", "Amount": 20000000, "Type": "byVolume" },
+                { "Id": "default-design-auto-mine", "Amount": 1, "Type": "byCount" }
               ]
             }
           ]
         },
         {
-          "Name": "Tutorial Survey Fleet",
+          "Name": "Military Fleet",
+          "Ships": [
+            {
+              "DesignId": "default-ship-design-gunship",
+              "Name": "Serial Peacemaker",
+              "Cargo": [
+                { "Id": "ntp", "Amount": 20000000, "Type": "byVolume" }
+              ]
+            },
+            {
+              "DesignId": "default-ship-design-gunship",
+              "Name": "Prevailing Stillness",
+              "Cargo": [
+                { "Id": "ntp", "Amount": 20000000, "Type": "byVolume" }
+              ]
+            }
+          ]
+        },
+        {
+          "Name": "Science Fleet",
           "Ships": [
             {
               "DesignId": "default-ship-design-surveyor",
-              "Name": "Tutorial Surveyor I",
+              "Name": "Surveyor I",
               "Cargo": [
-                { "Id": "rp-1", "Amount": 3000 }
+                { "Id": "rp-1", "Amount": 20000000, "Type": "byVolume" }
               ]
+            },
+            {
+              "DesignId": "default-ship-design-sensorsat",
+              "Name": "SensorSat I"
             }
           ]
         }

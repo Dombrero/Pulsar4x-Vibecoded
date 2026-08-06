@@ -123,12 +123,32 @@ namespace Pulsar4X.Engine.Api
 
             foreach (var child in roots)
             {
-                if (child.HasDataBlob<FleetDB>())
-                    fleets.Add(ProjectFleet(child, factionId, visibleCache));
+                var node = ResolveLiveEntity(child);
+                if (!node.IsValid || node.Manager == null)
+                    continue;
+
+                if (node.HasDataBlob<FleetDB>())
+                    fleets.Add(ProjectFleet(node, factionId, visibleCache));
                 else
-                    unattached.Add(ProjectShip(child, factionId));
+                    unattached.Add(ProjectShip(node, factionId));
             }
             return (fleets, unattached);
+        }
+
+        /// <summary>
+        /// Command-tree nodes can briefly hold stale entity handles during cross-system transfer;
+        /// resolve by id so fleet pushes stay complete.
+        /// </summary>
+        private Entity ResolveLiveEntity(Entity entity)
+        {
+            if (entity.IsValid && entity.Manager != null)
+                return entity;
+
+            if (_game.GlobalManager.TryGetGlobalEntityById(entity.Id, out var live)
+                && live.IsValid && live.Manager != null)
+                return live;
+
+            return entity;
         }
 
         /// <summary>A display-ready game-log entry: the event-type name plus entity/faction names
@@ -1386,6 +1406,7 @@ namespace Pulsar4X.Engine.Api
 
         private FleetSnapshot ProjectFleet(Entity fleet, int factionId, Dictionary<string, HashSet<int>> visibleCache)
         {
+            fleet = ResolveLiveEntity(fleet);
             fleet.TryGetDataBlob<FleetDB>(out var fleetDB);
             int flagshipId = fleetDB?.FlagShipID ?? -1;
 
@@ -1395,19 +1416,28 @@ namespace Pulsar4X.Engine.Api
             {
                 foreach (var child in fleetDB.GetChildren())
                 {
-                    if (child.HasDataBlob<FleetDB>())
-                        subFleets.Add(ProjectFleet(child, factionId, visibleCache));
+                    var node = ResolveLiveEntity(child);
+                    if (!node.IsValid || node.Manager == null)
+                        continue;
+
+                    if (node.HasDataBlob<FleetDB>())
+                        subFleets.Add(ProjectFleet(node, factionId, visibleCache));
                     else
-                        ships.Add(ProjectShip(child, factionId));
+                        ships.Add(ProjectShip(node, factionId));
                 }
             }
 
             Entity? flagship = null;
-            if (flagshipId >= 0 && fleet.Manager != null)
+            if (fleetDB != null && FleetFlagshipSync.TryResolveFlagship(fleet, fleetDB, out var resolvedFlagship))
+                flagship = resolvedFlagship;
+            else if (flagshipId >= 0 && fleet.Manager != null)
                 fleet.AttachedManager.TryGetEntityById(flagshipId, out flagship);
 
-            // The fleet entity lives in its flagship's manager, so this is the fleet's current system.
-            var system = fleet.Manager as StarSystem;
+            StarSystem? system = null;
+            if (FleetFlagshipSync.TryGetFlagshipSystem(fleet, out var flagshipManager))
+                system = flagshipManager as StarSystem;
+            else
+                system = fleet.Manager as StarSystem;
 
             // Resolve what the flagship is orbiting to the nearest ancestor this faction can see
             // (skipping hidden entities such as un-surveyed anomalies).
@@ -1446,7 +1476,7 @@ namespace Pulsar4X.Engine.Api
                 FlagshipName = flagship?.GetName(factionId),
                 CommanderName = commander,
                 SystemId = system?.ID,
-                SystemName = system?.NameDB.GetName(factionId),
+                SystemName = system?.NameDB?.GetName(factionId),
                 OrbitingEntityId = orbiting?.Id,
                 OrbitingName = orbiting?.Name,
                 InheritOrders = fleetDB?.InheritOrders ?? false,

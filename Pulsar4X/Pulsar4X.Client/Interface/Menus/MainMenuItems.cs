@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ImGuiNET;
 using System.IO;
 using Pulsar4X.Client.Interface.Menus;
@@ -10,11 +10,13 @@ namespace Pulsar4X.Client
 {
     public class MainMenuItems : UniquePulsarGuiWindow<MainMenuItems>
     {
-
         bool _saveGame = false;
+        bool _showTutorialLanguagePicker = false;
         System.Numerics.Vector2 _buttonSize = new System.Numerics.Vector2(400, 24);
         new ImGuiWindowFlags _flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar;
+
         private MainMenuItems() { }
+
         internal static MainMenuItems GetInstance()
         {
             if (_uiState.TryGetUniqueWindow<MainMenuItems>(out var window))
@@ -24,7 +26,6 @@ namespace Pulsar4X.Client
 
             return _uiState.AddUniqueWindow(new MainMenuItems());
         }
-
 
         internal override void Display()
         {
@@ -44,7 +45,6 @@ namespace Pulsar4X.Client
 
                 if (ImGui.Button("New Game...", _buttonSize) || _uiState.debugnewgame)
                 {
-                    //_uiState.NewGameOptions.IsActive = true;
                     var newgameoptions = NewGameMenu.GetInstance();
                     newgameoptions.SetActive(true);
                     this.IsActive = false;
@@ -54,18 +54,24 @@ namespace Pulsar4X.Client
                     if (NewGameMenu.TryQuickstartGame())
                         this.IsActive = false;
                 }
+                if (ImGui.Button("Tutorial", _buttonSize))
+                {
+                    _showTutorialLanguagePicker = true;
+                    ImGui.OpenPopup("Tutorial Language");
+                }
+
+                DisplayTutorialLanguagePopup();
+
                 if (_uiState.IsGameLoaded)
                 {
                     if (ImGui.Button("Save Game...", _buttonSize))
                     {
                         _saveGame = !_saveGame;
 
-                        // Set the save name equal to the corporation name by default (player can change it in the dialog)
                         string corpName = _uiState.GameClient?.Galaxy.Faction?.Name ?? "Unknown";
                         string dateTime = _uiState.SelectedSystemTime.ToString("yyyy-MM-dd_HH-mm-ss");
                         string unsanitizedName = $"{corpName} - {dateTime}";
 
-                        // Remove any invalid filename characters
                         char[] invalidChars = Path.GetInvalidFileNameChars();
                         string saveName = string.Join("_", unsanitizedName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
 
@@ -86,7 +92,6 @@ namespace Pulsar4X.Client
                         this.SetActive(false);
                     }
 
-                    // Host-registered dev tools that asked for a main-menu button (e.g. SM Mode).
                     foreach (var tool in _uiState.DevTools)
                     {
                         if (tool.Placement != DevToolPlacement.MainMenu)
@@ -115,7 +120,6 @@ namespace Pulsar4X.Client
                     SetActive(false);
                 }
 
-
                 if (ImageButton.Begin(_uiState.Img_Discord(), "Discord", new Vector2(16, 12), _buttonSize))
                 {
                     try
@@ -129,7 +133,6 @@ namespace Pulsar4X.Client
                     }
                     catch (Exception ex)
                     {
-                        // Handle any errors
                         Console.WriteLine($"Error opening URL: {ex.Message}");
                     }
                 }
@@ -142,6 +145,47 @@ namespace Pulsar4X.Client
 
             Window.End();
             ImGui.PopStyleVar();
+        }
+
+        private void DisplayTutorialLanguagePopup()
+        {
+            if (!_showTutorialLanguagePicker)
+                return;
+
+            ImGui.SetNextWindowSize(new Vector2(260, 0), ImGuiCond.Appearing);
+            if (ImGui.BeginPopupModal("Tutorial Language", ref _showTutorialLanguagePicker, ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.TextWrapped("Choose tutorial language / Sprache waehlen");
+                ImGui.Spacing();
+
+                if (ImGui.Button("Deutsch", new Vector2(220, 0)))
+                {
+                    StartTutorial(TutorialLanguage.German);
+                }
+                if (ImGui.Button("English", new Vector2(220, 0)))
+                {
+                    StartTutorial(TutorialLanguage.English);
+                }
+
+                ImGui.Spacing();
+                if (ImGui.Button("Cancel", new Vector2(220, 0)))
+                {
+                    _showTutorialLanguagePicker = false;
+                    ImGui.CloseCurrentPopup();
+                }
+
+                ImGui.EndPopup();
+            }
+        }
+
+        private void StartTutorial(TutorialLanguage language)
+        {
+            if (NewGameMenu.TryTutorialQuickstartGame(language))
+            {
+                _showTutorialLanguagePicker = false;
+                IsActive = false;
+                ImGui.CloseCurrentPopup();
+            }
         }
 
         private bool DoAnySavesExist()

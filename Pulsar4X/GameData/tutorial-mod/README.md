@@ -1,15 +1,17 @@
 # Tutorial Mod
 
-Dieses Verzeichnis ist das technische Zuhause fuer die spaetere Tutorial-Mod.
+Guided new-player start aligned with **Quickstart** (Sol / Earth, `colony-earth` equivalent data).
 
-Die erste Version enthaelt bewusst noch keine aggressiven Gameplay-Aenderungen.
-Der Fokus liegt zuerst auf:
+## Play
 
-- einem sauberen Tutorial-Skript
-- einem testbaren Anfaengerablauf
-- einer klaren spaeteren Erweiterungsbasis
+1. **Hauptmenü → „Tutorial (geführt)“** — lädt Basemod + Tutorial-Mod, startet wie Quickstart, öffnet das Tutorial-Fenster.
+2. Oder **New Game…** → Tutorial-Mod aktivieren → Startkolonie **Tutorial Start - Guided Economy** → Sol / Earth.
 
-Die eigentliche inhaltliche Fuehrung liegt aktuell in:
+## Inhalt
 
-- `TUTORIAL_MOD_DE.md`
-- `TUTORIAL_WALKTHROUGH_DE.md`
+- `tutorial-starts.json`: Kolonie-Blueprint (identisch zu Default Earth Start, inkl. Stromnetz, Flotten: Freight / Military / Science).
+- Ingame-Anleitung: Wirtschaft (Mining → Refinery → Construction, **Energy-Tab**), dann Survey, Standing Orders, Sprungpunkte/Galaxy, Military Fleet.
+
+## Dev
+
+Regression: `TutorialModStartTests` (Mod laden + `ColonyFactory.CreateFromBlueprint`).

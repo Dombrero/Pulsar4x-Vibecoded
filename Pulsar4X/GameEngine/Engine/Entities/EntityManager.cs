@@ -198,19 +198,10 @@ namespace Pulsar4X.Engine
 
         public void AddEntity(Entity entity, IEnumerable<BaseDataBlob>? dataBlobs = null)
         {
-            if (_entities.ContainsKey(entity.Id) || IdTakenGlobally(entity.Id))
+            if (_entities.ContainsKey(entity.Id)
+                || (IdTakenGlobally(entity.Id, out var existingGlobally) && !ReferenceEquals(existingGlobally, entity)))
             {
-                // ID generator out of sync with a loaded save — mint a free id instead of aborting spawn.
-                int newId;
-                do
-                {
-                    newId = EntityIDGenerator.GenerateUniqueID();
-                }
-                while (_entities.ContainsKey(newId) || IdTakenGlobally(newId));
-
-                DebugTraceLog.Warn("Engine",
-                    $"Entity ID {entity.Id} already in use; reassigned to {newId}.");
-                entity.ReassignId(newId);
+                ReassignEntityId(entity);
             }
 
             entity.Manager = this;
@@ -240,11 +231,29 @@ namespace Pulsar4X.Engine
                 ManagerID));
         }
 
-        private bool IdTakenGlobally(int id)
+        private bool IdTakenGlobally(int id, out Entity existing)
         {
+            existing = Entity.InvalidEntity;
             if (Game == null)
                 return false;
-            return Game.GlobalManager.TryGetGlobalEntityById(id, out _);
+            return Game.GlobalManager.TryGetGlobalEntityById(id, out existing);
+        }
+
+        private void ReassignEntityId(Entity entity)
+        {
+            // ID generator out of sync with a loaded save — mint a free id instead of aborting spawn.
+            int oldId = entity.Id;
+            int newId;
+            do
+            {
+                newId = EntityIDGenerator.GenerateUniqueID();
+            }
+            while (_entities.ContainsKey(newId) || IdTakenGlobally(newId, out _));
+
+            DebugTraceLog.Warn("Engine",
+                $"Entity ID {oldId} already in use; reassigned to {newId}.");
+            entity.ReassignId(newId);
+            Fleets.FleetFlagshipSync.OnEntityIdReassigned(Game!, oldId, newId);
         }
 
         public Entity CreateAndAddEntity(ProtoEntity protoEntity)

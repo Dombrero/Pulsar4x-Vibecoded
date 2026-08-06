@@ -1,7 +1,7 @@
 {
   "Author": "PCUser",
   "ModName": "Tutorial Mod",
-  "Version": "0.1.0",
+  "Version": "0.2.0",
   "Namespace": "pcuser.tutorial-mod",
   "DefaultEnabled": false,
   "DataFiles": [

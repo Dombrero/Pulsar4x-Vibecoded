@@ -12,6 +12,25 @@ namespace Pulsar4X.Fleets
     public static class FleetHierarchy
     {
         /// <summary>
+        /// Ensures a fleet entity stays linked under the faction command root after cross-system transfer.
+        /// </summary>
+        public static void EnsureFleetRegistered(Entity faction, Entity fleet)
+        {
+            if (!faction.TryGetDataBlob<FleetDB>(out var factionFleetDB))
+                return;
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return;
+
+            if (fleetDB.ParentDB?.OwningEntity != faction)
+                fleetDB.SetParent(faction);
+            else if (!factionFleetDB.Children.Contains(fleet))
+                factionFleetDB.AddChild(fleet);
+
+            _ = MessagePublisher.Instance.Publish(
+                Message.Create(MessageTypes.FleetReorganized, factionId: faction.Id));
+        }
+
+        /// <summary>
         /// Places a newly created ship under the faction root as an unattached ship and notifies
         /// listeners. Must be called <em>after</em> <see cref="EntityManager.AddEntity"/> — the
         /// EntityAdded message projects the fleet tree before membership is known, so without this

@@ -26,6 +26,9 @@ public interface IGameLifecycle
     /// <summary>Create a game instantly with default settings, bypassing the wizard.</summary>
     GameActivation? Quickstart();
 
+    /// <summary>Quickstart on Sol/Earth using the tutorial colony blueprint and opening the guide.</summary>
+    GameActivation? TutorialQuickstart();
+
     /// <summary>Load a saved game from disk and bring it up.</summary>
     GameActivation? LoadGame(string filePath);
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using ImGuiNET;
@@ -887,7 +887,7 @@ namespace Pulsar4X.Client
 
                     // }
                     //ImGui.Separator();
-                    //ImGui.Columns();
+                    ImGui.Columns(1);
                     ImGui.EndChild();
                 }
 

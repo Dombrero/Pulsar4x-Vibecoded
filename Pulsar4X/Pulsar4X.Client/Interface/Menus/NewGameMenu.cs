@@ -470,6 +470,20 @@ public class NewGameMenu : UniquePulsarGuiWindow<NewGameMenu>
         return true;
     }
 
+    /// <summary>Tutorial quickstart: Sol/Earth like Quickstart, tutorial colony blueprint, guide open.</summary>
+    public static bool TryTutorialQuickstartGame(TutorialLanguage language)
+    {
+        var activation = _uiState.Lifecycle?.TutorialQuickstart();
+        if (activation == null) return false;
+
+        _uiState.ActivateGameUI(activation);
+        var guide = TutorialGuideWindow.GetInstance();
+        guide.SetLanguage(language);
+        guide.ResetToFirstStep();
+        guide.SetActive(true);
+        return true;
+    }
+
     /// <summary>
     /// Creates a new game instantly with default settings, bypassing the wizard
     /// </summary>

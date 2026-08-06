@@ -297,7 +297,13 @@ namespace Pulsar4X.Engine
 
         internal void FastForwardTo(DateTime targetDateTime)
         {
-            _systemLocalDateTime = targetDateTime;
+            // Use the property setter so SystemDateChangedEvent fires — otherwise clients that
+            // received a stasis-era SystemSnapshot keep a frozen local clock after Jump/CatchUp.
+            if (targetDateTime < _systemLocalDateTime)
+                throw new Exception("Temproal Anomaly Exception. Cannot go back in time!");
+            if (targetDateTime != _systemLocalDateTime)
+                StarSysDateTime = targetDateTime;
+
             _processToDateTime = targetDateTime;
             _subStepDateTime = targetDateTime;
 
@@ -332,6 +338,9 @@ namespace Pulsar4X.Engine
             RequireManager().RemoveTaggedEntitys();
             while (StarSysDateTime < targetDateTime)
             {
+                if (_game!.TimePulse.SimulationCancelRequested)
+                    break;
+
                 Performance.BeingSubInterval();
                 //calculate max time the system can run/time to next interupt
                 //this should handle predicted events, ie econ, production, shipjumps, sensors etc.
@@ -401,6 +410,9 @@ namespace Pulsar4X.Engine
         {
             while (StarSysDateTime <= _processToDateTime)
             {
+                if (_game!.TimePulse.SimulationCancelRequested)
+                    break;
+
                 TimeSpan span = (_subStepDateTime - _systemLocalDateTime);
                 int deltaSeconds = (int)span.TotalSeconds;
 
@@ -452,6 +464,7 @@ namespace Pulsar4X.Engine
                     Performance.Stop(pn);
                 }
 
+                DateTime previousStep = StarSysDateTime;
                 StarSysDateTime = _subStepDateTime; //update the localDateTime and invoke the SystemDateChangedEvent
                 _subStepDateTime = GetNextInterupt(_processToDateTime - _subStepDateTime);
 
@@ -460,6 +473,11 @@ namespace Pulsar4X.Engine
 
                 //this lets us run through at least once.
                 if (StarSysDateTime == _processToDateTime)
+                    break;
+
+                // A processor that re-queues an interrupt at the current clock would otherwise
+                // spin forever and freeze MasterTimePulse (Play appears stuck / Pause never unlocks).
+                if (_subStepDateTime <= previousStep)
                     break;
             }
         }

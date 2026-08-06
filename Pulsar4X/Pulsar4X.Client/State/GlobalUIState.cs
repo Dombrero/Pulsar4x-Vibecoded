@@ -104,6 +104,7 @@ namespace Pulsar4X.Client
         internal string SelectedStarSystemId { get; private set; } = "";
         internal SystemMapRendering? SelectedSysMapRender => GalacticMap == null ? null : GalacticMap.SelectedSysMapRender;
         internal DateTime PrimarySystemDateTime;
+
         internal EntityContextMenu? ContextMenu { get; set; }
         /// <summary>When set, the next UI frame opens the entity context menu for this id.</summary>
         internal int? PendingContextMenuEntityId { get; set; }
@@ -472,9 +473,39 @@ namespace Pulsar4X.Client
         {
             if (envelope.Type == GameEventType.SystemRevealed && envelope.SystemId is { } systemId)
                 OnStarSystemAdded?.Invoke(this, systemId);
+
+            if (envelope.Type is GameEventType.FleetsChanged or GameEventType.EntityAdded or GameEventType.EntityRemoved)
+                TryFollowPrimaryEntityToItsSystem();
         }
 
-        internal void SetActiveSystem(string activeSysID, bool refresh = false)
+        /// <summary>After a jump the ship lives in another system — stay on the map where it is.</summary>
+        private void TryFollowPrimaryEntityToItsSystem()
+        {
+            if (PrimaryEntity == null || GameClient == null)
+                return;
+
+            var systemId = FindSystemContainingEntity(PrimaryEntity.Id);
+            if (systemId == null || systemId == SelectedStarSystemId)
+                return;
+
+            SetActiveSystem(systemId, keepSelection: true);
+        }
+
+        private string? FindSystemContainingEntity(int entityId)
+        {
+            if (GameClient == null)
+                return null;
+
+            foreach (var summary in GameClient.Galaxy.KnownSystems)
+            {
+                if (GameClient.Galaxy.GetSystem(summary.SystemId)?.GetEntity(entityId) != null)
+                    return summary.SystemId;
+            }
+
+            return null;
+        }
+
+        internal void SetActiveSystem(string activeSysID, bool refresh = false, bool keepSelection = false)
         {
             if (!activeSysID.Equals(SelectedStarSystemId) || refresh)
             {
@@ -489,8 +520,13 @@ namespace Pulsar4X.Client
                 var system = GameClient?.Galaxy.GetSystem(activeSysID);
                 if (system != null)
                     PrimarySystemDateTime = system.DateTime;
-                LastClickedEntity = null;
-                PrimaryEntity = null;
+                if (!keepSelection)
+                {
+                    LastClickedEntity = null;
+                    PrimaryEntity = null;
+                }
+                else if (PrimaryEntity != null && system?.GetEntity(PrimaryEntity.Id) is { } snapshot)
+                    PrimaryEntity = new EntityState(snapshot, activeSysID);
 
                 if (_savedCameraStates.TryGetValue(activeSysID, out var savedCamera))
                 {

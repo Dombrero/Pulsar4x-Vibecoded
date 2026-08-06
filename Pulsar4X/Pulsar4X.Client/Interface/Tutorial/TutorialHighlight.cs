@@ -18,6 +18,7 @@ namespace Pulsar4X.Client
         LeftToolbarResearch,
         LeftToolbarFleet,
         LeftToolbarSystemTree,
+        LeftToolbarGalaxy,
 
         RightSelector,
         RightSelectorColonies,
@@ -30,6 +31,7 @@ namespace Pulsar4X.Client
         ColonyTabProduction,
         ColonyTabConstruction,
         ColonyTabMining,
+        ColonyTabEnergy,
         ColonyStockpile,
         ColonyTransferButton,
         ProductionLines,
@@ -81,6 +83,7 @@ namespace Pulsar4X.Client
             { TutorialHighlightRegion.ColonyTabProduction, TutorialHighlightRegion.LeftToolbarColony },
             { TutorialHighlightRegion.ColonyTabConstruction, TutorialHighlightRegion.LeftToolbarColony },
             { TutorialHighlightRegion.ColonyTabMining, TutorialHighlightRegion.LeftToolbarColony },
+            { TutorialHighlightRegion.ColonyTabEnergy, TutorialHighlightRegion.LeftToolbarColony },
             { TutorialHighlightRegion.ColonyList, TutorialHighlightRegion.LeftToolbarColony },
             { TutorialHighlightRegion.WindowColonyManagement, TutorialHighlightRegion.LeftToolbarColony },
             { TutorialHighlightRegion.WindowResearch, TutorialHighlightRegion.LeftToolbarResearch },
@@ -178,6 +181,7 @@ namespace Pulsar4X.Client
                 "Research" => TutorialHighlightRegion.LeftToolbarResearch,
                 "Fleet Management" => TutorialHighlightRegion.LeftToolbarFleet,
                 "View objects in the system" => TutorialHighlightRegion.LeftToolbarSystemTree,
+                "Galaxy Browser" => TutorialHighlightRegion.LeftToolbarGalaxy,
                 _ => TutorialHighlightRegion.None,
             };
 

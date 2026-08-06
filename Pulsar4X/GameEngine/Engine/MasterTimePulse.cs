@@ -54,6 +54,10 @@ namespace Pulsar4X.Engine
         [JsonIgnore]
         public bool IsStopping => IsRunning && (_timeSimulationCts?.IsCancellationRequested ?? false);
 
+        /// <summary>True while <see cref="PauseTime"/> has been requested on the active simulation task.</summary>
+        [JsonIgnore]
+        internal bool SimulationCancelRequested => _timeSimulationCts?.IsCancellationRequested ?? false;
+
         /// <summary>
         /// Fired when the simulation loop ends — pause/cancel, single-step completion, or natural end.
         /// Lets push-based clients learn the clock has stopped (<see cref="IsRunning"/> is now false)
@@ -67,7 +71,7 @@ namespace Pulsar4X.Engine
             => simulationTask.ContinueWith(t => { _ = t.Exception; SimulationStopped?.Invoke(); }, TaskScheduler.Default);
 
         [JsonIgnore]
-        private TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
+        private TimeSpan _tickInterval = TimeSpan.FromMilliseconds(100);
 
         [JsonProperty]
         public TimeSpan TickFrequency
@@ -320,25 +324,32 @@ namespace Pulsar4X.Engine
 
         private DateTime ProcessNextInterupt(DateTime maxDateTime)
         {
-            if (EntityDictionary.Keys.Count == 0) return maxDateTime;
-
-            DateTime nextInteruptDateTime = EntityDictionary.Keys.Min();
-
-            if (nextInteruptDateTime > maxDateTime) return maxDateTime;
-
-            foreach (var delegateListPair in EntityDictionary[nextInteruptDateTime])
+            // Drop past-due jump interrupts. Returning GameGlobalDateTime (or earlier) makes
+            // SimulateTimeUntil assign the same clock repeatedly and hang Play forever.
+            while (EntityDictionary.Count > 0)
             {
-                foreach (var jumpPair in delegateListPair.Value) //foreach entity in the value list
+                DateTime nextInteruptDateTime = EntityDictionary.Keys.Min();
+                if (nextInteruptDateTime > maxDateTime)
+                    return maxDateTime;
+                if (nextInteruptDateTime <= GameGlobalDateTime)
                 {
-                    //delegateListPair.Key.DynamicInvoke(_game, jumpPair);
-                    PulseActionDictionary.DoAction(delegateListPair.Key, _game, jumpPair);
+                    EntityDictionary.Remove(nextInteruptDateTime);
+                    continue;
                 }
 
+                foreach (var delegateListPair in EntityDictionary[nextInteruptDateTime])
+                {
+                    foreach (var jumpPair in delegateListPair.Value)
+                    {
+                        PulseActionDictionary.DoAction(delegateListPair.Key, _game, jumpPair);
+                    }
+                }
+
+                EntityDictionary.Remove(nextInteruptDateTime);
+                return nextInteruptDateTime;
             }
-            // Must remove after handling — otherwise the same interrupt is picked forever and
-            // SimulateTimeUntil never advances past GameGlobalDateTime.
-            EntityDictionary.Remove(nextInteruptDateTime);
-            return nextInteruptDateTime;
+
+            return maxDateTime;
         }
 
         public bool Equals(MasterTimePulse? other)

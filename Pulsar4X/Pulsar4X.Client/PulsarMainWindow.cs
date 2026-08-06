@@ -137,6 +137,29 @@ namespace Pulsar4X.Client
         internal event EventHandler<SDL.Event>? MouseButtonUpOccured;
         internal event EventHandler<SDL.Event>? MouseWheelOccured;
 
+        protected override bool TryConsumeEventBeforeImGui(SDL.Event ev)
+        {
+            if (!_state.IsGameLoaded)
+                return false;
+
+            if (ev.Type != (uint)SDL.EventType.KeyDown)
+                return false;
+
+            if (ImGui.GetIO().WantTextInput)
+                return false;
+
+            if (ev.Key.Key != SDL.Keycode.Space)
+                return false;
+
+            var tc = TimeControl.GetInstance();
+            if ((ev.Key.Mod & SDL.Keymod.Ctrl) != 0)
+                tc.OneStepPressed();
+            else
+                tc.PausePlayPressed();
+
+            return true;
+        }
+
         public override void HandleEvent(SDL.Event e)
         {
             (float mX, float mY, SDL.MouseButtonFlags mouseFlags) = GetMouseState();

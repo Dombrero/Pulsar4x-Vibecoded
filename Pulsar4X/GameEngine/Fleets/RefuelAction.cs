@@ -9,6 +9,7 @@ using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
 using Pulsar4X.Movement;
 using Pulsar4X.Ships;
+using Pulsar4X.JumpPoints;
 using Pulsar4X.Storage;
 
 namespace Pulsar4X.Fleets
@@ -64,34 +65,51 @@ namespace Pulsar4X.Fleets
                     || !flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
                     return;
 
-                Entity? nearestColony = null;
-                double nearestDist = double.MaxValue;
+                Entity? nearestColony = RefuelColonySearch.FindNearestColonyInSystem(
+                    _entityCommanding.AttachedManager,
+                    RequestingFactionGuid,
+                    flagshipPos);
 
-                foreach (var entity in _entityCommanding.AttachedManager.GetFilteredEntities(
-                             EntityFilter.Friendly,
-                             RequestingFactionGuid,
-                             e => e.HasDataBlob<ColonyInfoDB>() && e.HasDataBlob<CargoStorageDB>()))
-                {
-                    if (!entity.TryGetDataBlob<PositionDB>(out var colonyPos))
-                        continue;
-
-                    double dist = colonyPos.GetDistanceTo_m(flagshipPos);
-                    if (dist < nearestDist)
-                    {
-                        nearestDist = dist;
-                        nearestColony = entity;
-                    }
-                }
+                _entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable);
 
                 if (nearestColony == null)
                 {
+                    if (orderable != null && orderable.ActionList.Any(a => a is JumpOrder))
+                        return;
+
+                    var game = _entityCommanding.AttachedManager.Game;
+                    if (RefuelColonySearch.TryResolveRefuelSystemId(
+                            game,
+                            _entityCommanding,
+                            RequestingFactionGuid,
+                            fleetDB,
+                            out var targetSystemId)
+                        && RefuelColonySearch.TryFindJumpGateTowardSystem(
+                            game,
+                            _entityCommanding,
+                            RequestingFactionGuid,
+                            targetSystemId,
+                            flagshipPos,
+                            out var jumpGate)
+                        && jumpGate != null)
+                    {
+                        DebugTraceLog.Info("Refuel",
+                            $"fleet#{_entityCommanding.Id}: no local colony — jump toward refuel system {targetSystemId}",
+                            atDateTime);
+
+                        InsertFollowUpsAfterSelf(
+                            CreateJumpOrder(jumpGate, atDateTime),
+                            CreateCommand(RequestingFactionGuid, _entityCommanding));
+                        return;
+                    }
+
                     DebugTraceLog.Warn("Refuel",
                         $"fleet#{_entityCommanding.Id}: no colony with fuel stores found",
                         atDateTime);
                     return;
                 }
 
-                if (_entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable)
+                if (orderable != null
                     && orderable.ActionList.Any(a => a is RefuelWhenAtColonyOrder))
                     return;
 
@@ -134,7 +152,8 @@ namespace Pulsar4X.Fleets
                 bool travelAlreadyQueued = orderable != null && orderable.ActionList.Any(a =>
                     a is MoveToNearestColonyAction
                     || a is WarpFleetTowardsTargetOrder
-                    || a is MoveToSystemBodyOrder);
+                    || a is MoveToSystemBodyOrder
+                    || a is JumpOrder);
 
                 if (travelAlreadyQueued)
                 {
@@ -179,6 +198,19 @@ namespace Pulsar4X.Fleets
             }
 
             return false;
+        }
+
+        private JumpOrder CreateJumpOrder(JumpPointDB jumpGate, DateTime atDateTime)
+        {
+            return new JumpOrder
+            {
+                UseActionLanes = true,
+                RequestingFactionGuid = RequestingFactionGuid,
+                EntityCommandingGuid = _entityCommanding.Id,
+                CreatedDate = atDateTime,
+                JumpGate = jumpGate,
+                Source = Source,
+            };
         }
 
         /// <summary>

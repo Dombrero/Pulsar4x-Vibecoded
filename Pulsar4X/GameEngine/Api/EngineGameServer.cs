@@ -15,7 +15,7 @@ namespace Pulsar4X.Engine.Api
     /// Pulsar4X.Api DTOs is delegated to <see cref="GameProjector"/>. It has no UI dependency, so the same
     /// class backs both the in-process adapter and a headless dedicated server.
     /// </summary>
-    public sealed class EngineGameServer : IGameServer, IDisposable
+    public sealed class EngineGameServer : IGameServer, IFleetHierarchyReader, IDisposable
     {
         private readonly Game? _game;
         private readonly GameProjector? _projector;
@@ -94,6 +94,9 @@ namespace Pulsar4X.Engine.Api
         {
             SetSystemFocus(session, null);
         }
+
+        public (IReadOnlyList<FleetSnapshot> Fleets, IReadOnlyList<ShipSnapshot> UnattachedShips) GetFleetHierarchy(int factionId)
+            => _projector!.ProjectFleetHierarchy(factionId);
 
         // The focused system gets foreground-observer scheduling priority in the engine. One focus
         // per server is enough for the in-process case; per-session focus lands with networking.
@@ -588,6 +591,9 @@ namespace Pulsar4X.Engine.Api
                 }
 
                 _sink(new GameEventEnvelope(type, m.SystemId, m.EntityId, m.FactionId, Entity: entity, System: system));
+
+                if (type == GameEventType.SystemRevealed)
+                    _sink(_server.FleetsEnvelope(_session.FactionId));
 
                 // Entity creation/destruction/rename can reshape the fleet list (membership/names).
                 // Explicit fleet ops push via FleetReorganized; this backstops entity-level changes.

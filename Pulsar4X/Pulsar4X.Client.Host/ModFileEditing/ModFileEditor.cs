@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using ImGuiNET;
 using Pulsar4X.Blueprints;
@@ -23,23 +23,19 @@ public class ModFileEditor : UniquePulsarGuiWindow<ModFileEditor>
     }
     internal static ModFileEditor GetInstance()
     {
-        ModFileEditor instance;
-        if (!_uiState.LoadedWindows.ContainsKey(typeof(ModFileEditor)))
-        {
-            instance = new ModFileEditor();
-            ModLoader modLoader = new ModLoader();
-            ModDataStore modDataStore = new ModDataStore();
-            string? appDataDirectory = PulsarMainWindow.GetAppDataPath();
-            if (string.IsNullOrEmpty(appDataDirectory))
-                throw new InvalidOperationException("Application data path is not available.");
-            string modPath = Path.Combine(appDataDirectory, PulsarMainWindow.ModsPath, "basemod/modInfo.json");
-            modLoader.LoadModManifest(modPath, modDataStore);
-            instance.Refresh(modDataStore);
-        }
-        else
-        {
-            instance = (ModFileEditor)_uiState.LoadedWindows[typeof(ModFileEditor)];
-        }
+        if (_uiState!.TryGetUniqueWindow<ModFileEditor>(out var existing))
+            return existing;
+
+        var instance = new ModFileEditor();
+        ModLoader modLoader = new ModLoader();
+        ModDataStore modDataStore = new ModDataStore();
+        string? appDataDirectory = PulsarMainWindow.GetAppDataPath();
+        if (string.IsNullOrEmpty(appDataDirectory))
+            throw new InvalidOperationException("Application data path is not available.");
+        string modPath = Path.Combine(appDataDirectory, PulsarMainWindow.ModsPath, "basemod/modInfo.json");
+        modLoader.LoadModManifest(modPath, modDataStore);
+        instance.Refresh(modDataStore);
+        _uiState.AddUniqueWindow(instance);
         return instance;
     }
 

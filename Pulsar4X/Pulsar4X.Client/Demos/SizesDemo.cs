@@ -130,7 +130,7 @@ public static class SizesDemo
             ImGui.Text(height.ToString());
             ImGui.NextColumn();
 
-            ImGui.Columns(0);
+            ImGui.Columns(1);
             ImGui.NewLine();
             ImGui.NewLine();
 

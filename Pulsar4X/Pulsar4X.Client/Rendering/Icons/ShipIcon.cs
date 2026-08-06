@@ -1,14 +1,17 @@
-﻿using System;
+using System;
+using System.Drawing;
 using System.IO;
 using Pulsar4X.Api;
 using Pulsar4X.Client.ShipVisuals;
+using Pulsar4X.Input;
 using Pulsar4X.Orbital;
 using SDL3;
 
 namespace Pulsar4X.Client
 {
-    public class ShipIcon : Icon
+    public class ShipIcon : Icon, IPointerHandler, IInteractable
     {
+        public byte Priority => 110;
         // Legacy shared fallback texture (chevron / static PNG).
         private static IntPtr _fallbackTexture = IntPtr.Zero;
         private static int _fallbackWidth = 24;
@@ -236,6 +239,38 @@ namespace Pulsar4X.Client
             {
                 base.Draw(rendererPtr, camera);
             }
+        }
+
+        public bool OnPointerDown(SDL.Event sevent) => false;
+
+        public bool OnPointerUp(SDL.Event sevent)
+        {
+            if (_uiState == null || string.IsNullOrEmpty(_systemId))
+                return false;
+
+            if (sevent.Button.Button == 1)
+                _uiState.EntityClicked(_entityId, _systemId, MouseButtons.Primary);
+            else if (sevent.Button.Button == 3)
+            {
+                _uiState.EntityClicked(_entityId, _systemId, MouseButtons.Alt);
+                _uiState.PendingContextMenuEntityId = _entityId;
+            }
+
+            return true;
+        }
+
+        public bool OnPointerMove(SDL.Event sevent) => false;
+        public bool OnPointerEnter(SDL.Event sevent) => false;
+        public bool OnPointerExit(SDL.Event sevent) => false;
+
+        public bool Contains(PointF point)
+        {
+            float radius = DisplaySizePx * Scale * 0.55f;
+            if (radius < 12f)
+                radius = 12f;
+            var center = new System.Numerics.Vector2(ViewScreenPos.X, ViewScreenPos.Y);
+            var p = new System.Numerics.Vector2(point.X, point.Y);
+            return System.Numerics.Vector2.Distance(center, p) <= radius;
         }
     }
 

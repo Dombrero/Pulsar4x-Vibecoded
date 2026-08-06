@@ -1,5 +1,4 @@
 using System;
-using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
@@ -57,6 +56,14 @@ namespace Pulsar4X.Movement
 
         internal override void Execute(DateTime atDateTime)
         {
+            if (_survey != null
+                && _survey.Target.IsValid
+                && UnsurveyedGeoCondition.TryGetFlagshipSystem(_entityCommanding, out var sys)
+                && _survey.Target.AttachedManager.ManagerID != sys.ManagerID)
+            {
+                _survey = null;
+            }
+
             if (_survey == null)
             {
                 var target = FindNearestEligibleBody();

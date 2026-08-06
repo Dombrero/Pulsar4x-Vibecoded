@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -29,6 +29,9 @@ namespace Pulsar4X.Client.Host;
 public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
 {
     private const string DEFAULT_NAME = "United Earth Corp";
+    private const string DefaultEarthColonyId = "colony-earth";
+    private const string TutorialColonyId = "tutorial-start-guided-economy";
+    private const string DefaultEarthBodyId = "planet-earth";
     private const string DEFAULT_ABBREVIATION = "UEC";
 
     private readonly GlobalUIState _state;
@@ -120,43 +123,57 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
     }
 
     public GameActivation? Quickstart()
+        => TryInstantStart(DefaultEarthColonyId, "Quickstart");
+
+    public GameActivation? TutorialQuickstart()
+        => TryInstantStart(TutorialColonyId, "TutorialQuickstart", includeTutorialMod: true);
+
+    GameActivation? TryInstantStart(string colonyId, string logPrefix, bool includeTutorialMod = false)
     {
         try
         {
             var modManifestPaths = GetAvailableMods()
-                .Where(m => m.EnabledByDefault)
+                .Where(m => m.EnabledByDefault
+                    || (includeTutorialMod && m.Name.Contains("Tutorial", StringComparison.OrdinalIgnoreCase)))
                 .Select(m => m.ManifestPath)
+                .Distinct()
                 .ToList();
             var catalog = LoadMods(modManifestPaths);
 
             if (catalog.Species.Count == 0)
             {
-                Console.WriteLine("Quickstart Error: No playable species found in loaded mods");
+                Console.WriteLine($"{logPrefix} Error: No playable species found in loaded mods");
                 return null;
             }
 
-            if (catalog.Colonies.Count == 0)
+            if (catalog.Colonies.All(c => c.Id != colonyId))
             {
-                Console.WriteLine("Quickstart Error: No colonies found in loaded mods");
+                Console.WriteLine($"{logPrefix} Error: Colony blueprint '{colonyId}' not found (is the tutorial mod enabled?)");
                 return null;
             }
 
             var startableSystems = catalog.Systems.Where(s => s.StartingBodies.Count > 0).ToList();
             if (startableSystems.Count == 0)
             {
-                Console.WriteLine("Quickstart Error: No compatible starting systems found");
+                Console.WriteLine($"{logPrefix} Error: No compatible starting systems found");
                 return null;
             }
 
-            var startingSystem = startableSystems.First();
+            var startingSystem = startableSystems.FirstOrDefault(s =>
+                s.StartingBodies.Any(b => b.Id == DefaultEarthBodyId))
+                ?? startableSystems.First();
+
+            var bodyId = startingSystem.StartingBodies.FirstOrDefault(b => b.Id == DefaultEarthBodyId)?.Id
+                ?? startingSystem.StartingBodies.First().Id;
+
             var request = new NewGameRequest(
                 ModManifestPaths: modManifestPaths,
                 FactionName: DEFAULT_NAME,
                 FactionAbbreviation: DEFAULT_ABBREVIATION,
                 SpeciesId: catalog.Species.First().Id,
-                ColonyId: catalog.Colonies.First().Id,
+                ColonyId: colonyId,
                 SystemId: startingSystem.Id,
-                BodyId: startingSystem.StartingBodies.First().Id,
+                BodyId: bodyId,
                 EnabledSystems: startableSystems.Select(s => s.Id).ToList(),
                 MaxSystems: NewGameSettings.DEFAULT_NUM_SYSTEMS,
                 MasterSeed: RandomNumberGenerator.GetInt32(999999999),
@@ -168,7 +185,7 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
             var result = CreateGameCore(_modDataStore, request);
             if (result == null)
             {
-                Console.WriteLine("Quickstart Error: Could not create game");
+                Console.WriteLine($"{logPrefix} Error: Could not create game");
                 return null;
             }
 
@@ -177,7 +194,7 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Quickstart Error: {ex.Message}");
+            Console.WriteLine($"{logPrefix} Error: {ex.Message}");
             Console.WriteLine(ex.StackTrace);
             return null;
         }

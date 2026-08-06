@@ -93,6 +93,9 @@ namespace Pulsar4X.Fleets
             try
             {
                 bool ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding);
+                if (ok && _entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                    RefuelColonySearch.RememberRefuelSite(fleetDB, _colony);
+
                 DebugTraceLog.Info("Refuel",
                     $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success={ok}",
                     atDateTime);

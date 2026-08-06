@@ -96,14 +96,17 @@ public sealed class InProcessAdapter : IGameClient
 
     public void Update()
     {
-        // Drain everything received since last frame and apply it as one batch on the UI thread.
-        // The clock arrives the same way (pushed TimeChanged deltas) — no polling.
-        // TODO: if this ever becomes a bottleneck, we could limit the number of events processed
-        // per frame and defer the rest to the next Update() to keep the UI responsive.
         while (_inbound.TryDequeue(out var evt))
         {
             ApplyToGalaxy(evt);
             EventReceived?.Invoke(evt);
+        }
+
+        // Co-located server: keep the fleet sidebar in sync even if a push was dropped mid-pulse.
+        if (IsConnected && _server is IFleetHierarchyReader reader)
+        {
+            var (fleets, unattached) = reader.GetFleetHierarchy(Session.FactionId);
+            _galaxy.SetFleets(fleets, unattached);
         }
     }
 
@@ -116,13 +119,12 @@ public sealed class InProcessAdapter : IGameClient
             case GameEventType.TimeChanged:
                 if (evt.Time is null) return;
 
-                // The server pushes TimeChanged deltas with a SystemId if the change was to a system's clock
+                // System sub-steps update only that system's snapshot clock; the HUD date uses global Time.
                 if (evt.SystemId is not null)
                 {
                     var systemToUpdate = _galaxy.GetMutableSystem(evt.SystemId);
                     if (systemToUpdate is not null) systemToUpdate.DateTime = evt.Time.GameDateTime;
                 }
-                // Otherwise it's a global clock change
                 else
                 {
                     _galaxy.Time = evt.Time;
@@ -166,6 +168,13 @@ public sealed class InProcessAdapter : IGameClient
 
         if (evt.SystemId is null || evt.EntityId is not { } entityId) return;
         var system = _galaxy.GetMutableSystem(evt.SystemId);
+        if (system is null && evt.Entity is not null
+            && evt.Type is GameEventType.EntityAdded or GameEventType.EntityRevealed or GameEventType.EntityChanged)
+        {
+            BootstrapSystemShell(evt.SystemId, evt.System?.Name, evt.Entity);
+            system = _galaxy.GetMutableSystem(evt.SystemId);
+        }
+
         if (system is null) return;
 
         switch (evt.Type)
@@ -182,5 +191,18 @@ public sealed class InProcessAdapter : IGameClient
                 if (evt.Entity != null) system.Upsert(evt.Entity);
                 break;
         }
+    }
+
+    /// <summary>Entity arrived before SystemRevealed was applied — keep the snapshot instead of dropping it.</summary>
+    private void BootstrapSystemShell(string systemId, string? name, EntitySnapshot entity)
+    {
+        _galaxy.AddKnownSystem(new SystemSummary(systemId, name ?? systemId));
+        _galaxy.UpsertSystem(new SystemSnapshot
+        {
+            SystemId = systemId,
+            Name = name ?? systemId,
+            DateTime = _galaxy.Time.GameDateTime,
+            Entities = new[] { entity },
+        });
     }
 }
