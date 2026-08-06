@@ -269,6 +269,25 @@ namespace Pulsar4X.Extensions
             return false;
         }
 
+        /// <summary>
+        /// True if this entity or any fleet child has the given ability datablob.
+        /// </summary>
+        public static bool HasOrChildHasAbility<T>(this Entity entity) where T : BaseDataBlob
+        {
+            if (entity.HasDataBlob<T>()) return true;
+
+            if (entity.TryGetDataBlob<FleetDB>(out var fleetDB))
+            {
+                foreach (var child in fleetDB.Children)
+                {
+                    if (child.HasOrChildHasAbility<T>())
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
         public static CargoDefinitionsLibrary? GetFactionCargoDefinitions(this Entity entity)
         {
             if (entity.GetFactionOwner.TryGetDataBlob<FactionInfoDB>(out var factionInfoDB))

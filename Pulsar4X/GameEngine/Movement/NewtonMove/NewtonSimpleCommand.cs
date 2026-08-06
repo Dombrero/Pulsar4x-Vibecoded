@@ -36,24 +36,22 @@ public class NewtonSimpleCommand : EntityCommand
 
     public List<(string item, double value)> DebugDetails = new List<(string, double)>();
 
-    public static void CreateCommand(int faction, Entity orderEntity, Vector3 position, Vector3 startvelocity, Vector3 endvelocity, DateTime manuverNodeTime, string name = "Newtonion thrust")
+    public static NewtonSimpleCommand CreateCommand(int faction, Entity orderEntity, Vector3 position, Vector3 startvelocity, Vector3 endvelocity, DateTime manuverNodeTime, string name = "Newtonion thrust")
     {
         var sgp = orderEntity.GetDataBlob<OrbitDB>().GravitationalParameter_m3S2;
         KeplerElements startKE = OrbitMath.KeplerFromPositionAndVelocity(sgp, position, startvelocity, manuverNodeTime);
         KeplerElements tgtKE = OrbitMath.KeplerFromPositionAndVelocity(sgp, position, endvelocity, manuverNodeTime);
-        CreateCommand(faction, orderEntity, manuverNodeTime, startKE, tgtKE);
+        return CreateCommand(faction, orderEntity, manuverNodeTime, startKE, tgtKE, name);
     }
 
-    public static void CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, KeplerElements startKE, KeplerElements finKE, string name = "Newtonion Simple thrust")
+    /// <summary>
+    /// Builds the action but does NOT queue it — callers (goals planners / OrderHandler) submit it.
+    /// </summary>
+    public static NewtonSimpleCommand CreateCommand(int faction, Entity orderEntity, DateTime manuverNodeTime, KeplerElements startKE, KeplerElements finKE, string name = "Newtonion Simple thrust")
     {
-
         var startVec = OrbitalMath.GetStateVectors(startKE, manuverNodeTime);
-
         var tgtVec = OrbitalMath.GetStateVectors(finKE, manuverNodeTime);
-
-
         var manuverVector = tgtVec.velocity - startVec.velocity;
-        var manuverDV = manuverVector.Length();
 
         var cmd = new NewtonSimpleCommand()
         {
@@ -66,12 +64,10 @@ public class NewtonSimpleCommand : EntityCommand
             TargetKE = finKE,
             ActionOnDate = manuverNodeTime,
             _name = name,
-
         };
 
-        // FIXME:
-        //StaticRefLib.Game.OrderHandler.HandleOrder(cmd);
         cmd.UpdateDetailString();
+        return cmd;
     }
 
     internal override void Execute(DateTime atDateTime)

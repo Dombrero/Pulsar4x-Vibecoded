@@ -400,7 +400,13 @@ namespace Pulsar4X.Engine.Api
             // Stuck out-of-range cargo transfers occupy the ship Movement lane and block warp.
             FleetOrderCleanup.AbortCargoTransfersOnFleetShips(commanded);
 
-            return Dispatch(MoveToSystemBodyOrder.CreateCommand(faction.Id, commanded, body));
+            // Goals/agent path (OrdersAndAI vertical slice) — planners emit warp/newton actions.
+            AgentProcessor.AssignGoal(commanded, new Goal
+            {
+                Type = GoalType.MoveTo,
+                TargetEntityID = body.Id,
+            });
+            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
         private CommandResult TranslateGeoSurvey(Entity faction, Entity commanded, GameCommand command)
@@ -409,9 +415,12 @@ namespace Pulsar4X.Engine.Api
             if (!TryResolve(survey.BodyId, out var body))
                 return CommandResult.Reject($"Entity {survey.BodyId} not found.");
 
-            // One order: travel (if needed) then survey. Separate Warp+Survey pairs raced Movement
-            // lanes and allowed surveying while still at Earth.
-            return Dispatch(GeoSurveyOrder.CreateCommand(faction.Id, commanded, body));
+            AgentProcessor.AssignGoal(commanded, new Goal
+            {
+                Type = GoalType.ServeyBodies,
+                TargetEntityID = body.Id,
+            });
+            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
 
         private CommandResult TranslateCompleteGeoSurvey(Entity faction, Entity commanded, GameCommand command)

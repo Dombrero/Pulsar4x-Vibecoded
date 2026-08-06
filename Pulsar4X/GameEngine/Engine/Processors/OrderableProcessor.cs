@@ -79,6 +79,8 @@ namespace Pulsar4X.Engine
                             try
                             {
                                 entityCommand.Execute(atDateTime);
+                                if (entityCommand.IsRunning && entityCommand.Status == ActionStatus.Queued)
+                                    entityCommand.Status = ActionStatus.Running;
                             }
                             catch (Exception ex)
                             {
@@ -88,24 +90,49 @@ namespace Pulsar4X.Engine
                                     atDateTime);
                                 System.Diagnostics.Debug.WriteLine(
                                     $"Order '{entityCommand.Name}' failed on entity {entity.Id}: {ex}");
+                                entityCommand.Status = ActionStatus.Failed;
                                 orderableDB.ActionList.Remove(entityCommand);
+                                if (!string.IsNullOrEmpty(entityCommand.ParentGoalId))
+                                    AgentProcessor.RunAgentNow(entity);
                                 continue;
                             }
                         }
                     }
                 }
 
+                bool finishedGoalWork = false;
                 try
                 {
                     orderableDB.ActionList.RemoveAll(e =>
                     {
-                        try { return e.IsFinished(); }
-                        catch { return true; }
+                        try
+                        {
+                            if (!e.IsFinished())
+                                return false;
+                            if (e.Status != ActionStatus.Failed)
+                                e.Status = ActionStatus.Succeeded;
+                            if (!string.IsNullOrEmpty(e.ParentGoalId))
+                                finishedGoalWork = true;
+                            return true;
+                        }
+                        catch
+                        {
+                            e.Status = ActionStatus.Failed;
+                            if (!string.IsNullOrEmpty(e.ParentGoalId))
+                                finishedGoalWork = true;
+                            return true;
+                        }
                     });
                 }
                 catch
                 {
                     // Ignore cleanup failures.
+                }
+
+                if (finishedGoalWork)
+                {
+                    try { AgentProcessor.RunAgentNow(entity); }
+                    catch { /* agent wake is best-effort */ }
                 }
 
                 // When the last player Issue Order finishes, resume Standing immediately

@@ -14,6 +14,14 @@ namespace Pulsar4X.Engine.Orders
         Standing = 1,
     }
 
+    public enum ActionStatus
+    {
+        Queued,
+        Running,
+        Succeeded,
+        Failed,
+    }
+
     public abstract class EntityCommand
     {
         [Flags]
@@ -28,6 +36,17 @@ namespace Pulsar4X.Engine.Orders
 
         [JsonProperty]
         public string CmdID { get; internal set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// Id of the Goal that spawned this action ("" if issued directly by a player).
+        /// </summary>
+        [JsonProperty]
+        public string ParentGoalId { get; set; } = "";
+
+        /// <summary>Outcome for the goals/agent layer; kept in sync by OrderableProcessor.</summary>
+        [JsonProperty]
+        public ActionStatus Status { get; set; } = ActionStatus.Queued;
+
         public bool UseActionLanes = true;
         public abstract ActionLaneTypes ActionLanes { get; }
         public abstract bool IsBlocking { get; }
