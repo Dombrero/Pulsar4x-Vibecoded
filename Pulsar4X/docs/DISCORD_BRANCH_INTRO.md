@@ -14,7 +14,7 @@ Hey — this is my long-running fork cleaned onto one branch for review. **Not m
 
 ## Order stack (why it’s big)
 
-Goals and Standing both drive the same `OrderableDB`. This branch keeps **Issue > Goal > Standing** and documents it in `docs/ORDER_ARCHITECTURE.md`. Player commands use `OrderEnqueue.Issued`; goals use `AssignGoal` for AI.
+Goals and Standing both drive the same `OrderableDB`. This branch keeps **Issue > Goal > Standing** (`docs/ORDER_ARCHITECTURE.md`). **Standing stays** for player conditional fleet orders — Goals are **not** a Standing replacement; they’re for AI and an optional auto/freewill mode. Normal player commands use `OrderEnqueue.Issued`.
 
 ## Suggested review order
 

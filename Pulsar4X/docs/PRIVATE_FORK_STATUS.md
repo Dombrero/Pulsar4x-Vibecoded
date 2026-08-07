@@ -11,14 +11,15 @@
 - [x] Ownership checks stripped from orders — `IsCommandValid` is entity-alive + resolve refs; auth is translator / server
 - [x] Engine production code: no direct `OrderHandler.HandleOrder` outside `StandAloneOrderHandler` + inbox
 - [x] Standing pause unified: `FleetOrderCleanup.PauseStandingForPlayerIssue`
-- [x] Goals block Standing; fleet UI shows goals via `GameProjector`
-- [x] Tests use `IssueOrder` / `OrderEnqueue` (same path as live commands)
+- [x] Goals block Standing when active; fleet UI shows goals via `GameProjector`
+- [x] Design: Goals = AI / auto-freewill only; Standing stays for player conditions (Goals do not replace Standing)
+- [x] Tests use `QueueOrder` / `OrderEnqueue` (same path as live commands)
 - [x] Docs: `ORDER_ARCHITECTURE.md`, `DISCORD_BRANCH_INTRO.md` (optional share text)
 
 ## Still team / later (not blocking your private play)
 
 - [ ] Network: optional async server thread (drain can stay sync inside the continuous pump)
-- [ ] Upstream PR slices off `origin/DevBranch` (visuals, tutorial, electricity, …)
+- [ ] Optional UI for freewill/auto-mode that assigns Goals (Standing UI stays as-is)
 
 ## Quick verify
 

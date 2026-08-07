@@ -30,6 +30,7 @@ public interface IGoalToGoalsPlanner
 /// <summary>
 /// Decomposes goals into fleet sub-goals or ship actions queued on <see cref="OrderableDB"/>.
 /// Ported from OrdersAndAI without renaming the existing order stack.
+/// Intended for AI and optional auto/freewill mode — not a replacement for player Standing Orders.
 /// </summary>
 public class AgentProcessor : IInstanceProcessor
 {
