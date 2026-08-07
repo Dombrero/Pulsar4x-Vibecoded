@@ -42,13 +42,16 @@ This is a **personal long-lived fork** of [Pulsar4xDevs/Pulsar4x](https://github
 
 **Compared to upstream, this branch mainly adds / changes:**
 
-* **Order / command path** — engine command inbox + continuous pump (also while paused), `OrderEnqueue` as the single door into `HandleOrder`, ownership/auth on translator/server only; docs in `Pulsar4X/docs/ORDER_ARCHITECTURE.md`
-* **Standing orders** — list priority + commitment + fuel hysteresis; cross-system refuel; standing pause lined up with Issue / top-level goals
+* **Ship visuals** — procedural ship sprites on the system map and in the designer  
+  (`Pulsar4X.Client/ShipVisuals/`, part PNGs under `Resources/ship-parts/`, `ShipIcon` / `ShipMapTextureCache`, designer helpers `ShipVisualRawBmp` / `ShipVisualStateMapper`)
+* **Body / planet visuals** — procedural body textures from survey stats (temp, atmosphere, minerals, type)  
+  (`Pulsar4X.Client/BodyVisuals/`: `BodyVisualStateFactory`, `BodyVisualComposer`, `SolBodyPresets`, extreme-heat ring); unsurveyed bodies stay a featureless grey fog-of-war disk until geo-survey completes; wired through `SysBodyIcon` / `StarIcon` / `SystemMapRendering`
+* **Order / command path** — engine command inbox + continuous ~50ms pump (also while paused), `OrderEnqueue` as the single door into `HandleOrder`, ownership/auth on translator/server only; see `Pulsar4X/docs/ORDER_ARCHITECTURE.md`
+* **Standing orders** — list priority + commitment + fuel/energy hysteresis; cross-system refuel; flagship / standing sync hardening; standing pause lined up with Issue / top-level goals
 * **Goals / Agent layer** — OrdersAndAI-style planners for **AI / optional auto-freewill only** (does **not** replace player Standing)
-* **Ship + body visuals** — procedural map sprites (`ShipVisuals/`, `BodyVisuals/`), Sol presets, fog-of-war look until geo-survey
-* **Colony electricity / power** — generation, storage, related UI/projector bits
-* **Tutorial mod** — EN + DE guide / start helpers (`GameData/tutorial-mod/`)
-* **Jump visibility + client replication** — map/JP visibility and related client sync
+* **Colony electricity / power** — generation, storage, colony power UI / projector bits
+* **Tutorial mod** — English + German guide / start helpers (`GameData/tutorial-mod/`)
+* **Jump visibility + client replication** — jump-point / map visibility and related client sync after transit
 * **Nullable / NRT cleanup** across engine, client, and tests
 
 Upstream Pulsar4X recruiting / contribution flow still lives on the main project Discord and [Pulsar4xDevs/Pulsar4x](https://github.com/Pulsar4xDevs/Pulsar4x).
