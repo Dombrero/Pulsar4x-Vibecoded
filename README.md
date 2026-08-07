@@ -36,12 +36,22 @@ Once you've got a couple of PRs under your belt we'll consider adding you to the
 
 ***
 
-Also we're recruiting. We need people who:
-* Are interested, seriously if you are interested then that is all you really need to know , you can learn the rest "on the job".
-* Can code C#, tho any language will do, C# is pretty easy to pick up.
-* Can do nice Art (we want to make a pretty UI)
-* Can work with JSON (there is a lot of data to be setup, research, names, gases, etc.)
-* Want to work on pulsar (seriously this is the important one, even if you don't know anything else YOU CAN LEARN)
+### What’s different in this fork (Dombrero / `dombreros_version_AI_vibecoded`)
+
+This is a **personal long-lived fork** of [Pulsar4xDevs/Pulsar4x](https://github.com/Pulsar4xDevs/Pulsar4x) — not a clean drop-in for `DevBranch`. Feel free to browse and cherry-pick; expect ongoing fixes.
+
+**Compared to upstream, this branch mainly adds / changes:**
+
+* **Order / command path** — engine command inbox + continuous pump (also while paused), `OrderEnqueue` as the single door into `HandleOrder`, ownership/auth on translator/server only; docs in `Pulsar4X/docs/ORDER_ARCHITECTURE.md`
+* **Standing orders** — list priority + commitment + fuel hysteresis; cross-system refuel; standing pause lined up with Issue / top-level goals
+* **Goals / Agent layer** — OrdersAndAI-style planners for **AI / optional auto-freewill only** (does **not** replace player Standing)
+* **Ship + body visuals** — procedural map sprites (`ShipVisuals/`, `BodyVisuals/`), Sol presets, fog-of-war look until geo-survey
+* **Colony electricity / power** — generation, storage, related UI/projector bits
+* **Tutorial mod** — EN + DE guide / start helpers (`GameData/tutorial-mod/`)
+* **Jump visibility + client replication** — map/JP visibility and related client sync
+* **Nullable / NRT cleanup** across engine, client, and tests
+
+Upstream Pulsar4X recruiting / contribution flow still lives on the main project Discord and [Pulsar4xDevs/Pulsar4x](https://github.com/Pulsar4xDevs/Pulsar4x).
 
 
 ***
