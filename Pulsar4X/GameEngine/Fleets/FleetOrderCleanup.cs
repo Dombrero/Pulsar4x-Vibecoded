@@ -165,6 +165,30 @@ namespace Pulsar4X.Fleets
                 ClearAllOrders(ship);
         }
 
+        /// <summary>
+        /// Player Issue Orders and top-level goals outrank Standing. Drop standing-sourced
+        /// fleet work and clear commitment so Standing can re-enter cleanly once Issue/goal ends.
+        /// </summary>
+        public static void PauseStandingForPlayerIssue(Entity entity)
+        {
+            if (entity == null || !entity.IsValid)
+                return;
+
+            if (entity.TryGetDataBlob<OrderableDB>(out var orderableDB))
+                orderableDB.ActionList.RemoveAll(a => a.Source == OrderSource.Standing);
+
+            if (!entity.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return;
+
+            // Without this, Issue while standing had drained its queue (but kept commitment)
+            // left ActiveStandingOrderIndex stuck; after the Issue finished Standing could
+            // sit Idle forever behind a stale Refuel/busy gate.
+            fleetDB.ActiveStandingOrderIndex = -1;
+            fleetDB.StandingSuppressUntil = null;
+            AbortCargoTransfersOnFleetShips(entity);
+            AbortShipMovementOrders(entity);
+        }
+
         public static bool IsFleetAtColony(Entity fleet, Entity colony)
         {
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB)

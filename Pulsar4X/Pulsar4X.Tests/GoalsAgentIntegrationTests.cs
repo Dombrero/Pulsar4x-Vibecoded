@@ -85,7 +85,7 @@ public class GoalsAgentIntegrationTests : ApiTestBase
     }
 
     [Test]
-    public void MoveToBodyCommand_UsesGoalsPipeline()
+    public void MoveToBodyCommand_DispatchesOrderableMove_NotGoals()
     {
         var session = Connect();
         var ship = MakeGoalShip(session);
@@ -96,10 +96,10 @@ public class GoalsAgentIntegrationTests : ApiTestBase
         var result = _server.SubmitCommand(session, new MoveToBodyCommand(ship.Id, bodyId));
         Assert.That(result.Accepted, Is.True, result.RejectionReason);
 
-        Assert.That(ship.TryGetDataBlob<GoalsDB>(out var goals), Is.True);
-        Assert.That(goals!.GivenGoal, Is.Not.Null);
-        Assert.That(goals.GivenGoal!.Type, Is.EqualTo(GoalType.MoveTo));
-        Assert.That(goals.GivenGoal.TargetEntityID, Is.EqualTo(bodyId));
+        // Issue Orders stay on OrderableDB so Standing pause/resume keeps working.
+        Assert.That(ship.GetDataBlob<OrderableDB>().ActionList, Is.Not.Empty);
+        if (ship.TryGetDataBlob<GoalsDB>(out var goals) && goals!.GivenGoal != null)
+            Assert.Fail("MoveToBody must not assign a GoalsDB goal");
     }
 
     [Test]

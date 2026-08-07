@@ -19,6 +19,7 @@
 
 - Player Move/Geo/etc. → `Dispatch` / `OrderEnqueue.Issued` (not `AssignGoal`)
 - AI / tests → `AgentProcessor.AssignGoal` + inbox wake
+- Shared pause API: `FleetOrderCleanup.PauseStandingForPlayerIssue` (Issue + top-level fleet goals)
 
 ## Future (network)
 

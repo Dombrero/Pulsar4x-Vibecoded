@@ -4,7 +4,6 @@ using Pulsar4X.Engine;
 using Pulsar4X.Fleets;
 using Pulsar4X.Messaging;
 using System;
-using System.Linq;
 
 namespace Pulsar4X.Engine.Orders
 {
@@ -33,7 +32,7 @@ namespace Pulsar4X.Engine.Orders
 
                         // Issued (player) orders drop queued Standing work so Issue always wins.
                         if (entityCommand.Source == OrderSource.Issued)
-                            DropStandingOrders(orderableDB);
+                            FleetOrderCleanup.PauseStandingForPlayerIssue(orderableDB.OwningEntity);
 
                         orderableDB.ActionList.Add(entityCommand);
 
@@ -60,26 +59,5 @@ namespace Pulsar4X.Engine.Orders
             return false;
         }
 
-        /// <summary>
-        /// Remove standing-sourced fleet work when the player issues a new order.
-        /// Always clears standing commitment — even if the standing queue was already empty —
-        /// so Standing can re-enter cleanly once the Issued queue drains.
-        /// </summary>
-        private static void DropStandingOrders(OrderableDB orderableDB)
-        {
-            orderableDB.ActionList.RemoveAll(a => a.Source == OrderSource.Standing);
-
-            var entity = orderableDB.OwningEntity;
-            if (entity == null || !entity.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return;
-
-            // Without this, Issue while standing had drained its queue (but kept commitment)
-            // left ActiveStandingOrderIndex stuck; after the Issue finished Standing could
-            // sit Idle forever behind a stale Refuel/busy gate.
-            fleetDB.ActiveStandingOrderIndex = -1;
-            fleetDB.StandingSuppressUntil = null;
-            FleetOrderCleanup.AbortCargoTransfersOnFleetShips(entity);
-            FleetOrderCleanup.AbortShipMovementOrders(entity);
-        }
     }
 }

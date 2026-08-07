@@ -56,20 +56,11 @@ public sealed class EngineCommandInbox
         finally
         {
             Volatile.Write(ref _draining, 0);
-            // Items enqueued during the final item may have been missed — one tail pass without re-entry.
-            if (!_queue.IsEmpty && Interlocked.CompareExchange(ref _draining, 1, 0) == 0)
-            {
-                try
-                {
-                    while (_queue.TryDequeue(out var item))
-                        Process(game, item);
-                }
-                finally
-                {
-                    Volatile.Write(ref _draining, 0);
-                }
-            }
         }
+
+        // Work enqueued during Process (nested HandleOrder / agent wake) — drain again once.
+        if (!_queue.IsEmpty)
+            Drain(game);
     }
 
     private void Process(Game game, Item item)

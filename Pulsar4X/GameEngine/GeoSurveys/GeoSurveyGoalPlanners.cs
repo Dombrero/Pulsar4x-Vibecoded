@@ -20,7 +20,8 @@ public class ScanBodyPlan : IGoalToActionsPlanner
             return Fail(goal, "no geo-survey capability");
 
         // Our GeoSurveyOrder already warps then surveys — emit it as the single action.
-        if (!ship.AttachedManager.TryGetGlobalEntityById(goal.TargetEntityID, out var target))
+        if (ship.Manager == null
+            || !ship.Manager.TryGetGlobalEntityById(goal.TargetEntityID, out var target))
             return Fail(goal, "Target not found");
 
         if (!MovePlanner.CanMove(ship, out var immobile) && !IsAlreadyNear(ship, target))

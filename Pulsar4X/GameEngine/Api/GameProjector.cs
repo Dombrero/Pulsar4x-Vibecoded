@@ -1482,12 +1482,96 @@ namespace Pulsar4X.Engine.Api
                 InheritOrders = fleetDB?.InheritOrders ?? false,
                 CanGeoSurvey = fleet.HasGeoSurveyAbility(),
                 CanGravSurvey = fleet.HasJPSurveyAbililty(),
-                StatusMessage = fleetDB?.StandingStatusMessage,
-                Orders = ProjectOrders(fleet),
+                StatusMessage = ResolveFleetStatusMessage(fleet, fleetDB),
+                Orders = ProjectFleetOrders(fleet, fleetDB, factionId),
                 StandingOrders = ProjectStandingOrders(fleetDB),
                 SubFleets = subFleets,
                 Ships = ships,
             };
+        }
+
+        private static string? ResolveFleetStatusMessage(Entity fleet, FleetDB? fleetDB)
+        {
+            if (!string.IsNullOrWhiteSpace(fleetDB?.StandingStatusMessage))
+                return fleetDB!.StandingStatusMessage;
+
+            if (fleet.TryGetDataBlob<GoalsDB>(out var goals) && goals.GivenGoal != null)
+            {
+                var g = goals.GivenGoal;
+                if (g.Status is GoalStatus.Pending or GoalStatus.Active or GoalStatus.Failed)
+                {
+                    string target = "?";
+                    if (fleet.Manager != null
+                        && fleet.Manager.TryGetGlobalEntityById(g.TargetEntityID, out var body))
+                        target = body.GetName(fleet.FactionOwnerID);
+
+                    string state = g.Status == GoalStatus.Failed
+                        ? $"Failed: {g.Message}"
+                        : g.Status.ToString();
+                    return $"Goal {g.Type} → {target} ({state})";
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Fleet queue plus active goal and ship-level actions spawned by goals,
+        /// so Issue Orders are visible in Fleet Orders (goals do not sit on the fleet queue).
+        /// </summary>
+        private IReadOnlyList<OrderSnapshot> ProjectFleetOrders(Entity fleet, FleetDB? fleetDB, int factionId)
+        {
+            var orders = new List<OrderSnapshot>(ProjectOrders(fleet));
+
+            if (fleet.TryGetDataBlob<GoalsDB>(out var goals)
+                && goals.GivenGoal != null
+                && goals.GivenGoal.Status is GoalStatus.Pending or GoalStatus.Active or GoalStatus.Failed)
+            {
+                var g = goals.GivenGoal;
+                string target = "?";
+                if (fleet.Manager != null
+                    && fleet.Manager.TryGetGlobalEntityById(g.TargetEntityID, out var body))
+                    target = body.GetName(factionId);
+
+                orders.Insert(0, new OrderSnapshot(
+                    $"Goal: {g.Type} → {target}",
+                    g.Status == GoalStatus.Active,
+                    g.Status is GoalStatus.Completed or GoalStatus.Failed,
+                    string.IsNullOrEmpty(g.Message) ? g.Status.ToString() : g.Message)
+                {
+                    OrderId = "", // not cancelable via CancelOrderCommand; use Clear All
+                });
+            }
+
+            if (fleetDB != null)
+            {
+                foreach (var child in fleetDB.GetChildren())
+                {
+                    var ship = ResolveLiveEntity(child);
+                    if (!ship.IsValid || ship.HasDataBlob<FleetDB>())
+                        continue;
+
+                    string shipName = ship.GetName(factionId);
+                    foreach (var shipOrder in ProjectOrders(ship))
+                    {
+                        orders.Add(new OrderSnapshot(
+                            $"[{shipName}] {shipOrder.Name}",
+                            shipOrder.IsRunning,
+                            shipOrder.IsFinished,
+                            shipOrder.Details)
+                        {
+                            OrderId = shipOrder.OrderId,
+                            IsBlocking = shipOrder.IsBlocking,
+                            UsesMovementLane = shipOrder.UsesMovementLane,
+                            UsesExternalLane = shipOrder.UsesExternalLane,
+                            UsesSelfLane = shipOrder.UsesSelfLane,
+                            PauseOnAction = shipOrder.PauseOnAction,
+                        });
+                    }
+                }
+            }
+
+            return orders;
         }
 
         // The condition/action registries are engine code, so the type ids are part of the API

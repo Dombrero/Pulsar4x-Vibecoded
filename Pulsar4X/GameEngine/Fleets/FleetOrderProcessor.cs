@@ -112,6 +112,19 @@ namespace Pulsar4X.Fleets
                 return;
             }
 
+            // Goals (MoveTo / GeoSurvey Issue path) sit on GoalsDB, not the fleet ActionList —
+            // treat an active top-level goal like Issued so Standing does not fight ship warps.
+            if (fleet.TryGetDataBlob<GoalsDB>(out var goalsDB)
+                && goalsDB.GivenGoal != null
+                && string.IsNullOrEmpty(goalsDB.GivenGoal.ParentGoalId)
+                && goalsDB.GivenGoal.Status is GoalStatus.Pending or GoalStatus.Active)
+            {
+                DebugTraceLog.Trace("Standing",
+                    $"{fleetName}: idle — Goal {goalsDB.GivenGoal.Type} still {goalsDB.GivenGoal.Status}",
+                    gameTime);
+                return;
+            }
+
             // Back off after an empty standing run (no targets / instant finish).
             if (fleetDB.StandingSuppressUntil.HasValue)
             {
