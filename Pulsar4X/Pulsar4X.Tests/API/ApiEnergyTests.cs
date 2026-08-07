@@ -123,7 +123,7 @@ namespace Pulsar4X.Tests
 
             var warpCmd = Pulsar4X.Movement.WarpMoveCommand.CreateCommandEZ(
                 ship, target, ship.StarSysDateTime);
-            Assert.That(_game.OrderHandler.HandleOrder(warpCmd), Is.True);
+            Assert.That(QueueOrder(warpCmd), Is.True);
 
             var view = _projector.ProjectEntity(ship, session.FactionId).GetView<EnergyView>();
             Assert.That(view, Is.Not.Null);

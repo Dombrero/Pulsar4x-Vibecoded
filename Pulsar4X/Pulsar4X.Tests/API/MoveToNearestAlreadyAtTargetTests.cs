@@ -74,7 +74,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var move = MoveToNearestColonyAction.CreateCommand(session.FactionId, fleet);
-            _game.OrderHandler.HandleOrder(move);
+            QueueOrder(move);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);

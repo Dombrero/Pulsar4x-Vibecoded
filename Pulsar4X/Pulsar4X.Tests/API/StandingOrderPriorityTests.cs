@@ -385,7 +385,7 @@ namespace Pulsar4X.Tests
                 new GeoSurveyableDB { PointsRequired = 1000 },
             });
 
-            Assert.That(_game.OrderHandler.HandleOrder(
+            Assert.That(QueueOrder(
                 GeoSurveyOrder.CreateCommand(session.FactionId, fleet, luna)), Is.True);
 
             var orders = fleet.GetDataBlob<OrderableDB>().ActionList.ToList();

@@ -91,7 +91,7 @@ namespace Pulsar4X.Tests
             Assert.That(GeoSurveyTargets.IsEligible(luna, session.FactionId), Is.True);
 
             var action = MoveToNearestGeoSurveyAction.CreateCommand(session.FactionId, fleet);
-            Assert.That(_game.OrderHandler.HandleOrder(action), Is.True);
+            Assert.That(QueueOrder(action), Is.True);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);
@@ -150,7 +150,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var action = MoveToNearestGeoSurveyAction.CreateCommand(session.FactionId, fleet);
-            Assert.That(_game.OrderHandler.HandleOrder(action), Is.True);
+            Assert.That(QueueOrder(action), Is.True);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);
@@ -251,7 +251,7 @@ namespace Pulsar4X.Tests
             Assert.That(ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>().Any(), Is.True);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, venus);
-            Assert.That(_game.OrderHandler.HandleOrder(survey), Is.True);
+            Assert.That(QueueOrder(survey), Is.True);
 
             Assert.That(ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>().Any(), Is.False,
                 "Survey travel must clear cargo transfers that block the Movement lane.");

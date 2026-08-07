@@ -71,7 +71,7 @@ public class ApiJumpClientReplicationTests : ApiTestBase
         Assert.That(client.Galaxy.GetSystem(dest.ID), Is.Null,
             "destination must not be replicated before transit reveals it");
 
-        Assert.IsTrue(_game.OrderHandler.HandleOrder(ShipJumpCommand.Create(ship, srcDb)));
+        Assert.IsTrue(QueueOrder(ShipJumpCommand.Create(ship, srcDb)));
         dest.Transfer(fleet);
         FleetFlagshipSync.TryResolveFlagship(fleet, fleetDB, out _);
 

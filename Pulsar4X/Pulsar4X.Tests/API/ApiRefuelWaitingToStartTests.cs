@@ -169,7 +169,7 @@ namespace Pulsar4X.Tests
             Assert.That(FleetOrderCleanup.IsFleetAtColony(fleet, colony), Is.True);
 
             var order = RefuelWhenAtColonyOrder.CreateCommand(session.FactionId, fleet, colony);
-            Assert.That(_game.OrderHandler.HandleOrder(order), Is.True);
+            Assert.That(QueueOrder(order), Is.True);
 
             DumpOrders("Ship at colony after RefuelWhenAt", ship);
             Assert.That(ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>(), Is.Not.Empty);

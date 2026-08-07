@@ -1,4 +1,6 @@
-# Introducing branch `dombreros_version_AI_vibecoded` (draft for Discord)
+# Introducing branch `dombreros_version_AI_vibecoded` (draft — optional Discord)
+
+> **Private fork:** default is **local only**, no push. Use this text if/when you want dev feedback.
 
 Hey — this is my long-running fork cleaned onto one branch for review. **Not meant to merge as one PR.** I’d like to split reviewable slices after we agree on scope.
 
@@ -12,7 +14,7 @@ Hey — this is my long-running fork cleaned onto one branch for review. **Not m
 
 ## Order stack (why it’s big)
 
-Goals and Standing both drive the same `OrderableDB`. This branch keeps **Issue > Goal > Standing** and documents it in `docs/ORDER_ARCHITECTURE.md`. Player commands stay on `HandleOrder`; goals use `AssignGoal` for AI.
+Goals and Standing both drive the same `OrderableDB`. This branch keeps **Issue > Goal > Standing** and documents it in `docs/ORDER_ARCHITECTURE.md`. Player commands use `OrderEnqueue.Issued`; goals use `AssignGoal` for AI.
 
 ## Suggested review order
 

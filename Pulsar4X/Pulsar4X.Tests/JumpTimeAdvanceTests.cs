@@ -139,7 +139,7 @@ namespace Pulsar4X.Tests
             });
 
             var jumpCmd = ShipJumpCommand.Create(ship, srcJp.GetDataBlob<JumpPointDB>());
-            Assert.IsTrue(game.OrderHandler.HandleOrder(jumpCmd));
+            Assert.IsTrue(OrderEnqueue.Issued(game, jumpCmd));
 
             // Process orders / jump via time step on source
             var jumpTask = Task.Run(() =>

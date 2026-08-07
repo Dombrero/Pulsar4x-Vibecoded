@@ -70,7 +70,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var action = MoveToNearestGravSurveyAction.CreateCommand(session.FactionId, fleet);
-            Assert.That(_game.OrderHandler.HandleOrder(action), Is.True);
+            Assert.That(QueueOrder(action), Is.True);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);
@@ -141,7 +141,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var action = MoveToNearestGravSurveyAction.CreateCommand(session.FactionId, fleet);
-            Assert.That(_game.OrderHandler.HandleOrder(action), Is.True);
+            Assert.That(QueueOrder(action), Is.True);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);

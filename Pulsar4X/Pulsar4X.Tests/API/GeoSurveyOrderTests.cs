@@ -79,7 +79,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, mars);
-            Assert.That(_game.OrderHandler.HandleOrder(survey), Is.True);
+            Assert.That(QueueOrder(survey), Is.True);
 
             // Orderable pulse while still at Earth: travel may start, survey must not complete points.
             var processor = new OrderableProcessor();
@@ -181,7 +181,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, mars);
-            _game.OrderHandler.HandleOrder(survey);
+            QueueOrder(survey);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);
@@ -249,7 +249,7 @@ namespace Pulsar4X.Tests
             fleetDb.AddChild(ship);
 
             var survey = GeoSurveyOrder.CreateCommand(session.FactionId, fleet, mars);
-            _game.OrderHandler.HandleOrder(survey);
+            QueueOrder(survey);
 
             var processor = new OrderableProcessor();
             processor.Init(_game);

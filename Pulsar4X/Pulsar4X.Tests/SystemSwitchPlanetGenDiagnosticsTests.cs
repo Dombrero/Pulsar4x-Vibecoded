@@ -8,6 +8,7 @@ using Pulsar4X.Datablobs;
 using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Api;
+using Pulsar4X.Engine.Orders;
 using Pulsar4X.Factions;
 using Pulsar4X.Galaxy;
 using Pulsar4X.JumpPoints;
@@ -93,7 +94,7 @@ public class SystemSwitchPlanetGenDiagnosticsTests
         var anomaliesBeforeJump = CountAnomalies(dest);
         TestContext.WriteLine($"Dest before jump: bodies={bodiesBeforeJump}, anomalies={anomaliesBeforeJump}, state={dest.ActivityState}, sysTime={dest.StarSysDateTime:u}, global={game.TimePulse.GameGlobalDateTime:u}");
 
-        Assert.IsTrue(game.OrderHandler.HandleOrder(ShipJumpCommand.Create(ship, srcJp.GetDataBlob<JumpPointDB>())));
+        Assert.IsTrue(OrderEnqueue.Issued(game, ShipJumpCommand.Create(ship, srcJp.GetDataBlob<JumpPointDB>())));
 
         // Mirror JP-survey discovery: destination must be in KnownSystems for faction projection.
         faction.GetDataBlob<FactionInfoDB>().KnownSystems.Add(dest.ID);

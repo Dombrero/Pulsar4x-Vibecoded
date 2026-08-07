@@ -1,6 +1,5 @@
 using Pulsar4X.Engine;
 using System.Collections.Concurrent;
-using System.Threading;
 
 namespace Pulsar4X.Engine.Orders;
 
@@ -31,7 +30,6 @@ public sealed class EngineCommandInbox
     }
 
     private readonly ConcurrentQueue<Item> _queue = new();
-    private int _draining;
 
     /// <summary>Result of the most recent <see cref="Kind.HandleOrder"/> processed during the last drain.</summary>
     public bool LastHandleOrderAccepted { get; private set; }
@@ -42,25 +40,11 @@ public sealed class EngineCommandInbox
     public void EnqueueWakeAgent(Entity entity)
         => _queue.Enqueue(new Item(Kind.WakeAgent, null, entity));
 
-    /// <summary>Processes all pending items. Safe to call from UI or simulation thread.</summary>
+    /// <summary>Processes all pending items. Safe to call reentrantly from Process (nested follow-up orders).</summary>
     public void Drain(Game game)
     {
-        if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0)
-            return;
-
-        try
-        {
-            while (_queue.TryDequeue(out var item))
-                Process(game, item);
-        }
-        finally
-        {
-            Volatile.Write(ref _draining, 0);
-        }
-
-        // Work enqueued during Process (nested HandleOrder / agent wake) — drain again once.
-        if (!_queue.IsEmpty)
-            Drain(game);
+        while (_queue.TryDequeue(out var item))
+            Process(game, item);
     }
 
     private void Process(Game game, Item item)

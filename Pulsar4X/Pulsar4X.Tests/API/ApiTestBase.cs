@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Pulsar4X.Api;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Api;
+using Pulsar4X.Engine.Orders;
 
 namespace Pulsar4X.Tests
 {
@@ -46,5 +47,13 @@ namespace Pulsar4X.Tests
         // Projects the test universe's single system for the given session's faction.
         private protected SystemSnapshot ProjectSystem(PlayerSession session)
             => _projector.ProjectSystem(_game.Systems[0].ID, session.FactionId)!;
+
+        /// <summary>Queue an engine order through the inbox (same as legacy <c>OrderHandler.HandleOrder</c> in tests).</summary>
+        private protected bool QueueOrder(EntityCommand command)
+            => OrderEnqueue.Enqueue(_game, command);
+
+        /// <summary>Player issue — sets <see cref="OrderSource.Issued"/> and pauses standing.</summary>
+        private protected bool IssuePlayerOrder(EntityCommand command)
+            => OrderEnqueue.Issued(_game, command);
     }
 }
