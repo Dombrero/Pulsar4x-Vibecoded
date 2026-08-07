@@ -28,7 +28,7 @@ public class LaunchShipCommand : EntityCommand
             _padId = padId
         };
 
-        colonyEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+        OrderEnqueue.Enqueue(colonyEntity.AttachedManager.Game, cmd);
     }
 
     internal override void Execute(DateTime atDateTime)

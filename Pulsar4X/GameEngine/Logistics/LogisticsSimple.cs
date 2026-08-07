@@ -8,6 +8,8 @@ using Pulsar4X.Orbits;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Movement;
 
+using Pulsar4X.Engine.Orders;
+
 namespace Pulsar4X.Logistics
 {
 
@@ -68,7 +70,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+            OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
             var s = ship.GetDataBlob<WarpAbilityDB>().MaxSpeed;
             var d = pos.Length() - targetSMA;
             var t = d / s;
@@ -130,7 +132,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+            OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
             (Vector3 position, DateTime atDateTime) targetIntercept = WarpMath.GetInterceptPosition
             (
                 ship,

@@ -15,7 +15,7 @@ namespace Pulsar4X.Engine.Api
     /// Pulsar4X.Api DTOs is delegated to <see cref="GameProjector"/>. It has no UI dependency, so the same
     /// class backs both the in-process adapter and a headless dedicated server.
     /// </summary>
-    public sealed class EngineGameServer : IGameServer, IFleetHierarchyReader, IDisposable
+    public sealed class EngineGameServer : IGameServer, IFleetHierarchyReader, IEngineCommandPump, IDisposable
     {
         private readonly Game? _game;
         private readonly GameProjector? _projector;
@@ -322,6 +322,8 @@ namespace Pulsar4X.Engine.Api
 
             var result = _commands.Translate(faction, commanded, command);
 
+            _game.CommandInbox.Drain(_game);
+
             // Many instant orders (assign scientist, change funding, queue ops, …) mutate DataBlobs
             // without raising an engine message, so after any accepted command re-project the
             // commanded entity and push it — the client sees the effect without waiting for a tick.
@@ -348,6 +350,9 @@ namespace Pulsar4X.Engine.Api
 
             return result;
         }
+
+        /// <inheritdoc />
+        public void PumpPendingCommands() => _game?.CommandInbox.Drain(_game);
 
         /// <summary>
         /// In-process bridge for the client-side interactive component designer: the faction's

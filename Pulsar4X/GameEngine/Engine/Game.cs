@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Pulsar4X.Engine.Auth;
+using Pulsar4X.Engine.Orders;
 using Pulsar4X.Modding;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Blueprints;
@@ -69,6 +70,9 @@ namespace Pulsar4X.Engine
 
         [JsonIgnore]
         public IOrderHandler? OrderHandler { get; internal set; }
+
+        [JsonIgnore]
+        public EngineCommandInbox CommandInbox { get; } = new();
         [JsonProperty]
         public Entity GameMasterFaction { get; internal set; } = Entity.InvalidEntity;
         [JsonProperty]

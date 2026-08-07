@@ -45,7 +45,7 @@ public class JumpOrder : EntityCommand
             JumpGate = jumpGate
         };
 
-        return game.OrderHandler.HandleOrder(cmd);
+        return OrderEnqueue.Enqueue(game, cmd);
     }
 
     internal override void Execute(DateTime atDateTime)
@@ -69,12 +69,12 @@ public class JumpOrder : EntityCommand
                     continue;
 
                 var warpCmd = Movement.WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
-                ship.AttachedManager.Game.OrderHandler.HandleOrder(warpCmd);
+                OrderEnqueue.Enqueue(ship.AttachedManager.Game, warpCmd);
             }
 
             // Queue a per-ship jump command (will execute after warp completes)
             var jumpCmd = ShipJumpCommand.Create(ship, JumpGate);
-            ship.AttachedManager.Game.OrderHandler.HandleOrder(jumpCmd);
+            OrderEnqueue.Enqueue(ship.AttachedManager.Game, jumpCmd);
             _shipJumpCommands.Add(jumpCmd);
         }
 

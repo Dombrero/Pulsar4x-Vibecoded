@@ -20,7 +20,14 @@ public class JPSurveyOrder : EntityCommand
     /// <summary>Must match the range check in <see cref="JPSurveyProcessor"/>.</summary>
     internal const double SurveyRange_m = 100_000;
 
-    public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
+    /// <summary>
+    /// While en route, leave the Movement lane free so ship-level travel warps can run
+    /// on the same hull (same pattern as <see cref="GeoSurveys.GeoSurveyOrder"/>).
+    /// </summary>
+    public override ActionLaneTypes ActionLanes =>
+        Target.IsValid && IsAtTarget()
+            ? ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity
+            : ActionLaneTypes.InteractWithExternalEntity;
 
     public override bool IsBlocking => true;
 
@@ -159,7 +166,7 @@ public class JPSurveyOrder : EntityCommand
                 {
                     var cmd = WarpMoveCommand.CreateCommandEZ(_entityCommanding, Target, atDateTime);
                     _travelCommands.Add(cmd);
-                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+                    OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
                 }
                 catch (Exception ex)
                 {
@@ -204,7 +211,7 @@ public class JPSurveyOrder : EntityCommand
             {
                 var cmd = WarpMoveCommand.CreateCommandEZ(ship, surveyTarget, atDateTime);
                 _travelCommands.Add(cmd);
-                if (!ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd))
+                if (!OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd))
                 {
                     System.Diagnostics.Debug.WriteLine(
                         $"JPSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");

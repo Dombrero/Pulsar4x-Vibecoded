@@ -71,7 +71,7 @@ public class AssignAdministratorOrder : EntityCommand
             if (_adminEntity.AttachedManager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var previousEntity))
             {
                 var unassignOrder = UnassignAdministratorOrder.Create(previousEntity, administrator.Id, _postComponentName);
-                _adminEntity.AttachedManager.Game.OrderHandler.HandleOrder(unassignOrder);
+                OrderEnqueue.Enqueue(_adminEntity.AttachedManager.Game, unassignOrder);
             }
         }
 

@@ -57,7 +57,7 @@ public class CargoInstallOrder : EntityCommand
             InstallOnEntity = installOn,
             facilityComponent = facility
         };
-        cargoFrom.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
+        OrderEnqueue.Enqueue(cargoFrom.AttachedManager.Game, cmd1);
     }
 
 

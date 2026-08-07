@@ -54,7 +54,7 @@ public class AssignScientistOrder : EntityCommand
             if (_labEntity.AttachedManager.TryGetGlobalEntityById(commanderDB.AssignedTo, out var previousLab))
             {
                 var unassignOrder = UnassignScientistOrder.Create(previousLab, scientist.Id);
-                _labEntity.AttachedManager.Game.OrderHandler.HandleOrder(unassignOrder);
+                OrderEnqueue.Enqueue(_labEntity.AttachedManager.Game, unassignOrder);
             }
         }
 

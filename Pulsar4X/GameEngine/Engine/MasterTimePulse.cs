@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Pulsar4X.Api;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Events;
 using System.Threading;
@@ -68,7 +69,23 @@ namespace Pulsar4X.Engine
         // has fully stopped. ContinueWith fires after the task reaches a final state, so IsRunning is
         // false by the time SimulationStopped is raised.
         private void NotifyWhenStopped(Task simulationTask)
-            => simulationTask.ContinueWith(t => { _ = t.Exception; SimulationStopped?.Invoke(); }, TaskScheduler.Default);
+            => simulationTask.ContinueWith(t =>
+            {
+                if (t.IsFaulted && t.Exception is { } agg)
+                {
+                    // Without this, a processor exception silently ends Play and looks like auto-pause.
+                    foreach (var ex in agg.Flatten().InnerExceptions)
+                        DebugTraceLog.Error("Engine",
+                            $"Simulation stopped unexpectedly: {ex.GetType().Name}: {ex.Message}",
+                            GameGlobalDateTime);
+                }
+                else
+                {
+                    _ = t.Exception;
+                }
+
+                SimulationStopped?.Invoke();
+            }, TaskScheduler.Default);
 
         [JsonIgnore]
         private TimeSpan _tickInterval = TimeSpan.FromMilliseconds(100);
@@ -266,7 +283,21 @@ namespace Pulsar4X.Engine
                 // Run the simulation as fast as possible, with no delay between ticks.
                 while (!ct.IsCancellationRequested)
                 {
-                    SimulateTimeUntil(GameGlobalDateTime + Ticklength, ct);
+                    try
+                    {
+                        SimulateTimeUntil(GameGlobalDateTime + Ticklength, ct);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // A single tick fault must not tear down Play (UI looks like a spontaneous pause).
+                        DebugTraceLog.Error("Engine",
+                            $"Time tick failed at {GameGlobalDateTime:u}: {ex.GetType().Name}: {ex.Message}",
+                            GameGlobalDateTime);
+                    }
                 }
             }
             else
@@ -275,7 +306,20 @@ namespace Pulsar4X.Engine
                 // The call to WaitForNextTickAsync will return `true` if the timer fired, or 'false' if the timer was disposed.
                 while (await _tickSource.WaitForNextTickAsync(ct).ConfigureAwait(false))
                 {
-                    SimulateTimeUntil(GameGlobalDateTime + Ticklength, ct);
+                    try
+                    {
+                        SimulateTimeUntil(GameGlobalDateTime + Ticklength, ct);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugTraceLog.Error("Engine",
+                            $"Time tick failed at {GameGlobalDateTime:u}: {ex.GetType().Name}: {ex.Message}",
+                            GameGlobalDateTime);
+                    }
                 }
             }
         }
@@ -292,6 +336,8 @@ namespace Pulsar4X.Engine
             // If a cancellation is signalled, stop the time advance the next time an interrupt happens.
             while (GameGlobalDateTime < targetDateTime && !ct.IsCancellationRequested)
             {
+                _game.CommandInbox.Drain(_game);
+
                 _subpulseStopwatch.Start();
                 DateTime nextInterupt = ProcessNextInterupt(targetDateTime);
                 //do system processors
@@ -300,7 +346,19 @@ namespace Pulsar4X.Engine
                 if (_game.Settings.EnableMultiThreading == true)
                 {
                     //multi-threaded
-                    Parallel.ForEach(activeSystems, starSys => starSys.ManagerSubpulses.ProcessSystem(nextInterupt));
+                    Parallel.ForEach(activeSystems, starSys =>
+                    {
+                        try
+                        {
+                            starSys.ManagerSubpulses.ProcessSystem(nextInterupt);
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugTraceLog.Error("Engine",
+                                $"ProcessSystem failed in system '{starSys.ManagerID}' at {nextInterupt:u}: {ex.GetType().Name}: {ex.Message}",
+                                nextInterupt);
+                        }
+                    });
 
                     //The above 'blocks' till all the tasks are done.
                 }
@@ -309,7 +367,16 @@ namespace Pulsar4X.Engine
                     // single-threaded
                     foreach (StarSystem starSys in activeSystems)
                     {
-                        starSys.ManagerSubpulses.ProcessSystem(nextInterupt);
+                        try
+                        {
+                            starSys.ManagerSubpulses.ProcessSystem(nextInterupt);
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugTraceLog.Error("Engine",
+                                $"ProcessSystem failed in system '{starSys.ManagerID}' at {nextInterupt:u}: {ex.GetType().Name}: {ex.Message}",
+                                nextInterupt);
+                        }
                     }
                 }
 

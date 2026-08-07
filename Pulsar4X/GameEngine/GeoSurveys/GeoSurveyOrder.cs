@@ -17,7 +17,15 @@ namespace Pulsar4X.GeoSurveys;
 /// </summary>
 public class GeoSurveyOrder : EntityCommand
 {
-    public override ActionLaneTypes ActionLanes => ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
+    /// <summary>
+    /// While en route, do not occupy the Movement lane — ship-level goals queue
+    /// <see cref="WarpMoveCommand"/> on the same hull; holding Movement forever blocked warp.
+    /// Fleet-level orders avoid this because warps are issued onto member ships.
+    /// </summary>
+    public override ActionLaneTypes ActionLanes =>
+        Target.IsValid && IsAtTarget()
+            ? ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity
+            : ActionLaneTypes.InteractWithExternalEntity;
 
     public override bool IsBlocking => true;
 
@@ -125,7 +133,13 @@ public class GeoSurveyOrder : EntityCommand
     }
 
     private bool IsAtTarget()
-        => Target != null && FleetOrderCleanup.IsFleetAtBody(EntityCommanding, Target);
+    {
+        if (Target == null)
+            return false;
+        if (_entityCommanding.HasDataBlob<FleetDB>())
+            return FleetOrderCleanup.IsFleetAtBody(_entityCommanding, Target);
+        return FleetOrderCleanup.IsShipAtBody(_entityCommanding, Target);
+    }
 
     /// <summary>
     /// Put <see cref="GeoSurveyingDB"/> on hulls that can and are surveying; clear it elsewhere.
@@ -187,7 +201,32 @@ public class GeoSurveyOrder : EntityCommand
     private void EnsureTravel(DateTime atDateTime)
     {
         if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+        {
+            // Goal planners assign GeoSurveyOrder to a ship — warp that hull directly.
+            if (_entityCommanding.HasDataBlob<WarpAbilityDB>()
+                && _entityCommanding.HasDataBlob<ShipInfoDB>()
+                && Target.IsValid
+                && !FleetOrderCleanup.IsShipAtBody(_entityCommanding, Target))
+            {
+                if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
+                    return;
+
+                FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
+                _travelCommands.Clear();
+                try
+                {
+                    var cmd = WarpMoveCommand.CreateCommandEZ(_entityCommanding, Target, atDateTime);
+                    _travelCommands.Add(cmd);
+                    OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"GeoSurvey travel failed for ship {_entityCommanding.Id}: {ex}");
+                }
+            }
             return;
+        }
 
         // Still warping toward this target — wait; do not stack another hop.
         if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
@@ -227,7 +266,7 @@ public class GeoSurveyOrder : EntityCommand
             {
                 var cmd = WarpMoveCommand.CreateCommandEZ(ship, surveyTarget, atDateTime);
                 _travelCommands.Add(cmd);
-                if (!ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd))
+                if (!OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd))
                 {
                     System.Diagnostics.Debug.WriteLine(
                         $"GeoSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");

@@ -102,6 +102,9 @@ public sealed class InProcessAdapter : IGameClient
             EventReceived?.Invoke(evt);
         }
 
+        if (_server is IEngineCommandPump pump)
+            pump.PumpPendingCommands();
+
         // Co-located server: keep the fleet sidebar in sync even if a push was dropped mid-pulse.
         if (IsConnected && _server is IFleetHierarchyReader reader)
         {

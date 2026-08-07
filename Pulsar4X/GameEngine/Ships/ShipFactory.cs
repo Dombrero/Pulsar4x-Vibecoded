@@ -11,6 +11,8 @@ using Pulsar4X.Engine;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Movement;
 
+using Pulsar4X.Engine.Orders;
+
 namespace Pulsar4X.Ships
 {
     public static class ShipFactory
@@ -186,7 +188,7 @@ namespace Pulsar4X.Ships
                         belongsToFleet.OwningEntity,
                         shipToDestroy);
 
-                    game.OrderHandler.HandleOrder(command);
+                    OrderEnqueue.Enqueue(game, command);
                 }
             }
 

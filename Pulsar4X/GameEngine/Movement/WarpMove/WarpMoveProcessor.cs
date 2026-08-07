@@ -292,13 +292,42 @@ namespace Pulsar4X.Movement
                         // Predictable tank drain for the hop (not uncapped newton circularisation).
                         ConsumeWarpTankFuel(entity, moveDB, toDateTime);
                         entity.RemoveDataBlob<WarpMovingDB>();
-                        SetOrbitHereNoNewt(entity, moveDB, toDateTime);
+                        try
+                        {
+                            SetOrbitHereNoNewt(entity, moveDB, toDateTime);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Arrival must not tear down the time loop (looks like spontaneous pause).
+                            DebugTraceLog.Error("Warp",
+                                $"ship#{entity.Id}: orbit arrival failed: {ex.GetType().Name}: {ex.Message}",
+                                toDateTime);
+                            moveDB.IsAtTarget = true;
+                        }
                         break;
                     }
                 case PositionDB.MoveTypes.NewtonSimple:
-                    throw new NotImplementedException();
                 case PositionDB.MoveTypes.NewtonComplex:
-                    throw new NotImplementedException();
+                    {
+                        // Not implemented yet — park on a circular orbit instead of crashing Play.
+                        DebugTraceLog.Warn("Warp",
+                            $"ship#{entity.Id}: warp exit MoveType={destinationMoveType} unsupported; using circular orbit",
+                            toDateTime);
+                        ConsumeWarpTankFuel(entity, moveDB, toDateTime);
+                        entity.RemoveDataBlob<WarpMovingDB>();
+                        try
+                        {
+                            SetOrbitHereNoNewt(entity, moveDB, toDateTime);
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugTraceLog.Error("Warp",
+                                $"ship#{entity.Id}: fallback orbit arrival failed: {ex.GetType().Name}: {ex.Message}",
+                                toDateTime);
+                            moveDB.IsAtTarget = true;
+                        }
+                        break;
+                    }
                 case PositionDB.MoveTypes.Warp:
                     {
                         var targetSpeed = moveDB.TargetEntity.GetDataBlob<WarpMovingDB>().CurrentNonNewtonionVectorMS;
@@ -307,7 +336,11 @@ namespace Pulsar4X.Movement
                         break;
                     }
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    DebugTraceLog.Warn("Warp",
+                        $"ship#{entity.Id}: unknown warp exit MoveType={destinationMoveType}; treating as static",
+                        toDateTime);
+                    FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
+                    break;
             }
 
         }

@@ -144,7 +144,7 @@ public class CargoTransferOrder : EntityCommand
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = true,
         };
-        bool primaryAccepted = primaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
+        bool primaryAccepted = OrderEnqueue.Enqueue(primaryEntity.AttachedManager.Game, cmd1);
 
         var cmd2 = new CargoTransferOrder(cargoData)
         {
@@ -153,7 +153,7 @@ public class CargoTransferOrder : EntityCommand
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = false
         };
-        return secondaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd2) && primaryAccepted;
+        return OrderEnqueue.Enqueue(secondaryEntity.AttachedManager.Game, cmd2) && primaryAccepted;
     }
 
     /// <summary>
@@ -185,7 +185,7 @@ public class CargoTransferOrder : EntityCommand
             IsPrimaryEntity = true,
             Condition = condition
         };
-        primaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd1);
+        OrderEnqueue.Enqueue(primaryEntity.AttachedManager.Game, cmd1);
 
         var cmd2 = new CargoTransferOrder(cargoData)
         {
@@ -195,7 +195,7 @@ public class CargoTransferOrder : EntityCommand
             IsPrimaryEntity = false,
             Condition = condition
         };
-        secondaryEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd2);
+        OrderEnqueue.Enqueue(secondaryEntity.AttachedManager.Game, cmd2);
     }
 
     /// <returns>True if at least one of the fleet's ships was issued a refuel transfer.</returns>

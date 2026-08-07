@@ -9,6 +9,8 @@ using Pulsar4X.Orbits;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Movement;
 
+using Pulsar4X.Engine.Orders;
+
 namespace Pulsar4X.Logistics
 {
 
@@ -325,7 +327,7 @@ namespace Pulsar4X.Logistics
                 ship,
                 targetBody,
                 startState.At);
-            ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+            OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
 
             var dv = cmd.EndpointTargetExpendDeltaV.Length();
             double ve = ship.GetDataBlob<NewtonThrustAbilityDB>().ExhaustVelocity;

@@ -72,7 +72,7 @@ namespace Pulsar4X.Movement
                         Target,
                         EntityCommanding.StarSysDateTime);
                     _shipCommands.Add(cmd);
-                    ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+                    OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
                 }
                 else
                 {
@@ -92,7 +92,7 @@ namespace Pulsar4X.Movement
                         Target,
                         EntityCommanding.StarSysDateTime);
                     _shipCommands.Add(cmd);
-                    ship.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+                    OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
                 }
             }
 

@@ -99,22 +99,35 @@ public class AgentProcessor : IInstanceProcessor
                     return;
                 }
 
+                int handedDown = 0;
                 try
                 {
                     foreach (var (subordinate, subGoal) in planner.Plan(goal, fleet))
                     {
                         subGoal.ParentGoalId = goal.Id;
-                        AssignGoal(subordinate, subGoal, atDateTime + RelayDelay);
+                        AssignGoal(subordinate, subGoal);
+                        handedDown++;
                     }
                 }
                 catch (Exception e)
                 {
                     Fail(goal, e.Message);
+                    TryResumeStanding(fleet);
                     return;
                 }
 
                 if (goal.Status != GoalStatus.Pending)
+                {
+                    TryResumeStanding(fleet);
                     break;
+                }
+
+                if (handedDown == 0)
+                {
+                    Fail(goal, "no subordinates received the goal");
+                    TryResumeStanding(fleet);
+                    break;
+                }
 
                 goal.Status = GoalStatus.Active;
                 ScheduleAgent(agentHost, atDateTime + RecheckInterval);
@@ -123,10 +136,21 @@ public class AgentProcessor : IInstanceProcessor
             case GoalStatus.Active:
             {
                 var mine = SubGoalsOf(fleet, goal);
-                if (mine.Count > 0 && mine.All(g => g.Status == GoalStatus.Completed))
+                if (mine.Count == 0)
+                {
+                    Fail(goal, "subordinate goals disappeared");
+                    TryResumeStanding(fleet);
+                }
+                else if (mine.All(g => g.Status == GoalStatus.Completed))
+                {
                     goal.Status = GoalStatus.Completed;
+                    TryResumeStanding(fleet);
+                }
                 else if (mine.Any(g => g.Status == GoalStatus.Failed))
+                {
                     Fail(goal, "a subordinate's goal failed");
+                    TryResumeStanding(fleet);
+                }
                 else
                     ScheduleAgent(agentHost, atDateTime + RecheckInterval);
                 break;
@@ -139,7 +163,13 @@ public class AgentProcessor : IInstanceProcessor
         var goal = goalsDB.GivenGoal;
         if (goal == null) return;
         if (goal.Status is GoalStatus.Completed or GoalStatus.Failed) return;
-        if (!ship.TryGetDataBlob<OrderableDB>(out var queue)) return;
+
+        if (!ship.TryGetDataBlob<OrderableDB>(out var queue))
+        {
+            queue = new OrderableDB();
+            ship.SetDataBlob(queue);
+        }
+
         if (ship.AttachedManager?.Game?.OrderHandler == null) return;
 
         switch (goal.Status)
@@ -152,10 +182,18 @@ public class AgentProcessor : IInstanceProcessor
                     return;
                 }
 
-                foreach (var action in planner.Plan(goal, ship))
+                try
                 {
-                    action.ParentGoalId = goal.Id;
-                    ship.AttachedManager.Game.OrderHandler.HandleOrder(action);
+                    foreach (var action in planner.Plan(goal, ship))
+                    {
+                        action.ParentGoalId = goal.Id;
+                        OrderEnqueue.FromGoal(ship.AttachedManager.Game, action);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Fail(goal, e.Message);
+                    break;
                 }
 
                 if (goal.Status == GoalStatus.Pending)
@@ -203,6 +241,12 @@ public class AgentProcessor : IInstanceProcessor
     /// <summary>Record a goal and wake the unit's agent (now or after relay delay).</summary>
     public static void AssignGoal(Entity unit, Goal goal, DateTime? when = null)
     {
+        // Player Issue via goals must pause Standing the same way Issued ActionList orders do.
+        // Subordinate goals (ParentGoalId set) are hand-downs from the fleet and must not
+        // wipe the parent's standing commitment a second time.
+        if (string.IsNullOrEmpty(goal.ParentGoalId) && unit.HasDataBlob<FleetDB>())
+            FleetOrderCleanup.PauseStandingForPlayerIssue(unit);
+
         GetOrCreateGoals(unit).GivenGoal = goal;
 
         if (when == null)
@@ -235,6 +279,28 @@ public class AgentProcessor : IInstanceProcessor
         goal.Message = message;
     }
 
+    /// <summary>
+    /// When a fleet-level Issue goal finishes, kick Standing immediately (same as
+    /// OrderableProcessor after the last Issued ActionList order drains).
+    /// </summary>
+    static void TryResumeStanding(Entity fleet)
+    {
+        if (!fleet.HasDataBlob<FleetDB>())
+            return;
+        if (fleet.TryGetDataBlob<OrderableDB>(out var q)
+            && q.ActionList.Any(a => a.Source == OrderSource.Issued))
+            return;
+
+        try
+        {
+            fleet.AttachedManager?.Game?.ProcessorManager?.RunProcessOnEntity<FleetDB>(fleet, 0);
+        }
+        catch
+        {
+            // Next FleetOrderProcessor hotloop will pick it up.
+        }
+    }
+
     internal static void ScheduleAgent(Entity unit, DateTime when)
     {
         unit.AttachedManager?.ManagerSubpulses.AddEntityInterupt(when, nameof(AgentProcessor), unit);
@@ -242,7 +308,9 @@ public class AgentProcessor : IInstanceProcessor
 
     internal static void RunAgentNow(Entity unit)
     {
-        ProcessEntityStatic(unit, unit.StarSysDateTime);
+        var game = unit.AttachedManager?.Game;
+        if (game == null) return;
+        OrderEnqueue.WakeAgent(game, unit);
     }
 
     public static void PruneImpossibleGoals(GoalsDB goalsDB, Entity entity)

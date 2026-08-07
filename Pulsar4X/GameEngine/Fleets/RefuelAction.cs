@@ -222,7 +222,7 @@ namespace Pulsar4X.Fleets
             if (!_entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable))
             {
                 foreach (var cmd in followUps)
-                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+                    OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
                 return;
             }
 
@@ -239,7 +239,7 @@ namespace Pulsar4X.Fleets
             if (selfIndex < 0)
             {
                 foreach (var cmd in followUps)
-                    _entityCommanding.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+                    OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
                 return;
             }
 

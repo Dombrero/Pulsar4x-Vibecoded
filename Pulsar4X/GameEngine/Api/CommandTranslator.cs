@@ -98,9 +98,11 @@ namespace Pulsar4X.Engine.Api
         // ----- helpers -----
 
         private CommandResult Dispatch(EntityCommand order)
-            => _game.OrderHandler.HandleOrder(order)
+        {
+            return OrderEnqueue.Issued(_game, order)
                 ? CommandResult.Ok(Guid.NewGuid().ToString("N"))
                 : CommandResult.Reject("Command rejected by engine validation.");
+        }
 
         // The cancel/pause/standing-order paths mutate the order or standing-order list directly
         // (they have no engine order of their own), so unlike HandleOrder they must signal the
@@ -213,7 +215,7 @@ namespace Pulsar4X.Engine.Api
             if (holder != null && holder != faction && holder != toFleet)
             {
                 var unassign = FleetOrder.UnassignShip(faction.Id, holder, commanded);
-                if (!_game.OrderHandler.HandleOrder(unassign))
+                if (!OrderEnqueue.Issued(_game, unassign))
                     return CommandResult.Reject("Command rejected by engine validation.");
             }
 
@@ -400,13 +402,9 @@ namespace Pulsar4X.Engine.Api
             // Stuck out-of-range cargo transfers occupy the ship Movement lane and block warp.
             FleetOrderCleanup.AbortCargoTransfersOnFleetShips(commanded);
 
-            // Goals/agent path (OrdersAndAI vertical slice) — planners emit warp/newton actions.
-            AgentProcessor.AssignGoal(commanded, new Goal
-            {
-                Type = GoalType.MoveTo,
-                TargetEntityID = body.Id,
-            });
-            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+            // Issue Orders stay on the OrderableDB Dispatch path so Standing / Issue priority
+            // keeps working. Goals planners remain available via AgentProcessor.AssignGoal for AI.
+            return Dispatch(MoveToSystemBodyOrder.CreateCommand(faction.Id, commanded, body));
         }
 
         private CommandResult TranslateGeoSurvey(Entity faction, Entity commanded, GameCommand command)
@@ -415,12 +413,9 @@ namespace Pulsar4X.Engine.Api
             if (!TryResolve(survey.BodyId, out var body))
                 return CommandResult.Reject($"Entity {survey.BodyId} not found.");
 
-            AgentProcessor.AssignGoal(commanded, new Goal
-            {
-                Type = GoalType.ServeyBodies,
-                TargetEntityID = body.Id,
-            });
-            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+            // One order: travel (if needed) then survey. Separate Warp+Survey pairs raced Movement
+            // lanes and allowed surveying while still at Earth.
+            return Dispatch(GeoSurveyOrder.CreateCommand(faction.Id, commanded, body));
         }
 
         private CommandResult TranslateCompleteGeoSurvey(Entity faction, Entity commanded, GameCommand command)
@@ -456,7 +451,7 @@ namespace Pulsar4X.Engine.Api
             if (!TryResolve(survey.LocationId, out var location))
                 return CommandResult.Reject($"Entity {survey.LocationId} not found.");
 
-            if (!_game.OrderHandler.HandleOrder(WarpFleetTowardsTargetOrder.CreateCommand(commanded, location)))
+            if (!OrderEnqueue.Issued(_game, WarpFleetTowardsTargetOrder.CreateCommand(commanded, location)))
                 return CommandResult.Reject("Command rejected by engine validation.");
 
             return Dispatch(JPSurveyOrder.CreateCommand(faction.Id, commanded, location));
@@ -491,7 +486,7 @@ namespace Pulsar4X.Engine.Api
 
             if (!FleetOrderCleanup.IsFleetAtColony(commanded, colony))
             {
-                if (!_game.OrderHandler.HandleOrder(WarpFleetTowardsTargetOrder.CreateCommand(commanded, colony)))
+                if (!OrderEnqueue.Issued(_game, WarpFleetTowardsTargetOrder.CreateCommand(commanded, colony)))
                     return CommandResult.Reject("Command rejected by engine validation.");
             }
 
@@ -570,25 +565,47 @@ namespace Pulsar4X.Engine.Api
         private CommandResult TranslateCancelOrder(Entity faction, Entity commanded, GameCommand command)
         {
             var cancel = (Pulsar4X.Api.CancelOrderCommand)command;
-            if (!commanded.TryGetDataBlob<OrderableDB>(out var orderable))
-                return CommandResult.Reject("The entity has no order queue.");
 
-            var order = orderable.ActionList.FirstOrDefault(o => o.CmdID == cancel.OrderId);
-            if (order == null)
-                return CommandResult.Reject($"Order {cancel.OrderId} is not in the queue.");
-
-            // Cargo transfers hold escrow on both partners — Abort restores goods and removes both orders.
-            if (order is CargoTransferOrder cargoTransfer)
+            if (TryRemoveOrder(commanded, cancel.OrderId))
             {
-                cargoTransfer.Abort();
                 PublishOrdersChanged(commanded);
                 return CommandResult.Ok(Guid.NewGuid().ToString("N"));
             }
 
-            // Allow cancelling running orders too — otherwise stub/stuck actions can lock a fleet forever.
-            orderable.ActionList.Remove(order);
-            PublishOrdersChanged(commanded);
-            return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+            // Fleet Orders UI aggregates ship queues — cancel may target a ship order id.
+            if (commanded.TryGetDataBlob<FleetDB>(out var fleetDB))
+            {
+                foreach (var child in fleetDB.Children)
+                {
+                    if (child.HasDataBlob<FleetDB>())
+                        continue;
+                    if (TryRemoveOrder(child, cancel.OrderId))
+                    {
+                        PublishOrdersChanged(commanded);
+                        PublishOrdersChanged(child);
+                        return CommandResult.Ok(Guid.NewGuid().ToString("N"));
+                    }
+                }
+            }
+
+            return CommandResult.Reject($"Order {cancel.OrderId} is not in the queue.");
+        }
+
+        private static bool TryRemoveOrder(Entity entity, string orderId)
+        {
+            if (string.IsNullOrEmpty(orderId) || !entity.TryGetDataBlob<OrderableDB>(out var orderable))
+                return false;
+
+            var order = orderable.ActionList.FirstOrDefault(o => o.CmdID == orderId);
+            if (order == null)
+                return false;
+
+            if (order is CargoTransferOrder cargoTransfer)
+                cargoTransfer.Abort();
+            else
+                orderable.ActionList.Remove(order);
+
+            return true;
         }
 
         private CommandResult TranslateClearFleetOrders(Entity faction, Entity commanded, GameCommand command)
@@ -596,6 +613,18 @@ namespace Pulsar4X.Engine.Api
             if (!commanded.HasDataBlob<FleetDB>())
                 return CommandResult.Reject("ClearFleetOrders requires a fleet.");
 
+            // Also clear active goal so Issue Orders don't look "stuck" after clear.
+            if (commanded.TryGetDataBlob<GoalsDB>(out var fleetGoals))
+                fleetGoals.GivenGoal = null;
+
+            if (commanded.TryGetDataBlob<FleetDB>(out var fleetDB))
+            {
+                foreach (var child in fleetDB.Children)
+                {
+                    if (child.TryGetDataBlob<GoalsDB>(out var childGoals))
+                        childGoals.GivenGoal = null;
+                }
+            }
             FleetOrderCleanup.ClearFleetAndShipOrders(commanded);
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));
         }
@@ -910,7 +939,7 @@ namespace Pulsar4X.Engine.Api
                 || !storage.TypeStores.ContainsKey(instance.CargoTypeID))
                 return CommandResult.Reject("The entity has no cargo storage that can hold the component.");
 
-            if (!_game.OrderHandler.HandleOrder(UninstallComponentInstanceOrder.Create(commanded, instance)))
+            if (!OrderEnqueue.Issued(_game, UninstallComponentInstanceOrder.Create(commanded, instance)))
                 return CommandResult.Reject("Command rejected by engine validation.");
 
             return Dispatch(AddComponentToStorageOrder.Create(commanded, instance));
@@ -939,7 +968,7 @@ namespace Pulsar4X.Engine.Api
             if (instance == null)
                 return CommandResult.Reject($"Component {install.ComponentId} is not in the entity's storage.");
 
-            if (!_game.OrderHandler.HandleOrder(RemoveComponentFromStorageOrder.Create(commanded, instance)))
+            if (!OrderEnqueue.Issued(_game, RemoveComponentFromStorageOrder.Create(commanded, instance)))
                 return CommandResult.Reject("Command rejected by engine validation.");
 
             return Dispatch(InstallComponentInstanceOrder.Create(commanded, instance));

@@ -64,7 +64,7 @@ public class SetLogisticsOrder : EntityCommand
             _type = ordertype
         };
 
-        entity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+        OrderEnqueue.Enqueue(entity.AttachedManager.Game, cmd);
     }
 
     public static void CreateCommand_SetBaseItems(Entity entity, Dictionary<ICargoable, (int count, int demandSupplyWeight)> changes)
@@ -77,7 +77,7 @@ public class SetLogisticsOrder : EntityCommand
             _baseChanges = changes
         };
 
-        entity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+        OrderEnqueue.Enqueue(entity.AttachedManager.Game, cmd);
     }
 
     public class Changes//maybe should be a struct, but would need to not use a dictionary and need to check mutability.
@@ -101,7 +101,7 @@ public class SetLogisticsOrder : EntityCommand
         cmd._type = OrderTypes.SetShipTypeAmounts;
         cmd._shipChanges = changes;
 
-        entity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+        OrderEnqueue.Enqueue(entity.AttachedManager.Game, cmd);
 
         entity.AttachedManager.Game.ProcessorManager.GetProcessor<LogiShipperDB>().ProcessEntity(entity, 0);
         entity.AttachedManager.Game.ProcessorManager.GetProcessor<LogiBaseDB>().ProcessManager(entity.AttachedManager, 0);

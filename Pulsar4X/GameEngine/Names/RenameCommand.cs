@@ -30,7 +30,7 @@ namespace Pulsar4X.Names
                 UseActionLanes = false
             };
 
-            return game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(game, cmd);
         }
 
         internal override void Execute(DateTime atDateTime)

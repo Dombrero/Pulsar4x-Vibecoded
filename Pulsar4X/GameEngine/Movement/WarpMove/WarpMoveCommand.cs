@@ -104,12 +104,12 @@ namespace Pulsar4X.Movement
                 var sgp = GeneralMath.StandardGravitationalParameter(targetEntity.GetDataBlob<MassVolumeDB>().MassTotal + orderEntity.GetDataBlob<MassVolumeDB>().MassTotal);
                 cmd.EndpointTargetOrbit = OrbitMath.KeplerCircularFromPosition(sgp, endpointRelativePos, datetimeArrive.Item2); ;
             }
-            return orderEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(orderEntity.AttachedManager.Game, cmd);
         }
 
         /// <summary>
         /// Creates a warp order with an attempted simplenewt circular orbit post warp.
-        /// DOES NOT QUEUE THE COMMAND. Game.OrderHandler.HandleOrder(cmd) should be called
+        /// DOES NOT QUEUE THE COMMAND. OrderEnqueue.Enqueue(game, cmd) should be called
         /// </summary>
         /// <param name="orderEntity"></param>
         /// <param name="targetEntity"></param>
@@ -218,7 +218,7 @@ namespace Pulsar4X.Movement
                     throw new NotImplementedException();
             }
 
-            //orderEntity.AttachedManager.Game.OrderHandler.HandleOrder(cmd);
+            //OrderEnqueue.Enqueue(orderEntity.AttachedManager.Game, cmd);
 
 
             return cmd;
@@ -477,7 +477,7 @@ namespace Pulsar4X.Movement
                 {
                     var shipCommand = WarpMoveCommand.CreateCommandEZ(ship, Target, atDateTime);
                     _shipCommands.Add(shipCommand);
-                    ship.AttachedManager.Game.OrderHandler.HandleOrder(shipCommand);
+                    OrderEnqueue.Enqueue(ship.AttachedManager.Game, shipCommand);
                 }
                 catch (Exception ex)
                 {

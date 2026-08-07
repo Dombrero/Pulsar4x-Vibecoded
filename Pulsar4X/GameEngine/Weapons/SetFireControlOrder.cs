@@ -46,7 +46,7 @@ namespace Pulsar4X.Weapons
                 WeaponsAssigned = weaponsAssigned,
                 UseActionLanes = false
             };
-            return game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(game, cmd);
         }
 
 
@@ -149,7 +149,7 @@ namespace Pulsar4X.Weapons
                 TargetSensorEntityGuid = targetGuid,
                 UseActionLanes = false,
             };
-            return game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(game, cmd);
         }
 
 
@@ -257,7 +257,7 @@ namespace Pulsar4X.Weapons
                 FireControlGuid = fireControlGuid,
                 IsFiring = isFiring,
             };
-            return game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(game, cmd);
         }
 
         internal override void Execute(DateTime atDateTime)
@@ -360,7 +360,7 @@ namespace Pulsar4X.Weapons
                 WeaponGuid = weaponId,
                 OrdnanceAssigned = ordnanceAssigned
             };
-            return game.OrderHandler.HandleOrder(cmd);
+            return OrderEnqueue.Enqueue(game, cmd);
         }
 
 
