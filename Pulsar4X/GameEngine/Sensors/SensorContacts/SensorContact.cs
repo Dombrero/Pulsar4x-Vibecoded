@@ -1,6 +1,6 @@
 using System;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Pulsar4X.Engine;
 using Pulsar4X.Factions;
 using Pulsar4X.Messaging;
@@ -19,7 +19,13 @@ namespace Pulsar4X.Sensors
     public class SensorContact
     {
         public int ActualEntityId;
-        public Entity ActualEntity = Entity.InvalidEntity;
+
+        /// <summary>
+        /// Must not default to <see cref="Entity.InvalidEntity"/>: that singleton is shared, and
+        /// Newtonsoft <c>PreserveReferencesHandling</c> would populate it in-place during load
+        /// ("A different Id has already been assigned for value Entity").
+        /// </summary>
+        public Entity ActualEntity = null!;
 
         public SensorInfoDB? SensorInfo;
         public SensorPositionDB? Position;

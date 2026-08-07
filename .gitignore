@@ -9,6 +9,12 @@ Pulsar4X/Pulsar4X.Tests/TestResults/
 
 # Local build / UI scratch (never commit)
 Pulsar4X/_build_check_*/
+Pulsar4X/_diag_*.csx
+build-*.txt
+remaining-warn.txt
+warn-stats.txt
+warnings.json
+game-run-logs/
 **/imgui.ini
 imgui.ini
 

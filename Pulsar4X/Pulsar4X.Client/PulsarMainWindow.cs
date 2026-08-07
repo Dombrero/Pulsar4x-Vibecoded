@@ -145,6 +145,10 @@ namespace Pulsar4X.Client
             if (ev.Type != (uint)SDL.EventType.KeyDown)
                 return false;
 
+            // Key-repeat would flip Play/Pause every few ms while Space is held.
+            if (ev.Key.Repeat)
+                return false;
+
             if (ImGui.GetIO().WantTextInput)
                 return false;
 

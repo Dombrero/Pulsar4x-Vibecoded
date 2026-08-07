@@ -100,14 +100,14 @@ namespace Pulsar4X.Client
 
             ImGui.SameLine();
 
-            if (isStopping) ImGui.BeginDisabled();
-            
+            // Keep Play/Pause clickable while IsStopping — otherwise a long ProcessSystem after
+            // Pause leaves the control locked and feels like a spontaneous freeze.
             if (ImGui.ImageButton("playpause", buttonTexture.ToTextureRef(), _iconSize))
             {
                 PausePlayPressed();
             }
-
-            if (isStopping) ImGui.EndDisabled();
+            if (isStopping && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Simulation stoppt …");
 
             // Step button only shown when paused
             if (isPaused)

@@ -152,10 +152,13 @@ public static class CargoStorageDBDisplay
             if (canInstall && ImGui.MenuItem("Install"))
             {
                 var storageOrder = RemoveComponentFromStorageOrder.Create(component.ParentEntity, component, 1);
-                GameLifecycle.Instance?.Game?.OrderHandler.HandleOrder(storageOrder);
-
                 var installOrder = InstallComponentInstanceOrder.Create(component.ParentEntity, component);
-                GameLifecycle.Instance?.Game?.OrderHandler.HandleOrder(installOrder);
+                var game = GameLifecycle.Instance?.Game;
+                if (game != null)
+                {
+                    OrderEnqueue.Enqueue(game, storageOrder);
+                    OrderEnqueue.Enqueue(game, installOrder);
+                }
             }
             ImGui.PushStyleColor(ImGuiCol.Text, Styles.TerribleColor);
             if (ImGui.MenuItem("Destroy"))

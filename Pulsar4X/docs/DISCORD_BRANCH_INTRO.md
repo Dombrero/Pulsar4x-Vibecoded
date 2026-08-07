@@ -25,6 +25,7 @@ Goals and Standing both drive the same `OrderableDB`. This branch keeps **Issue 
 ## Honest notes
 
 - AI-assisted; I’m still learning engine/API edges — feedback welcome
+- Order path is centralized on **`EngineCommandInbox` + `OrderEnqueue`** (see `ORDER_ARCHITECTURE.md`)
 - Some commits were mixed; this branch is the “integration” line; upstream should be file-scoped PRs off `DevBranch`
 
 ## Ask
