@@ -179,7 +179,7 @@ namespace Pulsar4X.Weapons
             //the reason we use guids is to make it easier to serialise for network play.
             //getting the entites makes it a bit easier to ActionCommand though
             //it may also be a good idea to double check that the entites we're looking for have specific DBs to prevent a crash...
-            //IsCommandValid also checks that the entity we're commanding is owned by our faction.
+            // IsCommandValid resolves entity/faction refs (ownership is translator / server meta).
             if (CommandHelpers.IsCommandValid(game.GlobalManager, RequestingFactionGuid, EntityCommandingGuid, out _factionEntity, out _entityCommanding))
             {
                 if (game.GlobalManager.TryGetGlobalEntityById(TargetSensorEntityGuid, out _targetSensorEntity))

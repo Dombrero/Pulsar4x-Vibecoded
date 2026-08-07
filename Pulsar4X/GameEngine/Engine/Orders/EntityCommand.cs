@@ -99,8 +99,8 @@ namespace Pulsar4X.Engine.Orders
         internal abstract Entity EntityCommanding { get; }
 
         /// <summary>
-        /// checks that the entities exsist and that the entity is owned by the faction.
-        /// may eventualy need to return a responce instead of just bool.
+        /// Checks that commanded entities still exist and resolves refs for Execute.
+        /// Ownership/auth is enforced by CommandTranslator / EngineGameServer — not here.
         /// </summary>
         internal abstract bool IsValidCommand(Game game);
         /// <summary>
@@ -132,18 +132,22 @@ namespace Pulsar4X.Engine.Orders
 
     public static class CommandHelpers
     {
+        /// <summary>
+        /// Resolves the target entity (must still exist) and the requesting faction entity for Execute.
+        /// Ownership/auth is enforced by CommandTranslator / EngineGameServer; this only checks
+        /// the entity is alive and resolves refs.
+        /// </summary>
         public static bool IsCommandValid(EntityManager globalManager, int factionId, int targetEntityId, out Entity factionEntity, out Entity targetEntity)
         {
-            if (globalManager.TryGetGlobalEntityById(targetEntityId, out targetEntity))
+            if (globalManager.TryGetGlobalEntityById(targetEntityId, out targetEntity)
+                && globalManager.Game.Factions.ContainsKey(factionId))
             {
-                if (globalManager.Game.Factions.ContainsKey(factionId))
-                {
-                    factionEntity = globalManager.Game.Factions[factionId];
-                    if (targetEntity.FactionOwnerID == factionEntity.Id)
-                        return true;
-                }
+                factionEntity = globalManager.Game.Factions[factionId];
+                return true;
             }
+
             factionEntity = Entity.InvalidEntity;
+            targetEntity = Entity.InvalidEntity;
             return false;
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Pulsar4X.Api;
 using Pulsar4X.Engine;
@@ -30,6 +31,14 @@ namespace Pulsar4X.Engine.Api
         private StarSystem? _focusedSystem;
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
         private readonly Action? _onSimulationStopped;
+
+        // Engine-side inbox loop (Discord): drains CommandInbox continuously even while paused.
+        // Existing drains (SubmitCommand, MasterTimePulse subpulse, InProcessAdapter) remain fine
+        // alongside this pump. A networked server can later push DTOs into the same inbox.
+        private PeriodicTimer? _commandPumpTimer;
+        private CancellationTokenSource? _commandPumpCts;
+        private Task? _commandPumpTask;
+
         public EngineGameServer(Game game)
         {
             _game = game;
@@ -49,10 +58,64 @@ namespace Pulsar4X.Engine.Api
             // TimeState stays IsRunning=true and its time controls never unlock. Push a final clock.
             _onSimulationStopped = OnSimulationStopped;
             _game.TimePulse.SimulationStopped += _onSimulationStopped;
+
+            StartCommandPump();
+        }
+
+        /// <summary>
+        /// Background ~50ms drain of <see cref="Game.CommandInbox"/> for the life of this server.
+        /// Works while the simulation is paused; network code can later enqueue into the same inbox.
+        /// </summary>
+        private void StartCommandPump()
+        {
+            _commandPumpCts = new CancellationTokenSource();
+            _commandPumpTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(50));
+            var ct = _commandPumpCts.Token;
+            _commandPumpTask = Task.Run(() => RunCommandPumpAsync(ct), ct);
+        }
+
+        private async Task RunCommandPumpAsync(CancellationToken ct)
+        {
+            var timer = _commandPumpTimer;
+            if (timer is null) return;
+
+            try
+            {
+                while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                {
+                    try
+                    {
+                        _game?.CommandInbox.Drain(_game);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugTraceLog.Error("API",
+                            $"Command inbox pump drain failed: {ex.GetType().Name}: {ex.Message}");
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+            }
         }
 
         public void Dispose()
         {
+            _commandPumpCts?.Cancel();
+            _commandPumpTimer?.Dispose();
+            try
+            {
+                _commandPumpTask?.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException)
+            {
+                // Cancelled / disposed timer — expected on shutdown.
+            }
+            _commandPumpCts?.Dispose();
+            _commandPumpCts = null;
+            _commandPumpTimer = null;
+            _commandPumpTask = null;
+
             _game.TimePulse.GameGlobalDateChangedEvent -= _onDateChanged;
             _game.TimePulse.SimulationStopped -= _onSimulationStopped;
             if (_focusedSystem != null)

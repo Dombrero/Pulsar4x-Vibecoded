@@ -597,6 +597,9 @@ namespace Pulsar4X.Fleets
                 return;
             }
 
+            var game = fleet.AttachedManager?.Game;
+            if (game == null) return;
+
             var actions = NormalizeStandingActions(order.Actions);
             if (actions.Count == 0)
             {
@@ -611,29 +614,13 @@ namespace Pulsar4X.Fleets
                 action.BindCommandingEntity(fleet);
                 var clone = action.Clone();
                 clone.BindCommandingEntity(fleet);
-                clone.Source = OrderSource.Standing;
-                orderableDB.ActionList.Add(clone);
+                // Standing path goes through HandleOrder (ActionList + ProcessEntity + OrdersChanged).
+                OrderEnqueue.Standing(game, clone);
             }
 
             DebugTraceLog.Info("Standing",
                 $"{FleetLabel(fleet)}: enqueued '{order.Name}' → [{QueueSummary(orderableDB)}]",
                 fleet.StarSysDateTime);
-
-            PublishOrdersChanged(fleet);
-
-            try
-            {
-                if (fleet.Manager?.Game?.ProcessorManager != null)
-                {
-                    fleet.AttachedManager.Game.ProcessorManager
-                        .GetInstanceProcessor(nameof(OrderableProcessor))
-                        .ProcessEntity(fleet, fleet.StarSysDateTime);
-                }
-            }
-            catch
-            {
-                // Orders remain queued for the next OrderableProcessor pass.
-            }
 
             // Action evaporated in the same tick (no targets / instant finish). Clear commitment
             // and suppress re-ENTRY so we do not restart→enqueue→vanish every hotloop hour.
