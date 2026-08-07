@@ -30,8 +30,10 @@ namespace Pulsar4X.Engine.Orders
                     {
                         if (!orderableDB.OwningEntity.IsValid) throw new InvalidOperationException("orderableDB.OwningEntity is not valid");
 
-                        // Issued (player) orders drop queued Standing work so Issue always wins.
-                        if (entityCommand.Source == OrderSource.Issued)
+                        // Player Issue on a fleet drops Standing. Follow-up cargo/ship orders must not
+                        // use Issued in a way that pauses fleet standing — only fleet-level Issue does.
+                        if (entityCommand.Source == OrderSource.Issued
+                            && orderableDB.OwningEntity.HasDataBlob<FleetDB>())
                             FleetOrderCleanup.PauseStandingForPlayerIssue(orderableDB.OwningEntity);
 
                         orderableDB.ActionList.Add(entityCommand);

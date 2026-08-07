@@ -72,7 +72,17 @@ namespace Pulsar4X.Fleets
                 return;
 
             if (!FleetOrderCleanup.IsFleetAtColony(_entityCommanding, _colony))
+            {
+                // Waiting to arrive.
+                if (!_transfersIssued)
+                    return;
+
+                // Left the colony with a hanging transfer (e.g. warped away) — clear instead of stalling forever.
+                if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
+                    FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
+                _isFinished = true;
                 return;
+            }
 
             if (!_colony.HasDataBlob<CargoStorageDB>())
             {
@@ -92,7 +102,7 @@ namespace Pulsar4X.Fleets
 
             try
             {
-                bool ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding);
+                bool ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding, Source);
                 if (ok && _entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
                     RefuelColonySearch.RememberRefuelSite(fleetDB, _colony);
 

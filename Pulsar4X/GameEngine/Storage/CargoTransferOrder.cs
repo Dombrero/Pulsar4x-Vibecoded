@@ -134,7 +134,7 @@ public class CargoTransferOrder : EntityCommand
             && ReferenceEquals(other.TransferData, TransferData));
     }
 
-    public static bool CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, List<(ICargoable item, long amount)> itemsToMove)
+    public static bool CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, List<(ICargoable item, long amount)> itemsToMove, OrderSource source = OrderSource.Issued)
     {
         CargoTransferDataDB cargoData = new(primaryEntity, secondaryEntity, itemsToMove);
         var cmd1 = new CargoTransferOrder(cargoData)
@@ -143,6 +143,7 @@ public class CargoTransferOrder : EntityCommand
             EntityCommandingGuid = primaryEntity.Id,
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = true,
+            Source = source,
         };
         bool primaryAccepted = OrderEnqueue.Enqueue(primaryEntity.AttachedManager.Game, cmd1);
 
@@ -151,7 +152,8 @@ public class CargoTransferOrder : EntityCommand
             RequestingFactionGuid = faction,
             EntityCommandingGuid = secondaryEntity.Id,
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
-            IsPrimaryEntity = false
+            IsPrimaryEntity = false,
+            Source = source,
         };
         return OrderEnqueue.Enqueue(secondaryEntity.AttachedManager.Game, cmd2) && primaryAccepted;
     }
@@ -165,7 +167,7 @@ public class CargoTransferOrder : EntityCommand
     /// <param name="secondaryEntity"></param>
     /// <param name="item"></param>
     /// <param name="condition"></param>
-    public static void CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, ICargoable item, Conditionals condition)
+    public static void CreateCommands(int faction, Entity primaryEntity, Entity secondaryEntity, ICargoable item, Conditionals condition, OrderSource source = OrderSource.Issued)
     {
         long amount = 0;
         if (condition == Conditionals.WaitTillFull)
@@ -183,7 +185,8 @@ public class CargoTransferOrder : EntityCommand
             EntityCommandingGuid = primaryEntity.Id,
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = true,
-            Condition = condition
+            Condition = condition,
+            Source = source,
         };
         OrderEnqueue.Enqueue(primaryEntity.AttachedManager.Game, cmd1);
 
@@ -193,13 +196,14 @@ public class CargoTransferOrder : EntityCommand
             EntityCommandingGuid = secondaryEntity.Id,
             CreatedDate = primaryEntity.AttachedManager.ManagerSubpulses.StarSysDateTime,
             IsPrimaryEntity = false,
-            Condition = condition
+            Condition = condition,
+            Source = source,
         };
         OrderEnqueue.Enqueue(secondaryEntity.AttachedManager.Game, cmd2);
     }
 
     /// <returns>True if at least one of the fleet's ships was issued a refuel transfer.</returns>
-    public static bool CreateRefuelFleetCommand(Entity cargoFromEntity, Entity fleet)
+    public static bool CreateRefuelFleetCommand(Entity cargoFromEntity, Entity fleet, OrderSource source = OrderSource.Issued)
     {
         if (!cargoFromEntity.TryGetDataBlob<CargoStorageDB>(out var colonyStorage))
             return false;
@@ -251,7 +255,7 @@ public class CargoTransferOrder : EntityCommand
                 if (free <= 0)
                     continue;
 
-                CreateCommands(fleet.FactionOwnerID, ship, cargoFromEntity, fuel, Conditionals.WaitTillFull);
+                CreateCommands(fleet.FactionOwnerID, ship, cargoFromEntity, fuel, Conditionals.WaitTillFull, source);
                 anyIssued = true;
             }
             catch (Exception ex)

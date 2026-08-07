@@ -1,11 +1,12 @@
 using Pulsar4X.Engine;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Pulsar4X.Engine.Orders;
 
 /// <summary>
 /// Thread-safe queue of immediate engine work (orders, agent wake-ups).
-/// Drained on command submit, between time sub-pulses, and from the in-process client pump while paused.
+/// Drained on command submit, between time sub-pulses, the continuous engine pump, and the in-process UI pump.
 /// </summary>
 public sealed class EngineCommandInbox
 {
@@ -30,8 +31,12 @@ public sealed class EngineCommandInbox
     }
 
     private readonly ConcurrentQueue<Item> _queue = new();
+    private readonly object _drainLock = new();
 
-    /// <summary>Result of the most recent <see cref="Kind.HandleOrder"/> processed during the last drain.</summary>
+    /// <summary>Reentrant drain depth on the current thread (nested Enqueue while Process runs).</summary>
+    private readonly ThreadLocal<int> _drainDepth = new(() => 0);
+
+    /// <summary>Result of the most recent <see cref="Kind.HandleOrder"/> processed during the last drain on this call stack.</summary>
     public bool LastHandleOrderAccepted { get; private set; }
 
     public void EnqueueHandleOrder(EntityCommand command)
@@ -40,8 +45,33 @@ public sealed class EngineCommandInbox
     public void EnqueueWakeAgent(Entity entity)
         => _queue.Enqueue(new Item(Kind.WakeAgent, null, entity));
 
-    /// <summary>Processes all pending items. Safe to call reentrantly from Process (nested follow-up orders).</summary>
+    /// <summary>
+    /// Processes all pending items. Safe across the background pump and UI/sim threads;
+    /// reentrant on the same thread when <see cref="OrderEnqueue"/> nests during Process.
+    /// </summary>
     public void Drain(Game game)
+    {
+        if (_drainDepth.Value > 0)
+        {
+            DrainCore(game);
+            return;
+        }
+
+        lock (_drainLock)
+        {
+            _drainDepth.Value++;
+            try
+            {
+                DrainCore(game);
+            }
+            finally
+            {
+                _drainDepth.Value--;
+            }
+        }
+    }
+
+    private void DrainCore(Game game)
     {
         while (_queue.TryDequeue(out var item))
             Process(game, item);
