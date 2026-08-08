@@ -14,7 +14,7 @@ A fan-made project to recreate a more user-friendly and better optimized version
 #### Documentation is available on the [Wiki](https://github.com/Pulsar4xDevs/Pulsar4x/wiki).
 #### We track bugs in [Issues](https://github.com/Pulsar4xDevs/Pulsar4x/issues).
 
-### Contributing:
+### Contributing to the original project:
 * Create a fork of the project.
 * Ensure you're on the DevBranch.
 * Find an issue you'd like to look at, either by looking through the issues on github or something that looks like it needs doing just from compiling and running the project (some low hanging fruit ie ui improvements, we've not created issues for).
@@ -26,7 +26,7 @@ A fan-made project to recreate a more user-friendly and better optimized version
 Once you've got a couple of PRs under your belt we'll consider adding you to the group which will give you permisisons to push directly.
 ***
 
-### Community
+### Community to original project 
 
 * Discord [Server](https://discord.gg/3uwCQSn) (primary)
 * Aurora [Subforum](http://aurora2.pentarch.org/index.php?board=169.0)
