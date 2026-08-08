@@ -454,6 +454,53 @@ namespace Pulsar4X.Tests
         }
 
         [Test]
+        public void Star_parented_ship_in_planet_SOI_still_transfers_fuel_at_colony()
+        {
+            // IsShipAtColony is true via SOI, but CalcDV used to return Infinity / huge Hohmann
+            // → transfer rate 0 → "Fuel transfer in progress" with escrow stuck for years.
+            var session = Connect();
+            var earthPos = new Vector3(1.5e11, 0, 0);
+            var (colony, fleet, ship, fuel) = MakeFleetAndColony(
+                session,
+                shipAbsolutePosition: earthPos + new Vector3(8e6, 0, 0),
+                transferRangeDv: 3000);
+
+            var star = _game.Systems[0].GetFirstEntityWithDataBlob<StarInfoDB>();
+            // Keep absolute near Earth, but parent to the star (bad warp-exit parenting).
+            var shipPos = ship.GetDataBlob<PositionDB>();
+            shipPos.SetParent(star);
+            shipPos.AbsolutePosition = earthPos + new Vector3(8e6, 0, 0);
+
+            Assert.That(FleetOrderCleanup.IsShipAtColony(ship, colony), Is.True,
+                "Precondition: SOI gate must treat the ship as on-station.");
+            Assert.That(CargoTransferProcessor.CalcDVDifference_m(ship, colony), Is.EqualTo(0).Within(1e-6),
+                "Docked-at-colony must report dv=0 so cargo rate is non-zero.");
+
+            Assert.That(
+                CargoTransferOrder.CreateRefuelFleetCommand(colony, fleet, OrderSource.Standing),
+                Is.True);
+
+            var shipStore = ship.GetDataBlob<CargoStorageDB>();
+            long before = shipStore.GetUnitsStored(fuel, includeEscro: false);
+            Assert.That(before, Is.EqualTo(0));
+
+            // Execute both transfer orders so CargoTransferDB exists, then pump the processor.
+            foreach (var cmd in ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>().ToList())
+                cmd.Execute(_game.TimePulse.GameGlobalDateTime);
+            foreach (var cmd in colony.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>().ToList())
+                cmd.Execute(_game.TimePulse.GameGlobalDateTime);
+
+            Assert.That(ship.HasDataBlob<CargoTransferDB>(), Is.True);
+            var processor = new CargoTransferProcessor();
+            for (int i = 0; i < 30; i++)
+                processor.ProcessEntity(ship.GetDataBlob<CargoTransferDB>(), 60);
+
+            long after = shipStore.GetUnitsStored(fuel, includeEscro: false);
+            Assert.That(after, Is.GreaterThan(before),
+                "On-station SOI refuel must actually move mass into the tank.");
+        }
+
+        [Test]
         public void ClearFleetOrders_removes_ship_CargoTransfers()
         {
             var session = Connect();

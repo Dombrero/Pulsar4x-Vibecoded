@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Pulsar4X.Colonies;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Orbital;
 using Pulsar4X.Extensions;
+using Pulsar4X.Fleets;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Engine;
 using Pulsar4X.Galaxy;
@@ -69,9 +71,9 @@ namespace Pulsar4X.Storage
                 transferData.PrimaryStorageDB,
                 transferData.SecondaryStorageDB);
 
-            // Same orbit parent yields dv=0 (full rate). Only then allow a baseline —
-            // never for out-of-range / unknown dv (PositiveInfinity), or Mercury↔Earth
-            // refuel becomes a free wireless hose.
+            // Same orbit parent / docked-at-colony yields dv=0 (full rate). Only then allow a
+            // baseline — never for out-of-range / unknown dv (PositiveInfinity), or
+            // Mercury↔Earth refuel becomes a free wireless hose.
             if (transferRate <= 0 && dv_mps <= 0)
             {
                 transferRate = Math.Max(
@@ -238,6 +240,16 @@ namespace Pulsar4X.Storage
                 if (pos2.Parent != null && pos2.Parent.Id == entity1.Id)
                     return 0;
             }
+
+            // Refuel issues WaitTillFull when IsShipAtColony (incl. SOI / star-parented near
+            // the planet). Cargo transfer must use the same "docked" gate — otherwise DV is
+            // Infinity/huge, rate stays 0, and the UI shows "1.3M remaining" for years.
+            if (entity1.HasDataBlob<ColonyInfoDB>()
+                && FleetOrderCleanup.IsShipAtColony(entity2, entity1))
+                return 0;
+            if (entity2.HasDataBlob<ColonyInfoDB>()
+                && FleetOrderCleanup.IsShipAtColony(entity1, entity2))
+                return 0;
 
             double dvDif = 0;
 
