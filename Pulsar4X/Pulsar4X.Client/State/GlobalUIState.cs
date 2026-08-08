@@ -491,7 +491,11 @@ namespace Pulsar4X.Client
             SetActiveSystem(systemId, keepSelection: true);
         }
 
-        private string? FindSystemContainingEntity(int entityId)
+        /// <summary>
+        /// Cross-system entity lookup for UI. Snapshots live per system; after a JP jump the
+        /// caller often still has the old map SystemId.
+        /// </summary>
+        internal string? FindSystemContainingEntity(int entityId)
         {
             if (GameClient == null)
                 return null;
@@ -503,6 +507,85 @@ namespace Pulsar4X.Client
             }
 
             return null;
+        }
+
+        internal void EntitySelectedAsPrimary(int entityGuid, string starSys)
+        {
+            if (!TryResolveEntitySnapshot(entityGuid, ref starSys, out var snapshot) || snapshot == null)
+                return;
+
+            PrimaryEntity = new EntityState(snapshot, starSys);
+            ActiveWindow?.EntitySelectedAsPrimary(PrimaryEntity);
+        }
+
+        internal void EntityClicked(int entityGuid, string starSys, MouseButtons button)
+        {
+            if (SelectedSysMapRender == null) throw new NullReferenceException("SelectedSysMapRender is null");
+
+            if (!TryResolveEntitySnapshot(entityGuid, ref starSys, out var snapshot) || snapshot == null)
+                return;
+
+            // Ship/fleet clicks often happen while the map is still on the previous system.
+            if (!string.IsNullOrEmpty(starSys) && starSys != SelectedStarSystemId)
+                SetActiveSystem(starSys, keepSelection: true);
+
+            var entityState = new EntityState(snapshot, starSys);
+            LastClickedEntity = entityState;
+
+            ActiveWindow?.EntityClicked(entityState, button);
+
+            SelectedSysMapRender.SelectedEntityExtras = new List<IDrawData>();
+
+            if (ActiveWindow == null || ActiveWindow.GetActive() == false || ActiveWindow.ClickedEntityIsPrimary)
+                PrimaryEntity = LastClickedEntity;
+
+            EntityClickedEvent?.Invoke(LastClickedEntity, button);
+
+            if (button == MouseButtons.Primary)
+            {
+                if (!EntityWindows.TryGetValue(entityGuid, out var window))
+                {
+                    window = new EntityWindow(entityGuid, starSys);
+                    EntityWindows.Add(entityGuid, window);
+                }
+                else if (window.SystemId != starSys)
+                {
+                    window.RelocateToSystem(starSys);
+                }
+
+                window.ToggleActive();
+
+                if (!ViewPort.IsCtrlPressed)
+                {
+                    foreach (var (id, other) in EntityWindows)
+                    {
+                        if (id == entityGuid) continue;
+
+                        other.SetActive(false);
+                    }
+                }
+            }
+        }
+
+        private bool TryResolveEntitySnapshot(int entityGuid, ref string starSys, out EntitySnapshot? snapshot)
+        {
+            snapshot = GameClient?.Galaxy.GetSystem(starSys)?.GetEntity(entityGuid);
+            if (snapshot != null)
+                return true;
+
+            var resolved = FindSystemContainingEntity(entityGuid);
+            if (resolved == null)
+                return false;
+
+            starSys = resolved;
+            snapshot = GameClient?.Galaxy.GetSystem(starSys)?.GetEntity(entityGuid);
+            return snapshot != null;
+        }
+
+        internal void EntityClicked(EntityState entityState, MouseButtons button)
+        {
+            if (entityState.StarSystemId == null) throw new NullReferenceException("StarSystemId is null");
+            EntityClicked(entityState.Id, entityState.StarSystemId, button);
         }
 
         internal void SetActiveSystem(string activeSysID, bool refresh = false, bool keepSelection = false)
@@ -551,7 +634,6 @@ namespace Pulsar4X.Client
 
                 OnStarSystemChanged?.Invoke(this);
             }
-
         }
 
         internal void ToggleGameMaster()
@@ -876,60 +958,6 @@ namespace Pulsar4X.Client
                 ContextMenu?.Display();
                 ImGui.EndPopup();
             }
-        }
-
-        internal void EntitySelectedAsPrimary(int entityGuid, string starSys)
-        {
-            var snapshot = GameClient?.Galaxy.GetSystem(starSys)?.GetEntity(entityGuid);
-            if (snapshot == null) return;
-
-            PrimaryEntity = new EntityState(snapshot, starSys);
-            ActiveWindow?.EntitySelectedAsPrimary(PrimaryEntity);
-        }
-
-        internal void EntityClicked(int entityGuid, string starSys, MouseButtons button)
-        {
-            if (SelectedSysMapRender == null) throw new NullReferenceException("SelectedSysMapRender is null");
-
-            var snapshot = GameClient?.Galaxy.GetSystem(starSys)?.GetEntity(entityGuid);
-            if (snapshot == null) return;
-
-            var entityState = new EntityState(snapshot, starSys);
-            LastClickedEntity = entityState;
-
-            ActiveWindow?.EntityClicked(entityState, button);
-
-            SelectedSysMapRender.SelectedEntityExtras = new List<IDrawData>();
-
-            if (ActiveWindow == null || ActiveWindow.GetActive() == false || ActiveWindow.ClickedEntityIsPrimary)
-                PrimaryEntity = LastClickedEntity;
-
-            EntityClickedEvent?.Invoke(LastClickedEntity, button);
-
-            if (button == MouseButtons.Primary)
-            {
-                if (!EntityWindows.ContainsKey(entityGuid))
-                {
-                    EntityWindows.Add(entityGuid, new EntityWindow(entityGuid, starSys));
-                }
-                EntityWindows[entityGuid].ToggleActive();
-
-                if (!ViewPort.IsCtrlPressed)
-                {
-                    foreach (var (id, window) in EntityWindows)
-                    {
-                        if (id == entityGuid) continue;
-
-                        window.SetActive(false);
-                    }
-                }
-            }
-        }
-
-        internal void EntityClicked(EntityState entityState, MouseButtons button)
-        {
-            if (entityState.StarSystemId == null) throw new NullReferenceException("StarSystemId is null");
-            EntityClicked(entityState.Id, entityState.StarSystemId, button);
         }
     }
 

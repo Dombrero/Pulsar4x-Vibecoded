@@ -12,7 +12,7 @@ namespace Pulsar4X.Client
     public class EntityWindow : NamedPulsarGuiWindow
     {
         public int EntityId { get; }
-        public string SystemId { get; }
+        public string SystemId { get; private set; }
         public string Title { get; private set; } = "Unknown";
 
         // Re-resolved each frame: system snapshots are replaced wholesale by server pushes.
@@ -42,6 +42,13 @@ namespace Pulsar4X.Client
             EntityId = entityId;
             SystemId = systemId;
             _flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoTitleBar;
+        }
+
+        /// <summary>Ship jumped — rebind the panel to the system that now owns the snapshot.</summary>
+        internal void RelocateToSystem(string systemId)
+        {
+            if (!string.IsNullOrEmpty(systemId))
+                SystemId = systemId;
         }
 
         public new void SetActive(bool activeVal = true)
@@ -159,6 +166,18 @@ namespace Pulsar4X.Client
 
             _system = _uiState.GameClient?.Galaxy.GetSystem(SystemId);
             _entity = _system?.GetEntity(EntityId);
+
+            // After a JP jump the window may still hold the departure SystemId.
+            if (_entity == null)
+            {
+                var resolved = _uiState.FindSystemContainingEntity(EntityId);
+                if (resolved != null)
+                {
+                    RelocateToSystem(resolved);
+                    _system = _uiState.GameClient?.Galaxy.GetSystem(SystemId);
+                    _entity = _system?.GetEntity(EntityId);
+                }
+            }
 
             // The entity left the faction's view (destroyed/hidden) — drop the window.
             if (_entity == null)

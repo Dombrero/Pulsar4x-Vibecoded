@@ -687,7 +687,9 @@ namespace Pulsar4X.Client
             {
                 if (ImGui.MenuItem("View Ship"))
                 {
-                    var systemId = string.IsNullOrEmpty(ship.SystemId) ? _uiState.SelectedStarSystemId : ship.SystemId;
+                    var systemId = !string.IsNullOrEmpty(ship.SystemId)
+                        ? ship.SystemId
+                        : (_uiState.FindSystemContainingEntity(ship.Id) ?? _uiState.SelectedStarSystemId);
                     _uiState.EntityClicked(ship.Id, systemId, MouseButtons.Primary);
                 }
                 if (!isUnattached && selectedFleet != null)

@@ -499,7 +499,8 @@ namespace Pulsar4X.Fleets
                     if (useExitThreshold)
                         matches = OrderStillNeedsAction(fleet, order);
                     else if (OrderLooksLikeRefuel(order))
-                        matches = FleetFuel.AnyBelow(fleet, 30f);
+                        matches = FleetFuel.AnyBelow(fleet, 30f)
+                                  || FleetFuel.HasOpportunityTopOff(fleet);
                     else if (OrderLooksLikeRecharge(order))
                         matches = FleetEnergy.AnyColonyRechargeBelow(fleet, 30f);
                     else
@@ -512,6 +513,12 @@ namespace Pulsar4X.Fleets
                 else
                 {
                     matches = order.Condition?.Evaluate(fleet) ?? false;
+                    // Docked with free tanks: ENTER Refuel even above the fuel threshold so
+                    // fleets top off before departing for the next survey hop.
+                    if (!matches
+                        && OrderLooksLikeRefuel(order)
+                        && FleetFuel.HasOpportunityTopOff(fleet))
+                        matches = true;
                 }
 
                 if (matches)

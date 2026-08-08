@@ -196,6 +196,64 @@ namespace Pulsar4X.Movement
             return true;
         }
 
+        /// <summary>
+        /// Heliocentric frame used while warping: primary star / gravity root.
+        /// Grav anomalies and jump points are MoveTypes.None with no parent, so
+        /// TreeHierarchyDB.Root is the anomaly itself — parenting a ship
+        /// there and then writing heliocentric AbsolutePosition as RelativePosition
+        /// double-offsets and looks like a teleport.
+        /// </summary>
+        internal static Entity? GetSystemWarpFrame(Entity entity)
+        {
+            var manager = entity.AttachedManager;
+            if (manager == null)
+                return null;
+
+            try
+            {
+                var star = manager.GetFirstEntityWithDataBlob<StarInfoDB>();
+                if (star == null || !star.IsValid)
+                    return null;
+
+                if (star.TryGetDataBlob<OrbitDB>(out var orbit)
+                    && orbit.Root is { IsValid: true } gravityRoot
+                    && gravityRoot.HasDataBlob<PositionDB>())
+                    return gravityRoot;
+
+                if (star.HasDataBlob<PositionDB>())
+                    return star;
+            }
+            catch
+            {
+                // Fall through — caller may use PositionDB.Root / null.
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Reparent into the heliocentric warp frame while preserving AbsolutePosition.
+        /// </summary>
+        internal static void AttachToSystemWarpFrame(Entity entity, PositionDB positionDB)
+        {
+            Vector3 absolute = positionDB.AbsolutePosition;
+            var frame = GetSystemWarpFrame(entity);
+
+            if (frame != null && frame.IsValid && frame != entity)
+            {
+                if (positionDB.Parent != frame)
+                    positionDB.SetParent(frame);
+            }
+            else if (positionDB.Parent != null)
+            {
+                positionDB.SetParent(null);
+            }
+
+            // SetParent preserves absolute; re-assert in case parent was already frame
+            // but RelativePosition was stale from a previous double-offset.
+            positionDB.AbsolutePosition = absolute;
+        }
+
         public static bool StartNonNewtTranslation(Entity entity)
         {
             var warpDB = entity.GetDataBlob<WarpAbilityDB>();
@@ -219,12 +277,14 @@ namespace Pulsar4X.Movement
                 return false;
             }
 
-            // Detach to system root only once the hop is actually affordable.
-            if (positionDB.Parent != positionDB.Root)
-                positionDB.SetParent(positionDB.Root);
+            // Detach into heliocentric frame once the hop is affordable.
+            AttachToSystemWarpFrame(entity, positionDB);
 
             // Keep MoveState parent in sync — otherwise ProcessForType nulls Parent via unset _parentEnitity.
-            moveDB._parentEnitity = positionDB.Root ?? moveDB._parentEnitity;
+            moveDB._parentEnitity = positionDB.Parent is { IsValid: true } p
+                ? p
+                : (GetSystemWarpFrame(entity) ?? moveDB._parentEnitity);
+            // Transit positions are heliocentric (matched against ExitPointAbsolute).
             moveDB._position = (Vector2)positionDB.AbsolutePosition;
             targetPosMt = moveDB.ExitPointAbsolute;
 
@@ -243,6 +303,7 @@ namespace Pulsar4X.Movement
         /// <summary>
         /// Arrive at a MoveTypes.None target (grav anomaly / jump point): keep zero-speed warp
         /// (ships "hover" on warp resources) but sync PositionDB and consume tank fuel.
+        /// Stay in the heliocentric frame — do not parent the ship to the anomaly.
         /// </summary>
         static void FinishWarpAtStaticTarget(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB, DateTime toDateTime)
         {
@@ -254,12 +315,15 @@ namespace Pulsar4X.Movement
             if (entity.TryGetDataBlob<PositionDB>(out var pos))
             {
                 pos.AbsolutePosition = moveDB.ExitPointAbsolute;
-                pos.SetParent(moveDB.TargetEntity);
+                AttachToSystemWarpFrame(entity, pos);
+                pos.AbsolutePosition = moveDB.ExitPointAbsolute;
                 pos.MoveType = PositionDB.MoveTypes.Warp;
             }
 
-            moveDB._parentEnitity = moveDB.TargetEntity;
-            moveDB._position = (Vector2)moveDB.ExitPointrelative;
+            var frame = GetSystemWarpFrame(entity);
+            moveDB._parentEnitity = frame is { IsValid: true } f ? f : moveDB.TargetEntity;
+            // Hover: keep heliocentric position so ProcessForType does not offset by anomaly.
+            moveDB._position = (Vector2)moveDB.ExitPointAbsolute;
             moveDB.LastProcessDateTime = toDateTime;
 
             var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();

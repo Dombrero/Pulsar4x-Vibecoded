@@ -431,6 +431,68 @@ namespace Pulsar4X.Tests
         }
 
         [Test]
+        public void Opportunity_top_off_at_colony_before_leaving_even_when_fuel_above_enter()
+        {
+            var session = Connect();
+            var (colony, fleet, ship) = MakeLowFuelFleet(session);
+
+            // Fill tanks well above 30% ENTER, but leave free space so top-off is possible.
+            var fuel = UnlockFuel(session);
+            var store = ship.GetDataBlob<CargoStorageDB>();
+            long stored = store.GetUnitsStored(fuel, includeEscro: false);
+            long free = store.GetFreeUnitSpace(fuel, includeEscro: false);
+            long capacity = stored + free;
+            long target = (long)(capacity * 0.55);
+            if (stored < target)
+                store.AddCargoByUnit(fuel, target - stored);
+            else if (stored > target)
+                CargoTransferProcessor.AddRemoveCargoMass(ship, fuel, -(stored - target) * fuel.MassPerUnit);
+
+            // Park at the colony — opportunity fill should beat the next survey hop.
+            ship.GetDataBlob<PositionDB>().SetParent(colony);
+
+            var star = _game.Systems[0].GetFirstEntityWithDataBlob<StarInfoDB>();
+            _game.Systems[0].AddEntity(Entity.Create(), new List<BaseDataBlob>
+            {
+                new NameDB("Mars", session.FactionId, "Mars"),
+                new PositionDB(new Vector3(2.3e11, 0, 0), star),
+                MassVolumeDB.NewFromMassAndRadius_m(6e23, 3.4e6),
+                new GeoSurveyableDB { PointsRequired = 500 },
+            });
+
+            var surveyActions = new SafeList<EntityCommand>
+            {
+                MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet),
+            };
+            var surveyCondition = new CompoundCondition();
+            surveyCondition.ConditionItems.Add(new ConditionItem(
+                new UnsurveyedGeoCondition(0f, ComparisonType.GreaterThan)));
+
+            InstallRefuelStandingOrder(fleet);
+            fleet.GetDataBlob<FleetDB>().StandingOrders.Add(new ConditionalOrder(surveyCondition, surveyActions)
+            {
+                Name = "survey",
+            });
+            fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex = 1;
+
+            var runningSurvey = MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet);
+            runningSurvey.Source = OrderSource.Standing;
+            fleet.GetDataBlob<OrderableDB>().ActionList.Add(runningSurvey);
+
+            Assert.That(FleetFuel.AnyBelow(fleet, 30f), Is.False, "Precondition: fuel must be above ENTER.");
+            Assert.That(FleetFuel.HasOpportunityTopOff(fleet), Is.True, "Precondition: docked with free tanks.");
+
+            new FleetOrderProcessor().ProcessEntity(fleet, 0);
+
+            var orders = fleet.GetDataBlob<OrderableDB>().ActionList.ToList();
+            Assert.That(orders.OfType<MoveToNearestGeoSurveyAction>().Any(), Is.False,
+                "Must not leave the colony for survey while tanks still have free space.");
+            Assert.That(orders.Any(IsRefuelStandingWork), Is.True,
+                "Docked opportunity top-off must preempt survey even above 30% fuel.");
+            Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(0));
+        }
+
+        [Test]
         public void Issued_order_drops_queued_standing_actions()
         {
             var session = Connect();

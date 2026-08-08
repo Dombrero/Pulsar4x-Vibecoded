@@ -449,14 +449,18 @@ namespace Pulsar4X.Client
         {
             // Surface the ship like a map click would: focus its system, open the entity window,
             // and centre the camera (using the ship's position from the galaxy snapshot).
-            if (string.IsNullOrEmpty(ship.SystemId)) return;
+            var systemId = !string.IsNullOrEmpty(ship.SystemId)
+                ? ship.SystemId
+                : _uiState.FindSystemContainingEntity(ship.Id);
+            if (string.IsNullOrEmpty(systemId))
+                return;
 
-            if (_uiState.SelectedStarSystemId != ship.SystemId)
-                _uiState.SetActiveSystem(ship.SystemId);
+            if (_uiState.SelectedStarSystemId != systemId)
+                _uiState.SetActiveSystem(systemId);
 
-            _uiState.EntityClicked(ship.Id, ship.SystemId, MouseButtons.Primary);
+            _uiState.EntityClicked(ship.Id, systemId, MouseButtons.Primary);
 
-            var snapshot = _uiState.GameClient?.Galaxy.GetSystem(ship.SystemId)?.GetEntity(ship.Id);
+            var snapshot = _uiState.GameClient?.Galaxy.GetSystem(systemId)?.GetEntity(ship.Id);
             if (snapshot?.GetView<PositionView>() is { } pos)
                 _uiState.Camera.CenterOnPosition(pos.AbsolutePosition.X, pos.AbsolutePosition.Y, pos.AbsolutePosition.Z);
         }

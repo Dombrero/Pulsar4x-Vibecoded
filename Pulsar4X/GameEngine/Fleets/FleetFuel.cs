@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Pulsar4X.Datablobs;
+using Pulsar4X.DataStructures;
 using Pulsar4X.Engine;
 using Pulsar4X.Extensions;
 using Pulsar4X.Factions;
@@ -139,6 +140,35 @@ namespace Pulsar4X.Fleets
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// True when a fuel-capable ship with free tank space is already at a friendly colony.
+        /// Standing orders use this to top off before leaving, even when fuel is above the
+        /// normal ENTER threshold (e.g. enough for one more hop).
+        /// </summary>
+        internal static bool HasOpportunityTopOff(Entity fleet)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out _))
+                return false;
+            if (fleet.AttachedManager == null)
+                return false;
+
+            return ShipsNeedingRefuel(fleet)
+                .Any(s =>
+                {
+                    foreach (var colony in fleet.AttachedManager.GetFilteredEntities(
+                                 EntityFilter.Friendly,
+                                 fleet.FactionOwnerID,
+                                 e => e.HasDataBlob<Colonies.ColonyInfoDB>()
+                                      && e.HasDataBlob<CargoStorageDB>()))
+                    {
+                        if (FleetOrderCleanup.IsShipAtColony(s, colony))
+                            return true;
+                    }
+
+                    return false;
+                });
         }
     }
 }

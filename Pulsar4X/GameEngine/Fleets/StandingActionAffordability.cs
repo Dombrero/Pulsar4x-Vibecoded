@@ -35,6 +35,16 @@ namespace Pulsar4X.Fleets
             if (LooksLikeRefuel(activeOrder) || LooksLikeRecharge(activeOrder))
                 return false;
 
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return false;
+
+            // Already docked with free tank space: top off before leaving, even when the next
+            // hop looks affordable. Still defer while an on-site survey/transfer is free.
+            if (LooksLikeRefuel(enterOrder)
+                && FleetFuel.HasOpportunityTopOff(fleet)
+                && !HasOnSiteLocalWork(fleet, fleetDB, activeOrder))
+                return false;
+
             return CanAffordNextAction(fleet, activeOrder);
         }
 
@@ -62,7 +72,7 @@ namespace Pulsar4X.Fleets
                     // Prefer remaining distance from current absolute position when available.
                     if (ship.TryGetDataBlob<PositionDB>(out var pos))
                         dist = (moving.ExitPointAbsolute - pos.AbsolutePosition).Length();
-                    if (!WarpMoveProcessor.CanAffordWarpHop(ship, dist))
+                    if (!CanAffordStandingTravelHop(ship, dist))
                         return false;
                 }
             }
@@ -90,11 +100,46 @@ namespace Pulsar4X.Fleets
                     return false;
 
                 double dist = (targetPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
-                if (!WarpMoveProcessor.CanAffordWarpHop(ship, dist))
+                if (!CanAffordStandingTravelHop(ship, dist))
                     return false;
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Standing logistics uses a travel reserve: bare next-hop affordability still leaves
+        /// ships stranded after arrival. Require enough tank fuel for ~2 similar hops.
+        /// </summary>
+        private static bool CanAffordStandingTravelHop(Entity ship, double distance_m)
+        {
+            if (!WarpMoveProcessor.CanAffordWarpHop(ship, distance_m))
+                return false;
+
+            // Empty cargo tanks must never count as affordable travel.
+            if (distance_m > 1e6 && !WarpMoveProcessor.HasWarpTankFuel(ship))
+                return false;
+
+            long need = WarpMoveProcessor.EstimateWarpTankFuelUnits(ship, distance_m);
+            if (need <= 0)
+                return true;
+
+            try
+            {
+                if (!ship.TryGetDataBlob<CargoStorageDB>(out var storage))
+                    return false;
+                var cargoLib = ship.GetFactionOwner.GetDataBlob<Factions.FactionInfoDB>().Data.CargoGoods;
+                var (fuel, _) = ship.GetFuelInfo(cargoLib);
+                if (fuel == null)
+                    return true;
+
+                long stored = storage.GetUnitsStored(fuel, includeEscro: false);
+                return stored >= need * 2;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static bool IsParentedToTarget(Entity ship, Entity target)

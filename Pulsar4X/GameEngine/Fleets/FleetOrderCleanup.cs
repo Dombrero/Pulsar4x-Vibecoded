@@ -102,15 +102,20 @@ namespace Pulsar4X.Fleets
                 // next WarpMoveCommand constructor calls GetAbsoluteFuturePosition → GetDataBlob
                 // WarpMovingDB and throws KeyNotFoundException (stuck after grav anomaly #1).
                 positionDB.AbsolutePosition = absolute;
+                WarpMoveProcessor.AttachToSystemWarpFrame(ship, positionDB);
+                positionDB.AbsolutePosition = absolute;
                 positionDB.MoveType = PositionDB.MoveTypes.None;
                 return;
             }
 
             // Parked on a static body (grav anomaly / JP): do not invent an orbit around
-            // a near-zero-mass parent — freeze pose so the next hop can compute intercepts.
+            // a near-zero-mass parent — freeze pose in the heliocentric frame so the next
+            // hop does not double-apply AbsolutePosition under the anomaly parent.
             if (parent.TryGetDataBlob<PositionDB>(out var parentPos)
                 && parentPos.MoveType == PositionDB.MoveTypes.None)
             {
+                positionDB.AbsolutePosition = absolute;
+                WarpMoveProcessor.AttachToSystemWarpFrame(ship, positionDB);
                 positionDB.AbsolutePosition = absolute;
                 positionDB.MoveType = PositionDB.MoveTypes.None;
                 return;
