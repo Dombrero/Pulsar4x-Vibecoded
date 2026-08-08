@@ -325,7 +325,21 @@ namespace Pulsar4X.Tests
         public void Higher_priority_refuel_preempts_standing_survey()
         {
             var session = Connect();
-            var (_, fleet, _) = MakeLowFuelFleet(session);
+            var (_, fleet, ship) = MakeLowFuelFleet(session);
+
+            // Drain tanks so any survey hop is unaffordable (fuel still <30% ENTER).
+            var fuel = UnlockFuel(session);
+            var store = ship.GetDataBlob<CargoStorageDB>();
+            long stored = store.GetUnitsStored(fuel, includeEscro: false);
+            if (stored > 1000)
+                CargoTransferProcessor.AddRemoveCargoMass(ship, fuel, -(stored - 1000) * fuel.MassPerUnit);
+
+            // Also make warp capacitors unable to cover bubble creation (no generator catch-up).
+            ship.GetDataBlob<WarpAbilityDB>().BubbleCreationCost = 1_000_000;
+            var power = ship.GetDataBlob<EnergyGenAbilityDB>();
+            power.MaxOutputFromReactor = 0;
+            power.EnergyStored[fuel.UniqueID] = 100;
+            power.EnergyStoreMax[fuel.UniqueID] = 500_000;
 
             var star = _game.Systems[0].GetFirstEntityWithDataBlob<StarInfoDB>();
             _game.Systems[0].AddEntity(Entity.Create(), new List<BaseDataBlob>
@@ -355,15 +369,65 @@ namespace Pulsar4X.Tests
             var runningSurvey = MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet);
             runningSurvey.Source = OrderSource.Standing;
             fleet.GetDataBlob<OrderableDB>().ActionList.Add(runningSurvey);
+            fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex = 1;
 
             new FleetOrderProcessor().ProcessEntity(fleet, 0);
 
             var orders = fleet.GetDataBlob<OrderableDB>().ActionList.ToList();
             Assert.That(orders.OfType<MoveToNearestGeoSurveyAction>().Any(), Is.False,
-                "Low fuel must preempt standing survey when Refuel is higher priority.");
+                "Unaffordable next survey hop must allow refuel preempt.");
             Assert.That(orders.Any(IsRefuelStandingWork), Is.True,
                 "Refuel standing order should replace the survey queue.");
             Assert.That(orders.OfType<ResupplyAction>().Any(), Is.False);
+        }
+
+        [Test]
+        public void Refuel_does_not_preempt_on_site_survey_when_local_action_is_free()
+        {
+            var session = Connect();
+            var (_, fleet, ship) = MakeLowFuelFleet(session);
+
+            var star = _game.Systems[0].GetFirstEntityWithDataBlob<StarInfoDB>();
+            var mars = Entity.Create();
+            _game.Systems[0].AddEntity(mars, new List<BaseDataBlob>
+            {
+                new NameDB("Mars", session.FactionId, "Mars"),
+                new PositionDB(new Vector3(2.3e11, 0, 0), star),
+                MassVolumeDB.NewFromMassAndRadius_m(6e23, 3.4e6),
+                new GeoSurveyableDB { PointsRequired = 500 },
+            });
+
+            // Already on-station — next action is local scan (0 fuel / 0 warp energy).
+            ship.GetDataBlob<PositionDB>().SetParent(mars);
+            ship.SetDataBlob(new GeoSurveyingDB { TargetId = mars.Id });
+
+            var surveyActions = new SafeList<EntityCommand>
+            {
+                MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet),
+            };
+            var surveyCondition = new CompoundCondition();
+            surveyCondition.ConditionItems.Add(new ConditionItem(
+                new UnsurveyedGeoCondition(0f, ComparisonType.GreaterThan)));
+
+            InstallRefuelStandingOrder(fleet);
+            fleet.GetDataBlob<FleetDB>().StandingOrders.Add(new ConditionalOrder(surveyCondition, surveyActions)
+            {
+                Name = "survey",
+            });
+            fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex = 1;
+
+            var runningSurvey = MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet);
+            runningSurvey.Source = OrderSource.Standing;
+            fleet.GetDataBlob<OrderableDB>().ActionList.Add(runningSurvey);
+
+            new FleetOrderProcessor().ProcessEntity(fleet, 0);
+
+            var orders = fleet.GetDataBlob<OrderableDB>().ActionList.ToList();
+            Assert.That(orders.OfType<MoveToNearestGeoSurveyAction>().Any(), Is.True,
+                "On-site survey must finish before refuel when the local action is free.");
+            Assert.That(orders.Any(IsRefuelStandingWork), Is.False,
+                "Refuel must not preempt an affordable on-site survey.");
+            Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(1));
         }
 
         [Test]

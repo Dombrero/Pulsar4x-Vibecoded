@@ -377,6 +377,92 @@ namespace Pulsar4X.Movement
         }
 
         /// <summary>
+        /// Tank units that <see cref="ConsumeWarpTankFuel"/> would take for a hop of
+        /// <paramref name="distance_m"/>. Returns 0 when free / no tank / trivial hop.
+        /// </summary>
+        internal static long EstimateWarpTankFuelUnits(Entity entity, double distance_m)
+        {
+            try
+            {
+                if (!entity.TryGetDataBlob<CargoStorageDB>(out var storage))
+                    return 0;
+
+                var cargoLib = entity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+                var (fuel, _) = entity.GetFuelInfo(cargoLib);
+                if (fuel == null)
+                    return 0;
+
+                long stored = storage.GetUnitsStored(fuel, includeEscro: false);
+                long free = storage.GetFreeUnitSpace(fuel, includeEscro: false);
+                long capacity = stored + free;
+                if (capacity <= 0)
+                    return 0;
+
+                const double MetersPerAu = 149597870700.0;
+                double au = Math.Max(0, distance_m / MetersPerAu);
+                const double MinBillableAu = 0.01;
+                if (au < 1e-6)
+                    return 0;
+                double fraction = au < MinBillableAu
+                    ? Math.Clamp(0.015 * (au / MinBillableAu), 0, 0.015)
+                    : Math.Clamp(0.015 + 0.05 * au, 0.015, 0.18);
+                return Math.Max(1, (long)Math.Ceiling(capacity * fraction));
+            }
+            catch
+            {
+                return long.MaxValue;
+            }
+        }
+
+        /// <summary>True when tank fuel and warp capacitors can cover a hop of <paramref name="distance_m"/>.</summary>
+        internal static bool CanAffordWarpHop(Entity entity, double distance_m)
+        {
+            long fuelNeed = EstimateWarpTankFuelUnits(entity, distance_m);
+            if (fuelNeed > 0)
+            {
+                try
+                {
+                    if (!entity.TryGetDataBlob<CargoStorageDB>(out var storage))
+                        return false;
+                    var cargoLib = entity.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+                    var (fuel, _) = entity.GetFuelInfo(cargoLib);
+                    if (fuel == null)
+                        return false;
+                    if (storage.GetUnitsStored(fuel, includeEscro: false) < fuelNeed)
+                        return false;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            if (!entity.TryGetDataBlob<WarpAbilityDB>(out var warpDB)
+                || !entity.TryGetDataBlob<EnergyGenAbilityDB>(out var powerDB))
+                return true;
+
+            if (!TryGetWarpEnergyNeed(warpDB, powerDB, distance_m,
+                    out double needKJ, out _, out _, out _))
+                return false;
+
+            string eType = warpDB.EnergyType;
+            if (string.IsNullOrEmpty(eType))
+                return false;
+
+            powerDB.EnergyStored.TryGetValue(eType, out double storedKJ);
+            if (storedKJ + 1e-6 >= needKJ)
+                return true;
+
+            // Onboard generation can wait-fill before the hop (standing should not rush to colony).
+            if (powerDB.TotalOutputMax > 1e-9
+                && powerDB.EnergyStoreMax.TryGetValue(eType, out double max)
+                && max + 1e-6 >= needKJ)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Drain cargo-tank fuel for a completed warp hop.
         /// Energy capacitors still pay bubble create/sustain/collapse; this is the visible
         /// tank cost so ships cannot roam the system forever on a full tank.
@@ -402,18 +488,9 @@ namespace Pulsar4X.Movement
                     return;
 
                 double distance_m = (moveDB.ExitPointAbsolute - moveDB.EntryPointAbsolute).Length();
-                const double MetersPerAu = 149597870700.0;
-                double au = Math.Max(0, distance_m / MetersPerAu);
-
-                // Sub-trivial hops (re-dispatch noise / already-on-station) must not bill the
-                // 1.5% bubble minimum — that turned arrival jitter into a fuel death spiral.
-                const double MinBillableAu = 0.01;
-                if (au < 1e-6)
+                long want = EstimateWarpTankFuelUnits(entity, distance_m);
+                if (want <= 0)
                     return;
-                double fraction = au < MinBillableAu
-                    ? Math.Clamp(0.015 * (au / MinBillableAu), 0, 0.015)
-                    : Math.Clamp(0.015 + 0.05 * au, 0.015, 0.18);
-                long want = Math.Max(1, (long)Math.Ceiling(capacity * fraction));
                 long take = Math.Min(want, stored);
                 if (take <= 0)
                     return;
@@ -421,6 +498,8 @@ namespace Pulsar4X.Movement
                 double mass = take * fuel.MassPerUnit;
                 CargoTransferProcessor.AddRemoveCargoMass(entity, fuel, -mass);
 
+                const double MetersPerAu = 149597870700.0;
+                double au = Math.Max(0, distance_m / MetersPerAu);
                 DebugTraceLog.Info("Fuel",
                     $"ship#{entity.Id}: warp hop burned {take} units / {mass:0.#} kg " +
                     $"({100.0 * take / capacity:0.#}% of tank, {au:0.####} AU)",

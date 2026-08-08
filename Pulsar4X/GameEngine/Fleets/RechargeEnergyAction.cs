@@ -14,13 +14,13 @@ using Pulsar4X.Ships;
 namespace Pulsar4X.Fleets
 {
     /// <summary>
-    /// Standing-order / queue action: find nearest friendly colony with power stores and recharge the fleet.
-    /// Mirrors <see cref="RefuelAction"/>.
+    /// Standing-order / queue action: find nearest friendly colony with power stores and recharge
+    /// battery-only ships (no onboard generation). Generator ships wait for charge in place.
     /// </summary>
     public class RechargeEnergyAction : EntityCommand
     {
         public override string Name => "Recharge";
-        public override string Details => "Recharge fleet batteries at the nearest colony with power stores.";
+        public override string Details => "Recharge battery-only ships at the nearest colony with power stores.";
         public override ActionLaneTypes ActionLanes { get; } = ActionLaneTypes.InteractWithSelf | ActionLaneTypes.InteractWithEntitySameFleet;
         public override bool IsBlocking => true;
 
@@ -57,6 +57,16 @@ namespace Pulsar4X.Fleets
             {
                 if (!_entityCommanding.IsValid || !_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
                     return;
+
+                // Nothing for colony recharge to do — generator ships wait via WarpMoveCommand.
+                if (!FleetEnergy.AnyHasFreeBatteryForColonyRecharge(_entityCommanding)
+                    && !FleetOrderProcessor.FleetShipsHaveRechargeWork(_entityCommanding))
+                {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: no battery-only ships need colony recharge",
+                        atDateTime);
+                    return;
+                }
 
                 if (fleetDB.FlagShipID == -1
                     || !_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
@@ -112,7 +122,9 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                if (_entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable)
+                _entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable);
+
+                if (orderable != null
                     && orderable.ActionList.Any(a => a is RechargeWhenAtColonyOrder))
                     return;
 
@@ -127,17 +139,24 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                bool alreadyAtColony = FleetOrderCleanup.IsFleetAtColony(_entityCommanding, nearestColony);
+                bool alreadyAtColony = FleetEnergy.AreNeedyShipsAtColony(_entityCommanding, nearestColony);
 
                 if (alreadyAtColony)
                 {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: already at colony#{nearestColony.Id} — issue RechargeWhenAtColony",
+                        atDateTime);
                     InsertFollowUpsAfterSelf(
                         RechargeWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
                     return;
                 }
 
-                FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
+                foreach (var ship in FleetEnergy.ShipsNeedingColonyRecharge(_entityCommanding)
+                             .Where(s => !FleetOrderCleanup.IsShipAtColony(s, nearestColony)))
+                {
+                    FleetOrderCleanup.AbortCargoTransfersOnEntity(ship);
+                }
 
                 bool travelAlreadyQueued = orderable != null && orderable.ActionList.Any(a =>
                     a is MoveToNearestColonyAction
@@ -146,14 +165,21 @@ namespace Pulsar4X.Fleets
 
                 if (travelAlreadyQueued)
                 {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: travel already queued → wait then recharge at colony#{nearestColony.Id}",
+                        atDateTime);
                     InsertFollowUpsAfterSelf(
                         RechargeWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
                 }
                 else
                 {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: warp battery-only ships to colony#{nearestColony.Id} then recharge",
+                        atDateTime);
                     InsertFollowUpsAfterSelf(
-                        WarpFleetTowardsTargetOrder.CreateCommand(_entityCommanding, nearestColony),
+                        WarpFleetTowardsTargetOrder.CreateCommand(
+                            _entityCommanding, nearestColony, onlyShipsNeedingColonyRecharge: true),
                         RechargeWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
                 }

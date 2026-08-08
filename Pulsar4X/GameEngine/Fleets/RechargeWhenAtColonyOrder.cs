@@ -9,16 +9,26 @@ using Pulsar4X.Engine.Orders;
 namespace Pulsar4X.Fleets
 {
     /// <summary>
-    /// Waits until the fleet is at the colony, issues energy recharge blobs, then stays until done.
+    /// Fleet order: issue colony recharge for battery-only ships already on-station,
+    /// wait for stragglers still warping in, and stay queued until those batteries are full.
     /// </summary>
     public class RechargeWhenAtColonyOrder : EntityCommand
     {
         public override string Name => "Recharge at Colony";
 
-        public override string Details =>
-            _transfersIssued
-                ? "Energy transfer in progress."
-                : "Waiting to arrive at colony before transferring energy.";
+        public override string Details
+        {
+            get
+            {
+                if (!_entityCommanding.IsValid)
+                    return "Waiting for battery-only ships at colony.";
+                if (FleetOrderProcessor.FleetShipsHaveRechargeWork(_entityCommanding))
+                    return "Energy transfer in progress.";
+                if (FleetEnergy.AnyHasFreeBatteryForColonyRecharge(_entityCommanding))
+                    return "Waiting for battery-only ships at colony.";
+                return "Recharge complete.";
+            }
+        }
 
         public override ActionLaneTypes ActionLanes { get; } =
             ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
@@ -27,7 +37,7 @@ namespace Pulsar4X.Fleets
 
         private Entity _entityCommanding = Entity.InvalidEntity;
         private Entity _colony = Entity.InvalidEntity;
-        private bool _transfersIssued;
+        private bool _gaveUp;
 
         internal override Entity EntityCommanding => _entityCommanding;
 
@@ -48,10 +58,13 @@ namespace Pulsar4X.Fleets
 
         internal override bool IsFinished()
         {
-            if (!_transfersIssued)
-                return _isFinished = false;
+            if (_gaveUp)
+                return _isFinished = true;
 
             if (FleetOrderProcessor.FleetShipsHaveRechargeWork(_entityCommanding))
+                return _isFinished = false;
+
+            if (FleetEnergy.AnyHasFreeBatteryForColonyRecharge(_entityCommanding))
                 return _isFinished = false;
 
             return _isFinished = true;
@@ -59,15 +72,13 @@ namespace Pulsar4X.Fleets
 
         internal override void Execute(DateTime atDateTime)
         {
-            if (_isFinished)
+            if (_isFinished || _gaveUp)
                 return;
 
             IsRunning = true;
 
-            if (_transfersIssued)
-                return;
-
-            if (!FleetOrderCleanup.IsFleetAtColony(_entityCommanding, _colony))
+            if (!FleetEnergy.AnyHasFreeBatteryForColonyRecharge(_entityCommanding)
+                && !FleetOrderProcessor.FleetShipsHaveRechargeWork(_entityCommanding))
                 return;
 
             ColonyPowerProcessor.RecalcAbilities(_colony);
@@ -76,31 +87,64 @@ namespace Pulsar4X.Fleets
                 DebugTraceLog.Warn("Recharge",
                     $"fleet#{_entityCommanding.Id}: colony#{_colony.Id} has no power store",
                     atDateTime);
-                _transfersIssued = true;
+                _gaveUp = true;
                 return;
             }
 
             if (FleetOrderProcessor.FleetShipsHaveRechargeWork(_entityCommanding))
-            {
-                _transfersIssued = true;
                 return;
-            }
 
             try
             {
                 bool ok = EnergyRechargeHelper.CreateRechargeFleetCommand(_colony, _entityCommanding);
+
+                if (ok)
+                {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: issued recharge from colony#{_colony.Id} success=True",
+                        atDateTime);
+                    return;
+                }
+
+                if (!FleetEnergy.AnyHasFreeBatteryForColonyRecharge(_entityCommanding))
+                {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: at colony#{_colony.Id} — batteries full, nothing to issue",
+                        atDateTime);
+                    return;
+                }
+
+                if (!FleetEnergy.AreNeedyShipsAtColony(_entityCommanding, _colony))
+                {
+                    DebugTraceLog.Info("Recharge",
+                        $"fleet#{_entityCommanding.Id}: waiting for battery-only ships to reach colony#{_colony.Id}",
+                        atDateTime);
+                    return;
+                }
+
+                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+                {
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                    DebugTraceLog.Warn("Recharge",
+                        $"fleet#{_entityCommanding.Id}: recharge issue failed at colony#{_colony.Id} — " +
+                        $"suppress standing until {suppressDb.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm}",
+                        atDateTime);
+                }
+
                 DebugTraceLog.Info("Recharge",
-                    $"fleet#{_entityCommanding.Id}: issued recharge from colony#{_colony.Id} success={ok}",
+                    $"fleet#{_entityCommanding.Id}: issued recharge from colony#{_colony.Id} success=False",
                     atDateTime);
+                _gaveUp = true;
             }
             catch (Exception ex)
             {
                 DebugTraceLog.Error("Recharge",
                     $"fleet#{_entityCommanding.Id}: CreateRechargeFleetCommand failed: {ex.Message}",
                     atDateTime);
+                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                _gaveUp = true;
             }
-
-            _transfersIssued = true;
         }
 
         internal override bool IsValidCommand(Game game)

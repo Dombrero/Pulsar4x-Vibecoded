@@ -89,7 +89,12 @@ namespace Pulsar4X.Energy
                     continue;
                 }
 
-                if (!ShipNeedsEnergy(ship))
+                // Generator / solar ships recharge themselves — do not dock-steal colony power.
+                if (!Fleets.FleetEnergy.NeedsColonyRecharge(ship))
+                    continue;
+
+                // Only issue for hulls already on-station (stragglers keep warping).
+                if (!Fleets.FleetOrderCleanup.IsShipAtColony(ship, colony))
                     continue;
 
                 double rate = GetEffectiveRechargeRateKW(colony, ship);

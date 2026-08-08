@@ -321,11 +321,26 @@ namespace Pulsar4X.Movement
                 {
                     _entityCommanding.RemoveDataBlob<WarpMovingDB>();
                     _warpingDB = null;
-                    DebugTraceLog.Warn("Warp",
-                        $"ship#{_entityCommanding.Id}: warp blocked — need {needKJ:0} kJ " +
-                        $"(creation {creationCost:0} + sustain deficit {sustainDeficit:0} over {travelSeconds:0}s), " +
-                        $"have {estored:0} kJ (cargo fuel is separate)",
-                        atDateTime);
+
+                    bool canSelfCharge = powerDB.TotalOutputMax > 1e-9
+                        && powerDB.EnergyStoreMax.TryGetValue(eType, out var storeMax)
+                        && storeMax + 1e-6 >= needKJ;
+
+                    // Keep IsRunning=false so Execute retries as capacitors fill.
+                    // Rate-limit the warn — standing survey used to thrash this every pulse.
+                    if (ShouldLogEnergyBlock(_entityCommanding.Id, atDateTime))
+                    {
+                        string hint = canSelfCharge
+                            ? "waiting for onboard generation"
+                            : "needs colony recharge (no usable onboard generation)";
+                        DebugTraceLog.Warn("Warp",
+                            $"ship#{_entityCommanding.Id}: warp blocked — need {needKJ:0} kJ " +
+                            $"(creation {creationCost:0} + sustain deficit {sustainDeficit:0} over {travelSeconds:0}s), " +
+                            $"have {estored:0} kJ — {hint}",
+                            atDateTime);
+                    }
+
+                    ScheduleEnergyWake(_entityCommanding, powerDB, eType, needKJ, atDateTime);
                     return;
                 }
 
@@ -348,29 +363,85 @@ namespace Pulsar4X.Movement
         }
 
         /// <summary>
-        /// EnergyGen applies ~1s of output per call. Large pulses must catch up or warps never start.
+        /// EnergyGen only applies elapsed time since dateTimeLastProcess. Large pulses must
+        /// invent enough elapsed charge time or warps never start between daily ticks.
         /// </summary>
         private static void CatchUpEnergyStore(
             Entity ship, EnergyGenAbilityDB powerDB, string eType, double need, DateTime atDateTime)
         {
-            const int maxSteps = 10_000;
-            for (int i = 0; i < maxSteps; i++)
+            if (powerDB.TotalOutputMax <= 1e-9)
+                return;
+            if (!powerDB.EnergyStored.TryGetValue(eType, out double stored))
+                return;
+            if (stored >= need)
+                return;
+
+            double max = need;
+            if (powerDB.EnergyStoreMax.TryGetValue(eType, out var storeMax) && storeMax > 0)
+                max = storeMax;
+            double target = Math.Min(need, max);
+            double deficit = target - stored;
+            if (deficit <= 1e-6)
+                return;
+
+            double chargeKW = EnergyRechargeHelper.GetShipAcceptRateKW(ship);
+            if (chargeKW <= 0)
+                chargeKW = powerDB.TotalOutputMax;
+            else
+                chargeKW = Math.Min(chargeKW, powerDB.TotalOutputMax);
+            if (chargeKW <= 1e-9)
+                return;
+
+            // Cap simulated catch-up so one Execute cannot burn decades of reactor fuel.
+            double secondsNeeded = Math.Ceiling(deficit / chargeKW);
+            secondsNeeded = Math.Clamp(secondsNeeded, 1, 3600 * 24 * 7);
+
+            powerDB.dateTimeLastProcess = atDateTime - TimeSpan.FromSeconds(secondsNeeded);
+            try
             {
-                if (!powerDB.EnergyStored.TryGetValue(eType, out double stored))
-                    return;
-                if (stored >= need)
-                    return;
-                if (powerDB.EnergyStoreMax.TryGetValue(eType, out double max) && stored >= max - 1e-6)
-                    return;
-                try
-                {
-                    EnergyGenProcessor.EnergyGen(ship, atDateTime);
-                }
-                catch
-                {
-                    return;
-                }
+                EnergyGenProcessor.EnergyGen(ship, atDateTime);
             }
+            catch
+            {
+                powerDB.dateTimeLastProcess = atDateTime;
+            }
+        }
+
+        private static readonly Dictionary<int, DateTime> _lastEnergyBlockLog = new();
+
+        private static bool ShouldLogEnergyBlock(int shipId, DateTime atDateTime)
+        {
+            if (_lastEnergyBlockLog.TryGetValue(shipId, out var last)
+                && atDateTime - last < TimeSpan.FromHours(1))
+                return false;
+            _lastEnergyBlockLog[shipId] = atDateTime;
+            return true;
+        }
+
+        /// <summary>Wake the ship when capacitors should hold enough for the pending hop.</summary>
+        private static void ScheduleEnergyWake(
+            Entity ship, EnergyGenAbilityDB powerDB, string eType, double need, DateTime atDateTime)
+        {
+            if (powerDB.TotalOutputMax <= 1e-9)
+                return;
+            if (!powerDB.EnergyStored.TryGetValue(eType, out double stored))
+                return;
+            double deficit = need - stored;
+            if (deficit <= 0)
+                return;
+
+            double chargeKW = EnergyRechargeHelper.GetShipAcceptRateKW(ship);
+            if (chargeKW <= 0)
+                chargeKW = powerDB.TotalOutputMax;
+            else
+                chargeKW = Math.Min(chargeKW, powerDB.TotalOutputMax);
+            if (chargeKW <= 1e-9)
+                return;
+
+            double seconds = Math.Ceiling(deficit / chargeKW);
+            seconds = Math.Clamp(seconds, 1, 3600 * 24 * 30);
+            var wake = atDateTime + TimeSpan.FromSeconds(seconds);
+            ship.AttachedManager.ManagerSubpulses.AddEntityInterupt(wake, nameof(EnergyGenProcessor), ship);
         }
 
         internal override bool IsFinished()
@@ -423,6 +494,12 @@ namespace Pulsar4X.Movement
         /// Full / non-fuel hulls stay put (still fleet members).
         /// </summary>
         public bool OnlyShipsNeedingFuel { get; set; }
+
+        /// <summary>
+        /// When true, only warp battery-only ships that need colony recharge
+        /// (no onboard generation). Generator ships stay put.
+        /// </summary>
+        public bool OnlyShipsNeedingColonyRecharge { get; set; }
 
         List<WarpMoveCommand> _shipCommands = new List<WarpMoveCommand>();
 
@@ -478,6 +555,8 @@ namespace Pulsar4X.Movement
                 if (OnlyShipsNeedingFuel
                     && (cargoLibrary == null || !FleetFuel.NeedsRefuel(ship, cargoLibrary)))
                     continue;
+                if (OnlyShipsNeedingColonyRecharge && !FleetEnergy.NeedsColonyRecharge(ship))
+                    continue;
 
                 var shipParent = ship.GetDataBlob<PositionDB>().Parent;
                 if (shipParent == Target)
@@ -503,7 +582,11 @@ namespace Pulsar4X.Movement
             IsRunning = true;
         }
 
-        public static WarpFleetTowardsTargetOrder CreateCommand(Entity fleet, Entity target, bool onlyShipsNeedingFuel = false)
+        public static WarpFleetTowardsTargetOrder CreateCommand(
+            Entity fleet,
+            Entity target,
+            bool onlyShipsNeedingFuel = false,
+            bool onlyShipsNeedingColonyRecharge = false)
         {
             var order = new WarpFleetTowardsTargetOrder()
             {
@@ -512,6 +595,7 @@ namespace Pulsar4X.Movement
                 _entityCommanding = fleet,
                 Target = target,
                 OnlyShipsNeedingFuel = onlyShipsNeedingFuel,
+                OnlyShipsNeedingColonyRecharge = onlyShipsNeedingColonyRecharge,
             };
 
             return order;

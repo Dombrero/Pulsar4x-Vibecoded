@@ -5,7 +5,6 @@ using Pulsar4X.DataStructures;
 using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Fleets;
-using Pulsar4X.Ships;
 
 namespace Pulsar4X.Engine.Orders
 {
@@ -20,18 +19,30 @@ namespace Pulsar4X.Engine.Orders
 
         public override bool Evaluate(Entity fleet)
         {
-            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+            if (!fleet.TryGetDataBlob<FleetDB>(out _))
                 return false;
 
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
-            if (ships.Count == 0)
+            // Standing colony-recharge ENTER: only battery-only hulls (no onboard generation).
+            // Generator ships wait in place for the next task instead of docking.
+            if (ComparisionType is ComparisonType.LessThan or ComparisonType.LessThanOrEqual)
+            {
+                foreach (var ship in FleetEnergy.EnergyCapableShips(fleet))
+                {
+                    if (FleetEnergy.HasOnboardGeneration(ship))
+                        continue;
+                    if (Compare(Math.Round(EnergyRechargeHelper.GetShipEnergyPercent(ship))))
+                        return true;
+                }
+                return false;
+            }
+
+            var percents = FleetEnergy.EnergyCapableShips(fleet)
+                .Select(s => EnergyRechargeHelper.GetShipEnergyPercent(s))
+                .ToList();
+            if (percents.Count == 0)
                 return false;
 
-            double total = 0;
-            foreach (var ship in ships)
-                total += EnergyRechargeHelper.GetShipEnergyPercent(ship);
-
-            var average = Math.Round(total / ships.Count);
+            var average = Math.Round(percents.Average());
             return Compare(average);
         }
     }

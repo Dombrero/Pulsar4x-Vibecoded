@@ -35,7 +35,7 @@ namespace Pulsar4X.Fleets
     /// </summary>
     public class FleetOrderProcessor : IHotloopProcessor
     {
-        /// <summary>Extra percent above an Energy &lt; T threshold before leaving the recharge mission.</summary>
+        /// <summary>Legacy hysteresis; colony recharge now exits when battery-only hulls are full.</summary>
         public const float EnergyExitHysteresisPercent = 40f;
 
         public TimeSpan RunFrequency => TimeSpan.FromHours(1);
@@ -163,17 +163,29 @@ namespace Pulsar4X.Fleets
                 int active = fleetDB.ActiveStandingOrderIndex;
                 var activeOrder = fleetDB.StandingOrders[active];
 
-                // Higher-priority ENTER may preempt a lower-priority commitment.
+                // Higher-priority ENTER may preempt a lower-priority commitment —
+                // unless the active mission's next action is still affordable (fuel+energy).
                 if (enterMatch >= 0 && enterMatch < active)
                 {
-                    DebugTraceLog.Warn("Standing",
-                        $"{fleetName}: PREEMPT [{active}] {OrderName(fleetDB, active)} → [{enterMatch}] {OrderName(fleetDB, enterMatch)} " +
-                        $"(fuel={fuelPct:0.#}%, queue=[{QueueSummary(orderableDB)}])",
-                        gameTime);
-                    AbortStandingFleetWork(fleet, orderableDB);
-                    fleetDB.ActiveStandingOrderIndex = enterMatch;
-                    EnqueueStandingActions(fleet, orderableDB, fleetDB.StandingOrders[enterMatch]);
-                    return;
+                    var enterOrder = fleetDB.StandingOrders[enterMatch];
+                    if (StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, activeOrder, enterOrder))
+                    {
+                        DebugTraceLog.Info("Standing",
+                            $"{fleetName}: defer logistics preempt [{active}] {OrderName(fleetDB, active)} " +
+                            $"(next action still affordable; fuel={fuelPct:0.#}%)",
+                            gameTime);
+                    }
+                    else
+                    {
+                        DebugTraceLog.Warn("Standing",
+                            $"{fleetName}: PREEMPT [{active}] {OrderName(fleetDB, active)} → [{enterMatch}] {OrderName(fleetDB, enterMatch)} " +
+                            $"(fuel={fuelPct:0.#}%, queue=[{QueueSummary(orderableDB)}])",
+                            gameTime);
+                        AbortStandingFleetWork(fleet, orderableDB);
+                        fleetDB.ActiveStandingOrderIndex = enterMatch;
+                        EnqueueStandingActions(fleet, orderableDB, enterOrder);
+                        return;
+                    }
                 }
 
                 if (busy)
@@ -226,12 +238,25 @@ namespace Pulsar4X.Fleets
                 int running = FindRunningStandingOrderIndex(fleetDB, orderableDB);
                 if (enterMatch >= 0 && (running < 0 || enterMatch < running))
                 {
+                    ConditionalOrder? runningOrder = running >= 0 ? fleetDB.StandingOrders[running] : null;
+                    var enterOrder = fleetDB.StandingOrders[enterMatch];
+                    if (runningOrder != null
+                        && StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, runningOrder, enterOrder))
+                    {
+                        DebugTraceLog.Info("Standing",
+                            $"{fleetName}: defer orphan logistics preempt running={running} " +
+                            $"(next action still affordable)",
+                            gameTime);
+                        fleetDB.ActiveStandingOrderIndex = running;
+                        return;
+                    }
+
                     DebugTraceLog.Warn("Standing",
                         $"{fleetName}: adopt/preempt orphan queue running={running} → enter={enterMatch} {OrderName(fleetDB, enterMatch)}",
                         gameTime);
                     AbortStandingFleetWork(fleet, orderableDB);
                     fleetDB.ActiveStandingOrderIndex = enterMatch;
-                    EnqueueStandingActions(fleet, orderableDB, fleetDB.StandingOrders[enterMatch]);
+                    EnqueueStandingActions(fleet, orderableDB, enterOrder);
                     return;
                 }
 
@@ -413,12 +438,9 @@ namespace Pulsar4X.Fleets
             if (TryGetFuelLessThanThreshold(order, out _))
                 return FleetFuel.AnyHasFreeTankSpace(fleet);
 
-            if (TryGetEnergyLessThanThreshold(order, out float energyEnter))
-            {
-                float exitThreshold = Math.Min(95f, energyEnter + EnergyExitHysteresisPercent);
-                double avg = GetFleetAverageEnergyPercent(fleet);
-                return avg < exitThreshold;
-            }
+            // Energy colony recharge: EXIT when every battery-only (no generator) hull is full.
+            if (TryGetEnergyLessThanThreshold(order, out _))
+                return FleetEnergy.AnyHasFreeBatteryForColonyRecharge(fleet);
 
             return order.Condition?.Evaluate(fleet) ?? false;
         }
@@ -435,7 +457,7 @@ namespace Pulsar4X.Fleets
                 return FleetFuel.AnyHasFreeTankSpace(fleet);
 
             if (OrderLooksLikeRecharge(order))
-                return GetFleetAverageEnergyPercent(fleet) < 95f;
+                return FleetEnergy.AnyHasFreeBatteryForColonyRecharge(fleet);
 
             if (OrderLooksLikeSurvey(order))
             {
@@ -479,7 +501,7 @@ namespace Pulsar4X.Fleets
                     else if (OrderLooksLikeRefuel(order))
                         matches = FleetFuel.AnyBelow(fleet, 30f);
                     else if (OrderLooksLikeRecharge(order))
-                        matches = GetFleetAverageEnergyPercent(fleet) < 30f;
+                        matches = FleetEnergy.AnyColonyRechargeBelow(fleet, 30f);
                     else
                         matches = ActionStillHasWork(fleet, order);
                 }
@@ -537,20 +559,7 @@ namespace Pulsar4X.Fleets
         }
 
         internal static double GetFleetAverageEnergyPercent(Entity fleet)
-        {
-            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return 100;
-
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
-            if (ships.Count == 0)
-                return 100;
-
-            double total = 0;
-            foreach (var ship in ships)
-                total += EnergyRechargeHelper.GetShipEnergyPercent(ship);
-
-            return total / ships.Count;
-        }
+            => FleetEnergy.AveragePercent(fleet);
 
         internal static double GetFleetAverageFuelPercent(Entity fleet)
             => FleetFuel.AveragePercent(fleet);
