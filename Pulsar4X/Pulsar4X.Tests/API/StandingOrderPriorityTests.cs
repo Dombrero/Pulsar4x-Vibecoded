@@ -481,6 +481,8 @@ namespace Pulsar4X.Tests
 
             Assert.That(FleetFuel.AnyBelow(fleet, 30f), Is.False, "Precondition: fuel must be above ENTER.");
             Assert.That(FleetFuel.HasOpportunityTopOff(fleet), Is.True, "Precondition: docked with free tanks.");
+            Assert.That(FleetFuel.HasFleetWideOpportunityTopOff(fleet), Is.True,
+                "Precondition: every warp fuel ship is docked.");
 
             new FleetOrderProcessor().ProcessEntity(fleet, 0);
 
@@ -490,6 +492,95 @@ namespace Pulsar4X.Tests
             Assert.That(orders.Any(IsRefuelStandingWork), Is.True,
                 "Docked opportunity top-off must preempt survey even above 30% fuel.");
             Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Opportunity_must_not_preempt_survey_when_sibling_is_already_away()
+        {
+            var session = Connect();
+            var (colony, fleet, docked) = MakeLowFuelFleet(session);
+            var fuel = UnlockFuel(session);
+            var system = _game.Systems[0];
+            var star = system.GetFirstEntityWithDataBlob<StarInfoDB>();
+
+            // Docked sibling with free tank space (the old false trigger).
+            var dockedStore = docked.GetDataBlob<CargoStorageDB>();
+            long dockedCap = dockedStore.GetUnitsStored(fuel, includeEscro: false)
+                             + dockedStore.GetFreeUnitSpace(fuel, includeEscro: false);
+            long dockedTarget = (long)(dockedCap * 0.55);
+            long dockedStored = dockedStore.GetUnitsStored(fuel, includeEscro: false);
+            if (dockedStored < dockedTarget)
+                dockedStore.AddCargoByUnit(fuel, dockedTarget - dockedStored);
+            else if (dockedStored > dockedTarget)
+                CargoTransferProcessor.AddRemoveCargoMass(
+                    docked, fuel, -(dockedStored - dockedTarget) * fuel.MassPerUnit);
+            docked.GetDataBlob<PositionDB>().SetParent(colony);
+
+            // Away surveyor nearly full — must block fleet-wide opportunity.
+            var awayStore = new CargoStorageDB(fuel.CargoTypeID, 2_000_000)
+            {
+                TransferRate = 1000,
+                TransferRangeDv_mps = 1e12,
+            };
+            awayStore.AddCargoByUnit(fuel, 1_900_000);
+            var away = Entity.Create(session.FactionId);
+            system.AddEntity(away, new List<BaseDataBlob>
+            {
+                awayStore,
+                new PositionDB(new Vector3(2.3e11, 0, 0), star),
+                new MassVolumeDB { MassDry = 10000 },
+                new NameDB("Surveyor Away", session.FactionId, "Surveyor Away"),
+                new OrderableDB(),
+                new ShipInfoDB(),
+                new WarpAbilityDB { MaxSpeed = 1e8, EnergyType = fuel.UniqueID },
+                new EnergyGenAbilityDB(_game.TimePulse.GameGlobalDateTime)
+                {
+                    EnergyType = fuel,
+                    EnergyStored = new Dictionary<string, double> { [fuel.UniqueID] = 1e15 },
+                    EnergyStoreMax = new Dictionary<string, double> { [fuel.UniqueID] = 1e15 },
+                },
+            });
+            fleet.GetDataBlob<FleetDB>().AddChild(away);
+
+            system.AddEntity(Entity.Create(), new List<BaseDataBlob>
+            {
+                new NameDB("Mars", session.FactionId, "Mars"),
+                new PositionDB(new Vector3(2.3e11, 0, 0), star),
+                MassVolumeDB.NewFromMassAndRadius_m(6e23, 3.4e6),
+                new GeoSurveyableDB { PointsRequired = 500 },
+            });
+
+            var surveyActions = new SafeList<EntityCommand>
+            {
+                MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet),
+            };
+            var surveyCondition = new CompoundCondition();
+            surveyCondition.ConditionItems.Add(new ConditionItem(
+                new UnsurveyedGeoCondition(0f, ComparisonType.GreaterThan)));
+
+            InstallRefuelStandingOrder(fleet);
+            fleet.GetDataBlob<FleetDB>().StandingOrders.Add(new ConditionalOrder(surveyCondition, surveyActions)
+            {
+                Name = "survey",
+            });
+            fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex = 1;
+
+            var runningSurvey = MoveToNearestGeoSurveyAction.CreateCommand(fleet.FactionOwnerID, fleet);
+            runningSurvey.Source = OrderSource.Standing;
+            fleet.GetDataBlob<OrderableDB>().ActionList.Add(runningSurvey);
+
+            Assert.That(FleetFuel.HasOpportunityTopOff(fleet), Is.True, "Docked sibling still has free tanks.");
+            Assert.That(FleetFuel.HasFleetWideOpportunityTopOff(fleet), Is.False,
+                "Away surveyor must block fleet-wide opportunity.");
+
+            new FleetOrderProcessor().ProcessEntity(fleet, 0);
+
+            Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(1),
+                "Must keep Geo Survey while a sibling is already away.");
+            Assert.That(fleet.GetDataBlob<OrderableDB>().ActionList.OfType<MoveToNearestGeoSurveyAction>().Any(),
+                Is.True);
+            Assert.That(fleet.GetDataBlob<OrderableDB>().ActionList.Any(IsRefuelStandingWork), Is.False,
+                "Must not yank survey for docked-sibling opportunity top-off.");
         }
 
         [Test]

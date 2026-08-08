@@ -160,13 +160,18 @@ public class JPSurveyOrder : EntityCommand
                 if (_travelCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
                     return;
 
-                FleetOrderCleanup.AbortShipOrdersBlockingMovement(_entityCommanding);
+                FleetOrderCleanup.AbortCargoTransfersOnEntity(_entityCommanding);
+                FleetOrderCleanup.AbortShipMovementOrdersOnEntity(_entityCommanding);
                 _travelCommands.Clear();
                 try
                 {
                     var cmd = WarpMoveCommand.CreateCommandEZ(_entityCommanding, Target, atDateTime);
+                    cmd.Source = Source;
                     _travelCommands.Add(cmd);
-                    OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
+                    if (Source == OrderSource.Standing)
+                        OrderEnqueue.Standing(_entityCommanding.AttachedManager.Game, cmd);
+                    else
+                        OrderEnqueue.Enqueue(_entityCommanding.AttachedManager.Game, cmd);
                 }
                 catch (Exception ex)
                 {
@@ -210,8 +215,12 @@ public class JPSurveyOrder : EntityCommand
             try
             {
                 var cmd = WarpMoveCommand.CreateCommandEZ(ship, surveyTarget, atDateTime);
+                cmd.Source = Source;
                 _travelCommands.Add(cmd);
-                if (!OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd))
+                bool ok = Source == OrderSource.Standing
+                    ? OrderEnqueue.Standing(ship.AttachedManager.Game, cmd)
+                    : OrderEnqueue.Enqueue(ship.AttachedManager.Game, cmd);
+                if (!ok)
                 {
                     System.Diagnostics.Debug.WriteLine(
                         $"JPSurvey travel HandleOrder rejected for ship {ship.Id} → {Target?.Id}");

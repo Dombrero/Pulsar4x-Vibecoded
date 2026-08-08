@@ -7,6 +7,7 @@ using Pulsar4X.Fleets;
 using Pulsar4X.Interfaces;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Events;
+using Pulsar4X.Ships;
 
 namespace Pulsar4X.Engine
 {
@@ -50,6 +51,7 @@ namespace Pulsar4X.Engine
             {
                 bool hadIssued = orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued);
                 int mask = 0;
+                int finishedCount = 0;
 
                 // Snapshot — Execute may insert/remove orders (e.g. Refuel follow-ups).
                 var commands = orderableDB.ActionList.ToList();
@@ -92,6 +94,7 @@ namespace Pulsar4X.Engine
                                     $"Order '{entityCommand.Name}' failed on entity {entity.Id}: {ex}");
                                 entityCommand.Status = ActionStatus.Failed;
                                 orderableDB.ActionList.Remove(entityCommand);
+                                finishedCount++;
                                 if (!string.IsNullOrEmpty(entityCommand.ParentGoalId))
                                     AgentProcessor.RunAgentNow(entity);
                                 continue;
@@ -113,6 +116,7 @@ namespace Pulsar4X.Engine
                                 e.Status = ActionStatus.Succeeded;
                             if (!string.IsNullOrEmpty(e.ParentGoalId))
                                 finishedGoalWork = true;
+                            finishedCount++;
                             return true;
                         }
                         catch
@@ -120,6 +124,7 @@ namespace Pulsar4X.Engine
                             e.Status = ActionStatus.Failed;
                             if (!string.IsNullOrEmpty(e.ParentGoalId))
                                 finishedGoalWork = true;
+                            finishedCount++;
                             return true;
                         }
                     });
@@ -135,20 +140,24 @@ namespace Pulsar4X.Engine
                     catch { /* agent wake is best-effort */ }
                 }
 
-                // When the last player Issue Order finishes, resume Standing immediately
-                // instead of waiting up to an hour for FleetOrderProcessor's hotloop.
-                if (hadIssued
-                    && entity.HasDataBlob<FleetDB>()
-                    && !orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued)
-                    && _game?.ProcessorManager != null)
+                // Standing is event-driven: wake when any order finishes (Issued/Standing/ship
+                // cargo/warp), including when a fleet child's queue drains.
+                bool issuedCleared = hadIssued
+                    && !orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued);
+                if (finishedCount > 0 || issuedCleared)
                 {
                     try
                     {
-                        _game.ProcessorManager.RunProcessOnEntity<FleetDB>(entity, 0);
+                        if (entity.HasDataBlob<ShipInfoDB>())
+                            ShipStandingDirector.TryStepNow(entity);
+                        else if (entity.HasDataBlob<FleetDB>())
+                            ShipStandingDirector.KickIdleChildren(entity);
+
+                        FleetOrderProcessor.TryEvaluateNow(entity);
                     }
                     catch
                     {
-                        // Standing will resume on the next FleetOrderProcessor pass.
+                        // Standing will resume on the next FleetOrderProcessor safety poll.
                     }
                 }
             }

@@ -143,13 +143,19 @@ namespace Pulsar4X.Datablobs
                 return;
             }
             Children.Add(child);
+            if (this is Fleets.FleetDB && OwningEntity is { IsValid: true })
+                Fleets.FleetLookup.RegisterShip(child, OwningEntity);
             //Children.Sort((entity1, entity2) => entity1.ID.CompareTo(entity2.ID));
         }
 
         internal void RemoveChild(Entity? child)
         {
             if (child != null)
+            {
                 Children.Remove(child);
+                if (this is Fleets.FleetDB)
+                    Fleets.FleetLookup.UnregisterShip(child);
+            }
         }
 
         public IEnumerable<Entity> GetChildren()

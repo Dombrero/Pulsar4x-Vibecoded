@@ -31,6 +31,14 @@
 - AI or freewill/auto-mode → `AgentProcessor.AssignGoal` + inbox wake
 - Shared pause API: `FleetOrderCleanup.PauseStandingForPlayerIssue` (Issue + top-level fleet goals)
 
+## Fleet mission vs ship steps (Option B)
+
+- **Fleet** owns Standing list, ENTER/EXIT, commitment (`ActiveStandingOrderIndex`), preempt.
+- **Ships** pick the next *local* step at action boundaries via `ShipStandingDirector` (logistics override, then mission step handlers).
+- Same fleet mission for all ships; ships may use different targets (per-ship nearest geo/grav).
+- New **conditions** stay on the fleet order. New **mission actions** with parallel hull work register an `IShipStandingStep` (unknown actions fall back to fleet enqueue).
+- Standing eval is event-driven (`TryEvaluateNow` / director) with a rare daily fleet safety poll — not a per-ship hotloop.
+
 ## Future (network)
 
 Optional: move drain fully off the submit path onto an async network thread; UI pushes DTOs to inbox only. The continuous engine pump already drains while paused; inbox drain itself can stay synchronous inside that pump.

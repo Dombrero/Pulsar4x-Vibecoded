@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Pulsar4X.Datablobs;
+using Pulsar4X.DataStructures;
 using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
@@ -38,14 +39,52 @@ namespace Pulsar4X.Fleets
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
                 return false;
 
-            // Already docked with free tank space: top off before leaving, even when the next
-            // hop looks affordable. Still defer while an on-site survey/transfer is free.
+            // Empty tanks + warp blocked forever: never defer Refuel. Active local scan/transfer
+            // may still finish first (0 fuel), but "parented near unfinished body" alone must not.
             if (LooksLikeRefuel(enterOrder)
-                && FleetFuel.HasOpportunityTopOff(fleet)
-                && !HasOnSiteLocalWork(fleet, fleetDB, activeOrder))
+                && AnyFuelCapableShipEmpty(fleet)
+                && !HasActiveLocalScanOrTransfer(fleet, fleetDB))
                 return false;
 
+            // Active survey: opportunity Refuel never preempts while any hull is away.
+            // Only real shortage (empty / below ENTER / cannot afford next hop) may interrupt.
+            if (LooksLikeRefuel(enterOrder) && LooksLikeSurvey(activeOrder))
+            {
+                if (FleetFuel.HasFleetWideOpportunityTopOff(fleet)
+                    && !HasOnSiteLocalWork(fleet, fleetDB, activeOrder))
+                    return false; // whole fleet still docked — top off before the next hop
+
+                float enterThreshold = 30f;
+                if (TryGetRefuelEnterThreshold(enterOrder, out var threshold))
+                    enterThreshold = threshold;
+
+                if (!FleetFuel.AnyBelow(fleet, enterThreshold))
+                    return true; // opportunity / partial dock — keep surveying
+
+                return CanAffordNextAction(fleet, activeOrder);
+            }
+
             return CanAffordNextAction(fleet, activeOrder);
+        }
+
+        private static bool TryGetRefuelEnterThreshold(ConditionalOrder order, out float threshold)
+        {
+            threshold = 30f;
+            if (order.Condition?.ConditionItems == null)
+                return false;
+
+            foreach (var item in order.Condition.ConditionItems)
+            {
+                if (item.Condition is FuelCondition fuel
+                    && (fuel.ComparisionType == ComparisonType.LessThan
+                        || fuel.ComparisionType == ComparisonType.LessThanOrEqual))
+                {
+                    threshold = fuel.Threshold;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         internal static bool CanAffordNextAction(Entity fleet, ConditionalOrder activeOrder)
@@ -53,12 +92,22 @@ namespace Pulsar4X.Fleets
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
                 return false;
 
-            // Local on-site work needs no warp fuel/energy.
-            if (HasOnSiteLocalWork(fleet, fleetDB, activeOrder))
+            // Local on-site work needs no warp fuel/energy — but only real scan/transfer work.
+            // Parented-to-unfinished-body alone used to claim "affordable" at fuel=0% while
+            // MoveToNearest kept failing warp-empty.
+            if (HasActiveLocalScanOrTransfer(fleet, fleetDB))
+                return true;
+
+            if (HasOnSiteLocalWork(fleet, fleetDB, activeOrder)
+                && !AnyFuelCapableShipEmpty(fleet))
                 return true;
 
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
             if (ships.Count == 0)
+                return false;
+
+            // Empty cargo tanks: travel is never affordable.
+            if (AnyFuelCapableShipEmpty(fleet))
                 return false;
 
             bool anyTravelCheck = false;
@@ -105,6 +154,21 @@ namespace Pulsar4X.Fleets
             }
 
             return true;
+        }
+
+        private static bool AnyFuelCapableShipEmpty(Entity fleet)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out _))
+                return false;
+
+            var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<Factions.FactionInfoDB>().Data.CargoGoods;
+            foreach (var ship in FleetFuel.FuelCapableShips(fleet, cargoLibrary))
+            {
+                if (!WarpMoveProcessor.HasWarpTankFuel(ship))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -155,7 +219,10 @@ namespace Pulsar4X.Fleets
             return false;
         }
 
-        private static bool HasOnSiteLocalWork(Entity fleet, FleetDB fleetDB, ConditionalOrder activeOrder)
+        /// <summary>
+        /// True when a hull is actively scanning or transferring — work that needs no warp fuel.
+        /// </summary>
+        private static bool HasActiveLocalScanOrTransfer(Entity fleet, FleetDB fleetDB)
         {
             foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
             {
@@ -165,19 +232,57 @@ namespace Pulsar4X.Fleets
                     && shipOrders.ActionList.OfType<CargoTransferOrder>().Any())
                     return true;
 
+                // GeoSurveyingDB alone means a local scan is in progress (no warp fuel needed).
                 if (ship.TryGetDataBlob<GeoSurveyingDB>(out var geo)
-                    && fleet.AttachedManager.TryGetGlobalEntityById(geo.TargetId, out var geoTarget)
+                    && TryGetSurveyTarget(fleet, geo.TargetId, out var geoTarget)
                     && geoTarget.TryGetDataBlob<GeoSurveyableDB>(out var geoDb)
                     && !geoDb.IsSurveyComplete(fleet.FactionOwnerID))
                     return true;
 
-                if (ship.HasDataBlob<JPSurveyDB>())
+                // Grav/JP: only while hovering / at the anomaly (blob can linger after leaving).
+                if (ship.TryGetDataBlob<JPSurveyDB>(out var jp)
+                    && TryGetSurveyTarget(fleet, jp.TargetId, out var jpTarget)
+                    && jpTarget.TryGetDataBlob<JPSurveyableDB>(out var jpDb)
+                    && !jpDb.IsSurveyComplete(fleet.FactionOwnerID)
+                    && IsAtGravSurveyTarget(ship, jpTarget))
                     return true;
             }
 
+            return false;
+        }
+
+        private static bool TryGetSurveyTarget(Entity fleet, int targetId, out Entity target)
+        {
+            target = Entity.InvalidEntity;
+            if (fleet.AttachedManager == null)
+                return false;
+            if (fleet.AttachedManager.TryGetEntityById(targetId, out target) && target.IsValid)
+                return true;
+            return fleet.AttachedManager.TryGetGlobalEntityById(targetId, out target) && target.IsValid;
+        }
+
+        private static bool IsAtGravSurveyTarget(Entity ship, Entity target)
+        {
+            if (IsParentedToTarget(ship, target))
+                return true;
+            // Grav hover stays in heliocentric frame with WarpMovingDB.IsAtTarget.
+            if (ship.TryGetDataBlob<WarpMovingDB>(out var move)
+                && move.IsAtTarget
+                && move.TargetEntity != null
+                && move.TargetEntity.Id == target.Id)
+                return true;
+            return false;
+        }
+
+        private static bool HasOnSiteLocalWork(Entity fleet, FleetDB fleetDB, ConditionalOrder activeOrder)
+        {
+            if (HasActiveLocalScanOrTransfer(fleet, fleetDB))
+                return true;
+
             // Survey commitment: already parented to an unfinished geo body = local next action.
             // (Avoid SOI checks — bodies without OrbitDB report infinite SOI.)
-            if (LooksLikeSurvey(activeOrder))
+            // Only when tanks still have fuel — empty tanks must go Refuel, not claim "affordable".
+            if (LooksLikeSurvey(activeOrder) && !AnyFuelCapableShipEmpty(fleet))
             {
                 foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
                 {

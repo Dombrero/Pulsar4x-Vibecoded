@@ -71,6 +71,7 @@ namespace Pulsar4X.Movement
         [JsonIgnore]
         Entity _factionEntity = Entity.InvalidEntity;
         WarpMovingDB? _warpingDB;
+        DateTime _lastEmptyTankWarn = DateTime.MinValue;
 
 
         Entity _entityCommanding = Entity.InvalidEntity;
@@ -276,9 +277,14 @@ namespace Pulsar4X.Movement
 
                 if (!WarpMoveProcessor.HasWarpTankFuel(_entityCommanding))
                 {
-                    DebugTraceLog.Warn("Warp",
-                        $"ship#{_entityCommanding.Id}: warp blocked — cargo fuel tank empty",
-                        atDateTime);
+                    // Once per game-hour — empty-tank spam used to drown Standing/Refuel traces.
+                    if ((atDateTime - _lastEmptyTankWarn).TotalHours >= 1)
+                    {
+                        _lastEmptyTankWarn = atDateTime;
+                        DebugTraceLog.Warn("Warp",
+                            $"ship#{_entityCommanding.Id}: warp blocked — cargo fuel tank empty",
+                            atDateTime);
+                    }
                     return;
                 }
 

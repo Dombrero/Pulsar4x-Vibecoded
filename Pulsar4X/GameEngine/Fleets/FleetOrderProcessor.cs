@@ -32,17 +32,24 @@ namespace Pulsar4X.Fleets
     ///    condition is true and we are not already committed to that same higher order.
     /// 5. Ship-level work (cargo transfer, warp) counts as in-progress — empty fleet queue
     ///    alone must not re-fire standing every tick.
+    ///
+    /// Scheduling: prefer <see cref="TryEvaluateNow"/> on action/survey boundaries.
+    /// The hotloop is a rare safety poll (fuel drift while idle), not the primary driver.
     /// </summary>
     public class FleetOrderProcessor : IHotloopProcessor
     {
         /// <summary>Legacy hysteresis; colony recharge now exits when battery-only hulls are full.</summary>
         public const float EnergyExitHysteresisPercent = 40f;
 
-        public TimeSpan RunFrequency => TimeSpan.FromHours(1);
+        /// <summary>Safety poll only — event wakes handle normal standing transitions.</summary>
+        public TimeSpan RunFrequency => TimeSpan.FromDays(1);
 
         public TimeSpan FirstRunOffset => TimeSpan.FromHours(1);
 
         public Type GetParameterType => typeof(FleetDB);
+
+        /// <summary>Rate-limit identical defer logs (game-time) per fleet.</summary>
+        private static readonly Dictionary<int, DateTime> s_lastDeferLog = new();
 
         public void Init(Game game)
         {
@@ -62,6 +69,29 @@ namespace Pulsar4X.Fleets
             return Math.Max(entities.Count, 1);
         }
 
+        /// <summary>
+        /// Event-driven Standing evaluation for a fleet or a ship that belongs to one.
+        /// No-op when the entity has no standing orders.
+        /// </summary>
+        internal static void TryEvaluateNow(Entity entity)
+        {
+            if (entity is not { IsValid: true })
+                return;
+
+            Entity fleet = entity;
+            if (!entity.HasDataBlob<FleetDB>())
+            {
+                fleet = FleetLookup.FindFleetContainingShip(entity);
+                if (!fleet.IsValid)
+                    return;
+            }
+
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB) || fleetDB.StandingOrders.Count == 0)
+                return;
+
+            Process(fleetDB);
+        }
+
         private static void Process(FleetDB fleetDB)
         {
             try
@@ -76,6 +106,15 @@ namespace Pulsar4X.Fleets
                 System.Diagnostics.Debug.WriteLine(
                     $"FleetOrderProcessor failed on fleet {fleetDB.OwningEntity?.Id}: {ex}");
             }
+        }
+
+        private static void LogDeferPreempt(Entity fleet, DateTime gameTime, string message)
+        {
+            int id = fleet.Id;
+            if (s_lastDeferLog.TryGetValue(id, out var last) && gameTime - last < TimeSpan.FromDays(1))
+                return;
+            s_lastDeferLog[id] = gameTime;
+            DebugTraceLog.Trace("Standing", message, gameTime);
         }
 
         private static void ProcessCore(FleetDB fleetDB)
@@ -170,10 +209,12 @@ namespace Pulsar4X.Fleets
                     var enterOrder = fleetDB.StandingOrders[enterMatch];
                     if (StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, activeOrder, enterOrder))
                     {
-                        DebugTraceLog.Info("Standing",
+                        LogDeferPreempt(fleet, gameTime,
                             $"{fleetName}: defer logistics preempt [{active}] {OrderName(fleetDB, active)} " +
-                            $"(next action still affordable; fuel={fuelPct:0.#}%)",
-                            gameTime);
+                            $"(next action still affordable; fuel={fuelPct:0.#}%)");
+                        // If work is already queued, keep it. Otherwise fall through to restart/release.
+                        if (busy)
+                            return;
                     }
                     else
                     {
@@ -211,13 +252,29 @@ namespace Pulsar4X.Fleets
                 }
                 else if (OrderStillNeedsAction(fleet, activeOrder))
                 {
-                    // Work finished. Leave only when EXIT condition says we are done.
-                    DebugTraceLog.Info("Standing",
-                        $"{fleetName}: restart [{active}] {OrderName(fleetDB, active)} — still needs action " +
-                        $"(fuel={fuelPct:0.#}%)",
-                        gameTime);
-                    EnqueueStandingActions(fleet, orderableDB, activeOrder);
-                    return;
+                    // Stuck opportunity Refuel (tanks not full, but fleet not eligible to
+                    // top off — e.g. siblings surveying): release so survey can resume.
+                    if (OrderLooksLikeRefuel(activeOrder)
+                        && !FleetFuel.AnyBelow(fleet, 30f)
+                        && !FleetFuel.HasFleetWideOpportunityTopOff(fleet))
+                    {
+                        DebugTraceLog.Info("Standing",
+                            $"{fleetName}: release commitment [{active}] {OrderName(fleetDB, active)} " +
+                            $"(fuel={fuelPct:0.#}% — opportunity refuel no longer fleet-wide)",
+                            gameTime);
+                        fleetDB.ActiveStandingOrderIndex = -1;
+                        // Fall through to pick a new match.
+                    }
+                    else
+                    {
+                        // Work finished. Leave only when EXIT condition says we are done.
+                        DebugTraceLog.Info("Standing",
+                            $"{fleetName}: restart [{active}] {OrderName(fleetDB, active)} — still needs action " +
+                            $"(fuel={fuelPct:0.#}%)",
+                            gameTime);
+                        EnqueueStandingActions(fleet, orderableDB, activeOrder);
+                        return;
+                    }
                 }
                 else
                 {
@@ -243,10 +300,9 @@ namespace Pulsar4X.Fleets
                     if (runningOrder != null
                         && StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, runningOrder, enterOrder))
                     {
-                        DebugTraceLog.Info("Standing",
+                        LogDeferPreempt(fleet, gameTime,
                             $"{fleetName}: defer orphan logistics preempt running={running} " +
-                            $"(next action still affordable)",
-                            gameTime);
+                            $"(next action still affordable)");
                         fleetDB.ActiveStandingOrderIndex = running;
                         return;
                     }
@@ -500,7 +556,7 @@ namespace Pulsar4X.Fleets
                         matches = OrderStillNeedsAction(fleet, order);
                     else if (OrderLooksLikeRefuel(order))
                         matches = FleetFuel.AnyBelow(fleet, 30f)
-                                  || FleetFuel.HasOpportunityTopOff(fleet);
+                                  || FleetFuel.HasFleetWideOpportunityTopOff(fleet);
                     else if (OrderLooksLikeRecharge(order))
                         matches = FleetEnergy.AnyColonyRechargeBelow(fleet, 30f);
                     else
@@ -513,11 +569,11 @@ namespace Pulsar4X.Fleets
                 else
                 {
                     matches = order.Condition?.Evaluate(fleet) ?? false;
-                    // Docked with free tanks: ENTER Refuel even above the fuel threshold so
-                    // fleets top off before departing for the next survey hop.
+                    // All needy ships docked with free tanks: ENTER Refuel even above threshold.
+                    // Partial dock (siblings still surveying) must not match — that aborted geo.
                     if (!matches
                         && OrderLooksLikeRefuel(order)
-                        && FleetFuel.HasOpportunityTopOff(fleet))
+                        && FleetFuel.HasFleetWideOpportunityTopOff(fleet))
                         matches = true;
                 }
 

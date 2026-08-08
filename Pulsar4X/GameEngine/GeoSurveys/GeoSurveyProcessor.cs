@@ -56,6 +56,8 @@ public class GeoSurveyProcessor : IInstanceProcessor
                         Target.Id));
 
                 PublishTargetChanged();
+                try { FleetOrderProcessor.TryEvaluateNow(Fleet); }
+                catch { /* standing wake is best-effort */ }
             }
             else
             {

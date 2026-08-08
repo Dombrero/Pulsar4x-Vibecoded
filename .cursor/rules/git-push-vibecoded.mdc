@@ -1,0 +1,11 @@
+---
+description: Git push only to Dombrero vibecoded remote, never upstream origin
+alwaysApply: true
+---
+
+# Git remotes
+
+- **Push target:** always `vibecoded` → `https://github.com/Dombrero/Pulsar4x-Vibecoded.git`
+- **Never** push to `origin` (`Pulsar4xDevs/Pulsar4x`) — no write access; do not attempt it
+- Default push command when the user asks to push: `git push -u vibecoded HEAD`
+- Branch tracking should stay on `vibecoded/<branch>` (e.g. `vibecoded/dombreros_version_AI_vibecoded`)

@@ -155,10 +155,16 @@ namespace Pulsar4X.Tests
             var processor = new OrderableProcessor();
             processor.Init(_game);
             processor.ProcessEntity(fleet, 0);
-            processor.ProcessEntity(fleet, (int)TimeSpan.FromDays(1).TotalSeconds);
+            // GeoSurveyOrder now lives on the ship ActionList — process the hull.
+            processor.ProcessEntity(ship, 0);
+            processor.ProcessEntity(ship, (int)TimeSpan.FromDays(1).TotalSeconds);
 
             Assert.That(action.GetIsFinished, Is.False,
                 "Being already at the target must start surveying, not finish the order.");
+            Assert.That(
+                ship.GetDataBlob<OrderableDB>().ActionList.OfType<GeoSurveyOrder>().Any()
+                || action.Name.Contains("Mars", StringComparison.OrdinalIgnoreCase),
+                Is.True);
             Assert.That(action.Name, Does.Contain("Mars").IgnoreCase);
             Assert.That(mars.GetDataBlob<GeoSurveyableDB>().HasSurveyStarted(session.FactionId), Is.True);
         }

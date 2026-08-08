@@ -77,66 +77,68 @@ namespace Pulsar4X.Movement
         {
             if (Filter == null) return;
             if (!EntityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-            if (fleetDB.FlagShipID == -1) return;
-            if (!EntityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)) return;
-            if (!flagship.TryGetDataBlob<PositionDB>(out var flagshipPositionDB)) return;
 
             List<Entity> filteredEntities = EntityCommanding.AttachedManager.GetFilteredEntities(
                 EntityFactionFilter,
                 RequestingFactionGuid,
                 Filter);
 
-            Entity? closestValidEntity = null;
-            double closestDistance = double.MaxValue;
-
-            foreach (var entity in filteredEntities)
-            {
-                if (!entity.TryGetDataBlob<PositionDB>(out var positionDB))
-                    continue;
-
-                var distance = positionDB.GetDistanceTo_m(flagshipPositionDB);
-                if (distance < closestDistance)
-                {
-                    closestDistance = distance;
-                    closestValidEntity = entity;
-                }
-            }
-
-            if (closestValidEntity == null) return;
-
-            var targetEntity = TargetSelector == null ? closestValidEntity : TargetSelector(closestValidEntity);
-
-            if (!targetEntity.TryGetDataBlob<PositionDB>(out var targetEntityPositionDB))
-                return;
-
-            if (targetEntityPositionDB.Parent == null) return;
-
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
-            bool anyNeedsWarp = ships.Any(ship =>
-                ship.HasDataBlob<WarpAbilityDB>()
-                && ship.TryGetDataBlob<PositionDB>(out var shipPos)
-                && shipPos.Parent != targetEntityPositionDB.OwningEntity);
-
-            // Only clear the Movement lane when we are actually leaving. Aborting cargo while
-            // already at the colony kills an in-progress standing Refuel transfer → loop.
-            if (anyNeedsWarp)
-                FleetOrderCleanup.AbortShipOrdersBlockingMovement(EntityCommanding);
-            else
-                FleetOrderCleanup.AbortShipMovementOrders(EntityCommanding);
-
-            _shipCommands.Clear();
+            var plan = new List<(Entity ship, Entity target)>();
 
             foreach (var ship in ships)
             {
                 if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
                 if (!ship.TryGetDataBlob<PositionDB>(out var shipPositionDB)) continue;
-                if (shipPositionDB.Parent == targetEntityPositionDB.OwningEntity) continue;
 
-                try
+                Entity? closestValidEntity = null;
+                double closestDistance = double.MaxValue;
+                foreach (var entity in filteredEntities)
                 {
-                    if (!targetEntity.TryGetDataBlob<OrbitDB>(out _))
+                    if (!entity.TryGetDataBlob<PositionDB>(out var positionDB))
                         continue;
 
+                    var distance = positionDB.GetDistanceTo_m(shipPositionDB);
+                    if (distance < closestDistance)
+                    {
+                        closestDistance = distance;
+                        closestValidEntity = entity;
+                    }
+                }
+
+                if (closestValidEntity == null) continue;
+
+                var targetEntity = TargetSelector == null
+                    ? closestValidEntity
+                    : TargetSelector(closestValidEntity);
+
+                if (!targetEntity.TryGetDataBlob<PositionDB>(out var targetEntityPositionDB))
+                    continue;
+                if (targetEntityPositionDB.Parent == null) continue;
+                if (shipPositionDB.Parent == targetEntityPositionDB.OwningEntity) continue;
+                if (!targetEntity.TryGetDataBlob<OrbitDB>(out _)) continue;
+
+                plan.Add((ship, targetEntity));
+            }
+
+            if (plan.Count == 0)
+            {
+                // Everyone already at their nearest — finish without aborting cargo.
+                _shipCommands.Clear();
+                IsRunning = true;
+                return;
+            }
+
+            // Only clear the Movement lane when we are actually leaving. Aborting cargo while
+            // already at the colony kills an in-progress standing Refuel transfer → loop.
+            FleetOrderCleanup.AbortShipOrdersBlockingMovement(EntityCommanding);
+
+            _shipCommands.Clear();
+
+            foreach (var (ship, targetEntity) in plan)
+            {
+                try
+                {
                     var cmd = WarpMoveCommand.CreateCommandEZ(
                         ship,
                         targetEntity,

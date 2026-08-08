@@ -155,20 +155,52 @@ namespace Pulsar4X.Fleets
                 return false;
 
             return ShipsNeedingRefuel(fleet)
-                .Any(s =>
-                {
-                    foreach (var colony in fleet.AttachedManager.GetFilteredEntities(
-                                 EntityFilter.Friendly,
-                                 fleet.FactionOwnerID,
-                                 e => e.HasDataBlob<Colonies.ColonyInfoDB>()
-                                      && e.HasDataBlob<CargoStorageDB>()))
-                    {
-                        if (FleetOrderCleanup.IsShipAtColony(s, colony))
-                            return true;
-                    }
+                .Any(s => IsAtFriendlyColony(fleet, s));
+        }
 
-                    return false;
-                });
+        /// <summary>
+        /// Opportunity ENTER only when the whole warp-capable fuel fleet is on-station
+        /// and at least one tank still has free space.
+        /// Needy-only checks were wrong: full surveyors already away do not count as needy,
+        /// so docked siblings with a few free litres yanked the fleet into Refuel mid-survey.
+        /// </summary>
+        internal static bool HasFleetWideOpportunityTopOff(Entity fleet)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out _))
+                return false;
+            if (fleet.AttachedManager == null)
+                return false;
+
+            var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+            var warpFuelShips = FuelCapableShips(fleet, cargoLibrary)
+                .Where(s => s.HasDataBlob<WarpAbilityDB>())
+                .ToList();
+            if (warpFuelShips.Count == 0)
+                return false;
+
+            // Any surveyor (even full) still out → not a fleet-wide top-off window.
+            if (warpFuelShips.Any(s => !IsAtFriendlyColony(fleet, s)))
+                return false;
+
+            return warpFuelShips.Any(s => NeedsRefuel(s, cargoLibrary));
+        }
+
+        private static bool IsAtFriendlyColony(Entity fleet, Entity ship)
+        {
+            if (fleet.AttachedManager == null)
+                return false;
+
+            foreach (var colony in fleet.AttachedManager.GetFilteredEntities(
+                         EntityFilter.Friendly,
+                         fleet.FactionOwnerID,
+                         e => e.HasDataBlob<Colonies.ColonyInfoDB>()
+                              && e.HasDataBlob<CargoStorageDB>()))
+            {
+                if (FleetOrderCleanup.IsShipAtColony(ship, colony))
+                    return true;
+            }
+
+            return false;
         }
     }
 }

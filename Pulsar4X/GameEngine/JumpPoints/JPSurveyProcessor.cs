@@ -42,6 +42,8 @@ public class JPSurveyProcessor : IHotloopProcessor
             {
                 // If the survey is completed remove the JPSurveyDB and return
                 entity.RemoveDataBlob<JPSurveyDB>();
+                try { FleetOrderProcessor.TryEvaluateNow(entity); }
+                catch { /* standing wake is best-effort */ }
                 return;
             }
 
@@ -53,6 +55,8 @@ public class JPSurveyProcessor : IHotloopProcessor
                 {
                     RollToDiscoverJumpPoint(entity.StarSysDateTime, entity, jpSurveyableDB.OwningEntity);
                     MarkSurveyAsComplete(jpSurveyableDB, entity, entity.StarSysDateTime);
+                    try { FleetOrderProcessor.TryEvaluateNow(entity); }
+                    catch { /* standing wake is best-effort */ }
                 }
                 else
                 {

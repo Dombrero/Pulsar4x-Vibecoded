@@ -122,10 +122,12 @@ namespace Pulsar4X.Movement
         public WarpMovingDB(Entity thisEntity, Entity targetEntity, Vector3 offsetPosition, KeplerElements endpointTargetOrbit)
         {
             EntryDateTime = thisEntity.AttachedManager.ManagerSubpulses.StarSysDateTime;
+            // GetInterceptPosition already folds offsetPosition into the returned absolute —
+            // do not add offset again (that double-offset broke anomaly/moon exits).
             var targetIntercept = WarpMath.GetInterceptPosition(thisEntity, targetEntity, EntryDateTime, offsetPosition);
 
             var startState = MoveMath.GetAbsoluteState(thisEntity);
-            ExitPointAbsolute = targetIntercept.position + offsetPosition;
+            ExitPointAbsolute = targetIntercept.position;
             EntryPointAbsolute = startState.pos;
             ExitPointrelative = offsetPosition;
             PredictedExitTime = targetIntercept.etiDateTime;

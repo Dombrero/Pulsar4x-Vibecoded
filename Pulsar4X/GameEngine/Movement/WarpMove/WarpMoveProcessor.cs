@@ -615,11 +615,20 @@ namespace Pulsar4X.Movement
             double distToTarget = intendedTarget.GetDataBlob<PositionDB>().GetDistanceTo_m(moveStatedb);
 
             Entity? targetEntity;
-            if (distToTarget > targetSOI
-                && intendedTarget.TryGetDataBlob<OrbitDB>(out var targetOrbit)
-                && targetOrbit.Parent != null)
+            // Parent to the intended body when the exit actually landed in/near its SOI.
+            // (Do not trust ExitPointrelative alone — a bad absolute exit must not force-parent
+            // the hull to a moon/planet while it sits AU away near the star.)
+            if (distToTarget <= targetSOI
+                || (!double.IsInfinity(targetSOI)
+                    && targetSOI > 0
+                    && distToTarget <= targetSOI * 5))
             {
-                // Truly outside SOI (rare for CreateCommandEZ low-orbit exits): fall back to parent.
+                targetEntity = intendedTarget;
+            }
+            else if (intendedTarget.TryGetDataBlob<OrbitDB>(out var targetOrbit)
+                     && targetOrbit.Parent != null)
+            {
+                // Truly outside SOI: fall back to parent (star / planet).
                 targetEntity = targetOrbit.Parent;
             }
             else

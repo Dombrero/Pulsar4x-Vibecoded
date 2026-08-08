@@ -260,9 +260,21 @@ namespace Pulsar4X.Engine
             var ta = GetTrueAnomaly(orbit, atDateTime);
             if (orbit.Parent is not { IsValid: true })//if we're the parent sun
                 return OrbitMath.GetPosition(orbit, ta);
-            if (orbit.ParentDB is not OrbitDB parentOrbit)
+
+            // Prefer the orbit-tree parent, but never fall back to parent-relative-only coords
+            // treated as heliocentric — that parks warp exits ~1 AU from moons/nested bodies
+            // and GeoSurvey/colony orders loop forever re-warping to the same target.
+            Vector3 rootPos;
+            if (orbit.ParentDB is OrbitDB parentOrbit)
+                rootPos = GetAbsolutePosition(parentOrbit, atDateTime);
+            else if (orbit.Parent.TryGetDataBlob<OrbitDB>(out var parentOrbitDirect))
+                rootPos = GetAbsolutePosition(parentOrbitDirect, atDateTime);
+            else if (orbit.Parent.TryGetDataBlob<OrbitUpdateOftenDB>(out var parentOften))
+                rootPos = GetAbsolutePosition(parentOften, atDateTime);
+            else if (orbit.Parent.TryGetDataBlob<PositionDB>(out var parentPos))
+                rootPos = parentPos.AbsolutePosition;
+            else
                 return OrbitMath.GetPosition(orbit, ta);
-            Vector3 rootPos = GetAbsolutePosition(parentOrbit, atDateTime);
 
             if (orbit.IsStationary)
             {

@@ -294,11 +294,11 @@ public class AgentProcessor : IInstanceProcessor
 
         try
         {
-            fleet.AttachedManager?.Game?.ProcessorManager?.RunProcessOnEntity<FleetDB>(fleet, 0);
+            FleetOrderProcessor.TryEvaluateNow(fleet);
         }
         catch
         {
-            // Next FleetOrderProcessor hotloop will pick it up.
+            // Next FleetOrderProcessor safety poll will pick it up.
         }
     }
 

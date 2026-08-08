@@ -258,6 +258,14 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
                 return null;
             }
 
+            // Hand-built / incomplete saves may omit KnownSystems — without it the client never
+            // receives SystemRevealed and ActivateGameUI crashes or shows an empty map.
+            if (factionInfoDB != null && !factionInfoDB.KnownSystems.Contains(systemId))
+            {
+                factionInfoDB.KnownSystems.Add(systemId);
+                Console.WriteLine($"LoadGame: added missing KnownSystem {systemId} for faction {faction.Id}");
+            }
+
             // Pause any previous clock before tearing down UI state.
             _game?.TimePulse.PauseTime();
 

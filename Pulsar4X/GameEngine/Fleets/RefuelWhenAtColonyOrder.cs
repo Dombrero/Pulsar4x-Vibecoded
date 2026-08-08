@@ -109,6 +109,26 @@ namespace Pulsar4X.Fleets
 
                 if (ok)
                 {
+                    // CreateRefuel can report success then leave no lasting ship work (instant
+                    // finish / skipped). Avoid re-issuing every Orderable tick.
+                    if (!FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding)
+                        && FleetFuel.AnyHasFreeTankSpace(_entityCommanding)
+                        && FleetFuel.AreNeedyShipsAtColony(_entityCommanding, _colony))
+                    {
+                        DebugTraceLog.Warn("Refuel",
+                            $"fleet#{_entityCommanding.Id}: CreateRefuel returned ok but no ship transfers — giving up at colony#{_colony.Id}",
+                            atDateTime);
+                        // Release Refuel commitment so suppress expiry resumes survey,
+                        // not "restart [0] Refuel — still needs action" every day.
+                        if (_entityCommanding.TryGetDataBlob<FleetDB>(out var emptyIssueDb))
+                        {
+                            emptyIssueDb.ActiveStandingOrderIndex = -1;
+                            emptyIssueDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
+                        }
+                        _gaveUp = true;
+                        return;
+                    }
+
                     DebugTraceLog.Info("Refuel",
                         $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success=True",
                         atDateTime);
@@ -136,7 +156,8 @@ namespace Pulsar4X.Fleets
 
                 if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
                 {
-                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                    suppressDb.ActiveStandingOrderIndex = -1;
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
                     DebugTraceLog.Warn("Refuel",
                         $"fleet#{_entityCommanding.Id}: refuel issue failed at colony#{_colony.Id} — " +
                         $"suppress standing until {suppressDb.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm}",
@@ -155,7 +176,10 @@ namespace Pulsar4X.Fleets
                     atDateTime);
                 System.Diagnostics.Debug.WriteLine($"RefuelWhenAtColony failed: {ex}");
                 if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
-                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                {
+                    suppressDb.ActiveStandingOrderIndex = -1;
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
+                }
                 _gaveUp = true;
             }
         }

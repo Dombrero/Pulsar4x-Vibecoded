@@ -326,21 +326,19 @@ namespace Pulsar4X.Engine.Api
 
             PublishOrdersChanged(commanded);
 
-            // Kick standing eval immediately so Save after Issue Idle does not wait a full hour.
+            // Kick standing eval immediately so Save after Issue Idle does not wait for the safety poll.
             try
             {
                 if (commanded.TryGetDataBlob<OrderableDB>(out var q)
                     && q != null
-                    && !q.ActionList.Any(a => a.Source == OrderSource.Issued)
-                    && commanded.Manager?.Game?.ProcessorManager != null)
+                    && !q.ActionList.Any(a => a.Source == OrderSource.Issued))
                 {
-                    commanded.AttachedManager.Game.ProcessorManager
-                        .RunProcessOnEntity<FleetDB>(commanded, 0);
+                    FleetOrderProcessor.TryEvaluateNow(commanded);
                 }
             }
             catch
             {
-                // Next FleetOrderProcessor hotloop will pick it up.
+                // Next FleetOrderProcessor safety poll will pick it up.
             }
 
             return CommandResult.Ok(Guid.NewGuid().ToString("N"));

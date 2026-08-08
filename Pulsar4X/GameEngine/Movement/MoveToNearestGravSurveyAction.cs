@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
@@ -6,19 +8,33 @@ using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
 using Pulsar4X.Fleets;
 using Pulsar4X.JumpPoints;
+using Pulsar4X.Ships;
+using Pulsar4X.Storage;
+using WarpMoveCommand = Pulsar4X.Movement.WarpMoveCommand;
 
 namespace Pulsar4X.Movement
 {
     /// <summary>
-    /// Standing action: find the nearest unsurveyed grav anomaly, warp there if needed,
-    /// and JP/grav-survey until complete.
+    /// Fleet standing coordinator: assigns each JP-survey ship its own nearest anomaly
+    /// by enqueueing a real <see cref="JPSurveyOrder"/> on that ship.
     /// </summary>
     public class MoveToNearestGravSurveyAction : EntityCommand
     {
-        public override string Name => _survey?.Name ?? "Grav Survey Nearest";
+        public override string Name
+        {
+            get
+            {
+                var active = ActiveShipSurveys().ToList();
+                if (active.Count == 1)
+                    return active[0].Name;
+                if (active.Count > 1)
+                    return $"Grav Survey Nearest ({active.Count} ships)";
+                return "Grav Survey Nearest";
+            }
+        }
 
-        public override string Details => _survey?.Details
-            ?? "Find nearest unsurveyed grav anomaly, move there, and survey.";
+        public override string Details =>
+            "Each ship surveys the nearest unsurveyed grav anomaly.";
 
         public override ActionLaneTypes ActionLanes =>
             ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
@@ -26,7 +42,7 @@ namespace Pulsar4X.Movement
         public override bool IsBlocking => true;
 
         private Entity _entityCommanding = Entity.InvalidEntity;
-        private JPSurveyOrder? _survey;
+        private readonly HashSet<int> _assignedShipIds = new();
         private bool _noTargets;
 
         internal override Entity EntityCommanding => _entityCommanding;
@@ -49,59 +65,195 @@ namespace Pulsar4X.Movement
             if (_noTargets)
                 return _isFinished = true;
 
-            if (_survey != null)
-                return _isFinished = _survey.IsFinished();
+            SyncAssignedFromShips();
+            if (_assignedShipIds.Count > 0)
+                return _isFinished = false;
 
-            return _isFinished = false;
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return _isFinished = true;
+
+            foreach (var ship in fleetDB.Children.Where(c => c.HasJPSurveyAbililty()))
+            {
+                if (FindNearestEligibleAnomaly(ship, CollectClaimedTargets(fleetDB)) != null)
+                    return _isFinished = false;
+            }
+
+            _noTargets = true;
+            if (_entityCommanding.TryGetDataBlob<FleetDB>(out fleetDB))
+                fleetDB.StandingStatusMessage = "Can't find more anomalies";
+            return _isFinished = true;
         }
 
         internal override void Execute(DateTime atDateTime)
         {
-            if (_survey == null)
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
             {
-                var target = FindNearestEligibleAnomaly();
-                if (target == null)
+                _noTargets = true;
+                IsRunning = true;
+                return;
+            }
+
+            var game = _entityCommanding.AttachedManager?.Game;
+            if (game == null)
+            {
+                IsRunning = true;
+                return;
+            }
+
+            SyncAssignedFromShips();
+            var claimed = CollectClaimedTargets(fleetDB);
+
+            bool assigned = _assignedShipIds.Count > 0;
+            foreach (var ship in fleetDB.Children.Where(c =>
+                         c.HasDataBlob<ShipInfoDB>() && c.HasJPSurveyAbililty()))
+            {
+                if (_assignedShipIds.Contains(ship.Id))
                 {
-                    _noTargets = true;
-                    IsRunning = true;
-                    if (_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
-                        fleetDB.StandingStatusMessage = "Can't find more anomalies";
-                    DebugTraceLog.Warn("Standing",
-                        $"fleet id={_entityCommanding.Id}: Grav Survey Nearest — no eligible anomaly " +
-                        $"(faction={FactionIdForSurvey()})",
-                        atDateTime);
-                    return;
+                    assigned = true;
+                    continue;
                 }
 
-                _survey = new JPSurveyOrder(_entityCommanding, target)
+                if (ship.TryGetDataBlob<OrderableDB>(out var shipQ))
+                {
+                    if (shipQ.ActionList.Any(a => a.Source == OrderSource.Issued))
+                        continue;
+                    if (shipQ.ActionList.Any(a =>
+                            a.Source == OrderSource.Standing
+                            && (a is CargoTransferOrder || a is WarpMoveCommand)
+                            && !a.IsFinished()))
+                        continue;
+                    if (shipQ.ActionList.OfType<JPSurveyOrder>().Any(g => !g.IsFinished()))
+                    {
+                        _assignedShipIds.Add(ship.Id);
+                        if (shipQ.ActionList.OfType<JPSurveyOrder>().FirstOrDefault(g => g.Target.IsValid) is { } existing)
+                            claimed.Add(existing.Target.Id);
+                        assigned = true;
+                        continue;
+                    }
+
+                    if (shipQ.ActionList.Count > 0)
+                        continue;
+                }
+
+                var target = FindNearestEligibleAnomaly(ship, claimed);
+                if (target == null)
+                    continue;
+
+                claimed.Add(target.Id);
+                var survey = new JPSurveyOrder(ship, target)
                 {
                     RequestingFactionGuid = FactionIdForSurvey(),
-                    EntityCommandingGuid = EntityCommandingGuid,
+                    EntityCommandingGuid = ship.Id,
                     Source = Source,
                     UseActionLanes = UseActionLanes,
                     CreatedDate = CreatedDate,
                     ActionOnDate = ActionOnDate,
                 };
+
+                bool ok = Source == OrderSource.Standing
+                    ? OrderEnqueue.Standing(game, survey)
+                    : OrderEnqueue.Enqueue(game, survey);
+                if (!ok)
+                    continue;
+
+                _assignedShipIds.Add(ship.Id);
+                assigned = true;
             }
 
             IsRunning = true;
-            _survey.Execute(atDateTime);
+            if (!assigned && _assignedShipIds.Count == 0)
+            {
+                _noTargets = true;
+                fleetDB.StandingStatusMessage = "Can't find more anomalies";
+                DebugTraceLog.Warn("Standing",
+                    $"fleet id={_entityCommanding.Id}: Grav Survey Nearest — no eligible anomaly " +
+                    $"(faction={FactionIdForSurvey()})",
+                    atDateTime);
+            }
+        }
+
+        private void SyncAssignedFromShips()
+        {
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+            {
+                _assignedShipIds.Clear();
+                return;
+            }
+
+            foreach (var id in _assignedShipIds.ToList())
+            {
+                var ship = fleetDB.Children.FirstOrDefault(c => c.Id == id);
+                if (ship == null || !ship.IsValid)
+                {
+                    _assignedShipIds.Remove(id);
+                    continue;
+                }
+
+                if (!ship.TryGetDataBlob<OrderableDB>(out var q)
+                    || !q.ActionList.OfType<JPSurveyOrder>().Any(g => !g.IsFinished()))
+                {
+                    bool gravWarp = q != null && q.ActionList.OfType<WarpMoveCommand>()
+                        .Any(w => !w.IsFinished() && IsGravWarp(ship, w));
+                    if (!gravWarp)
+                        _assignedShipIds.Remove(id);
+                }
+            }
+        }
+
+        private IEnumerable<JPSurveyOrder> ActiveShipSurveys()
+        {
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                yield break;
+
+            foreach (var ship in fleetDB.Children)
+            {
+                if (!ship.TryGetDataBlob<OrderableDB>(out var q))
+                    continue;
+                foreach (var g in q.ActionList.OfType<JPSurveyOrder>().Where(x => !x.IsFinished()))
+                    yield return g;
+            }
+        }
+
+        private static HashSet<int> CollectClaimedTargets(FleetDB fleetDB)
+        {
+            var claimed = new HashSet<int>();
+            foreach (var child in fleetDB.Children)
+            {
+                if (child.TryGetDataBlob<JPSurveyDB>(out var surveying))
+                    claimed.Add(surveying.TargetId);
+                if (!child.TryGetDataBlob<OrderableDB>(out var q))
+                    continue;
+                foreach (var cmd in q.ActionList.OfType<JPSurveyOrder>().Where(g => !g.IsFinished() && g.Target.IsValid))
+                    claimed.Add(cmd.Target.Id);
+                foreach (var warp in q.ActionList.OfType<WarpMoveCommand>().Where(w => !w.IsFinished()))
+                {
+                    if (IsGravWarp(child, warp)
+                        && child.AttachedManager != null
+                        && child.AttachedManager.TryGetEntityById(warp.TargetEntityGuid, out var dest)
+                        && dest.HasDataBlob<JPSurveyableDB>())
+                        claimed.Add(dest.Id);
+                }
+            }
+
+            return claimed;
+        }
+
+        private static bool IsGravWarp(Entity ship, WarpMoveCommand warp)
+        {
+            if (warp.TargetEntityGuid == 0 || ship.AttachedManager == null)
+                return false;
+            return ship.AttachedManager.TryGetEntityById(warp.TargetEntityGuid, out var dest)
+                   && dest.HasDataBlob<JPSurveyableDB>();
         }
 
         private int FactionIdForSurvey()
             => RequestingFactionGuid != 0 ? RequestingFactionGuid : _entityCommanding.FactionOwnerID;
 
-        private Entity? FindNearestEligibleAnomaly()
+        private Entity? FindNearestEligibleAnomaly(Entity fromShip, HashSet<int> claimed)
         {
-            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return null;
-            if (fleetDB.FlagShipID == -1)
+            if (!fromShip.TryGetDataBlob<PositionDB>(out var shipPos))
                 return null;
             if (_entityCommanding.Manager == null)
-                return null;
-            if (!_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship))
-                return null;
-            if (!flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
                 return null;
 
             int factionId = FactionIdForSurvey();
@@ -110,6 +262,8 @@ namespace Pulsar4X.Movement
 
             foreach (var anomaly in _entityCommanding.AttachedManager.GetAllEntitiesWithDataBlob<JPSurveyableDB>())
             {
+                if (claimed.Contains(anomaly.Id))
+                    continue;
                 if (!anomaly.TryGetDataBlob<JPSurveyableDB>(out var surveyDB) || surveyDB == null)
                     continue;
                 if (surveyDB.IsSurveyComplete(factionId))
@@ -117,7 +271,7 @@ namespace Pulsar4X.Movement
                 if (!anomaly.TryGetDataBlob<PositionDB>(out var anomalyPos))
                     continue;
 
-                double distance = anomalyPos.GetDistanceTo_m(flagshipPos);
+                double distance = anomalyPos.GetDistanceTo_m(shipPos);
                 if (distance < closestDistance)
                 {
                     closestDistance = distance;

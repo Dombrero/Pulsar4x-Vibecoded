@@ -1702,8 +1702,16 @@ namespace Pulsar4X.Engine.Api
                 && ship.Manager != null
                 && ship.AttachedManager.TryGetEntityById(geoSurveying.TargetId, out var geoTarget))
             {
+                string pct = "";
+                if (geoTarget.TryGetDataBlob<GeoSurveyableDB>(out var geoDb)
+                    && geoDb.HasSurveyStarted(factionId)
+                    && geoDb.PointsRequired > 0)
+                {
+                    double percent = (1.0 - (double)geoDb.GeoSurveyStatus[factionId] / geoDb.PointsRequired) * 100;
+                    pct = $" ({percent:0.#}%)";
+                }
                 return new ActivityView(
-                    "Geo Survey " + geoTarget.GetName(factionId),
+                    "Geo Survey " + geoTarget.GetName(factionId) + pct,
                     "Surveying at target.");
             }
 
@@ -1711,8 +1719,16 @@ namespace Pulsar4X.Engine.Api
                 && ship.Manager != null
                 && ship.AttachedManager.TryGetEntityById(jpSurvey.TargetId, out var jpTarget))
             {
+                string pct = "";
+                if (jpTarget.TryGetDataBlob<JPSurveyableDB>(out var jpDb)
+                    && jpDb.PointsRequired > 0
+                    && jpDb.SurveyPointsRemaining.TryGetValue(factionId, out var remaining))
+                {
+                    double percent = (1.0 - (double)remaining / jpDb.PointsRequired) * 100;
+                    pct = $" ({percent:0.#}%)";
+                }
                 return new ActivityView(
-                    "Jump Point Survey " + jpTarget.GetName(factionId),
+                    "Jump Point Survey " + jpTarget.GetName(factionId) + pct,
                     "Surveying at target.");
             }
 
