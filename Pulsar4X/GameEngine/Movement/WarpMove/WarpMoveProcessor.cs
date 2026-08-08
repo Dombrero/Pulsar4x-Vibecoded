@@ -135,6 +135,15 @@ namespace Pulsar4X.Movement
 
                 if (distanceToTargetMt <= distanceToMove) // moving would overtake target, just go directly to target
                 {
+                    // Grav anomalies / jump points stay in WarpMovingDB as a zero-speed hover.
+                    // Without this guard every later tick re-enters arrival and re-bills tank fuel
+                    // (same hop burned ~N times until empty — see Fuel log spam).
+                    if (moveDB.IsAtTarget)
+                    {
+                        moveDB.LastProcessDateTime = toDateTime;
+                        return;
+                    }
+
                     if (moveDB.TargetEntity is not { IsValid: true } targetEntity)
                     {
                         EndWarpMove(entity, warpDB, moveDB, toDateTime);
@@ -148,7 +157,7 @@ namespace Pulsar4X.Movement
                     if (destinationMoveType == PositionDB.MoveTypes.None)
                     {
                         moveDB.CurrentNonNewtonionVectorMS = Vector3.Zero;
-                        // Stay in zero-speed warp (design), but sync PositionDB + bill tank fuel.
+                        // Stay in zero-speed warp (design), but sync PositionDB + bill tank fuel once.
                         FinishWarpAtStaticTarget(entity, warpDB, moveDB, toDateTime);
                     }
                     else
@@ -537,6 +546,9 @@ namespace Pulsar4X.Movement
         {
             try
             {
+                if (moveDB.WarpTankFuelConsumed)
+                    return;
+
                 if (!entity.TryGetDataBlob<CargoStorageDB>(out var storage))
                     return;
 
@@ -561,6 +573,7 @@ namespace Pulsar4X.Movement
 
                 double mass = take * fuel.MassPerUnit;
                 CargoTransferProcessor.AddRemoveCargoMass(entity, fuel, -mass);
+                moveDB.WarpTankFuelConsumed = true;
 
                 const double MetersPerAu = 149597870700.0;
                 double au = Math.Max(0, distance_m / MetersPerAu);

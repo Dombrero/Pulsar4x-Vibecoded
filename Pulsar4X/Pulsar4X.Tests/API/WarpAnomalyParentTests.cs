@@ -119,5 +119,110 @@ namespace Pulsar4X.Tests
             Assert.That(pos.Parent?.Id, Is.Not.EqualTo(anomaly.Id),
                 "Next hop must leave the anomaly parent for the heliocentric warp frame");
         }
+
+        [Test]
+        public void Grav_anomaly_hover_bills_tank_fuel_only_once()
+        {
+            var session = Connect();
+            var system = _game.Systems[0];
+            var star = system.GetFirstEntityWithDataBlob<StarInfoDB>();
+            var data = _game.Factions[session.FactionId].GetDataBlob<FactionInfoDB>().Data;
+
+            ICargoable fuel;
+            foreach (var id in new[] { "hydrolox", "rp-1", "methalox" })
+            {
+                if (data.CargoGoods.Contains(id))
+                {
+                    fuel = data.CargoGoods.GetAny(id)!;
+                    goto haveFuel;
+                }
+                if (data.LockedCargoGoods.Contains(id))
+                {
+                    data.Unlock(id);
+                    fuel = data.CargoGoods.GetAny(id)!;
+                    goto haveFuel;
+                }
+            }
+            var material = data.LockedCargoGoods.GetMaterialsList().First();
+            data.Unlock(material.UniqueID);
+            fuel = data.CargoGoods.GetAny(material.UniqueID)!;
+            haveFuel:
+
+            var anomalyPos = new Vector3(3e11, 0, 0); // ~2 AU
+            var anomaly = Entity.Create();
+            system.AddEntity(anomaly, new List<BaseDataBlob>
+            {
+                new NameDB("Gravitational Anomaly #2", session.FactionId, "Gravitational Anomaly #2"),
+                new PositionDB(anomalyPos.X, anomalyPos.Y, anomalyPos.Z)
+                {
+                    MoveType = PositionDB.MoveTypes.None,
+                },
+                MassVolumeDB.NewFromMassAndRadius_m(1, 1),
+            });
+
+            const long tankUnits = 2_000_000;
+            var storage = new CargoStorageDB(fuel.CargoTypeID, tankUnits)
+            {
+                TransferRate = 1000,
+                TransferRangeDv_mps = 1e12,
+            };
+            storage.AddCargoByUnit(fuel, tankUnits);
+
+            var ship = Entity.Create(session.FactionId);
+            system.AddEntity(ship, new List<BaseDataBlob>
+            {
+                storage,
+                new NameDB("Surveyor", session.FactionId, "Surveyor"),
+                new PositionDB(Vector3.Zero, star) { MoveType = PositionDB.MoveTypes.Warp },
+                new MassVolumeDB { MassDry = 1000 },
+                new ShipInfoDB(),
+                new OrderableDB(),
+                new WarpAbilityDB
+                {
+                    MaxSpeed = 1e9,
+                    EnergyType = fuel.UniqueID,
+                    BubbleCreationCost = 1,
+                    BubbleSustainCost = 0,
+                },
+                new EnergyGenAbilityDB(_game.TimePulse.GameGlobalDateTime)
+                {
+                    EnergyType = fuel,
+                    MaxOutputFromReactor = 1000,
+                    EnergyStored = new Dictionary<string, double> { [fuel.UniqueID] = 1e15 },
+                    EnergyStoreMax = new Dictionary<string, double> { [fuel.UniqueID] = 1e15 },
+                },
+            });
+
+            Assert.That(QueueOrder(
+                Pulsar4X.Movement.WarpMoveCommand.CreateCommandEZ(ship, anomaly, ship.StarSysDateTime)), Is.True);
+
+            _game.Settings.EnforceSingleThread = true;
+            _game.TimePulse.Ticklength = TimeSpan.FromMinutes(5);
+
+            bool arrived = false;
+            for (int i = 0; i < 200; i++)
+            {
+                _game.TimePulse.TimeStep();
+                if (ship.TryGetDataBlob<WarpMovingDB>(out var move) && move.IsAtTarget)
+                {
+                    arrived = true;
+                    break;
+                }
+            }
+
+            Assert.That(arrived, Is.True, "Ship must arrive and hover at the grav anomaly");
+            Assert.That(ship.HasDataBlob<WarpMovingDB>(), Is.True, "Hover keeps WarpMovingDB");
+
+            long afterArrive = storage.GetUnitsStored(fuel, includeEscro: false);
+            Assert.That(afterArrive, Is.LessThan(tankUnits), "Arrival must bill tank fuel once");
+            Assert.That(ship.GetDataBlob<WarpMovingDB>().WarpTankFuelConsumed, Is.True);
+
+            for (int i = 0; i < 40; i++)
+                _game.TimePulse.TimeStep();
+
+            long afterHover = storage.GetUnitsStored(fuel, includeEscro: false);
+            Assert.That(afterHover, Is.EqualTo(afterArrive),
+                "Hover ticks must not re-bill the same warp hop");
+        }
     }
 }

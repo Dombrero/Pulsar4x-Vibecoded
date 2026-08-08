@@ -37,6 +37,13 @@ namespace Pulsar4X.Movement
         [JsonProperty]
         internal bool IsAtTarget { get; set; }
 
+        /// <summary>
+        /// One hop → one tank bill. Grav/JP hover keeps this DB after arrival; without the flag
+        /// ProcessEntity would re-consume every tick.
+        /// </summary>
+        [JsonProperty]
+        internal bool WarpTankFuelConsumed { get; set; }
+
         #endregion
 
 
@@ -138,6 +145,7 @@ namespace Pulsar4X.Movement
             CurrentNonNewtonionVectorMS = db.CurrentNonNewtonionVectorMS;
             EndpointTargetOrbit = db.EndpointTargetOrbit;
             IsAtTarget = db.IsAtTarget;
+            WarpTankFuelConsumed = db.WarpTankFuelConsumed;
             TargetEntity = db.TargetEntity;
 
             HasStarted = db.HasStarted;
