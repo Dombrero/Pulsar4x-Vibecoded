@@ -27,7 +27,7 @@ namespace Pulsar4X.Fleets
     /// 1. Player Issue Orders always win — standing never touches an Issued queue.
     /// 2. List order = priority (index 0 highest). First matching ENTER condition wins.
     /// 3. Once a standing order is committed, it stays active until its work is done AND
-    ///    its EXIT condition is met (fuel uses hysteresis so &lt;30% does not thrash at 29/31).
+    ///    its EXIT condition is met (fuel ENTER &lt;30% / EXIT = tanks full — WaitTillFull).
     /// 4. Higher priority may preempt lower priority only when the higher order's ENTER
     ///    condition is true and we are not already committed to that same higher order.
     /// 5. Ship-level work (cargo transfer, warp) counts as in-progress — empty fleet queue
@@ -35,9 +35,6 @@ namespace Pulsar4X.Fleets
     /// </summary>
     public class FleetOrderProcessor : IHotloopProcessor
     {
-        /// <summary>Extra percent above a Fuel &lt; T threshold before leaving the refuel mission.</summary>
-        public const float FuelExitHysteresisPercent = 40f;
-
         /// <summary>Extra percent above an Energy &lt; T threshold before leaving the recharge mission.</summary>
         public const float EnergyExitHysteresisPercent = 40f;
 
@@ -181,10 +178,9 @@ namespace Pulsar4X.Fleets
 
                 if (busy)
                 {
-                    // Exit band may be reached while ship transfers still finish (refuel / recharge).
-                    // Clear the standing fleet queue so we don't thrash release→adopt-orphan every
-                    // hour, then fall through to pick the next mission. Ship-level transfers keep
-                    // running; new Refuel/Recharge ENTRY is blocked while they linger.
+                    // Near-full exit can land while the last cargo ticks finish. Clear standing fleet
+                    // work so we don't thrash; ship transfers keep running. New Refuel ENTRY is
+                    // blocked while they linger.
                     if (!OrderStillNeedsAction(fleet, activeOrder))
                     {
                         DebugTraceLog.Info("Standing",
@@ -413,13 +409,9 @@ namespace Pulsar4X.Fleets
             if (noConditions)
                 return ActionStillHasWork(fleet, order);
 
-            // Fuel/Energy LessThan uses a higher exit band so we don't bounce at the threshold.
-            if (TryGetFuelLessThanThreshold(order, out float enterThreshold))
-            {
-                float exitThreshold = Math.Min(95f, enterThreshold + FuelExitHysteresisPercent);
-                double avg = GetFleetAverageFuelPercent(fleet);
-                return avg < exitThreshold;
-            }
+            // Fuel: ENTER uses the condition threshold; EXIT stays until every tank is full.
+            if (TryGetFuelLessThanThreshold(order, out _))
+                return FleetFuel.AnyHasFreeTankSpace(fleet);
 
             if (TryGetEnergyLessThanThreshold(order, out float energyEnter))
             {
@@ -440,7 +432,7 @@ namespace Pulsar4X.Fleets
                 return false;
 
             if (OrderLooksLikeRefuel(order))
-                return GetFleetAverageFuelPercent(fleet) < 95f;
+                return FleetFuel.AnyHasFreeTankSpace(fleet);
 
             if (OrderLooksLikeRecharge(order))
                 return GetFleetAverageEnergyPercent(fleet) < 95f;
@@ -485,7 +477,7 @@ namespace Pulsar4X.Fleets
                     if (useExitThreshold)
                         matches = OrderStillNeedsAction(fleet, order);
                     else if (OrderLooksLikeRefuel(order))
-                        matches = GetFleetAverageFuelPercent(fleet) < 30f;
+                        matches = FleetFuel.AnyBelow(fleet, 30f);
                     else if (OrderLooksLikeRecharge(order))
                         matches = GetFleetAverageEnergyPercent(fleet) < 30f;
                     else
@@ -561,20 +553,7 @@ namespace Pulsar4X.Fleets
         }
 
         internal static double GetFleetAverageFuelPercent(Entity fleet)
-        {
-            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return 100;
-
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
-            if (ships.Count == 0)
-                return 100;
-
-            var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
-            double total = 0;
-            foreach (var ship in ships)
-                total += ship.GetFuelPercent(cargoLibrary);
-            return total / ships.Count;
-        }
+            => FleetFuel.AveragePercent(fleet);
 
         private static void AbortStandingFleetWork(Entity fleet, OrderableDB orderableDB)
         {

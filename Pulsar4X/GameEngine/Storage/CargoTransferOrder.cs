@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Newtonsoft.Json;
+using Pulsar4X.Colonies;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Names;
@@ -172,7 +173,8 @@ public class CargoTransferOrder : EntityCommand
         long amount = 0;
         if (condition == Conditionals.WaitTillFull)
         {
-            amount = CargoMath.GetFreeUnitSpace(primaryEntity.GetDataBlob<CargoStorageDB>(), item);
+            // Tank capacity only — orphan EscroItems must not shrink WaitTillFull to 0.
+            amount = CargoMath.GetFreeUnitSpace(primaryEntity.GetDataBlob<CargoStorageDB>(), item, includeEscro: false);
         }
 
         List<(ICargoable item, long amount)> itemList = new List<(ICargoable item, long amount)>();
@@ -219,6 +221,8 @@ public class CargoTransferOrder : EntityCommand
         var ships = fleetDB.Children.Where(c =>
             !c.HasDataBlob<FleetDB>() && c.HasDataBlob<CargoStorageDB>());
 
+        int skippedAway = 0, skippedBusy = 0, skippedNoFuel = 0, skippedNoStore = 0, skippedFull = 0, skippedEx = 0;
+
         foreach (var ship in ships)
         {
             try
@@ -226,12 +230,24 @@ public class CargoTransferOrder : EntityCommand
                 if (!ship.TryGetDataBlob<CargoStorageDB>(out var shipStorage))
                     continue;
 
+                // Never start a WaitTillFull transfer while the hull is elsewhere
+                // (e.g. SensorSat at Earth made IsFleetAtColony true, Surveyor still at Mercury).
+                if (cargoFromEntity.HasDataBlob<ColonyInfoDB>()
+                    && !FleetOrderCleanup.IsShipAtColony(ship, cargoFromEntity))
+                {
+                    skippedAway++;
+                    continue;
+                }
+
                 EnsureMinimumTransferCapability(shipStorage);
 
                 // Already refueling — don't stack another WaitTillFull transfer.
                 if (ship.TryGetDataBlob<OrderableDB>(out var shipOrders)
                     && shipOrders.ActionList.OfType<CargoTransferOrder>().Any())
+                {
+                    skippedBusy++;
                     continue;
+                }
 
                 var fuelInfo = ship.GetFuelInfo(cargoLibrary);
                 ICargoable? fuel = fuelInfo.Item1;
@@ -244,24 +260,45 @@ public class CargoTransferOrder : EntityCommand
                 }
 
                 if (fuel == null)
+                {
+                    skippedNoFuel++;
                     continue;
+                }
 
                 // Colony (or ship) missing this cargo type store → escrow ctor used to KeyNotFound crash.
                 if (!colonyStorage.TypeStores.ContainsKey(fuel.CargoTypeID)
                     || !shipStorage.TypeStores.ContainsKey(fuel.CargoTypeID))
+                {
+                    skippedNoStore++;
                     continue;
+                }
 
-                long free = CargoMath.GetFreeUnitSpace(shipStorage, fuel);
+                // Ignore escrow for "has tank room" — orphan EscroItems from aborted
+                // transfers used to report free=0 while GetFuelPercent still showed ~50%.
+                long free = CargoMath.GetFreeUnitSpace(shipStorage, fuel, includeEscro: false);
                 if (free <= 0)
+                {
+                    skippedFull++;
                     continue;
+                }
 
                 CreateCommands(fleet.FactionOwnerID, ship, cargoFromEntity, fuel, Conditionals.WaitTillFull, source);
                 anyIssued = true;
             }
             catch (Exception ex)
             {
+                skippedEx++;
                 System.Diagnostics.Debug.WriteLine($"CreateRefuelFleetCommand ship {ship.Id}: {ex.Message}");
             }
+        }
+
+        if (!anyIssued)
+        {
+            Pulsar4X.Api.DebugTraceLog.Warn("Refuel",
+                $"CreateRefuelFleetCommand fleet#{fleet.Id} issued=0 " +
+                $"(away={skippedAway} busy={skippedBusy} noFuel={skippedNoFuel} " +
+                $"noStore={skippedNoStore} full={skippedFull} ex={skippedEx})",
+                fleet.IsValid ? fleet.StarSysDateTime : null);
         }
 
         return anyIssued;

@@ -9,18 +9,26 @@ using Pulsar4X.Storage;
 namespace Pulsar4X.Fleets
 {
     /// <summary>
-    /// Fleet order that waits until ships are at the colony, then issues refuel cargo transfers
-    /// and stays in the queue until those transfers finish (so standing orders do not re-fire).
-    /// Intended to run behind <see cref="Movement.WarpFleetTowardsTargetOrder"/> on the Movement lane.
+    /// Fleet order: issue WaitTillFull transfers for any fuel-needy ships already at the colony,
+    /// wait for stragglers still warping in, and stay queued until every fuel tank is full.
     /// </summary>
     public class RefuelWhenAtColonyOrder : EntityCommand
     {
         public override string Name => "Refuel at Colony";
 
-        public override string Details =>
-            _transfersIssued
-                ? "Fuel transfer in progress."
-                : "Waiting to arrive at colony before transferring fuel.";
+        public override string Details
+        {
+            get
+            {
+                if (!_entityCommanding.IsValid)
+                    return "Waiting for fuel-needy ships at colony.";
+                if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
+                    return "Fuel transfer in progress.";
+                if (FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+                    return "Waiting for fuel-needy ships at colony.";
+                return "Refuel complete.";
+            }
+        }
 
         public override ActionLaneTypes ActionLanes { get; } =
             ActionLaneTypes.Movement | ActionLaneTypes.InteractWithExternalEntity;
@@ -29,7 +37,7 @@ namespace Pulsar4X.Fleets
 
         private Entity _entityCommanding = Entity.InvalidEntity;
         private Entity _colony = Entity.InvalidEntity;
-        private bool _transfersIssued;
+        private bool _gaveUp;
 
         internal override Entity EntityCommanding => _entityCommanding;
 
@@ -50,12 +58,14 @@ namespace Pulsar4X.Fleets
 
         internal override bool IsFinished()
         {
-            if (!_transfersIssued)
+            if (_gaveUp)
+                return _isFinished = true;
+
+            if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
                 return _isFinished = false;
 
-            // Stay until ship-level fuel transfers complete — finishing early emptied the fleet
-            // queue and made standing Refuel flicker / re-abort transfers every tick.
-            if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
+            // Stay until every fuel-capable tank is full (WaitTillFull), not a % hysteresis band.
+            if (FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
                 return _isFinished = false;
 
             return _isFinished = true;
@@ -63,52 +73,80 @@ namespace Pulsar4X.Fleets
 
         internal override void Execute(DateTime atDateTime)
         {
-            if (_isFinished)
+            if (_isFinished || _gaveUp)
                 return;
 
             IsRunning = true;
-
-            if (_transfersIssued)
-                return;
-
-            if (!FleetOrderCleanup.IsFleetAtColony(_entityCommanding, _colony))
-            {
-                // Waiting to arrive.
-                if (!_transfersIssued)
-                    return;
-
-                // Left the colony with a hanging transfer (e.g. warped away) — clear instead of stalling forever.
-                if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
-                    FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
-                _isFinished = true;
-                return;
-            }
 
             if (!_colony.HasDataBlob<CargoStorageDB>())
             {
                 DebugTraceLog.Warn("Refuel",
                     $"fleet#{_entityCommanding.Id}: colony#{_colony.Id} has no cargo storage",
                     atDateTime);
-                _transfersIssued = true; // nothing to do — IsFinished will clear us
+                _gaveUp = true;
                 return;
             }
 
-            // Already transferring — just wait (do not issue a second transfer / abort).
+            if (!FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+                return;
+
             if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
-            {
-                _transfersIssued = true;
                 return;
-            }
 
+            // Issue for whoever is already on-station — do not wait for full / non-needy siblings.
             try
             {
                 bool ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding, Source);
+
+                if (!ok)
+                {
+                    FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
+                    ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding, Source);
+                }
+
                 if (ok && _entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
                     RefuelColonySearch.RememberRefuelSite(fleetDB, _colony);
 
+                if (ok)
+                {
+                    DebugTraceLog.Info("Refuel",
+                        $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success=True",
+                        atDateTime);
+                    return;
+                }
+
+                if (!FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+                {
+                    if (_entityCommanding.TryGetDataBlob<FleetDB>(out var doneDb))
+                        RefuelColonySearch.RememberRefuelSite(doneDb, _colony);
+                    DebugTraceLog.Info("Refuel",
+                        $"fleet#{_entityCommanding.Id}: at colony#{_colony.Id} — all fuel tanks full, nothing to issue",
+                        atDateTime);
+                    return;
+                }
+
+                // Still free tank space: either stragglers en route, or a real issue failure.
+                if (!FleetFuel.AreNeedyShipsAtColony(_entityCommanding, _colony))
+                {
+                    DebugTraceLog.Info("Refuel",
+                        $"fleet#{_entityCommanding.Id}: waiting for fuel-needy ships to reach colony#{_colony.Id}",
+                        atDateTime);
+                    return;
+                }
+
+                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+                {
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                    DebugTraceLog.Warn("Refuel",
+                        $"fleet#{_entityCommanding.Id}: refuel issue failed at colony#{_colony.Id} — " +
+                        $"suppress standing until {suppressDb.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm}",
+                        atDateTime);
+                }
+
                 DebugTraceLog.Info("Refuel",
-                    $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success={ok}",
+                    $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success=False",
                     atDateTime);
+                _gaveUp = true;
             }
             catch (Exception ex)
             {
@@ -116,9 +154,10 @@ namespace Pulsar4X.Fleets
                     $"fleet#{_entityCommanding.Id}: CreateRefuelFleetCommand failed: {ex.Message}",
                     atDateTime);
                 System.Diagnostics.Debug.WriteLine($"RefuelWhenAtColony failed: {ex}");
+                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromHours(6);
+                _gaveUp = true;
             }
-
-            _transfersIssued = true;
         }
 
         internal override bool IsValidCommand(Game game)

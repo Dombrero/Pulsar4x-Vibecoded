@@ -15,6 +15,7 @@ using Pulsar4X.Engine.Orders;
 using Pulsar4X.Engine;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Api;
+using Pulsar4X.Factions;
 using Stringify = Pulsar4X.Api.Stringify;
 
 namespace Pulsar4X.Movement
@@ -416,6 +417,13 @@ namespace Pulsar4X.Movement
         internal override Entity EntityCommanding => _entityCommanding;
 
         public Entity Target { get; set; } = Entity.InvalidEntity;
+
+        /// <summary>
+        /// When true, only warp ships that still have free fuel-tank space.
+        /// Full / non-fuel hulls stay put (still fleet members).
+        /// </summary>
+        public bool OnlyShipsNeedingFuel { get; set; }
+
         List<WarpMoveCommand> _shipCommands = new List<WarpMoveCommand>();
 
         public override EntityCommand Clone()
@@ -458,20 +466,28 @@ namespace Pulsar4X.Movement
             if (IsRunning && !needsRedispatch)
                 return;
 
-            // Clear leftover ship Movement-lane warps so the new destination runs now.
-            FleetOrderCleanup.AbortShipMovementOrders(_entityCommanding);
+            var cargoLibrary = OnlyShipsNeedingFuel
+                ? _entityCommanding.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods
+                : null;
 
             _shipCommands.Clear();
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
 
             foreach (var ship in ships)
             {
+                if (OnlyShipsNeedingFuel
+                    && (cargoLibrary == null || !FleetFuel.NeedsRefuel(ship, cargoLibrary)))
+                    continue;
+
                 var shipParent = ship.GetDataBlob<PositionDB>().Parent;
                 if (shipParent == Target)
                     continue;
                 if (Target.TryGetDataBlob<ColonyInfoDB>(out var colonyDB) && colonyDB.PlanetEntity == shipParent)
                     continue;
                 if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
+
+                // Only clear movement on hulls we are about to send — leave full siblings alone.
+                FleetOrderCleanup.AbortShipMovementOrdersOnEntity(ship);
 
                 try
                 {
@@ -487,7 +503,7 @@ namespace Pulsar4X.Movement
             IsRunning = true;
         }
 
-        public static WarpFleetTowardsTargetOrder CreateCommand(Entity fleet, Entity target)
+        public static WarpFleetTowardsTargetOrder CreateCommand(Entity fleet, Entity target, bool onlyShipsNeedingFuel = false)
         {
             var order = new WarpFleetTowardsTargetOrder()
             {
@@ -495,6 +511,7 @@ namespace Pulsar4X.Movement
                 EntityCommandingGuid = fleet.Id,
                 _entityCommanding = fleet,
                 Target = target,
+                OnlyShipsNeedingFuel = onlyShipsNeedingFuel,
             };
 
             return order;

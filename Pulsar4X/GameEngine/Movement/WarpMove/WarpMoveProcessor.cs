@@ -80,8 +80,12 @@ namespace Pulsar4X.Movement
             DateTime todateTime = manager.StarSysDateTime + TimeSpan.FromSeconds(deltaSeconds);
             foreach (var db in datablobs)
             {
-                WarpMove(db.OwningEntity, db, todateTime);
+                // EndWarpMove may RemoveDataBlob mid-loop → OwningEntity becomes InvalidEntity.
+                if (db.OwningEntity is not { Manager: not null, IsValid: true } owner)
+                    continue;
+                WarpMove(owner, db, todateTime);
             }
+            // Skips blobs whose OwningEntity was cleared by arrival this tick.
             MoveStateProcessor.ProcessForType(datablobs, todateTime);
             return datablobs.Count;
         }
@@ -98,14 +102,17 @@ namespace Pulsar4X.Movement
             var db = entity.GetDataBlob<WarpMovingDB>();
             DateTime toDateTime = entity.StarSysDateTime + TimeSpan.FromSeconds(deltaSeconds);
             WarpMove(entity, db, toDateTime);
-            MoveStateProcessor.ProcessForType(db, toDateTime);
+            // Arrival may have removed WarpMovingDB; InvalidEntity is not null.
+            if (db.OwningEntity is { Manager: not null, IsValid: true })
+                MoveStateProcessor.ProcessForType(db, toDateTime);
         }
 
         public static void ProcessEntity(Entity entity, DateTime toDateTime)
         {
             var db = entity.GetDataBlob<WarpMovingDB>();
             WarpMove(entity, db, toDateTime);
-            MoveStateProcessor.ProcessForType(db, toDateTime);
+            if (db.OwningEntity is { Manager: not null, IsValid: true })
+                MoveStateProcessor.ProcessForType(db, toDateTime);
         }
 
         public static void WarpMove(Entity entity, WarpMovingDB moveDB, DateTime toDateTime)

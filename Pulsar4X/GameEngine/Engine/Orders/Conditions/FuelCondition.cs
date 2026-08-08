@@ -1,12 +1,10 @@
 using System;
 using System.Linq;
-using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Engine;
 using Pulsar4X.Extensions;
 using Pulsar4X.Factions;
 using Pulsar4X.Fleets;
-using Pulsar4X.Ships;
 
 namespace Pulsar4X.Engine.Orders
 {
@@ -21,21 +19,22 @@ namespace Pulsar4X.Engine.Orders
 
         public override bool Evaluate(Entity fleet)
         {
-            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
-                return false;
-
-            var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
-            if (ships.Count == 0)
+            if (!fleet.TryGetDataBlob<FleetDB>(out _))
                 return false;
 
             var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+            var percents = FleetFuel.FuelCapableShips(fleet, cargoLibrary)
+                .Select(s => s.GetFuelPercent(cargoLibrary))
+                .ToList();
+            if (percents.Count == 0)
+                return false;
 
-            double totalFuelPercentage = 0;
-            foreach (var ship in ships)
-                totalFuelPercentage += ship.GetFuelPercent(cargoLibrary);
+            // LessThan*: any hull below threshold (SensorSats without tanks must not dilute ENTER).
+            // Other ops: average of fuel-capable ships only.
+            if (ComparisionType is ComparisonType.LessThan or ComparisonType.LessThanOrEqual)
+                return percents.Any(p => Compare(Math.Round(p)));
 
-            // Round the average so EqualTo has a chance to fire.
-            var average = Math.Round(totalFuelPercentage / ships.Count);
+            var average = Math.Round(percents.Average());
             return Compare(average);
         }
     }

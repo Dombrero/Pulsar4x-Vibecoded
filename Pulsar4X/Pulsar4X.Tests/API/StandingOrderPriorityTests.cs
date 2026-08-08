@@ -230,7 +230,7 @@ namespace Pulsar4X.Tests
             processor.ProcessEntity(fleet, 0);
             Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(0));
 
-            // Simulate: refuel work finished, fuel topped to 35% (above enter 30, below exit 70).
+            // Simulate: transfer done early, tanks only ~35% (above ENTER 30, still free space).
             fleet.GetDataBlob<OrderableDB>().ActionList.Clear();
             var fuel = UnlockFuel(session);
             // Capacity 2_000_000; add up to ~35%.
@@ -243,15 +243,15 @@ namespace Pulsar4X.Tests
                 processor.ProcessEntity(fleet, 0);
 
             Assert.That(fleet.GetDataBlob<FleetDB>().ActiveStandingOrderIndex, Is.EqualTo(0),
-                "Fuel hysteresis must keep the refuel commitment until the exit band.");
+                "Refuel commitment must hold until tanks are completely full.");
             Assert.That(
                 fleet.GetDataBlob<OrderableDB>().ActionList.OfType<MoveToNearestGeoSurveyAction>().Any(),
                 Is.False,
-                "Survey must not start while still inside the refuel exit band.");
+                "Survey must not start while tanks are only partially filled.");
             Assert.That(
                 fleet.GetDataBlob<OrderableDB>().ActionList.Any(IsRefuelStandingWork),
                 Is.True,
-                "Refuel should restart until fuel reaches the exit band.");
+                "Refuel should restart until every fuel tank is full.");
         }
 
         [Test]

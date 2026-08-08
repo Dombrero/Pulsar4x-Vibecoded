@@ -168,8 +168,15 @@ public class MoveStateProcessor : IInstanceProcessor
 
     }
 
+    static bool HasAttachedOwner(Entity? entity)
+        => entity is { Manager: not null, IsValid: true };
+
     static PositionDB GetOrCreatePositionDB(Entity entity, Entity? parentForNew)
     {
+        if (!HasAttachedOwner(entity))
+            throw new InvalidOperationException(
+                $"Cannot create PositionDB for Entity#{entity?.Id ?? -1} (no attached manager).");
+
         if (entity.TryGetDataBlob<PositionDB>(out var stateDB) && stateDB is not null)
             return stateDB;
         var created = new PositionDB(parentForNew);
@@ -181,7 +188,7 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         foreach (var orbitDB in orbits)
         {
-            if (orbitDB.OwningEntity.IsValid)
+            if (HasAttachedOwner(orbitDB.OwningEntity))
                 ProcessForType(orbitDB, atDateTime);
         }
     }
@@ -190,14 +197,14 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         for (int i = 0; i < orbits.Count; i++)
         {
-            if (orbits[i].OwningEntity is not null)
+            if (HasAttachedOwner(orbits[i].OwningEntity))
                 ProcessForType(orbits[i], atDateTime, preCalculatedTrueAnomalies[i]);
         }
     }
 
     public static void ProcessForType(OrbitDB orbitDB, DateTime atDateTime)
     {
-        if (!orbitDB.OwningEntity.IsValid)
+        if (!HasAttachedOwner(orbitDB.OwningEntity))
             return;
         PositionDB stateDB = GetOrCreatePositionDB(orbitDB.OwningEntity, orbitDB.Parent);
 
@@ -214,7 +221,7 @@ public class MoveStateProcessor : IInstanceProcessor
 
     public static void ProcessForType(OrbitDB orbitDB, DateTime atDateTime, double preCalculatedTrueAnomaly)
     {
-        if (!orbitDB.OwningEntity.IsValid)
+        if (!HasAttachedOwner(orbitDB.OwningEntity))
             return;
         PositionDB stateDB = GetOrCreatePositionDB(orbitDB.OwningEntity, orbitDB.Parent);
 
@@ -233,14 +240,14 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         foreach (var orbitDB in orbits)
         {
-            if (orbitDB.OwningEntity.IsValid)
+            if (HasAttachedOwner(orbitDB.OwningEntity))
                 ProcessForType(orbitDB, atDateTime);
         }
     }
 
     public static void ProcessForType(OrbitUpdateOftenDB orbitDB, DateTime atDateTime)
     {
-        if (!orbitDB.OwningEntity.IsValid)
+        if (!HasAttachedOwner(orbitDB.OwningEntity))
             return;
         PositionDB stateDB = GetOrCreatePositionDB(orbitDB.OwningEntity, orbitDB.Parent);
 
@@ -259,7 +266,7 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         foreach (var movedb in moves)
         {
-            if (movedb.OwningEntity is null)
+            if (!HasAttachedOwner(movedb.OwningEntity))
                 continue;
             PositionDB stateDB = GetOrCreatePositionDB(movedb.OwningEntity, movedb.SOIParent);
 
@@ -279,7 +286,7 @@ public class MoveStateProcessor : IInstanceProcessor
     }
     public static void ProcessForType(NewtonSimpleMoveDB movedb, DateTime atDateTime)
     {
-        if (movedb.OwningEntity is null)
+        if (!HasAttachedOwner(movedb.OwningEntity))
             return;
         PositionDB stateDB = GetOrCreatePositionDB(movedb.OwningEntity, movedb.SOIParent);
 
@@ -301,14 +308,14 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         foreach (var movedb in moves)
         {
-            if (movedb.OwningEntity is not null)
+            if (HasAttachedOwner(movedb.OwningEntity))
                 ProcessForType(movedb, atDateTime);
         }
     }
 
     public static void ProcessForType(NewtonMoveDB movedb, DateTime atDateTime)
     {
-        if (movedb.OwningEntity is null)
+        if (!HasAttachedOwner(movedb.OwningEntity))
             return;
         PositionDB stateDB = GetOrCreatePositionDB(movedb.OwningEntity, movedb.SOIParent);
 
@@ -327,18 +334,21 @@ public class MoveStateProcessor : IInstanceProcessor
     {
         foreach (var warpdb in warps)
         {
-
-            if (warpdb.OwningEntity is not null)
+            // Warp completion RemoveDataBlob sets OwningEntity = InvalidEntity (never null).
+            // Skipping here avoids ProcessSystem: Entity#-1 has no Manager (SetDataBlob).
+            if (HasAttachedOwner(warpdb.OwningEntity))
                 ProcessForType(warpdb, atDateTime);
         }
     }
 
     public static void ProcessForType(WarpMovingDB warpdb, DateTime atDateTime)
     {
-        if (warpdb.OwningEntity is null)
+        if (!HasAttachedOwner(warpdb.OwningEntity))
             return;
         if (!warpdb.OwningEntity.TryGetDataBlob<PositionDB>(out PositionDB? stateDB) || stateDB is null)
         {
+            if (!HasAttachedOwner(warpdb._parentEnitity))
+                return;
             stateDB = new PositionDB(warpdb._parentEnitity);
             warpdb.OwningEntity.SetDataBlob(stateDB);
         }
@@ -346,13 +356,14 @@ public class MoveStateProcessor : IInstanceProcessor
         stateDB.MoveType = PositionDB.MoveTypes.Warp;
 
         // Only update parent if it has changed to avoid expensive SetParent operation
-        if (stateDB.Parent != warpdb._parentEnitity)
+        if (HasAttachedOwner(warpdb._parentEnitity) && stateDB.Parent != warpdb._parentEnitity)
             stateDB.SetParent(warpdb._parentEnitity);
         stateDB.GetKeplerElements = warpdb.EndpointTargetOrbit;
         stateDB.SGP = stateDB.GetKeplerElements.StandardGravParameter;
         stateDB.RelativePosition2 = warpdb._position;
         stateDB.Velocity = (Vector2)warpdb.CurrentNonNewtonionVectorMS;
-        stateDB.OwningEntity.GetDataBlob<PositionDB>().RelativePosition = (Vector3)warpdb._position;
+        if (HasAttachedOwner(stateDB.OwningEntity))
+            stateDB.OwningEntity.GetDataBlob<PositionDB>().RelativePosition = (Vector3)warpdb._position;
     }
 
     public Type GetParameterType => typeof(PositionDB);

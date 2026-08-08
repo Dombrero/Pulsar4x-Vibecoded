@@ -69,19 +69,14 @@ namespace Pulsar4X.Storage
                 transferData.PrimaryStorageDB,
                 transferData.SecondaryStorageDB);
 
-            // Same orbit parent yields dv=0 (full rate). If rate is still 0 but entities are
-            // co-located / in range, allow a baseline so Refuel cannot stall forever.
-            if (transferRate <= 0)
+            // Same orbit parent yields dv=0 (full rate). Only then allow a baseline —
+            // never for out-of-range / unknown dv (PositiveInfinity), or Mercury↔Earth
+            // refuel becomes a free wireless hose.
+            if (transferRate <= 0 && dv_mps <= 0)
             {
-                double maxRange = Math.Max(
-                    transferData.PrimaryStorageDB.TransferRangeDv_mps,
-                    transferData.SecondaryStorageDB.TransferRangeDv_mps);
-                if (dv_mps <= 0 || dv_mps <= maxRange)
-                {
-                    transferRate = Math.Max(
-                        1,
-                        transferData.PrimaryStorageDB.TransferRate + transferData.SecondaryStorageDB.TransferRate);
-                }
+                transferRate = Math.Max(
+                    1,
+                    transferData.PrimaryStorageDB.TransferRate + transferData.SecondaryStorageDB.TransferRate);
             }
 
             double massTransferable = transferRate * (double)deltaSeconds;
@@ -230,12 +225,18 @@ namespace Pulsar4X.Storage
         {
             // Same orbit parent (typical refuel: ship + colony both parented to Earth) —
             // Hohmann between surface-offset and orbit is huge and wrongly yields rate 0.
+            // Also: ship parented directly to the colony entity (static warp exit), or
+            // Id-equal parents after deserialize (ReferenceEquals alone is not enough).
             if (entity1.TryGetDataBlob<PositionDB>(out var pos1)
-                && entity2.TryGetDataBlob<PositionDB>(out var pos2)
-                && pos1.Parent != null
-                && ReferenceEquals(pos1.Parent, pos2.Parent))
+                && entity2.TryGetDataBlob<PositionDB>(out var pos2))
             {
-                return 0;
+                if (pos1.Parent != null && pos2.Parent != null
+                    && (ReferenceEquals(pos1.Parent, pos2.Parent) || pos1.Parent.Id == pos2.Parent.Id))
+                    return 0;
+                if (pos1.Parent != null && pos1.Parent.Id == entity2.Id)
+                    return 0;
+                if (pos2.Parent != null && pos2.Parent.Id == entity1.Id)
+                    return 0;
             }
 
             double dvDif = 0;
@@ -264,8 +265,10 @@ namespace Pulsar4X.Storage
                 }
                 catch (Exception)
                 {
-                    // Incomplete body data (tests / broken saves) — don't tear down the time pulse.
-                    return 0;
+                    // Incomplete body data — treat as out of range (NOT dv=0).
+                    // Returning 0 used to unlock the full-rate baseline and fill tanks
+                    // while the ship was still at Mercury transferring with Earth HQ.
+                    return double.PositiveInfinity;
                 }
             }
             else

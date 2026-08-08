@@ -129,7 +129,7 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                bool alreadyAtColony = FleetOrderCleanup.IsFleetAtColony(_entityCommanding, nearestColony);
+                bool alreadyAtColony = FleetFuel.AreNeedyShipsAtColony(_entityCommanding, nearestColony);
 
                 // Always hand off to RefuelWhenAtColonyOrder so the fleet queue stays occupied
                 // until transfers finish (prevents standing-order flicker with an empty queue).
@@ -144,8 +144,12 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                // Leaving for the colony — free Movement for warp (stuck out-of-range transfers only).
-                FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
+                // Only abort stuck transfers on ships that will leave — leave full siblings alone.
+                foreach (var ship in FleetFuel.ShipsNeedingRefuel(_entityCommanding)
+                             .Where(s => !FleetOrderCleanup.IsShipAtColony(s, nearestColony)))
+                {
+                    FleetOrderCleanup.AbortCargoTransfersOnEntity(ship);
+                }
 
                 // If Move-to-Colony (or another warp) is already queued, only wait-then-refuel —
                 // a second warp here raced Move and crashed on velocity/orbit edge cases.
@@ -167,10 +171,11 @@ namespace Pulsar4X.Fleets
                 else
                 {
                     DebugTraceLog.Info("Refuel",
-                        $"fleet#{_entityCommanding.Id}: warp to colony#{nearestColony.Id} then refuel",
+                        $"fleet#{_entityCommanding.Id}: warp fuel-needy ships to colony#{nearestColony.Id} then refuel",
                         atDateTime);
                     InsertFollowUpsAfterSelf(
-                        WarpFleetTowardsTargetOrder.CreateCommand(_entityCommanding, nearestColony),
+                        WarpFleetTowardsTargetOrder.CreateCommand(
+                            _entityCommanding, nearestColony, onlyShipsNeedingFuel: true),
                         RefuelWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
                 }

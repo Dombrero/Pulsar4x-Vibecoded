@@ -189,16 +189,64 @@ namespace Pulsar4X.Fleets
             AbortShipMovementOrders(entity);
         }
 
+        /// <summary>
+        /// True when every warp-capable assigned ship is on-station at the colony.
+        ///
+        /// Per-ship, not "any child": a parked SensorSat at Earth must not skip the return
+        /// warp for Surveyors still at Mercury. Non-warp hulls (static sats) are ignored for
+        /// this travel gate — they neither force a false "at colony" nor block refuel when
+        /// they cannot follow. Actual fuel transfers are still issued per hull via
+        /// <see cref="IsShipAtColony"/>.
+        /// </summary>
         public static bool IsFleetAtColony(Entity fleet, Entity colony)
         {
             if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB)
-                || !colony.TryGetDataBlob<ColonyInfoDB>(out var colonyInfo))
+                || !colony.HasDataBlob<ColonyInfoDB>())
                 return false;
 
-            var colonyPlanet = colonyInfo.PlanetEntity;
-            return GetAssignedShips(fleetDB)
-                .Any(ship => ship.TryGetDataBlob<PositionDB>(out var shipPos)
-                             && shipPos.Parent == colonyPlanet);
+            var travelers = GetAssignedShips(fleetDB)
+                .Where(s => s.HasDataBlob<WarpAbilityDB>())
+                .ToList();
+
+            if (travelers.Count > 0)
+                return travelers.All(ship => IsShipAtColony(ship, colony));
+
+            // No warp ships — only treat as on-station if every cargo hull is there.
+            var cargoShips = GetAssignedShips(fleetDB)
+                .Where(s => s.HasDataBlob<CargoStorageDB>())
+                .ToList();
+            return cargoShips.Count > 0
+                   && cargoShips.All(ship => IsShipAtColony(ship, colony));
+        }
+
+        /// <summary>
+        /// On-station for refuel: parented to the colony entity, its planet, another colony
+        /// on that planet, or inside the planet's SOI (bad warp-exit parented to the star).
+        /// </summary>
+        public static bool IsShipAtColony(Entity ship, Entity colony)
+        {
+            if (!colony.TryGetDataBlob<ColonyInfoDB>(out var colonyInfo))
+                return false;
+            if (!ship.TryGetDataBlob<PositionDB>(out var shipPos) || shipPos.Parent == null)
+                return false;
+
+            var parent = shipPos.Parent;
+            // Warp-to-colony static exit parents the ship to the colony entity itself.
+            if (parent.Id == colony.Id)
+                return true;
+
+            var planet = colonyInfo.PlanetEntity;
+            if (planet != null && parent.Id == planet.Id)
+                return true;
+
+            // Another installation on the same world.
+            if (planet != null
+                && parent.TryGetDataBlob<ColonyInfoDB>(out var parentColony)
+                && parentColony.PlanetEntity != null
+                && parentColony.PlanetEntity.Id == planet.Id)
+                return true;
+
+            return planet != null && IsShipOrbiting(ship, planet);
         }
 
         /// <summary>
