@@ -54,7 +54,11 @@ public class FactionEventLog : IEventLog
             return;
         }
 
-        if (_haltsOn.Contains(e.EventType))
+        // Default halt types even when ToggleHaltsOn was never called (common on fresh/loaded games).
+        bool shouldHalt = _haltsOn.Contains(e.EventType)
+            || e.EventType is EventType.OrdersHalt or EventType.OrdersNotPossible;
+
+        if (shouldHalt)
         {
             _masterTimePulse?.PauseTime();
         }

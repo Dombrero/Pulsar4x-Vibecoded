@@ -104,13 +104,19 @@ public sealed class InProcessAdapter : IGameClient
 
         if (_server is IEngineCommandPump pump)
             pump.PumpPendingCommands();
+    }
 
-        // Co-located server: keep the fleet sidebar in sync even if a push was dropped mid-pulse.
-        if (IsConnected && _server is IFleetHierarchyReader reader)
-        {
-            var (fleets, unattached) = reader.GetFleetHierarchy(Session.FactionId);
-            _galaxy.SetFleets(fleets, unattached);
-        }
+    /// <summary>
+    /// Pull a fresh fleet tree from the co-located engine. Used on global tick boundaries so order
+    /// progress (e.g. survey %) jumps with Ticklength instead of live-polling every UI frame while
+    /// a long pulse is still processing. Simulation itself is unchanged — this is display only.
+    /// </summary>
+    private void RefreshFleetsFromServer()
+    {
+        if (!IsConnected || _server is not IFleetHierarchyReader reader)
+            return;
+        var (fleets, unattached) = reader.GetFleetHierarchy(Session.FactionId);
+        _galaxy.SetFleets(fleets, unattached);
     }
 
     // Applies a self-contained delta to the galaxy. Deltas carry their payload, so this never calls
@@ -122,7 +128,8 @@ public sealed class InProcessAdapter : IGameClient
             case GameEventType.TimeChanged:
                 if (evt.Time is null) return;
 
-                // System sub-steps update only that system's snapshot clock; the HUD date uses global Time.
+                // System-scoped TimeChanged keeps ClientSystem.DateTime aligned with a global tick
+                // (Aurora). Live map/HUD use galaxy.Time; they do not animate per hotloop sub-step.
                 if (evt.SystemId is not null)
                 {
                     var systemToUpdate = _galaxy.GetMutableSystem(evt.SystemId);
@@ -131,6 +138,9 @@ public sealed class InProcessAdapter : IGameClient
                 else
                 {
                     _galaxy.Time = evt.Time;
+                    // Aurora: fleet/order UI refreshes when the global tick lands (and on pause/stop),
+                    // not every frame mid-pulse. FleetsChanged pushes still apply immediately below.
+                    RefreshFleetsFromServer();
                 }
                 return;
 

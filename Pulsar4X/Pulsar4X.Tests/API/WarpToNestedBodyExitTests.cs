@@ -95,7 +95,8 @@ namespace Pulsar4X.Tests
                 new NameDB("Surveyor Nested", session.FactionId, "Surveyor Nested"),
                 new OrderableDB(),
                 new ShipInfoDB(),
-                new WarpAbilityDB { MaxSpeed = 1e8, EnergyType = fuel.UniqueID },
+                // Realistic surveyor warp (~25 km/s) — 1e8 hid the nested period-sweep detour.
+                new WarpAbilityDB { MaxSpeed = 25712, EnergyType = fuel.UniqueID },
                 new GeoSurveyAbilityDB { Speed = 50 },
                 new EnergyGenAbilityDB(now)
                 {
@@ -126,10 +127,11 @@ namespace Pulsar4X.Tests
 
             Assert.That(ship.TryGetDataBlob<WarpMovingDB>(out var warp), Is.True);
             double hop = (warp!.ExitPointAbsolute - shipAbs).Length();
-            double exitToMoon = (warp.ExitPointAbsolute - moonAbs).Length();
+            var moonAtExit = (Vector3)MoveMath.GetAbsoluteFuturePosition(moon, warp.PredictedExitTime);
+            double exitToMoon = (warp.ExitPointAbsolute - moonAtExit).Length();
 
             Assert.That(exitToMoon, Is.LessThan(5e8),
-                $"Exit must be near the moon (err={exitToMoon / 1.496e11:0.###} AU)");
+                $"Exit must be near the moon at ETI (err={exitToMoon / 1.496e11:0.###} AU)");
             Assert.That(hop, Is.LessThan(5e9),
                 $"Planet→moon hop must be << 1 AU (was {hop / 1.496e11:0.###} AU)");
         }
@@ -149,9 +151,9 @@ namespace Pulsar4X.Tests
             orderable.ProcessEntity(ship, 0);
             Assert.That(ship.TryGetDataBlob<WarpMovingDB>(out var warp), Is.True);
 
-            // Instant-arrive: advance past PredictedExitTime with a large enough step.
+            // Instant-arrive: finish exactly at PredictedExitTime so SOI matches Exit.
             warp!.LastProcessDateTime = now - TimeSpan.FromDays(1);
-            WarpMoveProcessor.ProcessEntity(ship, warp.PredictedExitTime + TimeSpan.FromHours(1));
+            WarpMoveProcessor.ProcessEntity(ship, warp.PredictedExitTime);
 
             Assert.That(FleetOrderCleanup.IsShipAtBody(ship, moon), Is.True,
                 "After warp arrival the hull must count as at the moon (not stuck on the planet/star).");

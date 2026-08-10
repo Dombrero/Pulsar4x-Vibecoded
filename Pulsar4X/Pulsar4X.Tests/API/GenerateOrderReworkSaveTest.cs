@@ -74,6 +74,14 @@ namespace Pulsar4X.Tests
                 if (!ship.HasJPSurveyAbililty())
                     ship.SetDataBlob(new JPSurveyAbilityDB { Speed = 40 });
                 TopOffFuel(ship, factionInfo);
+                // Fast enough that Luna period-sweep picks the short Earth-Moon hop (slow TN surveyors invent ~0.05 AU chases).
+                if (ship.TryGetDataBlob<WarpAbilityDB>(out var warp))
+                {
+                    double mass = ship.GetDataBlob<MassVolumeDB>().MassTotal;
+                    const int targetMax = 120_000;
+                    warp.TotalWarpPower = Math.Max(warp.TotalWarpPower, targetMax * mass / 1000.0);
+                    warp.MaxSpeed = targetMax;
+                }
                 fleetDB.AddChild(ship);
                 ships.Add(ship);
             }

@@ -150,12 +150,12 @@ namespace Pulsar4X.Client
             if (galaxy == null || system == null || entity == null)
                 return;
 
-            DateTime now = galaxy.Time.GameDateTime;
+            DateTime now = _uiState.SimTimeForSystem(_systemId);
             Vector3 vel = Vector3.Zero;
 
             if (entity.GetView<WarpMovingView>() is { } warp)
             {
-                // Travel direction along the warp chord.
+                // Travel direction along the planned warp chord (heading only — position is PositionView).
                 vel = new Vector3(
                     warp.ExitPointAbsolute.X - warp.EntryPointAbsolute.X,
                     warp.ExitPointAbsolute.Y - warp.EntryPointAbsolute.Y,

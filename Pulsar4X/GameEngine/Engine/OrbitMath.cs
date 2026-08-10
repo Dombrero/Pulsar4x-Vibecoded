@@ -256,7 +256,13 @@ namespace Pulsar4X.Engine
         }
 
         public static Vector3 GetAbsolutePosition(OrbitDB orbit, DateTime atDateTime)
+            => GetAbsolutePosition(orbit, atDateTime, 0);
+
+        static Vector3 GetAbsolutePosition(OrbitDB orbit, DateTime atDateTime, int depth)
         {
+            if (depth > 64)
+                return GetPosition(orbit, GetTrueAnomaly(orbit, atDateTime));
+
             var ta = GetTrueAnomaly(orbit, atDateTime);
             if (orbit.Parent is not { IsValid: true })//if we're the parent sun
                 return OrbitMath.GetPosition(orbit, ta);
@@ -266,11 +272,11 @@ namespace Pulsar4X.Engine
             // and GeoSurvey/colony orders loop forever re-warping to the same target.
             Vector3 rootPos;
             if (orbit.ParentDB is OrbitDB parentOrbit)
-                rootPos = GetAbsolutePosition(parentOrbit, atDateTime);
+                rootPos = GetAbsolutePosition(parentOrbit, atDateTime, depth + 1);
             else if (orbit.Parent.TryGetDataBlob<OrbitDB>(out var parentOrbitDirect))
-                rootPos = GetAbsolutePosition(parentOrbitDirect, atDateTime);
+                rootPos = GetAbsolutePosition(parentOrbitDirect, atDateTime, depth + 1);
             else if (orbit.Parent.TryGetDataBlob<OrbitUpdateOftenDB>(out var parentOften))
-                rootPos = GetAbsolutePosition(parentOften, atDateTime);
+                rootPos = GetAbsolutePosition(parentOften, atDateTime, depth + 1);
             else if (orbit.Parent.TryGetDataBlob<PositionDB>(out var parentPos))
                 rootPos = parentPos.AbsolutePosition;
             else

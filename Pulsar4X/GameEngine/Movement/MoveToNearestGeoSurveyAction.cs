@@ -168,7 +168,12 @@ namespace Pulsar4X.Movement
 
             IsRunning = true;
             if (!assigned && _assignedShipIds.Count == 0)
+            {
                 _noTargets = true;
+                fleetDB.StandingStatusMessage = "Can't find more survey targets";
+                fleetDB.ActiveStandingOrderIndex = -1;
+                fleetDB.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
+            }
         }
 
         private void SyncAssignedFromShips()

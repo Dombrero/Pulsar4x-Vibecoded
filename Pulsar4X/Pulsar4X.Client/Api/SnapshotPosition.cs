@@ -6,9 +6,9 @@ namespace Pulsar4X.Client;
 
 /// <summary>
 /// An <see cref="IPosition"/> backed by the replicated galaxy: every read resolves the entity's
-/// current snapshot and propagates its orbit to the galaxy clock, so map icons hold no game data —
-/// just this (system id, entity id) handle. Keplerian movers propagate client-side; everything else
-/// uses its last pushed <see cref="PositionView"/>.
+/// current snapshot at the global tick clock (<see cref="GlobalUIState.SimTimeForSystem"/>).
+/// Keplerian movers propagate analytically to that clock; warp and other non-Kepler movers use the
+/// last pushed <see cref="PositionView"/>. Display updates once per Ticklength (Aurora increments).
 /// </summary>
 /// <summary>A fixed <see cref="IPosition"/>, for icons placed at synthetic coordinates (galaxy map).</summary>
 public sealed class StaticPosition : IPosition
@@ -29,10 +29,10 @@ public class SnapshotPosition : IPosition
     private readonly string _systemId;
     private readonly int _entityId;
 
-    // Memo of the last computed result, keyed by (snapshot reference, clock) — a derived-value
-    // cache only; positions are recomputed the moment the galaxy changes under it.
+    // Memo of the last computed result, keyed by (snapshot reference, clock, warp flag).
     private EntitySnapshot? _memoSnapshot;
     private DateTime _memoTime;
+    private bool _memoWasWarping;
     private (Vector3 absolute, Vector3 relative) _memo;
 
     public SnapshotPosition(GlobalUIState state, string systemId, int entityId)
@@ -54,27 +54,50 @@ public class SnapshotPosition : IPosition
         if (galaxy == null || system == null || entity == null)
             return _memo;
 
-        DateTime now = galaxy.Time.GameDateTime;
-        if (ReferenceEquals(entity, _memoSnapshot) && now == _memoTime)
+        DateTime now = _state.SimTimeForSystem(_systemId);
+        bool warping = entity.HasView<WarpMovingView>();
+        if (ReferenceEquals(entity, _memoSnapshot) && now == _memoTime && warping == _memoWasWarping)
             return _memo;
 
         Vector3 relative;
-        var orbit = entity.GetView<OrbitView>();
-        if (orbit != null && orbit.StandardGravParameter > 0)
+        Vector3 absolute;
+        if (warping)
         {
-            relative = orbit.RelativePositionM(now);
+            // Authoritative mid-warp position from the last server push — not chord interpolation.
+            var position = entity.GetView<PositionView>();
+            if (position != null)
+            {
+                absolute = new Vector3(position.AbsolutePosition.X, position.AbsolutePosition.Y, position.AbsolutePosition.Z);
+                relative = new Vector3(position.RelativePosition.X, position.RelativePosition.Y, position.RelativePosition.Z);
+            }
+            else
+            {
+                absolute = Vector3.Zero;
+                relative = Vector3.Zero;
+            }
         }
         else
         {
-            var position = entity.GetView<PositionView>();
-            relative = position != null
-                ? new Vector3(position.RelativePosition.X, position.RelativePosition.Y, position.RelativePosition.Z)
-                : Vector3.Zero;
+            var orbit = entity.GetView<OrbitView>();
+            if (orbit != null && orbit.StandardGravParameter > 0)
+            {
+                relative = orbit.RelativePositionM(now);
+            }
+            else
+            {
+                var position = entity.GetView<PositionView>();
+                relative = position != null
+                    ? new Vector3(position.RelativePosition.X, position.RelativePosition.Y, position.RelativePosition.Z)
+                    : Vector3.Zero;
+            }
+
+            absolute = entity.AbsolutePositionM(system, now);
         }
 
         _memoSnapshot = entity;
         _memoTime = now;
-        _memo = (entity.AbsolutePositionM(system, now), relative);
+        _memoWasWarping = warping;
+        _memo = (absolute, relative);
         return _memo;
     }
 }

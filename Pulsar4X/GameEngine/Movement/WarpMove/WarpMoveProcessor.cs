@@ -319,6 +319,9 @@ namespace Pulsar4X.Movement
             if (moveDB.TargetEntity == null)
                 return;
 
+            double hopLen = (moveDB.ExitPointAbsolute - moveDB.EntryPointAbsolute).Length();
+            MovementStuckWatchdog.NoteWarpHopCompleted(entity, moveDB.TargetEntity, hopLen, toDateTime);
+
             ConsumeWarpTankFuel(entity, moveDB, toDateTime);
 
             if (entity.TryGetDataBlob<PositionDB>(out var pos))
@@ -611,17 +614,30 @@ namespace Pulsar4X.Movement
             // succeeded, so GeoSurvey kept re-warping in 1.5%-min micro-hops until Refuel preempted.
             moveStatedb.AbsolutePosition = moveDB.ExitPointAbsolute;
 
+            double hopLen = (moveDB.ExitPointAbsolute - moveDB.EntryPointAbsolute).Length();
+            // Fuel consume may skip ultra-tiny hops (no tank bill) — still watch for loops.
+            MovementStuckWatchdog.NoteWarpHopCompleted(entity, intendedTarget, hopLen, atDateTime);
+
             double targetSOI = intendedTarget.GetSOI_m();
-            double distToTarget = intendedTarget.GetDataBlob<PositionDB>().GetDistanceTo_m(moveStatedb);
+            // Body PositionDB is on the manager clock; arrival may be at PredictedExitTime.
+            Vector3 targetAbsAtArrival = (Vector3)MoveMath.GetAbsoluteFuturePosition(intendedTarget, atDateTime);
+            double distToTarget = (moveDB.ExitPointAbsolute - targetAbsAtArrival).Length();
 
             Entity? targetEntity;
             // Parent to the intended body when the exit actually landed in/near its SOI.
             // (Do not trust ExitPointrelative alone — a bad absolute exit must not force-parent
             // the hull to a moon/planet while it sits AU away near the star.)
+            //
+            // Micro-hop failsafe: if this hop was tiny (< 0.01 AU) the ship barely moved —
+            // forcing the intended parent stops GeoSurvey re-warp loops when SOI math is flaky.
+            const double MicroHopForceParent_m = 1_495_978_707.0; // 0.01 AU
+            bool microHop = hopLen <= MicroHopForceParent_m;
+
             if (distToTarget <= targetSOI
                 || (!double.IsInfinity(targetSOI)
                     && targetSOI > 0
-                    && distToTarget <= targetSOI * 5))
+                    && distToTarget <= targetSOI * 5)
+                || (microHop && distToTarget <= Math.Max(targetSOI * 50, MicroHopForceParent_m)))
             {
                 targetEntity = intendedTarget;
             }

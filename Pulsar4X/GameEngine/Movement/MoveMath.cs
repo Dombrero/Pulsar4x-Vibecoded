@@ -57,7 +57,13 @@ public static class MoveMath
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public static Vector3 GetAbsoluteFutureVelocity(Entity entity, DateTime atDateTime)
+        => GetAbsoluteFutureVelocity(entity, atDateTime, 0);
+
+    static Vector3 GetAbsoluteFutureVelocity(Entity entity, DateTime atDateTime, int depth)
     {
+        if (depth > 64)
+            return Vector3.Zero;
+
         PositionDB posDB = entity.GetDataBlob<PositionDB>();
 
 
@@ -75,7 +81,7 @@ public static class MoveMath
             var parentEntity = posDB.Parent;
             if (parentEntity == null) throw new NullReferenceException("parentEntity cannot be null");
             //recurse
-            return GetAbsoluteFutureVelocity(parentEntity, atDateTime) + vel;
+            return GetAbsoluteFutureVelocity(parentEntity, atDateTime, depth + 1) + vel;
         }
         else if (entity.HasDataBlob<NewtonSimpleMoveDB>())
         {
@@ -142,14 +148,10 @@ public static class MoveMath
                     }
                     else
                     {
-                        var endOrbit = db.EndpointTargetOrbit;
-                        var rpos = (Vector2)OrbitalMath.GetPosition(endOrbit, atDateTime);
-                        if (db.TargetEntity is { IsValid: true } warpTarget)
-                            pos = GetAbsoluteFuturePosition(warpTarget, atDateTime);
-                        else
-                            pos = (Vector2)db._position;
-                        if (rpos.X is not double.NaN)
-                            pos += rpos;
+                        // Use the precomputed exit. Recursing into TargetEntity via
+                        // GetAbsoluteFuturePosition caused native stack overflows (0xc00000fd)
+                        // with warp chains / stale WarpMovingDB after PredictedExitTime.
+                        pos = (Vector2)db.ExitPointAbsolute;
                     }
 
                 }

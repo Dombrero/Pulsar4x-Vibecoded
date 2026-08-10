@@ -157,5 +157,73 @@ namespace Pulsar4X.Tests
                 "Ship must warp toward the anomaly. Orders: "
                 + string.Join(", ", ship.GetDataBlob<OrderableDB>().ActionList.Select(o => o.Name)));
         }
+
+        [Test]
+        public void Standing_no_eligible_surveyor_suppresses_instead_of_restart_loop()
+        {
+            // Live crash: CountUnsurveyed > 0 so OrderStillNeedsAction stays true, but
+            // MoveToNearestGravSurveyAction assigns nothing → finish → TryEvaluateNow →
+            // restart → enqueue → vanish, nested on the same stack → StackOverflow.
+            var session = Connect();
+            var system = _game.Systems[0];
+            var star = system.GetFirstEntityWithDataBlob<StarInfoDB>();
+            var origin = star.GetDataBlob<PositionDB>().AbsolutePosition;
+
+            var anomaly = Entity.Create();
+            system.AddEntity(anomaly, new List<BaseDataBlob>
+            {
+                new NameDB("Orphan Anomaly", session.FactionId, "Orphan Anomaly"),
+                new PositionDB(origin + new Vector3(50_000, 0, 0), star) { MoveType = PositionDB.MoveTypes.None },
+                MassVolumeDB.NewFromMassAndRadius_m(1, 1),
+                new JPSurveyableDB(400, new SafeDictionary<int, uint>(), 10_000_000),
+            });
+
+            var ship = Entity.Create(session.FactionId);
+            system.AddEntity(ship, new List<BaseDataBlob>
+            {
+                new PositionDB(origin, star),
+                new MassVolumeDB { MassDry = 10000 },
+                new NameDB("Non-Survey Hull", session.FactionId, "Non-Survey Hull"),
+                new OrderableDB(),
+                new ShipInfoDB(),
+                new WarpAbilityDB { MaxSpeed = 1e8 },
+                // Intentionally no JPSurveyAbilityDB — fleet still "wants" grav work.
+            });
+
+            var fleetDb = new FleetDB();
+            var fleet = Entity.Create(session.FactionId);
+            system.AddEntity(fleet, new List<BaseDataBlob>
+            {
+                fleetDb,
+                new OrderableDB(),
+                new NameDB("Science Fleet", session.FactionId, "Science Fleet"),
+                new PositionDB(origin, star),
+            });
+            fleetDb.FlagShipID = ship.Id;
+            fleetDb.AddChild(ship);
+
+            var surveyAction = MoveToNearestGravSurveyAction.CreateCommand(session.FactionId, fleet);
+            fleetDb.StandingOrders.Add(new ConditionalOrder(
+                new CompoundCondition(),
+                new SafeList<EntityCommand> { surveyAction })
+            {
+                Name = "grav survey",
+            });
+            fleetDb.ActiveStandingOrderIndex = 0;
+
+            Assert.DoesNotThrow(() =>
+            {
+                for (int i = 0; i < 50; i++)
+                    FleetOrderProcessor.TryEvaluateNow(fleet);
+            });
+
+            Assert.That(fleetDb.ActiveStandingOrderIndex, Is.EqualTo(-1));
+            Assert.That(fleetDb.StandingSuppressUntil, Is.Not.Null);
+            Assert.That(fleetDb.StandingSuppressUntil!.Value, Is.GreaterThan(fleet.StarSysDateTime));
+            Assert.That(
+                fleet.GetDataBlob<OrderableDB>().ActionList.OfType<MoveToNearestGravSurveyAction>().Any(),
+                Is.False);
+            Assert.That(fleetDb.StandingStatusMessage, Does.Contain("anomal").IgnoreCase);
+        }
     }
 }

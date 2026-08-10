@@ -165,9 +165,13 @@ namespace Pulsar4X.Movement
             {
                 _noTargets = true;
                 fleetDB.StandingStatusMessage = "Can't find more anomalies";
+                // Release + suppress before OrderableProcessor calls TryEvaluateNow on finish —
+                // otherwise restart→enqueue→empty loops on the same stack (StackOverflow).
+                fleetDB.ActiveStandingOrderIndex = -1;
+                fleetDB.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
                 DebugTraceLog.Warn("Standing",
                     $"fleet id={_entityCommanding.Id}: Grav Survey Nearest — no eligible anomaly " +
-                    $"(faction={FactionIdForSurvey()})",
+                    $"(faction={FactionIdForSurvey()}; standing suppressed until {fleetDB.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm})",
                     atDateTime);
             }
         }

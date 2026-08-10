@@ -51,6 +51,13 @@ namespace Pulsar4X.Fleets
         /// <summary>Rate-limit identical defer logs (game-time) per fleet.</summary>
         private static readonly Dictionary<int, DateTime> s_lastDeferLog = new();
 
+        /// <summary>
+        /// Prevents nested <see cref="TryEvaluateNow"/> (from OrderableProcessor finishing an
+        /// immediately-empty standing action) from re-entering Process while EnqueueStandingActions
+        /// is still on the stack — that path caused StackOverflow (0xc00000fd) via restart loops.
+        /// </summary>
+        private static readonly HashSet<int> s_evalInProgress = new();
+
         public void Init(Game game)
         {
         }
@@ -94,6 +101,10 @@ namespace Pulsar4X.Fleets
 
         private static void Process(FleetDB fleetDB)
         {
+            int fleetId = fleetDB.OwningEntity?.Id ?? 0;
+            if (fleetId != 0 && !s_evalInProgress.Add(fleetId))
+                return;
+
             try
             {
                 ProcessCore(fleetDB);
@@ -105,6 +116,11 @@ namespace Pulsar4X.Fleets
                     fleetDB.OwningEntity?.StarSysDateTime);
                 System.Diagnostics.Debug.WriteLine(
                     $"FleetOrderProcessor failed on fleet {fleetDB.OwningEntity?.Id}: {ex}");
+            }
+            finally
+            {
+                if (fleetId != 0)
+                    s_evalInProgress.Remove(fleetId);
             }
         }
 
@@ -166,6 +182,12 @@ namespace Pulsar4X.Fleets
             {
                 if (gameTime < fleetDB.StandingSuppressUntil.Value)
                 {
+                    // Drop a dead commitment so we never restart→enqueue→vanish while suppressed
+                    // (nested TryEvaluateNow used to loop here until StackOverflow).
+                    if (fleetDB.ActiveStandingOrderIndex >= 0
+                        && !HasStandingWorkInProgress(fleet, orderableDB, fleetDB.ActiveStandingOrderIndex))
+                        fleetDB.ActiveStandingOrderIndex = -1;
+
                     // Once per suppress window is enough — do not spam every hotloop hour.
                     DebugTraceLog.Trace("Standing",
                         $"{fleetName}: idle — standing suppressed until {fleetDB.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm} " +

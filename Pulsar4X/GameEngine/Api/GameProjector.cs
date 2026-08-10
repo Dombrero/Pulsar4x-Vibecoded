@@ -195,6 +195,8 @@ namespace Pulsar4X.Engine.Api
                     ExitPointAbsolute = ToVec3(wm.ExitPointAbsolute),
                     ExitPointRelative = ToVec3(wm.ExitPointrelative),
                     TargetEntityId = wm.TargetEntity?.Id,
+                    EntryDateTime = wm.EntryDateTime,
+                    PredictedExitTime = wm.PredictedExitTime,
                 }
                 : null,
             (e, _) => e.TryGetDataBlob<SystemBodyInfoDB>(out var b) ? ToBodyView(b) : null,

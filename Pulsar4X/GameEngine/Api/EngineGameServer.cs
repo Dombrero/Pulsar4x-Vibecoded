@@ -26,8 +26,6 @@ namespace Pulsar4X.Engine.Api
         private readonly object _sinkLock = new();
         private readonly List<ServerSubscription> _subscriptions = new();
         private readonly DateChangedEventHandler? _onDateChanged;
-        // The focused system's sub-step clock drives smooth client rendering (see SetSystemFocus).
-        private readonly DateChangedEventHandler? _onFocusedSystemDateChanged;
         private StarSystem? _focusedSystem;
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
         private readonly Action? _onSimulationStopped;
@@ -46,13 +44,11 @@ namespace Pulsar4X.Engine.Api
             _commands = new CommandTranslator(game);
 
             // The clock advances on the engine thread with no per-tick request from clients; push a
-            // TimeChanged delta (and a refreshed faction snapshot — funds track the economy) whenever it
-            // does, so clients never have to poll. The global date only advances at coarse interrupt
-            // boundaries (one big jump per long pulse), so it carries the heavy per-faction refresh;
-            // the fine-grained clock for rendering comes from the focused system (see SetSystemFocus).
+            // TimeChanged delta (and a refreshed faction snapshot — funds track the economy) whenever
+            // the global date advances. That is the Aurora display cadence: one map update per
+            // Ticklength (or interrupt), not per hotloop sub-step inside a long pulse.
             _onDateChanged = _ => OnGlobalDateChanged();
             _game.TimePulse.GameGlobalDateChangedEvent += _onDateChanged;
-            _onFocusedSystemDateChanged = OnFocusedSystemDateChanged;
 
             // When the clock stops, the date events stop firing — so without this the client's last
             // TimeState stays IsRunning=true and its time controls never unlock. Push a final clock.
@@ -119,7 +115,7 @@ namespace Pulsar4X.Engine.Api
             _game.TimePulse.GameGlobalDateChangedEvent -= _onDateChanged;
             _game.TimePulse.SimulationStopped -= _onSimulationStopped;
             if (_focusedSystem != null)
-                _focusedSystem.ManagerSubpulses.SystemDateChangedEvent -= _onFocusedSystemDateChanged;
+                _focusedSystem.DecrementExternalObserver(true);
             lock (_sinkLock) _subscriptions.Clear();
         }
 
@@ -163,76 +159,42 @@ namespace Pulsar4X.Engine.Api
 
         // The focused system gets foreground-observer scheduling priority in the engine. One focus
         // per server is enough for the in-process case; per-session focus lands with networking.
+        // Aurora display: we do NOT bridge SystemDateChangedEvent to clients — that would animate
+        // every hotloop sub-step inside a long Ticklength and make week/month ticks look equally
+        // "smooth". Map/HUD follow GameGlobalDateChanged (one jump per Ticklength/interrupt).
         private string? _focusedSystemId;
         public void SetSystemFocus(PlayerSession session, string? systemId)
         {
             if (systemId == _focusedSystemId) return;
 
-            // Subscribe to the focused system's sub-step clock: ManagerSubpulse advances StarSysDateTime
-            // (and fires SystemDateChangedEvent) at hotloop-processor granularity, many times within a
-            // single long global pulse. Bridging it keeps the client's clock — and thus its client-side
-            // orbit propagation — advancing smoothly, instead of frozen until the whole pulse completes.
             if (_focusedSystem != null)
-            {
                 _focusedSystem.DecrementExternalObserver(true);
-                _focusedSystem.ManagerSubpulses.SystemDateChangedEvent -= _onFocusedSystemDateChanged;
-            }
 
             _focusedSystem = systemId != null ? _game.Systems.FirstOrDefault(s => s.ID == systemId) : null;
             _focusedSystemId = systemId;
 
             if (_focusedSystem != null)
-            {
                 _focusedSystem.IncrementExternalObserver(true);
-                _focusedSystem.ManagerSubpulses.SystemDateChangedEvent += _onFocusedSystemDateChanged;
-            }
-        }
-
-        // Fires on the engine thread per system sub-step. Push only the lightweight, render-critical
-        // updates at this fine cadence — the clock (so client-side orbit propagation advances) and the
-        // focused system's server-computed movers (warp/newtonian/beams, which the client can't
-        // propagate itself). The heavy per-faction refresh stays on the coarse global-date cadence.
-        private void OnFocusedSystemDateChanged(DateTime systemDate)
-        {
-            var system = _focusedSystem;
-            if (system == null) return;
-
-            var subs = SnapshotSubscriptions();
-            if (subs.Length == 0) return;
-
-            var time = new GameEventEnvelope(GameEventType.TimeChanged, Time: _projector.ProjectTime(systemDate), SystemId: system.ID);
-            foreach (var sub in subs)
-            {
-                sub.Send(time);
-                RefreshSystemMovers(system, sub);
-            }
         }
 
         // Fires (off-thread) once the sim loop has fully stopped. The date events have gone silent, so
         // push one more TimeChanged — now carrying IsRunning=false — so clients unlock their controls.
-        // Use the focused system's sub-step clock so the final time matches the last sub-step we
-        // streamed (the global date can lag behind it mid-pulse).
         private void OnSimulationStopped()
         {
-            var date = _focusedSystem?.ManagerSubpulses.StarSysDateTime ?? _game.TimePulse.GameGlobalDateTime;
+            var date = _game.TimePulse.GameGlobalDateTime;
             var evt = new GameEventEnvelope(GameEventType.TimeChanged, Time: _projector.ProjectTime(date));
             foreach (var sub in SnapshotSubscriptions())
+            {
                 sub.Send(evt);
-        }
-
-        // The position-relevant, server-computed movers of one system (the focused one), owner-scoped.
-        // Excludes energy generators (their plot doesn't need sub-step granularity — they ride the
-        // coarse global refresh in RefreshMovers).
-        private void RefreshSystemMovers(StarSystem system, ServerSubscription sub)
-        {
-            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.WarpMovingDB>())
-                if (mover.FactionOwnerID == sub.FactionId) PushEntityRefresh(mover, sub.FactionId);
-            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonMoveDB>())
-                if (mover.FactionOwnerID == sub.FactionId) PushEntityRefresh(mover, sub.FactionId);
-            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonSimpleMoveDB>())
-                if (mover.FactionOwnerID == sub.FactionId) PushEntityRefresh(mover, sub.FactionId);
-            foreach (var beam in system.GetAllEntitiesWithDataBlob<Pulsar4X.Weapons.BeamInfoDB>())
-                if (beam.FactionOwnerID == sub.FactionId) PushEntityRefresh(beam, sub.FactionId);
+                // Keep focused system snapshot clock aligned with the global tick for order UI.
+                if (_focusedSystem != null)
+                {
+                    sub.Send(new GameEventEnvelope(
+                        GameEventType.TimeChanged,
+                        Time: _projector.ProjectTime(date),
+                        SystemId: _focusedSystem.ID));
+                }
+            }
         }
 
         // ----- time -----
@@ -280,9 +242,18 @@ namespace Pulsar4X.Engine.Api
         private void OnGlobalDateChanged()
         {
             var time = new GameEventEnvelope(GameEventType.TimeChanged, Time: _projector.ProjectTime());
+            var focused = _focusedSystem;
             foreach (var sub in SnapshotSubscriptions())
             {
                 sub.Send(time);
+                // Align focused ClientSystem.DateTime with the global tick (order UI / PrimarySystemDateTime).
+                if (focused != null)
+                {
+                    sub.Send(new GameEventEnvelope(
+                        GameEventType.TimeChanged,
+                        Time: _projector.ProjectTime(),
+                        SystemId: focused.ID));
+                }
                 var faction = _projector.ProjectFaction(sub.FactionId);
                 if (faction != null)
                     sub.Send(new GameEventEnvelope(GameEventType.FactionChanged, Faction: faction));

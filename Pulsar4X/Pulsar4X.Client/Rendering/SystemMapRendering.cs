@@ -255,7 +255,7 @@ namespace Pulsar4X.Client.Rendering
 
             if (entity.GetView<NewtonSimpleMoveView>() is { } newtonSimple && newtonSimple.SoiParentId is int simpleParentId)
             {
-                var time = _state.GameClient?.Galaxy.Time.GameDateTime ?? default;
+                var time = _state.SimTimeForSystem(_systemId);
                 _orbitRings.TryAdd(entity.Id, new NewtonSimpleIcon(
                     newtonSimple, position, new SnapshotPosition(_state, _systemId, simpleParentId),
                     bodyType, _state.UserOrbitSettingsMtx, time));
@@ -410,11 +410,11 @@ namespace Pulsar4X.Client.Rendering
 
             SyncIcons();
 
-            // The galaxy clock only moves on server pushes; re-run the physics pass when it does.
-            var galaxyTime = _state.GameClient?.Galaxy.Time?.GameDateTime;
-            if (galaxyTime is { } time && time != _lastPhysicsTime)
+            // Advance icon physics when the global tick clock moves (Aurora increments).
+            var systemTime = _state.SimTimeForSystem(_systemId);
+            if (systemTime != default && systemTime != _lastPhysicsTime)
             {
-                _lastPhysicsTime = time;
+                _lastPhysicsTime = systemTime;
                 RunPhysicsUpdate();
             }
 
@@ -539,7 +539,13 @@ namespace Pulsar4X.Client.Rendering
 
         public override void OnSystemTickChange(DateTime newDate)
         {
+            // Keep order-preview clock aligned with the live system sim clock.
             _state.PrimarySystemDateTime = newDate;
+            if (newDate != default && newDate != _lastPhysicsTime)
+            {
+                _lastPhysicsTime = newDate;
+                RunPhysicsUpdate();
+            }
         }
     }
 }

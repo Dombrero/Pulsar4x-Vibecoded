@@ -350,6 +350,10 @@ public sealed record WarpMovingView(double SpeedMps) : IComponentView
     /// <summary>Exit point relative to the warp target, which may itself be moving.</summary>
     public Vec3 ExitPointRelative { get; init; }
     public int? TargetEntityId { get; init; }
+    /// <summary>When the hop started (ETA / order UI). Live map position uses <see cref="PositionView"/>.</summary>
+    public DateTime EntryDateTime { get; init; }
+    /// <summary>Predicted arrival (ETA / order UI). Live map position uses <see cref="PositionView"/>.</summary>
+    public DateTime PredictedExitTime { get; init; }
 }
 
 /// <summary>Geological survey state of a body, scoped to the requesting faction.</summary>

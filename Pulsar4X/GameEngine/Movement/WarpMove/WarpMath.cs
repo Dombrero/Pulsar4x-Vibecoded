@@ -93,28 +93,173 @@ public static class WarpMath
     /// <summary>
     /// Calculates a cartisian position for an intercept for a ship and an target's orbit using warp.
     /// </summary>
-    /// <returns>The intercept position and DateTime</returns>
-    /// <param name="mover">The entity that is trying to intercept a target.</param>
-    /// <param name="targetOrbit">Target orbit.</param>
-    /// <param name="atDateTime">Datetime of transit start</param>
     public static (Vector3 position, DateTime etiDateTime) GetInterceptPosition(Entity mover, OrbitDB targetOrbit, DateTime atDateTime, Vector3 offsetPosition = new Vector3())
     {
         var moverPos = (Vector3)MoveMath.GetAbsoluteFuturePosition(mover, atDateTime);
         double spd_m = mover.GetDataBlob<WarpAbilityDB>().MaxSpeed;
         return WarpMath.GetInterceptPosition_m(moverPos, spd_m, targetOrbit, atDateTime, offsetPosition);
     }
-    /// <summary>
-    /// Calculates a cartisian position for an intercept for a ship and an target's orbit using warp.
-    /// </summary>
-    /// <param name="moverAbsolutePos"></param>
-    /// <param name="speed"></param>
-    /// <param name="targetOrbit"></param>
-    /// <param name="atDateTime"></param>
-    /// <param name="offsetPosition">position relative to the target object we wish to stop warp.</param>
-    /// <returns></returns>
-    public static (Vector3 position, DateTime etiDateTime) GetInterceptPosition_m(Vector3 moverAbsolutePos, double speed, OrbitDB targetOrbit, DateTime atDateTime, Vector3 offsetPosition = new Vector3())
-    {
 
+    /// <summary>
+    /// Calculates a cartesian position for an intercept for a ship and a target's orbit using warp.
+    /// High-eccentricity / long-period / nested orbits use an iterative solver — the classic
+    /// period-sweep produces false positives (exits tens of thousands of AU away, paths through
+    /// the sun) for Halley-class comets and moons.
+    /// </summary>
+    public static (Vector3 position, DateTime etiDateTime) GetInterceptPosition_m(
+        Vector3 moverAbsolutePos,
+        double speed,
+        OrbitDB targetOrbit,
+        DateTime atDateTime,
+        Vector3 offsetPosition = new Vector3())
+    {
+        if (speed < 1e-9)
+        {
+            var now = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime) + offsetPosition;
+            return (now, atDateTime);
+        }
+
+        if (IsNestedOrbit(targetOrbit))
+            return GetNestedBodyIntercept(moverAbsolutePos, speed, targetOrbit, atDateTime, offsetPosition);
+
+        // Nearly circular / short-period: classic period-sweep (OrbitTests.TestIntercept).
+        // Halley-class false positives fail IsPlausible and fall back to iterative.
+        var sweep = GetPeriodSweepIntercept(moverAbsolutePos, speed, targetOrbit, atDateTime, offsetPosition);
+        if (!IsPlausibleIntercept(moverAbsolutePos, sweep.position, sweep.etiDateTime, targetOrbit, offsetPosition))
+            return GetIterativeOrbitIntercept(moverAbsolutePos, speed, targetOrbit, atDateTime, offsetPosition);
+
+        return sweep;
+    }
+
+    /// <summary>
+    /// True when this orbit is around a body that itself orbits something (moon, etc.).
+    /// Requires the parent's orbit to have a real SMA — empty OrbitDB shells on stars must not count.
+    /// </summary>
+    static bool IsNestedOrbit(OrbitDB targetOrbit)
+        => targetOrbit.Parent is { IsValid: true } parent
+           && parent.TryGetDataBlob<OrbitDB>(out var parentOrbit)
+           && parentOrbit.Parent is { IsValid: true } grandParent
+           && grandParent.Id != parent.Id
+           && parentOrbit.SemiMajorAxis > 1;
+
+    static Vector3 GetParentAbsolute(OrbitDB targetOrbit, DateTime when)
+    {
+        var parent = targetOrbit.Parent;
+        if (parent is null || !parent.IsValid)
+            return Vector3.Zero;
+
+        if (parent.TryGetDataBlob<OrbitDB>(out var parentOrbit))
+            return OrbitMath.GetAbsolutePosition(parentOrbit, when);
+
+        if (parent.TryGetDataBlob<PositionDB>(out var parentPos))
+            return parentPos.AbsolutePosition;
+
+        return Vector3.Zero;
+    }
+
+    /// <summary>
+    /// Short iterative intercept in the parent frame — keeps moons on a local solution.
+    /// </summary>
+    static (Vector3 position, DateTime etiDateTime) GetNestedBodyIntercept(
+        Vector3 moverAbsolutePos,
+        double speed,
+        OrbitDB targetOrbit,
+        DateTime atDateTime,
+        Vector3 offsetPosition)
+    {
+        Vector3 parentNow = GetParentAbsolute(targetOrbit, atDateTime);
+        Vector3 shipRel = moverAbsolutePos - parentNow;
+
+        double t = (OrbitMath.GetPosition(targetOrbit, atDateTime) + offsetPosition - shipRel).Length() / speed;
+        Vector3 exit = Vector3.Zero;
+        for (int i = 0; i < 12; i++)
+        {
+            DateTime when = atDateTime + TimeSpan.FromSeconds(t);
+            exit = GetParentAbsolute(targetOrbit, when)
+                   + OrbitMath.GetPosition(targetOrbit, when)
+                   + offsetPosition;
+            double tNew = (exit - moverAbsolutePos).Length() / speed;
+            if (Math.Abs(tNew - t) < 0.5)
+            {
+                t = tNew;
+                break;
+            }
+            t = tNew;
+        }
+
+        DateTime meet = atDateTime + TimeSpan.FromSeconds(t);
+        return (exit, meet);
+    }
+
+    /// <summary>
+    /// Short iterative intercept — seed with current range / speed, converge meeting time.
+    /// Works for planets and highly eccentric comets without period-sweep traps.
+    /// </summary>
+    static (Vector3 position, DateTime etiDateTime) GetIterativeOrbitIntercept(
+        Vector3 moverAbsolutePos,
+        double speed,
+        OrbitDB targetOrbit,
+        DateTime atDateTime,
+        Vector3 offsetPosition)
+    {
+        Vector3 seed = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime) + offsetPosition;
+        double t = (seed - moverAbsolutePos).Length() / speed;
+        Vector3 exit = seed;
+
+        for (int i = 0; i < 16; i++)
+        {
+            DateTime when = atDateTime + TimeSpan.FromSeconds(t);
+            exit = OrbitMath.GetAbsolutePosition(targetOrbit, when) + offsetPosition;
+            double tNew = (exit - moverAbsolutePos).Length() / speed;
+            if (Math.Abs(tNew - t) < 0.5)
+            {
+                t = tNew;
+                break;
+            }
+            t = tNew;
+        }
+
+        double hopSeconds = (exit - moverAbsolutePos).Length() / speed;
+        // Keep exit and ETI on the same sample — recomputing position at hopSeconds desyncs
+        // slightly from the converged exit and breaks OrbitTests.TestIntercept equality.
+        DateTime meet = atDateTime + TimeSpan.FromSeconds(t);
+        exit = OrbitMath.GetAbsolutePosition(targetOrbit, meet) + offsetPosition;
+        return (exit, meet);
+    }
+
+    static bool IsPlausibleIntercept(
+        Vector3 moverAbsolutePos,
+        Vector3 exit,
+        DateTime eti,
+        OrbitDB targetOrbit,
+        Vector3 offsetPosition)
+    {
+        if (double.IsNaN(exit.X) || double.IsInfinity(exit.X))
+            return false;
+
+        Vector3 bodyAtEti = OrbitMath.GetAbsolutePosition(targetOrbit, eti) + offsetPosition;
+        double miss = (exit - bodyAtEti).Length();
+        // Exit must land near the body at the meeting time (Halley false positives miss by AU).
+        const double MaxMissM = 7.5e10; // 0.5 AU
+        if (miss > MaxMissM)
+            return false;
+
+        double hop = (exit - moverAbsolutePos).Length();
+        // Absurd hops (Halley false positive was ~28,000 AU).
+        const double MaxHopM = 1.5e14; // ~1000 AU
+        if (hop > MaxHopM)
+            return false;
+
+        return true;
+    }
+
+    static (Vector3 position, DateTime etiDateTime) GetPeriodSweepIntercept(
+        Vector3 moverAbsolutePos,
+        double speed,
+        OrbitDB targetOrbit,
+        DateTime atDateTime,
+        Vector3 offsetPosition)
+    {
         var pos = moverAbsolutePos;
         double tim = 0;
 
@@ -123,8 +268,6 @@ public static class WarpMath
             position = moverAbsolutePos,
             T = targetOrbit.OrbitalPeriod.TotalSeconds,
         };
-
-        double a = targetOrbit.SemiMajorAxis * 2;
 
         Vector3 p;
         int i;
@@ -136,40 +279,39 @@ public static class WarpMath
 
         for (t = 0; t < pl.T; t += dt)
         {
-            p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(t));  //pl.position(sim_t + t);                     // try time t
+            p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(t));
             p += offsetPosition;
-            tt = (p - pos).Length() / speed;  //length(p - pos) / speed;
-            a0 = tt - t; if (a0 < 0.0) continue;              // ignore overshoots
-            a0 /= pl.T;                                   // remove full periods from the difference
+            tt = (p - pos).Length() / speed;
+            a0 = tt - t; if (a0 < 0.0) continue;
+            a0 /= pl.T;
             a0 -= Math.Floor(a0);
             a0 *= pl.T;
             if ((a0 < a1) || (a1 < 0.0))
             {
                 a1 = a0;
                 tim = tt;
-            }   // remember best option
+            }
         }
         // find orbital position with min error (fine)
-        for (i = 0; i < 10; i++)                               // recursive increase of accuracy
+        for (i = 0; i < 10; i++)
             for (a1 = -1.0, t = tim - dt, T = tim + dt, dt *= 0.1; t < T; t += dt)
             {
-                p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(t));  //p = pl.position(sim_t + t);                     // try time t
+                p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(t));
                 p += offsetPosition;
-                tt = (p - pos).Length() / speed;  //tt = length(p - pos) / speed;
-                a0 = tt - t; if (a0 < 0.0) continue;              // ignore overshoots
-                a0 /= pl.T;                                   // remove full periods from the difference
+                tt = (p - pos).Length() / speed;
+                a0 = tt - t; if (a0 < 0.0) continue;
+                a0 /= pl.T;
                 a0 -= Math.Floor(a0);
                 a0 *= pl.T;
                 if ((a0 < a1) || (a1 < 0.0))
                 {
                     a1 = a0;
                     tim = tt;
-                }   // remember best option
+                }
             }
-        // direction
-        p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(tim));//pl.position(sim_t + tim);
+
+        p = OrbitMath.GetAbsolutePosition(targetOrbit, atDateTime + TimeSpan.FromSeconds(tim));
         p += offsetPosition;
-        //dir = normalize(p - pos);
         return (p, atDateTime + TimeSpan.FromSeconds(tim));
     }
 

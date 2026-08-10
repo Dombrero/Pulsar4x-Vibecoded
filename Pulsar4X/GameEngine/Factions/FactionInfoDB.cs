@@ -109,6 +109,7 @@ namespace Pulsar4X.Factions
             var shipClasses = new Dictionary<string, ShipDesign>();
             SetIndustryDesigns(componentDesigns, shipClasses);
             HaltsOnEvent.Add(EventType.OrdersHalt, true);
+            HaltsOnEvent.Add(EventType.OrdersNotPossible, true);
         }
 
         public FactionInfoDB(
@@ -128,6 +129,7 @@ namespace Pulsar4X.Factions
             KnownFactions = new List<Entity>();
             SetIndustryDesigns(componentDesigns, shipClasses);
             HaltsOnEvent.Add(EventType.OrdersHalt, true);
+            HaltsOnEvent.Add(EventType.OrdersNotPossible, true);
         }
 
 
@@ -144,6 +146,7 @@ namespace Pulsar4X.Factions
             InternalComponentDesigns = new Dictionary<string, ComponentDesign>(factionDB.ComponentDesigns);
             IndustryDesigns = new Dictionary<string, IConstructableDesign>(factionDB.IndustryDesigns);
             HaltsOnEvent.Add(EventType.OrdersHalt, true);
+            HaltsOnEvent.Add(EventType.OrdersNotPossible, true);
 
         }
 

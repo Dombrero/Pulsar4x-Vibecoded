@@ -53,7 +53,23 @@ public class PositionDB : TreeHierarchyDB, IPosition
                     return RelativePosition;
                 if (parentpos == this)
                     throw new Exception("Infinite loop triggered");
-                return parentpos.AbsolutePosition + RelativePosition;
+
+                // Guard A→B→A (and longer) parent cycles — unmanaged 0xc00000fd stack overflow
+                // otherwise takes down the whole Client.Host process.
+                Vector3 abs = RelativePosition;
+                PositionDB? walk = parentpos;
+                for (int depth = 0; depth < 64 && walk != null; depth++)
+                {
+                    if (walk == this)
+                        return RelativePosition;
+                    abs += walk.RelativePosition;
+                    if (walk.Parent == null || !walk.Parent.IsValid)
+                        return abs;
+                    if (walk.Parent == walk.OwningEntity)
+                        return abs;
+                    walk = walk.ParentDB as PositionDB;
+                }
+                return abs;
             }
         }
         internal set

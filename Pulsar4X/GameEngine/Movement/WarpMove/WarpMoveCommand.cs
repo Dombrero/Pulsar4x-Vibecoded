@@ -55,7 +55,7 @@ namespace Pulsar4X.Movement
 
                 // Offset is often 0 for grav anomalies (park on the point) — show travel distance.
                 double shown = travel_m > 1 ? travel_m : offset_m;
-                return "Warp to + " + Stringify.Distance(shown) + " from " + targetName;
+                return "Warp " + Stringify.Distance(shown) + " to " + targetName;
             }
         }
 
@@ -285,6 +285,9 @@ namespace Pulsar4X.Movement
                             $"ship#{_entityCommanding.Id}: warp blocked — cargo fuel tank empty",
                             atDateTime);
                     }
+                    MovementStuckWatchdog.NoteWarpBlocked(
+                        _entityCommanding, _targetEntity,
+                        MovementStuckWatchdog.StuckKind.InsufficientFuel, atDateTime);
                     return;
                 }
 
@@ -313,6 +316,9 @@ namespace Pulsar4X.Movement
                     DebugTraceLog.Warn("Warp",
                         $"ship#{_entityCommanding.Id}: warp blocked — invalid hop (speed={warpDB.MaxSpeed}, dist={distanceM:0}m)",
                         atDateTime);
+                    MovementStuckWatchdog.NoteWarpBlocked(
+                        _entityCommanding, _targetEntity,
+                        MovementStuckWatchdog.StuckKind.InvalidHop, atDateTime);
                     return;
                 }
 
@@ -344,6 +350,15 @@ namespace Pulsar4X.Movement
                             $"(creation {creationCost:0} + sustain deficit {sustainDeficit:0} over {travelSeconds:0}s), " +
                             $"have {estored:0} kJ — {hint}",
                             atDateTime);
+                    }
+
+                    // Only trip the stuck watchdog when onboard generation cannot fill the need —
+                    // otherwise standing surveys legitimately wait for capacitors between hops.
+                    if (!canSelfCharge)
+                    {
+                        MovementStuckWatchdog.NoteWarpBlocked(
+                            _entityCommanding, _targetEntity,
+                            MovementStuckWatchdog.StuckKind.InsufficientEnergy, atDateTime);
                     }
 
                     ScheduleEnergyWake(_entityCommanding, powerDB, eType, needKJ, atDateTime);

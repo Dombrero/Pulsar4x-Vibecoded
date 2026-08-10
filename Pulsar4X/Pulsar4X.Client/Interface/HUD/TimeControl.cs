@@ -75,7 +75,10 @@ namespace Pulsar4X.Client
             Window.Begin("TimeControl", ref IsActive, _flags);
             ImGui.PushItemWidth(100);
 
-            DateTime currenttime = time?.GameDateTime ?? default;
+            // Same clock as the map: global Ticklength steps (Aurora increments).
+            DateTime currenttime = _uiState.SelectedSystemTime;
+            if (currenttime == default)
+                currenttime = time?.GameDateTime ?? default;
 
             // Small arrow button for expanding time frequency menu
             if (ImGui.ArrowButton("##expand", _expanded ? ImGuiDir.Down : ImGuiDir.Right))

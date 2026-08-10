@@ -99,11 +99,30 @@ namespace Pulsar4X.Client
         internal GalacticMapRender? GalacticMap;
         internal List<UpdateWindowState> UpdateableWindows { get; init; } = new();
         internal DateTime LastGameUpdateTime = new();
-        internal DateTime SelectedSystemTime => GameClient?.Galaxy.GetSystem(SelectedStarSystemId)?.DateTime ?? default;
+        internal DateTime SelectedSystemTime => SimTimeForSystem(SelectedStarSystemId);
         internal DateTime SelectedSysLastUpdateTime = new();
         internal string SelectedStarSystemId { get; private set; } = "";
         internal SystemMapRendering? SelectedSysMapRender => GalacticMap == null ? null : GalacticMap.SelectedSysMapRender;
+        /// <summary>
+        /// Focused-system sim clock mirrored for order windows. Kept in sync with
+        /// <see cref="SelectedSystemTime"/> via focus changes and <c>OnSystemTickChange</c>.
+        /// Map/HUD should use <see cref="SimTimeForSystem"/> / <see cref="SelectedSystemTime"/>.
+        /// </summary>
         internal DateTime PrimarySystemDateTime;
+
+        /// <summary>
+        /// Aurora-style display clock: the global galaxy tick (<c>Ticklength</c> steps), not
+        /// per-substep system streaming. Larger increments → larger map jumps at the same wall-clock
+        /// cadence as Play ticks. Order previews may still use <see cref="PrimarySystemDateTime"/>.
+        /// </summary>
+        internal DateTime SimTimeForSystem(string? systemId)
+        {
+            _ = systemId; // reserved if stasis systems ever need a divergent display clock
+            var galaxy = GameClient?.Galaxy;
+            if (galaxy == null)
+                return default;
+            return galaxy.Time?.GameDateTime ?? default;
+        }
 
         internal EntityContextMenu? ContextMenu { get; set; }
         /// <summary>When set, the next UI frame opens the entity context menu for this id.</summary>

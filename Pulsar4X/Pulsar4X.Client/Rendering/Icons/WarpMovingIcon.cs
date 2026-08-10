@@ -4,35 +4,27 @@ using SDL3;
 
 namespace Pulsar4X.Client
 {
+    /// <summary>
+    /// Draws the straight warp chord (entry → exit). Warp travel is non-newtonian and linear —
+    /// bezier curves toward a moving relative endpoint falsely looked like paths through the sun.
+    /// </summary>
     public class WarpMovingIcon : Icon
     {
-        //PositionDB ParentPositionDB;
         Vector3 _translateStartPoint = new Vector3();
         Vector3 _translateEndPoint = new Vector3();
         Vector3 _currentPosition = new Vector3();
-        Vector3 _relativeEndPoint = new Vector3();
-        private Vector3 _currentRelativeEndPoint = new Vector3();
-        private IPosition? _targetParentPos;
-
-        private Vector2 _bzsp;
-        private Vector2 _bzsp2;
-        private Vector2 _bzep;
-        private Vector2 _bzep2;
 
         public byte Red = 255;
         public byte Grn = 255;
         public byte Blu = 0;
         byte alpha = 100;
-        //SDL.SDL_Point[] _drawPoints = new SDL.SDL_Point[2];
-        private Vector2[] _bezierCurve = Array.Empty<Vector2>();
-        SDL.FPoint[] _bezierDrawPoints = new SDL.FPoint[10];
+        SDL.FPoint[] _drawPoints = new SDL.FPoint[2];
+
         public WarpMovingIcon(Pulsar4X.Api.WarpMovingView warp, IPosition position,
             IPosition? targetParentPosition) : base(new Vector3())
         {
             _translateStartPoint = new Vector3(warp.EntryPointAbsolute.X, warp.EntryPointAbsolute.Y, warp.EntryPointAbsolute.Z);
             _translateEndPoint = new Vector3(warp.ExitPointAbsolute.X, warp.ExitPointAbsolute.Y, warp.ExitPointAbsolute.Z);
-            _relativeEndPoint = new Vector3(warp.ExitPointRelative.X, warp.ExitPointRelative.Y, warp.ExitPointRelative.Z);
-            _targetParentPos = targetParentPosition;
             _positionDB = position;
             this.OnPhysicsUpdate();
         }
@@ -40,64 +32,21 @@ namespace Pulsar4X.Client
         public override void OnPhysicsUpdate()
         {
             _currentPosition = _positionDB.AbsolutePosition;
-            if (_targetParentPos != null)
-                _currentRelativeEndPoint = _targetParentPos.AbsolutePosition + _relativeEndPoint;
-
-            Vector2 spos = (Vector2)_currentPosition;
-            Vector2 rpos = (Vector2)_currentRelativeEndPoint;
-            Vector2 epos = (Vector2)_translateEndPoint;
-            var ang = Angle.RadiansFromVector2(spos - epos);
-            var deg = Angle.ToDegrees(ang);
-            var range = (spos - epos).Length();
-            var spMult = range * 0.75;
-            var epMult = range * 0.25;
-            _bzsp = new Vector2(spos.X, spos.Y);
-            _bzsp2 = spos - Angle.PositionFromAngle(ang, spMult);
-            _bzep2 = rpos + Angle.PositionFromAngle(ang, epMult);
-            _bzep = new Vector2(rpos.X, rpos.Y);
-
-            _bezierCurve = CreatePrimitiveShapes.BezierPoints(_bzsp, _bzsp2, _bzep2, _bzep, 0.025f);
-            if (_bezierDrawPoints.Length != _bezierCurve.Length)
-                _bezierDrawPoints = new SDL.FPoint[_bezierCurve.Length];
-
         }
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
-            /*
-            ViewScreenPos = camera.ViewCoordinate_m(WorldPosition_m);
-
-            _drawPoints = new SDL.SDL_Point[3];
-
+            // Remaining chord: ship → planned exit (straight line).
             var spos = camera.ViewCoordinateV2_m(_currentPosition);
-            _drawPoints[0] = new SDL.SDL_Point(){x = (int)spos.X, y = (int)spos.Y};
-
             var epos = camera.ViewCoordinateV2_m(_translateEndPoint);
-            _drawPoints[1] = new SDL.SDL_Point(){x = (int)epos.X, y = (int)epos.Y};
-
-            var rpos = camera.ViewCoordinateV2_m(_currentRelativeEndPoint);
-            _drawPoints[2] = new SDL.SDL_Point(){x = (int)rpos.X, y = (int)rpos.Y};
-            */
-            for (int index = 0; index < _bezierCurve.Length; index++)
-            {
-                var pos = camera.ViewCoordinateV2_m(_bezierCurve[index]);
-                _bezierDrawPoints[index] = new SDL.FPoint() { X = Convert.ToInt32(pos.X), Y = Convert.ToInt32(pos.Y) };
-            }
+            _drawPoints[0] = new SDL.FPoint() { X = (float)spos.X, Y = (float)spos.Y };
+            _drawPoints[1] = new SDL.FPoint() { X = (float)epos.X, Y = (float)epos.Y };
         }
-
 
         public override void Draw(IntPtr rendererPtr, Camera camera)
         {
-
             SDL.SetRenderDrawColor(rendererPtr, Red, Grn, Blu, alpha);
-            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[1].x, _drawPoints[1].y);
-            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[0].x, _drawPoints[0].y, _drawPoints[2].x, _drawPoints[2].y);
-
-
-            SDL.RenderLines(rendererPtr, _bezierDrawPoints, _bezierDrawPoints.Length);
-            int lp = _bezierDrawPoints.Length - 1;
-            //SDL.SDL_RenderDrawLine(rendererPtr, _drawPoints[2].x, _drawPoints[2].y, _bezierDrawPoints[lp].x, _bezierDrawPoints[lp].y);
-
+            SDL.RenderLines(rendererPtr, _drawPoints, _drawPoints.Length);
         }
     }
 }

@@ -86,6 +86,16 @@ public class DebugLogWindow : UniquePulsarGuiWindow<DebugLogWindow>
         }
 
         ImGui.SameLine();
+        bool fileMirror = DebugTraceLog.FileMirror;
+        if (ImGui.Checkbox("File mirror", ref fileMirror))
+        {
+            DebugTraceLog.FileMirror = fileMirror;
+            DebugTraceLog.Info("UI", fileMirror
+                ? $"File mirror ON → {DebugTraceLog.FileMirrorPath ?? "(opening…)"}"
+                : "File mirror OFF");
+        }
+
+        ImGui.SameLine();
         if (ImGui.Checkbox("Pause view", ref _pauseCapture) && _pauseCapture)
             _frozenSnapshot = DebugTraceLog.Snapshot();
 
@@ -293,7 +303,8 @@ public class DebugLogWindow : UniquePulsarGuiWindow<DebugLogWindow>
         {
             string dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                "Pulsar4X-DebugLogs");
+                "Pulsar4X-DebugLogs",
+                "manual-saves");
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, $"debug-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
             File.WriteAllText(path, FormatEntries(entries), Encoding.UTF8);
