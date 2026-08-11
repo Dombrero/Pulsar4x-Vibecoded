@@ -538,15 +538,14 @@ namespace Pulsar4X.Movement
             if (_shipCommands.Any(c => c.WasCancelled))
                 return _isFinished = false;
 
-            // Empty after Execute: every ship was already at the target (or colony body).
-            if (_shipCommands.Count == 0)
-                return _isFinished = true;
+            if (_shipCommands.Any(c => !c.WasCancelled && !c.IsFinished()))
+                return _isFinished = false;
 
-            foreach (var command in _shipCommands)
-            {
-                if (!command.IsFinished())
-                    return _isFinished = false;
-            }
+            // More needy ships may have arrived from a jump — keep order until all local
+            // fuel-needy hulls are on-station (or have no warp).
+            if (HasNeedyShipNeedingTravel())
+                return _isFinished = false;
+
             return _isFinished = true;
         }
 
@@ -559,7 +558,8 @@ namespace Pulsar4X.Movement
                 || _shipCommands.Any(c => c.WasCancelled)
                 || _shipCommands.All(c =>
                     !c.EntityCommanding.TryGetDataBlob<OrderableDB>(out var shipOrders)
-                    || !shipOrders.ActionList.Contains(c));
+                    || !shipOrders.ActionList.Contains(c))
+                || HasNeedyShipNeedingTravel();
 
             if (IsRunning && !needsRedispatch)
                 return;
@@ -568,11 +568,15 @@ namespace Pulsar4X.Movement
                 ? _entityCommanding.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods
                 : null;
 
-            _shipCommands.Clear();
+            _shipCommands.RemoveAll(c => c.IsFinished() || c.WasCancelled);
             var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>());
 
             foreach (var ship in ships)
             {
+                // Only move ships that are already in the fleet's system — others jump alone.
+                if (ship.AttachedManager != _entityCommanding.AttachedManager)
+                    continue;
+
                 if (OnlyShipsNeedingFuel
                     && (cargoLibrary == null || !FleetFuel.NeedsRefuel(ship, cargoLibrary)))
                     continue;
@@ -585,6 +589,11 @@ namespace Pulsar4X.Movement
                 if (Target.TryGetDataBlob<ColonyInfoDB>(out var colonyDB) && colonyDB.PlanetEntity == shipParent)
                     continue;
                 if (!ship.HasDataBlob<WarpAbilityDB>()) continue;
+
+                // Already have an active warp toward this target for this hull.
+                if (_shipCommands.Any(c =>
+                        !c.WasCancelled && !c.IsFinished() && c.EntityCommandingGuid == ship.Id))
+                    continue;
 
                 // Only clear movement on hulls we are about to send — leave full siblings alone.
                 FleetOrderCleanup.AbortShipMovementOrdersOnEntity(ship);
@@ -601,6 +610,39 @@ namespace Pulsar4X.Movement
                 }
             }
             IsRunning = true;
+        }
+
+        private bool HasNeedyShipNeedingTravel()
+        {
+            if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB) || !Target.IsValid)
+                return false;
+
+            var cargoLibrary = OnlyShipsNeedingFuel
+                ? _entityCommanding.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods
+                : null;
+
+            foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
+            {
+                if (ship.AttachedManager != _entityCommanding.AttachedManager)
+                    continue;
+                if (OnlyShipsNeedingFuel
+                    && (cargoLibrary == null || !FleetFuel.NeedsRefuel(ship, cargoLibrary)))
+                    continue;
+                if (OnlyShipsNeedingColonyRecharge && !FleetEnergy.NeedsColonyRecharge(ship))
+                    continue;
+                if (!ship.HasDataBlob<WarpAbilityDB>())
+                    continue;
+                if (!ship.TryGetDataBlob<PositionDB>(out var shipPos))
+                    continue;
+                if (shipPos.Parent == Target)
+                    continue;
+                if (Target.TryGetDataBlob<ColonyInfoDB>(out var colonyDB)
+                    && colonyDB.PlanetEntity == shipPos.Parent)
+                    continue;
+                return true;
+            }
+
+            return false;
         }
 
         public static WarpFleetTowardsTargetOrder CreateCommand(

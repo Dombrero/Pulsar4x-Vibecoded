@@ -62,10 +62,6 @@ namespace Pulsar4X.Engine
 
                     if ((mask & ((int)entityCommand.ActionLanes)) == 0) //bitwise and
                     {
-                        if (entityCommand.IsBlocking)
-                        {
-                            mask = mask | ((int)entityCommand.ActionLanes); //bitwise or
-                        }
                         if (atDateTime >= entityCommand.ActionOnDate)
                         {
                             if (entityCommand.PauseOnAction & !entityCommand.IsRunning)
@@ -99,6 +95,17 @@ namespace Pulsar4X.Engine
                                     AgentProcessor.RunAgentNow(entity);
                                 continue;
                             }
+                        }
+
+                        // Finished blockers must not starve non-blocking follow-ups on the same
+                        // lane (ShipJump after WarpMove hover at a jump point).
+                        if (entityCommand.IsBlocking)
+                        {
+                            bool stillActive = true;
+                            try { stillActive = !entityCommand.IsFinished(); }
+                            catch { stillActive = false; }
+                            if (stillActive)
+                                mask = mask | ((int)entityCommand.ActionLanes);
                         }
                     }
                 }

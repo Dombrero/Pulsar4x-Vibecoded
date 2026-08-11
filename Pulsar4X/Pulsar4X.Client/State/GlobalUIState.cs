@@ -495,6 +495,19 @@ namespace Pulsar4X.Client
 
             if (envelope.Type is GameEventType.FleetsChanged or GameEventType.EntityAdded or GameEventType.EntityRemoved)
                 TryFollowPrimaryEntityToItsSystem();
+
+            // Live stuck-ship alerts only (connect backlog arrives as a multi-entry batch).
+            if (envelope.Type == GameEventType.LogEvent
+                && envelope.Log is { Count: 1 } liveLog)
+            {
+                var log = liveLog[0];
+                if (log.EventType == "OrdersNotPossible"
+                    && log.Message != null
+                    && log.Message.Contains("SHIP STUCK", StringComparison.Ordinal))
+                {
+                    StuckShipAlertWindow.GetInstance().Enqueue(log);
+                }
+            }
         }
 
         /// <summary>After a jump the ship lives in another system — stay on the map where it is.</summary>

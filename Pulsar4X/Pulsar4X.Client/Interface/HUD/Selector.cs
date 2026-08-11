@@ -11,6 +11,9 @@ namespace Pulsar4X.Client
 {
     public class Selector : UniquePulsarGuiWindow<Selector>
     {
+        /// <summary>Fixed width of the right-hand entity list; other HUD panels reserve this space.</summary>
+        internal const float PanelWidth = 256f;
+
         // When true the window shows the section editor instead of its normal content.
         private bool _editing = false;
 
@@ -63,8 +66,8 @@ namespace Pulsar4X.Client
         {
             if (!IsActive || !_uiState.IsGameLoaded) return;
 
-            ImGui.SetNextWindowSize(new Vector2(256, 0));
-            ImGui.SetNextWindowPos(new Vector2(ImGui.GetMainViewport().WorkSize.X - 256, 0));
+            ImGui.SetNextWindowSize(new Vector2(PanelWidth, 0));
+            ImGui.SetNextWindowPos(new Vector2(ImGui.GetMainViewport().WorkSize.X - PanelWidth, 0));
             ImGui.SetNextWindowBgAlpha(0);
             if (Window.Begin("###selector", _flags))
             {

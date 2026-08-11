@@ -47,7 +47,7 @@ namespace Pulsar4X.Fleets
                 return false;
 
             // Active survey: opportunity Refuel never preempts while any hull is away.
-            // Only real shortage (empty / below ENTER / cannot afford next hop) may interrupt.
+            // Only real shortage (empty / below ENTER / cannot afford next hop or return) may interrupt.
             if (LooksLikeRefuel(enterOrder) && LooksLikeSurvey(activeOrder))
             {
                 if (FleetFuel.HasFleetWideOpportunityTopOff(fleet)
@@ -57,6 +57,11 @@ namespace Pulsar4X.Fleets
                 float enterThreshold = 30f;
                 if (TryGetRefuelEnterThreshold(enterOrder, out var threshold))
                     enterThreshold = threshold;
+
+                // Even above ENTER: abroad fleets must keep a return-to-gate/colony reserve.
+                // Otherwise survey burns tanks to 0% and JumpOrder cannot warp home.
+                if (!CanAffordReturnPath(fleet, fleetDB))
+                    return false;
 
                 if (!FleetFuel.AnyBelow(fleet, enterThreshold))
                     return true; // opportunity / partial dock — keep surveying
@@ -127,13 +132,17 @@ namespace Pulsar4X.Fleets
             }
 
             if (anyTravelCheck)
-                return true;
+                return CanAffordReturnPath(fleet, fleetDB);
 
             // Not on-site and not mid-warp: estimate hop to the next mission target.
             if (!TryResolveTravelTarget(fleet, fleetDB, activeOrder, out var target)
                 || target == null
                 || !target.IsValid)
-                return false;
+            {
+                // Survey fleets abroad: lack of a next geo target must not look "unaffordable"
+                // solely for that reason — still require a return-fuel reserve.
+                return LooksLikeSurvey(activeOrder) && CanAffordReturnPath(fleet, fleetDB);
+            }
 
             if (!target.TryGetDataBlob<PositionDB>(out var targetPos))
                 return false;
@@ -149,6 +158,63 @@ namespace Pulsar4X.Fleets
                     return false;
 
                 double dist = (targetPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
+                if (!CanAffordStandingTravelHop(ship, dist))
+                    return false;
+            }
+
+            return CanAffordReturnPath(fleet, fleetDB);
+        }
+
+        /// <summary>
+        /// Fuel reserve to reach the nearest friendly colony in-system, or the jump gate
+        /// toward the fleet's known refuel system. Uses the same ~2-hop standing reserve.
+        /// </summary>
+        private static bool CanAffordReturnPath(Entity fleet, FleetDB fleetDB)
+        {
+            var manager = fleet.AttachedManager;
+            if (manager?.Game == null)
+                return true;
+
+            Entity? flagship = null;
+            if (fleetDB.FlagShipID >= 0)
+                manager.TryGetEntityById(fleetDB.FlagShipID, out flagship);
+            if (flagship == null || !flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
+                return true;
+
+            int factionId = fleet.FactionOwnerID;
+            Entity? returnTarget = RefuelColonySearch.FindNearestColonyInSystem(
+                manager, factionId, flagshipPos);
+
+            if (returnTarget == null
+                && RefuelColonySearch.TryResolveRefuelSystemId(
+                    manager.Game, fleet, factionId, fleetDB, out var targetSystemId)
+                && RefuelColonySearch.TryFindJumpGateTowardSystem(
+                    manager.Game, fleet, factionId, targetSystemId, flagshipPos, out var jumpGate)
+                && jumpGate?.OwningEntity is { IsValid: true } gateEntity
+                && gateEntity.AttachedManager == manager)
+            {
+                returnTarget = gateEntity;
+            }
+
+            if (returnTarget == null || !returnTarget.TryGetDataBlob<PositionDB>(out var returnPos))
+                return true; // unknown path — don't invent a hard fail
+
+            // Never compare AbsolutePosition across star systems.
+            if (returnTarget.AttachedManager != manager)
+                return true;
+
+            foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
+            {
+                if (!ship.HasDataBlob<WarpAbilityDB>())
+                    continue;
+                if (IsParentedToTarget(ship, returnTarget))
+                    continue;
+                if (!ship.TryGetDataBlob<PositionDB>(out var shipPos))
+                    return false;
+
+                double dist = (returnPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
+                if (dist < 1e6)
+                    continue;
                 if (!CanAffordStandingTravelHop(ship, dist))
                     return false;
             }

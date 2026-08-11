@@ -148,14 +148,13 @@ namespace Pulsar4X.Client
             var viewportSize = _uiState.ViewPort.Size;
             var size = GetWindowSize();
 
-            // Final position: bottom right corner
-            float finalX = viewportSize.Width - size.X - RightMargin;
+            // Sit left of the Selector entity list so the default open does not cover it.
+            float selectorReserve = Selector.PanelWidth;
+            float finalX = viewportSize.Width - size.X - RightMargin - selectorReserve;
             float finalY = viewportSize.Height - size.Y - BottomMargin;
 
-            // Animate from right (offscreen beyond right edge) into final position
-            // When progress is 0, window is offscreen to the right
-            // When progress is 1, window is at its final position
-            float startX = viewportSize.Width; // Start completely off-screen to the right
+            // Animate from off-screen right (behind the list) into final position.
+            float startX = viewportSize.Width;
             float currentX = startX + (finalX - startX) * _animationProgress;
 
             return new Vector2(currentX, finalY);

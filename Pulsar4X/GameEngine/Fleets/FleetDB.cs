@@ -18,15 +18,23 @@ namespace Pulsar4X.Fleets
         public SafeList<ConditionalOrder> StandingOrders { get; internal set; } = new();
 
         /// <summary>
-        /// Index into <see cref="StandingOrders"/> for the mission the fleet is currently committed to.
-        /// -1 = idle. Prevents standing orders from flickering / re-enqueueing every processor tick.
+        /// UI aggregate only — per-ship commitment lives on <see cref="ShipStandingStateDB"/>.
+        /// Updated by <see cref="FleetOrderProcessor"/> from child hulls.
         /// </summary>
         [JsonProperty]
         public int ActiveStandingOrderIndex { get; internal set; } = -1;
 
         /// <summary>
+        /// Reserved for a future "stay in formation" mode (flotilla-wide movement coordinators).
+        /// Default false: each ship runs the standing template independently.
+        /// </summary>
+        [JsonProperty]
+        public bool StayInFormation { get; internal set; } = false;
+
+        /// <summary>
         /// After a standing action vanishes immediately (no targets / travel fail), suppress
         /// re-ENTRY until this game time so we do not log restart/enqueue every hotloop.
+        /// Fleet-level aggregate; ships use <see cref="ShipStandingStateDB.SuppressUntil"/>.
         /// </summary>
         [JsonProperty]
         public DateTime? StandingSuppressUntil { get; set; }
@@ -53,6 +61,13 @@ namespace Pulsar4X.Fleets
 
         [JsonProperty]
         public int LastRefuelColonyId { get; set; } = -1;
+
+        /// <summary>
+        /// Jump gate entity id in the <em>current</em> system that the fleet arrived through.
+        /// Prefer this gate when returning toward <see cref="LastRefuelSystemId"/> (reverse last hop).
+        /// </summary>
+        [JsonProperty]
+        public int LastArrivalJumpGateId { get; set; } = -1;
 
         public FleetDB() : base(null) { }
 

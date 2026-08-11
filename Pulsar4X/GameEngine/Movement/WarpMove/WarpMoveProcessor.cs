@@ -9,6 +9,7 @@ using Pulsar4X.Factions;
 using Pulsar4X.Orbits;
 using Pulsar4X.Galaxy;
 using Pulsar4X.Engine;
+using Pulsar4X.JumpPoints;
 using Pulsar4X.Storage;
 
 namespace Pulsar4X.Movement
@@ -334,8 +335,17 @@ namespace Pulsar4X.Movement
 
             var frame = GetSystemWarpFrame(entity);
             moveDB._parentEnitity = frame is { IsValid: true } f ? f : moveDB.TargetEntity;
-            // Hover: keep heliocentric position so ProcessForType does not offset by anomaly.
-            moveDB._position = (Vector2)moveDB.ExitPointAbsolute;
+            // MoveStateProcessor writes _position as RelativePosition under _parentEnitity —
+            // must be relative to the frame, not absolute (absolute-as-relative teleports off-gate).
+            if (frame is { IsValid: true }
+                && frame.TryGetDataBlob<PositionDB>(out var framePos))
+            {
+                moveDB._position = (Vector2)(moveDB.ExitPointAbsolute - framePos.AbsolutePosition);
+            }
+            else
+            {
+                moveDB._position = (Vector2)moveDB.ExitPointAbsolute;
+            }
             moveDB.LastProcessDateTime = toDateTime;
 
             var powerDB = entity.GetDataBlob<EnergyGenAbilityDB>();
@@ -344,6 +354,23 @@ namespace Pulsar4X.Movement
             powerDB.AddDemand(-warpDB.BubbleCollapseCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
             // Sustain zero-speed hover at the anomaly.
             powerDB.AddDemand(warpDB.BubbleSustainCost, entity.StarSysDateTime + TimeSpan.FromSeconds(1));
+
+            // Jump-gate arrivals: wake Orderable so ShipJump (non-blocking) can transit this tick
+            // instead of waiting behind a finished WarpMoveCommand on the Movement lane.
+            if (moveDB.TargetEntity is { IsValid: true } tgt && tgt.HasDataBlob<JumpPointDB>())
+            {
+                try
+                {
+                    var game = entity.AttachedManager?.Game;
+                    game?.ProcessorManager
+                        .GetInstanceProcessor(nameof(OrderableProcessor))
+                        .ProcessEntity(entity, toDateTime);
+                }
+                catch
+                {
+                    // Next Orderable hotloop will retry.
+                }
+            }
         }
 
         static void EndWarpMove(Entity entity, WarpAbilityDB warpDB, WarpMovingDB moveDB, DateTime toDateTime)

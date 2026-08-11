@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Pulsar4X.Api;
 using Pulsar4X.Colonies;
 using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
@@ -9,6 +10,7 @@ using Pulsar4X.Extensions;
 using Pulsar4X.Factions;
 using Pulsar4X.JumpPoints;
 using Pulsar4X.Movement;
+using Pulsar4X.Ships;
 using Pulsar4X.Storage;
 
 namespace Pulsar4X.Fleets
@@ -18,8 +20,19 @@ namespace Pulsar4X.Fleets
         internal static Entity? FindNearestColonyInSystem(
             EntityManager manager,
             int factionId,
-            PositionDB flagshipPos)
+            PositionDB flagshipPos,
+            int preferredColonyId = -1)
         {
+            if (preferredColonyId > 0
+                && manager.TryGetEntityById(preferredColonyId, out var preferred)
+                && preferred.FactionOwnerID == factionId
+                && preferred.HasDataBlob<ColonyInfoDB>()
+                && preferred.HasDataBlob<CargoStorageDB>()
+                && preferred.HasDataBlob<PositionDB>())
+            {
+                return preferred;
+            }
+
             Entity? nearestColony = null;
             double nearestDist = double.MaxValue;
 
@@ -43,8 +56,8 @@ namespace Pulsar4X.Fleets
         }
 
         /// <summary>
-        /// System to return to for fuel: last successful refuel, else any known colony system
-        /// (prefer direct jump links from the current system, then shortest known path).
+        /// System to return to for fuel: always the last place this fleet could tank, if known.
+        /// Falls back to a linked colony system only when no last-refuel site is stored.
         /// </summary>
         internal static bool TryResolveRefuelSystemId(
             Game game,
@@ -65,6 +78,7 @@ namespace Pulsar4X.Fleets
             SeedLastRefuelFromColonies(fleetDB, factionDB, currentSystemId);
             SyncDiscoveredJumpPointsInSystem(faction, fleet.AttachedManager, factionId);
 
+            // Primary: last site where this fleet actually could / did refuel.
             if (!string.IsNullOrEmpty(fleetDB.LastRefuelSystemId)
                 && fleetDB.LastRefuelSystemId != currentSystemId
                 && SystemHasRefuelColony(factionDB, fleetDB.LastRefuelSystemId))
@@ -134,30 +148,56 @@ namespace Pulsar4X.Fleets
             string targetSystemId,
             PositionDB flagshipPos,
             out JumpPointDB? jumpGate)
+            => TryFindJumpGateTowardSystem(
+                game, fleet, fleet.AttachedManager, factionId, targetSystemId, flagshipPos, out jumpGate);
+
+        /// <summary>
+        /// Find a gate in <paramref name="currentManager"/> toward <paramref name="targetSystemId"/>.
+        /// Uses the ship's/fleet's current system manager so split fleets resolve gates locally.
+        /// </summary>
+        internal static bool TryFindJumpGateTowardSystem(
+            Game game,
+            Entity fleetForMemory,
+            EntityManager? currentManager,
+            int factionId,
+            string targetSystemId,
+            PositionDB anchorPos,
+            out JumpPointDB? jumpGate)
         {
             jumpGate = null;
-            if (fleet.AttachedManager == null || string.IsNullOrEmpty(targetSystemId))
+            if (currentManager == null || string.IsNullOrEmpty(targetSystemId))
                 return false;
 
             if (!game.Factions.TryGetValue(factionId, out var faction)
                 || !faction.TryGetDataBlob<FactionInfoDB>(out var factionDB))
                 return false;
 
-            SyncDiscoveredJumpPointsInSystem(faction, fleet.AttachedManager, factionId);
+            SyncDiscoveredJumpPointsInSystem(faction, currentManager, factionId);
 
-            string currentSystemId = fleet.AttachedManager.ManagerID ?? string.Empty;
+            string currentSystemId = currentManager.ManagerID ?? string.Empty;
             var currentJumpPoints = CollectKnownJumpPointsInSystem(
-                game, factionDB, fleet.AttachedManager, factionId, currentSystemId);
+                game, factionDB, currentManager, factionId, currentSystemId);
 
             if (currentJumpPoints.Count == 0)
                 return false;
 
-            // Direct jump link to the target system.
+            // Prefer the gate we arrived through — reverse the last hop toward home.
+            if (fleetForMemory.TryGetDataBlob<FleetDB>(out var fleetDB)
+                && TryPreferArrivalGate(
+                    game, faction, currentManager, fleetDB, currentSystemId, targetSystemId, out var arrivalGate))
+            {
+                jumpGate = arrivalGate;
+                return true;
+            }
+
+            // Direct jump link to the target system — gate must live in *this* system.
             foreach (var jpEntity in currentJumpPoints)
             {
                 if (!jpEntity.TryGetDataBlob<JumpPointDB>(out var jpdb))
                     continue;
-                if (!fleet.AttachedManager.TryGetGlobalEntityById(jpdb.DestinationId, out var destGate))
+                if (jpEntity.AttachedManager?.ManagerID != currentSystemId)
+                    continue;
+                if (!currentManager.TryGetGlobalEntityById(jpdb.DestinationId, out var destGate))
                     continue;
                 if (destGate.AttachedManager?.ManagerID != targetSystemId)
                     continue;
@@ -178,15 +218,19 @@ namespace Pulsar4X.Fleets
 
             foreach (var sourceJp in currentJumpPoints)
             {
+                if (sourceJp.AttachedManager?.ManagerID != currentSystemId)
+                    continue;
                 if (!sourceJp.TryGetDataBlob<JumpPointDB>(out var sourceJpdb))
                     continue;
                 if (!sourceJp.TryGetDataBlob<PositionDB>(out var sourcePos))
                     continue;
 
-                double distToFleet = sourcePos.GetDistanceTo_m(flagshipPos);
+                double distToFleet = sourcePos.GetDistanceTo_m(anchorPos);
 
                 foreach (var destJp in targetJumpPoints)
                 {
+                    if (destJp.AttachedManager?.ManagerID != targetSystemId)
+                        continue;
                     try
                     {
                         var path = pathfinding.GetPath(sourceJp, destJp, out var cost);
@@ -214,11 +258,106 @@ namespace Pulsar4X.Fleets
             return true;
         }
 
+        /// <summary>
+        /// If we still know the arrival gate, use it when its next hop is the target system
+        /// or can reach the target (multi-hop reverse of the outbound path).
+        /// </summary>
+        private static bool TryPreferArrivalGate(
+            Game game,
+            Entity faction,
+            EntityManager currentManager,
+            FleetDB fleetDB,
+            string currentSystemId,
+            string targetSystemId,
+            out JumpPointDB? jumpGate)
+        {
+            jumpGate = null;
+            if (fleetDB.LastArrivalJumpGateId <= 0)
+                return false;
+            if (!currentManager.TryGetEntityById(fleetDB.LastArrivalJumpGateId, out var arrivalEntity))
+                return false;
+            if (arrivalEntity.AttachedManager?.ManagerID != currentSystemId)
+                return false;
+            if (!arrivalEntity.TryGetDataBlob<JumpPointDB>(out var arrivalJp))
+                return false;
+            if (!currentManager.TryGetGlobalEntityById(arrivalJp.DestinationId, out var hopDest))
+                return false;
+
+            string hopSystem = hopDest.AttachedManager?.ManagerID ?? string.Empty;
+            if (string.IsNullOrEmpty(hopSystem))
+                return false;
+
+            if (hopSystem == targetSystemId)
+            {
+                jumpGate = arrivalJp;
+                return true;
+            }
+
+            // Multi-hop: arrival hop is toward home if path cost from hop to target is finite.
+            if (!faction.TryGetDataBlob<FactionInfoDB>(out var factionDB))
+                return false;
+            if (!TryEstimateJumpPathCost(game, faction, hopSystem, targetSystemId, out var cost)
+                || cost >= double.MaxValue)
+                return false;
+
+            jumpGate = arrivalJp;
+            return true;
+        }
+
         internal static void RememberRefuelSite(FleetDB fleetDB, Entity colony)
         {
             if (colony.AttachedManager?.ManagerID is { Length: > 0 } systemId)
                 fleetDB.LastRefuelSystemId = systemId;
             fleetDB.LastRefuelColonyId = colony.Id;
+        }
+
+        /// <summary>
+        /// Snapshot a local friendly colony as the return-refuel site before leaving the system.
+        /// </summary>
+        internal static void RememberLocalColonyAsRefuelSite(Entity fleet, FleetDB fleetDB, int factionId)
+        {
+            if (fleet.AttachedManager == null)
+                return;
+
+            PositionDB? anchorPos = null;
+            if (fleetDB.FlagShipID >= 0
+                && fleet.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
+                && flagship.AttachedManager == fleet.AttachedManager
+                && flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
+            {
+                anchorPos = flagshipPos;
+            }
+            else
+            {
+                foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
+                {
+                    if (ship.AttachedManager == fleet.AttachedManager
+                        && ship.TryGetDataBlob<PositionDB>(out var sp))
+                    {
+                        anchorPos = sp;
+                        break;
+                    }
+                }
+            }
+
+            if (anchorPos == null)
+                return;
+
+            var colony = FindNearestColonyInSystem(
+                fleet.AttachedManager, factionId, anchorPos, fleetDB.LastRefuelColonyId);
+            if (colony == null)
+                return;
+
+            RememberRefuelSite(fleetDB, colony);
+            DebugTraceLog.Info("Refuel",
+                $"fleet#{fleet.Id}: remembered refuel site colony#{colony.Id} in {fleetDB.LastRefuelSystemId}",
+                fleet.StarSysDateTime);
+        }
+
+        internal static void RememberArrivalGate(FleetDB fleetDB, Entity destinationGate)
+        {
+            if (destinationGate is { IsValid: true } && destinationGate.HasDataBlob<JumpPointDB>())
+                fleetDB.LastArrivalJumpGateId = destinationGate.Id;
         }
 
         private static void SeedLastRefuelFromColonies(
@@ -316,6 +455,10 @@ namespace Pulsar4X.Fleets
             void Add(Entity e)
             {
                 if (!e.IsValid || !seen.Add(e.Id))
+                    return;
+                // Knowledge lists can be contaminated across saves — never treat a gate from
+                // another system as local (warping to Sol JP coords while in Shaula = stuck hover).
+                if (e.AttachedManager?.ManagerID != systemId)
                     return;
                 result.Add(e);
             }

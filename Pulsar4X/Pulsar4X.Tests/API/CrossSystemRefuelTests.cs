@@ -137,6 +137,138 @@ public class CrossSystemRefuelTests
     }
 
     [Test]
+    public void TryFindJumpGate_ignores_gates_registered_under_wrong_system()
+    {
+        var start = new DateTime(2100, 1, 1);
+        var game = TestingUtilities.CreateTestUniverse(2, start, false);
+        game.Settings.EnforceSingleThread = true;
+
+        var systems = game.Systems.Distinct().ToArray();
+        var home = systems[0];
+        var remote = systems[1];
+        home.SetActivityState(SystemActivityState.Foreground);
+        remote.SetActivityState(SystemActivityState.Foreground);
+
+        var faction = game.Factions.Values.First(f => f.Id != game.GameMasterFaction.Id);
+        var factionInfo = faction.GetDataBlob<FactionInfoDB>();
+
+        Entity remoteJp = remote.GetAllEntitiesWithDataBlob<JumpPointDB>().FirstOrDefault()
+            ?? CreateJp(remote, "JP-Remote");
+        Entity homeJp = home.GetAllEntitiesWithDataBlob<JumpPointDB>().FirstOrDefault()
+            ?? CreateJp(home, "JP-Home");
+        remoteJp.GetDataBlob<JumpPointDB>().DestinationId = homeJp.Id;
+        homeJp.GetDataBlob<JumpPointDB>().DestinationId = remoteJp.Id;
+        remoteJp.GetDataBlob<JumpPointDB>().IsDiscovered.Add(faction.Id);
+        homeJp.GetDataBlob<JumpPointDB>().IsDiscovered.Add(faction.Id);
+
+        // Contaminate: list home JP under the remote system id (old-save bug).
+        string remoteId = remote.ManagerID!;
+        if (!factionInfo.InternalKnownJumpPoints.TryGetValue(remoteId, out var list))
+        {
+            list = new List<Entity>();
+            factionInfo.InternalKnownJumpPoints[remoteId] = list;
+        }
+        list.Clear();
+        list.Add(homeJp);
+        list.Add(remoteJp);
+
+        var ship = Entity.Create(faction.Id);
+        remote.AddEntity(ship, new List<BaseDataBlob>
+        {
+            new ShipInfoDB(),
+            new NameDB("Scout"),
+            new PositionDB(Distance.AuToMt(1), 0, 0),
+            new OrderableDB(),
+            new WarpAbilityDB { MaxSpeed = 1e9 },
+        });
+
+        var fleet = Entity.Create(faction.Id);
+        var fleetDB = new FleetDB();
+        remote.AddEntity(fleet, new List<BaseDataBlob>
+        {
+            fleetDB,
+            new OrderableDB(),
+            new NameDB("Survey Fleet"),
+            new PositionDB(Distance.AuToMt(1), 0, 0),
+        });
+        fleetDB.FlagShipID = ship.Id;
+        fleetDB.AddChild(ship);
+
+        Assert.That(
+            RefuelColonySearch.TryFindJumpGateTowardSystem(
+                game, fleet, faction.Id, home.ManagerID!, ship.GetDataBlob<PositionDB>(), out var gate),
+            Is.True);
+        Assert.That(gate!.OwningEntity.AttachedManager, Is.SameAs(remote),
+            "Must pick a gate in the fleet's system, not a contaminated home JP");
+        Assert.That(gate.OwningEntity.Id, Is.EqualTo(remoteJp.Id));
+    }
+
+    [Test]
+    public void TryFindJumpGate_prefers_arrival_gate_back_toward_last_refuel()
+    {
+        var start = new DateTime(2100, 1, 1);
+        var game = TestingUtilities.CreateTestUniverse(2, start, false);
+        game.Settings.EnforceSingleThread = true;
+
+        var systems = game.Systems.Distinct().ToArray();
+        var home = systems[0];
+        var remote = systems[1];
+        home.SetActivityState(SystemActivityState.Foreground);
+        remote.SetActivityState(SystemActivityState.Foreground);
+
+        var faction = game.Factions.Values.First(f => f.Id != game.GameMasterFaction.Id);
+
+        Entity remoteJp = remote.GetAllEntitiesWithDataBlob<JumpPointDB>().FirstOrDefault()
+            ?? CreateJp(remote, "JP-Remote");
+        Entity homeJp = home.GetAllEntitiesWithDataBlob<JumpPointDB>().FirstOrDefault()
+            ?? CreateJp(home, "JP-Home");
+        remoteJp.GetDataBlob<JumpPointDB>().DestinationId = homeJp.Id;
+        homeJp.GetDataBlob<JumpPointDB>().DestinationId = remoteJp.Id;
+        remoteJp.GetDataBlob<JumpPointDB>().IsDiscovered.Add(faction.Id);
+        homeJp.GetDataBlob<JumpPointDB>().IsDiscovered.Add(faction.Id);
+
+        // Extra local gate that also links home — must NOT win over arrival gate.
+        var decoy = CreateJp(remote, "JP-Decoy");
+        decoy.GetDataBlob<JumpPointDB>().DestinationId = homeJp.Id;
+        decoy.GetDataBlob<JumpPointDB>().IsDiscovered.Add(faction.Id);
+        decoy.GetDataBlob<PositionDB>().AbsolutePosition = new Vector3(Distance.AuToMt(50), 0, 0);
+
+        var ship = Entity.Create(faction.Id);
+        remote.AddEntity(ship, new List<BaseDataBlob>
+        {
+            new ShipInfoDB(),
+            new NameDB("Scout"),
+            new PositionDB(0, 0, 0, remoteJp),
+            new OrderableDB(),
+            new WarpAbilityDB { MaxSpeed = 1e9 },
+        });
+
+        var fleet = Entity.Create(faction.Id);
+        var fleetDB = new FleetDB
+        {
+            LastRefuelSystemId = home.ManagerID,
+            LastRefuelColonyId = 1,
+            LastArrivalJumpGateId = remoteJp.Id,
+        };
+        remote.AddEntity(fleet, new List<BaseDataBlob>
+        {
+            fleetDB,
+            new OrderableDB(),
+            new NameDB("Survey Fleet"),
+            new PositionDB(0, 0, 0, remoteJp),
+        });
+        fleetDB.FlagShipID = ship.Id;
+        fleetDB.AddChild(ship);
+
+        Assert.That(
+            RefuelColonySearch.TryFindJumpGateTowardSystem(
+                game, fleet, faction.Id, home.ManagerID!, ship.GetDataBlob<PositionDB>(), out var gate),
+            Is.True);
+        Assert.That(gate!.OwningEntity.Id, Is.EqualTo(remoteJp.Id),
+            "Return hop must reverse through the arrival gate, not an arbitrary link");
+    }
+
+    [Test]
     public void JumpTransit_registers_gates_in_InternalKnownJumpPoints()
     {
         var start = new DateTime(2100, 1, 1);

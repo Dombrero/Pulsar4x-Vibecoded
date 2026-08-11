@@ -138,11 +138,9 @@ namespace Pulsar4X.Fleets
             if (fleetDB.StandingOrders.Count == 0)
             {
                 fleetDB.ActiveStandingOrderIndex = -1;
+                fleetDB.StandingStatusMessage = null;
                 return;
             }
-
-            if (fleetDB.FlagShipID == -1)
-                return;
 
             var fleet = fleetDB.OwningEntity;
             if (fleet == null || !fleet.TryGetDataBlob<OrderableDB>(out var orderableDB))
@@ -153,19 +151,16 @@ namespace Pulsar4X.Fleets
             DateTime gameTime = fleet.StarSysDateTime;
             string fleetName = FleetLabel(fleet);
 
-            FleetStandingSystemSync.OnFlagshipSystemChanged(fleet, fleetDB);
-
-            // Issue Orders outrank Standing.
+            // Issue Orders / Goals on the fleet pause standing for children.
             if (orderableDB.ActionList.Any(a => a.Source == OrderSource.Issued))
             {
                 DebugTraceLog.Trace("Standing",
                     $"{fleetName}: idle — Issue Orders still queued [{QueueSummary(orderableDB)}]",
                     gameTime);
+                UpdateFleetStandingAggregate(fleet, fleetDB);
                 return;
             }
 
-            // Goals (MoveTo / GeoSurvey Issue path) sit on GoalsDB, not the fleet ActionList —
-            // treat an active top-level goal like Issued so Standing does not fight ship warps.
             if (fleet.TryGetDataBlob<GoalsDB>(out var goalsDB)
                 && goalsDB.GivenGoal != null
                 && string.IsNullOrEmpty(goalsDB.GivenGoal.ParentGoalId)
@@ -174,267 +169,68 @@ namespace Pulsar4X.Fleets
                 DebugTraceLog.Trace("Standing",
                     $"{fleetName}: idle — Goal {goalsDB.GivenGoal.Type} still {goalsDB.GivenGoal.Status}",
                     gameTime);
+                UpdateFleetStandingAggregate(fleet, fleetDB);
                 return;
             }
 
-            // Back off after an empty standing run (no targets / instant finish).
-            if (fleetDB.StandingSuppressUntil.HasValue)
+            // Drop legacy fleet-level standing coordinator actions — ships own standing now.
+            if (orderableDB.ActionList.Any(a => a.Source == OrderSource.Standing))
             {
-                if (gameTime < fleetDB.StandingSuppressUntil.Value)
-                {
-                    // Drop a dead commitment so we never restart→enqueue→vanish while suppressed
-                    // (nested TryEvaluateNow used to loop here until StackOverflow).
-                    if (fleetDB.ActiveStandingOrderIndex >= 0
-                        && !HasStandingWorkInProgress(fleet, orderableDB, fleetDB.ActiveStandingOrderIndex))
-                        fleetDB.ActiveStandingOrderIndex = -1;
-
-                    // Once per suppress window is enough — do not spam every hotloop hour.
-                    DebugTraceLog.Trace("Standing",
-                        $"{fleetName}: idle — standing suppressed until {fleetDB.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm} " +
-                        $"(empty run / no travel target)",
-                        gameTime);
-                    return;
-                }
-                fleetDB.StandingSuppressUntil = null;
-            }
-
-            ClampActiveIndex(fleetDB);
-
-            int enterMatch = FindFirstMatchingOrderIndex(fleetDB, fleet, useExitThreshold: false);
-            double fuelPct = GetFleetAverageFuelPercent(fleet);
-
-            // Recover commitment from queue after load / older saves.
-            if (fleetDB.ActiveStandingOrderIndex < 0)
-            {
-                int inferred = FindRunningStandingOrderIndex(fleetDB, orderableDB);
-                if (inferred >= 0)
-                {
-                    fleetDB.ActiveStandingOrderIndex = inferred;
-                    DebugTraceLog.Info("Standing",
-                        $"{fleetName}: recovered commitment → [{inferred}] {OrderName(fleetDB, inferred)} (fuel={fuelPct:0.#}%)",
-                        gameTime);
-                }
-            }
-
-            bool busy = HasStandingWorkInProgress(fleet, orderableDB, fleetDB.ActiveStandingOrderIndex);
-
-            // --- Committed mission ---
-            if (fleetDB.ActiveStandingOrderIndex >= 0)
-            {
-                int active = fleetDB.ActiveStandingOrderIndex;
-                var activeOrder = fleetDB.StandingOrders[active];
-
-                // Higher-priority ENTER may preempt a lower-priority commitment —
-                // unless the active mission's next action is still affordable (fuel+energy).
-                if (enterMatch >= 0 && enterMatch < active)
-                {
-                    var enterOrder = fleetDB.StandingOrders[enterMatch];
-                    if (StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, activeOrder, enterOrder))
-                    {
-                        LogDeferPreempt(fleet, gameTime,
-                            $"{fleetName}: defer logistics preempt [{active}] {OrderName(fleetDB, active)} " +
-                            $"(next action still affordable; fuel={fuelPct:0.#}%)");
-                        // If work is already queued, keep it. Otherwise fall through to restart/release.
-                        if (busy)
-                            return;
-                    }
-                    else
-                    {
-                        DebugTraceLog.Warn("Standing",
-                            $"{fleetName}: PREEMPT [{active}] {OrderName(fleetDB, active)} → [{enterMatch}] {OrderName(fleetDB, enterMatch)} " +
-                            $"(fuel={fuelPct:0.#}%, queue=[{QueueSummary(orderableDB)}])",
-                            gameTime);
-                        AbortStandingFleetWork(fleet, orderableDB);
-                        fleetDB.ActiveStandingOrderIndex = enterMatch;
-                        EnqueueStandingActions(fleet, orderableDB, enterOrder);
-                        return;
-                    }
-                }
-
-                if (busy)
-                {
-                    // Near-full exit can land while the last cargo ticks finish. Clear standing fleet
-                    // work so we don't thrash; ship transfers keep running. New Refuel ENTRY is
-                    // blocked while they linger.
-                    if (!OrderStillNeedsAction(fleet, activeOrder))
-                    {
-                        DebugTraceLog.Info("Standing",
-                            $"{fleetName}: release commitment [{active}] {OrderName(fleetDB, active)} " +
-                            $"(fuel={fuelPct:0.#}% — exit met, clearing standing queue; ship work may linger)",
-                            gameTime);
-                        orderableDB.ActionList.RemoveAll(a => a.Source == OrderSource.Standing);
-                        PublishOrdersChanged(fleet);
-                        fleetDB.ActiveStandingOrderIndex = -1;
-                        // Fall through to pick a new match.
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-                else if (OrderStillNeedsAction(fleet, activeOrder))
-                {
-                    // Stuck opportunity Refuel (tanks not full, but fleet not eligible to
-                    // top off — e.g. siblings surveying): release so survey can resume.
-                    if (OrderLooksLikeRefuel(activeOrder)
-                        && !FleetFuel.AnyBelow(fleet, 30f)
-                        && !FleetFuel.HasFleetWideOpportunityTopOff(fleet))
-                    {
-                        DebugTraceLog.Info("Standing",
-                            $"{fleetName}: release commitment [{active}] {OrderName(fleetDB, active)} " +
-                            $"(fuel={fuelPct:0.#}% — opportunity refuel no longer fleet-wide)",
-                            gameTime);
-                        fleetDB.ActiveStandingOrderIndex = -1;
-                        // Fall through to pick a new match.
-                    }
-                    else
-                    {
-                        // Work finished. Leave only when EXIT condition says we are done.
-                        DebugTraceLog.Info("Standing",
-                            $"{fleetName}: restart [{active}] {OrderName(fleetDB, active)} — still needs action " +
-                            $"(fuel={fuelPct:0.#}%)",
-                            gameTime);
-                        EnqueueStandingActions(fleet, orderableDB, activeOrder);
-                        return;
-                    }
-                }
-                else
+                int removed = orderableDB.ActionList.RemoveAll(a => a.Source == OrderSource.Standing);
+                if (removed > 0)
                 {
                     DebugTraceLog.Info("Standing",
-                        $"{fleetName}: release commitment [{active}] {OrderName(fleetDB, active)} " +
-                        $"(fuel={fuelPct:0.#}% — exit condition met)",
+                        $"{fleetName}: cleared {removed} legacy fleet standing action(s) (per-ship template mode)",
                         gameTime);
-                    fleetDB.ActiveStandingOrderIndex = -1;
-                    // Fall through to pick a new match.
+                    PublishOrdersChanged(fleet);
                 }
             }
 
-            // --- Idle: pick a new standing mission ---
-            // Standing items already in the queue without a commitment: adopt or preempt.
-            if (fleetDB.ActiveStandingOrderIndex < 0
-                && orderableDB.ActionList.Any(a => a.Source == OrderSource.Standing))
-            {
-                int running = FindRunningStandingOrderIndex(fleetDB, orderableDB);
-                if (enterMatch >= 0 && (running < 0 || enterMatch < running))
-                {
-                    ConditionalOrder? runningOrder = running >= 0 ? fleetDB.StandingOrders[running] : null;
-                    var enterOrder = fleetDB.StandingOrders[enterMatch];
-                    if (runningOrder != null
-                        && StandingActionAffordability.ShouldDeferLogisticsPreempt(fleet, runningOrder, enterOrder))
-                    {
-                        LogDeferPreempt(fleet, gameTime,
-                            $"{fleetName}: defer orphan logistics preempt running={running} " +
-                            $"(next action still affordable)");
-                        fleetDB.ActiveStandingOrderIndex = running;
-                        return;
-                    }
-
-                    DebugTraceLog.Warn("Standing",
-                        $"{fleetName}: adopt/preempt orphan queue running={running} → enter={enterMatch} {OrderName(fleetDB, enterMatch)}",
-                        gameTime);
-                    AbortStandingFleetWork(fleet, orderableDB);
-                    fleetDB.ActiveStandingOrderIndex = enterMatch;
-                    EnqueueStandingActions(fleet, orderableDB, enterOrder);
-                    return;
-                }
-
-                if (running >= 0)
-                {
-                    fleetDB.ActiveStandingOrderIndex = running;
-                    DebugTraceLog.Info("Standing",
-                        $"{fleetName}: adopt orphan as commitment [{running}] {OrderName(fleetDB, running)}",
-                        gameTime);
-                    return;
-                }
-
-                DebugTraceLog.Warn("Standing",
-                    $"{fleetName}: clearing unrecognized standing queue [{QueueSummary(orderableDB)}]",
-                    gameTime);
-                AbortStandingFleetWork(fleet, orderableDB);
-                return;
-            }
-
-            // Only block starting a NEW Refuel/Recharge while transfers are already filling —
-            // never block Grav/Geo survey re-entry after an Issue Order.
-            if (enterMatch >= 0
-                && OrderLooksLikeRefuel(fleetDB.StandingOrders[enterMatch])
-                && FleetShipsHaveRefuelWork(fleet))
-                return;
-
-            if (enterMatch >= 0
-                && OrderLooksLikeRecharge(fleetDB.StandingOrders[enterMatch])
-                && FleetShipsHaveRechargeWork(fleet))
-                return;
-
-            if (enterMatch < 0)
-            {
-                // Explain Idle: usually no unsurveyed anomalies / geo targets, or conditions not met.
-                int anomalies = CountUnsurveyedAnomalies(fleet);
-                int geo = CountUnsurveyedGeo(fleet);
-                UpdateStandingStatusWhenIdle(fleetDB, anomalies, geo);
-
-                // No targets left: only re-check once per day (not every standing hour).
-                if (!string.IsNullOrEmpty(fleetDB.StandingStatusMessage)
-                    && (anomalies == 0 || geo == 0))
-                {
-                    fleetDB.StandingSuppressUntil = gameTime + TimeSpan.FromDays(1);
-                }
-
-                bool staleCounts = anomalies < 0 || geo < 0;
-                if (staleCounts)
-                {
-                    fleetDB.StandingSuppressUntil = gameTime + TimeSpan.FromDays(1);
-                    DebugTraceLog.Warn("Standing",
-                        $"{fleetName}: idle — flagship system unresolved (anomalies={anomalies}, geo={geo}); " +
-                        "standing suppressed 1 day — check FlagShipID after jump",
-                        gameTime);
-                    return;
-                }
-
-                DebugTraceLog.Trace("Standing",
-                    $"{fleetName}: idle — no ENTER match (fuel={fuelPct:0.#}%, " +
-                    $"unsurveyed anomalies={anomalies}, geo={geo}, orders={fleetDB.StandingOrders.Count}" +
-                    (string.IsNullOrEmpty(fleetDB.StandingStatusMessage)
-                        ? ""
-                        : $", status='{fleetDB.StandingStatusMessage}'") +
-                    (fleetDB.StandingSuppressUntil.HasValue
-                        ? $", next check {fleetDB.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm}"
-                        : "") + ")",
-                    gameTime);
-                return;
-            }
-
-            fleetDB.StandingStatusMessage = null;
-            DebugTraceLog.Info("Standing",
-                $"{fleetName}: START [{enterMatch}] {OrderName(fleetDB, enterMatch)} " +
-                $"(fuel={fuelPct:0.#}%)",
-                gameTime);
-            fleetDB.ActiveStandingOrderIndex = enterMatch;
-            EnqueueStandingActions(fleet, orderableDB, fleetDB.StandingOrders[enterMatch]);
+            // Each hull evaluates the shared template independently.
+            ShipStandingDirector.KickIdleChildren(fleet);
+            UpdateFleetStandingAggregate(fleet, fleetDB);
         }
 
-        private static void UpdateStandingStatusWhenIdle(FleetDB fleetDB, int anomalies, int geo)
+        /// <summary>
+        /// UI-facing aggregate from per-ship commitments (lowest active index wins).
+        /// </summary>
+        private static void UpdateFleetStandingAggregate(Entity fleet, FleetDB fleetDB)
         {
-            bool hasGravStanding = false;
-            bool hasGeoStanding = false;
-            foreach (var order in fleetDB.StandingOrders)
+            int best = -1;
+            string? status = null;
+            int busyShips = 0;
+
+            foreach (var child in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
             {
-                if (order?.Actions == null)
+                if (!child.TryGetDataBlob<ShipStandingStateDB>(out var shipState))
                     continue;
-                if (order.Actions.Any(a =>
-                        a is MoveToNearestGravSurveyAction || a is JPSurveyOrder || a is MoveToNearestAnomalyAction))
-                    hasGravStanding = true;
-                if (order.Actions.Any(a =>
-                        a is MoveToNearestGeoSurveyAction || a is GeoSurveyOrder))
-                    hasGeoStanding = true;
+
+                if (shipState.ActiveStandingOrderIndex >= 0)
+                {
+                    busyShips++;
+                    if (best < 0 || shipState.ActiveStandingOrderIndex < best)
+                        best = shipState.ActiveStandingOrderIndex;
+                }
+
+                if (status == null && !string.IsNullOrEmpty(shipState.StatusMessage))
+                    status = shipState.StatusMessage;
             }
 
-            if (hasGravStanding && anomalies == 0)
-                fleetDB.StandingStatusMessage = "Can't find more anomalies";
-            else if (hasGeoStanding && geo == 0 && !hasGravStanding)
-                fleetDB.StandingStatusMessage = "Can't find more survey targets";
-            else if (!hasGravStanding && !hasGeoStanding)
-                fleetDB.StandingStatusMessage = null;
+            // Also count ships with standing work still in their queue.
+            foreach (var child in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
+            {
+                if (!child.TryGetDataBlob<OrderableDB>(out var q))
+                    continue;
+                if (q.ActionList.Any(a => a.Source == OrderSource.Standing))
+                {
+                    busyShips++;
+                    break;
+                }
+            }
+
+            fleetDB.ActiveStandingOrderIndex = best;
+            fleetDB.StandingStatusMessage = busyShips > 0 ? null : status;
+            fleetDB.StandingSuppressUntil = null;
         }
 
         private static string FleetLabel(Entity fleet)

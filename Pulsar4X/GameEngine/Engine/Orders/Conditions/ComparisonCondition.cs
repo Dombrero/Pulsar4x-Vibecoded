@@ -25,7 +25,7 @@ namespace Pulsar4X.Engine.Orders
         /// <summary>
         /// Applies <see cref="ComparisionType"/> against <see cref="Threshold"/>.
         /// </summary>
-        protected bool Compare(double value)
+        internal bool Compare(double value)
         {
             switch (ComparisionType)
             {

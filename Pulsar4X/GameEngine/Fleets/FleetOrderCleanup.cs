@@ -5,6 +5,8 @@ using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
+using Pulsar4X.GeoSurveys;
+using Pulsar4X.JumpPoints;
 using Pulsar4X.Messaging;
 using Pulsar4X.Movement;
 using Pulsar4X.Orbits;
@@ -51,6 +53,24 @@ namespace Pulsar4X.Fleets
                 AbortShipMovementOrdersOnEntity(ship);
         }
 
+        /// <summary>
+        /// Cancel warps only — does not remove survey/jump orders (safe from within survey EnsureTravel).
+        /// </summary>
+        public static void AbortShipWarpsOnlyOnEntity(Entity ship)
+        {
+            if (ship.TryGetDataBlob<OrderableDB>(out var orderable))
+            {
+                foreach (var warpCmd in orderable.ActionList.OfType<WarpMoveCommand>().ToList())
+                {
+                    warpCmd.CancelInPlace();
+                    orderable.ActionList.Remove(warpCmd);
+                }
+            }
+
+            if (ship.HasDataBlob<WarpMovingDB>())
+                AbortWarpToLocalOrbit(ship);
+        }
+
         public static void AbortShipMovementOrdersOnEntity(Entity ship)
         {
             if (ship.TryGetDataBlob<OrderableDB>(out var orderable))
@@ -60,8 +80,24 @@ namespace Pulsar4X.Fleets
                     warpCmd.CancelInPlace();
                     orderable.ActionList.Remove(warpCmd);
                 }
+
+                // Standing survey leftovers survive Refuel preempt if we only cancel warps —
+                // ships then "Geo Survey Luna" while parked at a jump point after returning home.
+                foreach (var survey in orderable.ActionList
+                             .Where(a => a is GeoSurveyOrder or JPSurveyOrder)
+                             .ToList())
+                {
+                    survey.Status = ActionStatus.Failed;
+                    orderable.ActionList.Remove(survey);
+                }
+
                 PublishOrdersChanged(ship);
             }
+
+            if (ship.HasDataBlob<GeoSurveyingDB>())
+                ship.RemoveDataBlob<GeoSurveyingDB>();
+            if (ship.HasDataBlob<JPSurveyDB>())
+                ship.RemoveDataBlob<JPSurveyDB>();
 
             if (ship.HasDataBlob<WarpMovingDB>())
                 AbortWarpToLocalOrbit(ship);
@@ -295,7 +331,10 @@ namespace Pulsar4X.Fleets
 
             double dist = orbitParent.GetDataBlob<PositionDB>().GetDistanceTo_m(shipPos);
             double soi = orbitParent.GetSOI_m();
-            return soi > 0 && dist <= soi;
+            // Stars/static bodies report ∞ SOI — never treat "anywhere in system" as on-station.
+            if (double.IsInfinity(soi) || double.IsNaN(soi) || soi <= 0)
+                return false;
+            return dist <= soi;
         }
 
         private static System.Collections.Generic.IEnumerable<Entity> GetAssignedShips(FleetDB fleetDB)

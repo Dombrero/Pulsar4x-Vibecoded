@@ -63,18 +63,39 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                if (fleetDB.FlagShipID == -1
-                    || !_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
-                    || !flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
+                PositionDB? anchorPos = null;
+                if (fleetDB.FlagShipID >= 0
+                    && _entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
+                    && flagship.AttachedManager == _entityCommanding.AttachedManager
+                    && flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
                 {
-                    FinishHardFail(fleetDB, atDateTime, "no flagship/position");
+                    anchorPos = flagshipPos;
+                }
+                else
+                {
+                    // Per-ship autonomy: flagship may still be jumping — use any local ship pose.
+                    foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
+                    {
+                        if (ship.AttachedManager == _entityCommanding.AttachedManager
+                            && ship.TryGetDataBlob<PositionDB>(out var sp))
+                        {
+                            anchorPos = sp;
+                            break;
+                        }
+                    }
+                }
+
+                if (anchorPos == null)
+                {
+                    FinishHardFail(fleetDB, atDateTime, "no ship/position in fleet system");
                     return;
                 }
 
                 Entity? nearestColony = RefuelColonySearch.FindNearestColonyInSystem(
                     _entityCommanding.AttachedManager,
                     RequestingFactionGuid,
-                    flagshipPos);
+                    anchorPos,
+                    fleetDB.LastRefuelColonyId);
 
                 _entityCommanding.TryGetDataBlob<OrderableDB>(out var orderable);
 
@@ -82,8 +103,9 @@ namespace Pulsar4X.Fleets
                 {
                     if (orderable != null && orderable.ActionList.Any(a => a is JumpOrder))
                     {
-                        // Prior jump already queued (e.g. previous Refuel inserted Jump+Refuel).
-                        _isFinished = true;
+                        // Ships are jumping home independently — keep Refuel alive until Jump
+                        // finishes / a local colony appears. Finishing here dropped the follow-up.
+                        IsRunning = true;
                         return;
                     }
 
@@ -99,12 +121,18 @@ namespace Pulsar4X.Fleets
                             _entityCommanding,
                             RequestingFactionGuid,
                             targetSystemId,
-                            flagshipPos,
+                            anchorPos,
                             out var jumpGate)
                         && jumpGate != null)
                     {
+                        string via = jumpGate.OwningEntity.IsValid
+                            ? $" via gate#{jumpGate.OwningEntity.Id}"
+                            : "";
+                        string homeHint = fleetDB.LastRefuelColonyId > 0
+                            ? $" (last tank colony#{fleetDB.LastRefuelColonyId})"
+                            : "";
                         DebugTraceLog.Info("Refuel",
-                            $"fleet#{_entityCommanding.Id}: no local colony — jump toward refuel system {targetSystemId}",
+                            $"fleet#{_entityCommanding.Id}: no local colony — return toward last refuel system {targetSystemId}{via}{homeHint}",
                             atDateTime);
 
                         InsertFollowUpsAfterSelf(

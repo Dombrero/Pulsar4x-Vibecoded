@@ -212,7 +212,7 @@ public class GeoSurveyOrder : EntityCommand
                     return;
 
                 FleetOrderCleanup.AbortCargoTransfersOnEntity(_entityCommanding);
-                FleetOrderCleanup.AbortShipMovementOrdersOnEntity(_entityCommanding);
+                FleetOrderCleanup.AbortShipWarpsOnlyOnEntity(_entityCommanding);
                 _travelCommands.Clear();
                 try
                 {

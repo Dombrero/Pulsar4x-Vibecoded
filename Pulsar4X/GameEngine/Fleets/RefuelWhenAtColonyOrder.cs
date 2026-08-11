@@ -26,7 +26,7 @@ namespace Pulsar4X.Fleets
                     return "Waiting for fuel-needy ships at colony.";
                 if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
                     return "Fuel transfer in progress.";
-                if (FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+                if (FleetFuel.AnyHasFreeTankSpaceInSystem(_entityCommanding, _colony.AttachedManager))
                     return "Waiting for fuel-needy ships at colony.";
                 return "Refuel complete.";
             }
@@ -66,8 +66,8 @@ namespace Pulsar4X.Fleets
             if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
                 return _isFinished = false;
 
-            // Stay until every fuel-capable tank is full (WaitTillFull), not a % hysteresis band.
-            if (FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+            // Local hulls only — remote jumpers tank after their own transit + standing Refuel.
+            if (FleetFuel.AnyHasFreeTankSpaceInSystem(_entityCommanding, _colony.AttachedManager))
                 return _isFinished = false;
 
             return _isFinished = true;
@@ -89,7 +89,7 @@ namespace Pulsar4X.Fleets
                 return;
             }
 
-            if (!FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+            if (!FleetFuel.AnyHasFreeTankSpaceInSystem(_entityCommanding, _colony.AttachedManager))
                 return;
 
             if (FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding))
@@ -116,7 +116,7 @@ namespace Pulsar4X.Fleets
                     // CreateRefuel can report success then leave no lasting ship work (instant
                     // finish / skipped). Avoid re-issuing every Orderable tick.
                     if (!FleetOrderProcessor.FleetShipsHaveRefuelWork(_entityCommanding)
-                        && FleetFuel.AnyHasFreeTankSpace(_entityCommanding)
+                        && FleetFuel.AnyHasFreeTankSpaceInSystem(_entityCommanding, _colony.AttachedManager)
                         && FleetFuel.AreNeedyShipsAtColony(_entityCommanding, _colony))
                     {
                         DebugTraceLog.Warn("Refuel",
@@ -132,12 +132,12 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                if (!FleetFuel.AnyHasFreeTankSpace(_entityCommanding))
+                if (!FleetFuel.AnyHasFreeTankSpaceInSystem(_entityCommanding, _colony.AttachedManager))
                 {
                     if (_entityCommanding.TryGetDataBlob<FleetDB>(out var doneDb))
                         RefuelColonySearch.RememberRefuelSite(doneDb, _colony);
                     DebugTraceLog.Info("Refuel",
-                        $"fleet#{_entityCommanding.Id}: at colony#{_colony.Id} — all fuel tanks full, nothing to issue",
+                        $"fleet#{_entityCommanding.Id}: at colony#{_colony.Id} — local fuel tanks full, nothing to issue",
                         atDateTime);
                     return;
                 }
