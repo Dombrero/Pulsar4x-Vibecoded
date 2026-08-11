@@ -82,7 +82,12 @@ namespace Pulsar4X.Client
                         ImGui.PushStyleColor(ImGuiCol.Header, Styles.DescriptiveColor);
                         pop = true;
                     }
-                    if (ImGui.CollapsingHeader(headerTitle, ImGuiTreeNodeFlags.DefaultOpen))
+                    bool lineOpen = ImGui.CollapsingHeader(headerTitle, ImGuiTreeNodeFlags.DefaultOpen);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Production line: " + line.Name + (line.Jobs.Count == 0
+                            ? "\nCurrently idle — queue a job from the panel on the right."
+                            : "\n" + line.Jobs.Count + " job(s) in queue."));
+                    if (lineOpen)
                     {
                         if (ImGui.Button("+ New Job"))
                         {
@@ -141,6 +146,15 @@ namespace Pulsar4X.Client
 
                     ImGui.TableNextColumn();
                     ImGui.Text(job.Name);
+                    if (ImGui.IsItemHovered())
+                    {
+                        string statusLine = job.MissingResources
+                            ? job.Status + " — waiting on resources"
+                            : job.Status;
+                        DisplayHelpers.DescriptiveTooltip(job.Name, "Production Job",
+                            statusLine + "\nBatch: " + job.NumberCompleted + "/" + job.NumberOrdered
+                            + (job.Repeat ? " (repeating)" : ""));
+                    }
 
                     ImGui.TableNextColumn();
                     ImGui.Text(job.NumberCompleted + "/" + job.NumberOrdered);
@@ -350,6 +364,8 @@ namespace Pulsar4X.Client
             {
                 _newJobDesignIndex = curItemIndex;
             }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(filtered[_newJobDesignIndex].Name);
 
             var selectedDesign = filtered[_newJobDesignIndex];
 
@@ -489,6 +505,10 @@ namespace Pulsar4X.Client
                 ImGui.Text("");
                 ImGui.SameLine();
                 ImGui.Text(design.Name);
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip(design.Name + (design.IsColonyInstallation
+                        ? "\nColony installation — can be auto-installed when finished."
+                        : "\nComponent or product output for this job."));
                 ImGui.TableNextColumn();
                 ImGui.Text(design.OutputAmount.ToString());
                 ImGui.TableNextColumn();

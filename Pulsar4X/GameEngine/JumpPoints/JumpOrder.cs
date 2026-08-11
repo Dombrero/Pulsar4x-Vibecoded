@@ -5,6 +5,7 @@ using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
+using Pulsar4X.Extensions;
 using Pulsar4X.Fleets;
 using Pulsar4X.Messaging;
 using Pulsar4X.Movement;
@@ -51,13 +52,38 @@ public class JumpOrder : EntityCommand
     internal override void Execute(DateTime atDateTime)
     {
         if (IsRunning) return;
+
+        // Follow-ups inserted by RefuelAction skip OrderEnqueue/IsValidCommand — rebind here.
+        if (!_entityCommanding.IsValid)
+        {
+            var game = JumpGate?.OwningEntity.AttachedManager?.Game;
+            if (game == null || !IsValidCommand(game))
+            {
+                DebugTraceLog.Warn("Jump",
+                    $"fleet#{EntityCommandingGuid}: JumpOrder unbound / invalid — cannot start transit",
+                    atDateTime);
+                _isFinished = true;
+                return;
+            }
+        }
+
         if (!_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB)) return;
-        if (JumpGate == null || !JumpGate.OwningEntity.IsValid) return;
+        if (JumpGate == null || !JumpGate.OwningEntity.IsValid)
+        {
+            DebugTraceLog.Warn("Jump",
+                $"fleet#{_entityCommanding.Id}: JumpOrder has no valid jump gate",
+                atDateTime);
+            _isFinished = true;
+            return;
+        }
 
         var gateEntity = JumpGate.OwningEntity;
         var ships = fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()).ToList();
 
         IsRunning = true;
+
+        // Drop lingering survey warps so ships actually go to the gate.
+        FleetOrderCleanup.AbortShipMovementOrders(_entityCommanding);
 
         foreach (var ship in ships)
         {
@@ -69,11 +95,13 @@ public class JumpOrder : EntityCommand
                     continue;
 
                 var warpCmd = Movement.WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
+                warpCmd.Source = Source;
                 OrderEnqueue.Enqueue(ship.AttachedManager.Game, warpCmd);
             }
 
             // Queue a per-ship jump command (will execute after warp completes)
             var jumpCmd = ShipJumpCommand.Create(ship, JumpGate);
+            jumpCmd.Source = Source;
             OrderEnqueue.Enqueue(ship.AttachedManager.Game, jumpCmd);
             _shipJumpCommands.Add(jumpCmd);
         }
@@ -82,6 +110,13 @@ public class JumpOrder : EntityCommand
         {
             DebugTraceLog.Warn("Jump",
                 $"fleet#{_entityCommanding.Id}: jump issued but no ship received a transit command (no warp / not at gate)",
+                atDateTime);
+            _isFinished = true;
+        }
+        else
+        {
+            DebugTraceLog.Info("Jump",
+                $"fleet#{_entityCommanding.Id}: warping {_shipJumpCommands.Count} ship(s) to gate#{gateEntity.Id} then transit",
                 atDateTime);
         }
     }
@@ -133,6 +168,8 @@ public class JumpOrder : EntityCommand
             return;
         }
 
+        if (JumpGate != null)
+            JumpTransitDiscovery.RegisterOriginGate(_entityCommanding, JumpGate);
         JumpTransitDiscovery.EnsureDestinationKnown(_entityCommanding, destinationEntity, _entityCommanding.StarSysDateTime);
 
         var destManager = destinationEntity.AttachedManager;
@@ -210,6 +247,13 @@ public class JumpOrder : EntityCommand
         return false;
     }
 
+    internal override void BindCommandingEntity(Entity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        _entityCommanding = entity;
+        base.BindCommandingEntity(entity);
+    }
+
     public override EntityCommand Clone()
     {
         throw new NotImplementedException();
@@ -251,8 +295,25 @@ public class ShipJumpCommand : EntityCommand
     {
         if (!_jumpGate.OwningEntity.IsValid) { _isFinished = true; return; }
 
+        if (!_entityCommanding.IsValid)
+        {
+            var game = _jumpGate.OwningEntity.AttachedManager?.Game;
+            if (game == null || !IsValidCommand(game))
+            {
+                _isFinished = true;
+                return;
+            }
+        }
+
+        var gateEntity = _jumpGate.OwningEntity;
+
+        // Wait for warp-to-gate (or already hovering at the static JP). Never transit from afar.
+        if (!IsShipReadyToTransit(_entityCommanding, gateEntity))
+            return;
+
         if (_entityCommanding.AttachedManager.TryGetGlobalEntityById(_jumpGate.DestinationId, out var destinationEntity))
         {
+            JumpTransitDiscovery.RegisterOriginGate(_entityCommanding, _jumpGate);
             JumpTransitDiscovery.EnsureDestinationKnown(_entityCommanding, destinationEntity, atDateTime);
 
             var destinationPositionDB = destinationEntity.GetDataBlob<PositionDB>();
@@ -269,6 +330,32 @@ public class ShipJumpCommand : EntityCommand
 
         _isFinished = true;
         RefreshOwningFleetJumpOrder(atDateTime);
+    }
+
+    /// <summary>
+    /// Ship must be at / hovering on the gate (or parented to it). WarpMove to MoveTypes.None
+    /// targets leaves WarpMovingDB with IsAtTarget — that counts as ready.
+    /// </summary>
+    private static bool IsShipReadyToTransit(Entity ship, Entity gateEntity)
+    {
+        if (!ship.IsValid || !gateEntity.IsValid)
+            return false;
+
+        if (ship.TryGetDataBlob<PositionDB>(out var shipPos) && shipPos.Parent == gateEntity)
+            return true;
+
+        if (ship.TryGetDataBlob<WarpMovingDB>(out var warp)
+            && warp.IsAtTarget
+            && warp.TargetEntity is { IsValid: true } target
+            && target.Id == gateEntity.Id)
+            return true;
+
+        if (ship.TryGetDataBlob<PositionDB>(out shipPos)
+            && gateEntity.TryGetDataBlob<PositionDB>(out var gatePos)
+            && shipPos.GetDistanceTo_m(gatePos) <= 250_000)
+            return true;
+
+        return false;
     }
 
     internal static void ClearMovementState(Entity ship)

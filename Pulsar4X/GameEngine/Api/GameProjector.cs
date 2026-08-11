@@ -48,7 +48,8 @@ namespace Pulsar4X.Engine.Api
         public TimeState ProjectTime(DateTime gameDateTime)
         {
             var tp = _game.TimePulse;
-            return new TimeState(gameDateTime, tp.IsRunning, tp.IsStopping, tp.Ticklength, tp.TickFrequency);
+            return new TimeState(gameDateTime, tp.IsRunning, tp.IsStopping, tp.Ticklength, tp.TickFrequency,
+                tp.CurrentTickProgress);
         }
 
         public FactionSnapshot? ProjectFaction(int factionId)
@@ -650,18 +651,20 @@ namespace Pulsar4X.Engine.Api
             double maxDeltaV = 0;
             double maxFuelKg = 0;
             string fuelName = "";
+            ICargoable? fuel = null;
             if (ship.Manager?.Game is { } game
                 && game.Factions.TryGetValue(factionId, out var faction)
                 && faction.TryGetDataBlob<FactionInfoDB>(out var factionInfo)
                 && thrust.FuelType != null && factionInfo.Data.CargoGoods.Contains(thrust.FuelType)
-                && factionInfo.Data.CargoGoods.GetAny(thrust.FuelType) is { } fuel)
+                && factionInfo.Data.CargoGoods.GetAny(thrust.FuelType) is { } resolvedFuel)
             {
-                fuelName = fuel.Name;
-                if (fuel.VolumePerUnit > 0
-                    && ship.TryGetDataBlob<CargoStorageDB>(out var storage)
-                    && storage.TypeStores.TryGetValue(fuel.CargoTypeID, out var fuelStore))
+                fuel = resolvedFuel;
+                fuelName = resolvedFuel.Name;
+                if (resolvedFuel.VolumePerUnit > 0
+                    && ship.TryGetDataBlob<CargoStorageDB>(out var capacityStorage)
+                    && capacityStorage.TypeStores.TryGetValue(resolvedFuel.CargoTypeID, out var fuelStore))
                 {
-                    maxFuelKg = fuelStore.MaxVolume / fuel.VolumePerUnit * fuel.MassPerUnit;
+                    maxFuelKg = fuelStore.MaxVolume / resolvedFuel.VolumePerUnit * resolvedFuel.MassPerUnit;
                     if (thrust.ExhaustVelocity > 0
                         && ship.TryGetDataBlob<MassVolumeDB>(out var massVolume))
                     {
@@ -672,10 +675,25 @@ namespace Pulsar4X.Engine.Api
                 }
             }
 
+            // Prefer live cargo mass for the drive fuel type — NewtonThrustAbilityDB.TotalFuel_kg
+            // is only refreshed when cargo processors run and often stays 0 while tanks are full.
+            double totalFuelKg = thrust.TotalFuel_kg;
+            if (fuel != null
+                && ship.TryGetDataBlob<CargoStorageDB>(out var storage))
+            {
+                totalFuelKg = CargoMath.GetMassStored(storage, fuel, includeEscro: false);
+                if (maxFuelKg <= 0
+                    && storage.TypeStores.TryGetValue(fuel.CargoTypeID, out var fuelStore)
+                    && fuel.VolumePerUnit > 0)
+                {
+                    maxFuelKg = fuelStore.MaxVolume / fuel.VolumePerUnit * fuel.MassPerUnit;
+                }
+            }
+
             return new ThrustView(thrust.ThrustInNewtons, thrust.FuelBurnRate, thrust.ExhaustVelocity,
                 thrust.DeltaV, maxDeltaV)
             {
-                TotalFuelKg = thrust.TotalFuel_kg,
+                TotalFuelKg = totalFuelKg,
                 MaxFuelKg = maxFuelKg,
                 FuelName = fuelName,
             };

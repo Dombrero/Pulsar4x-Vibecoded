@@ -29,6 +29,8 @@ namespace Pulsar4X.Engine.Api
         private StarSystem? _focusedSystem;
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
         private readonly Action? _onSimulationStopped;
+        // Throttled mid-tick progress for the TimeControl bar (no faction refresh).
+        private readonly Action? _onTickProgress;
 
         // Engine-side inbox loop (Discord): drains CommandInbox continuously even while paused.
         // Existing drains (SubmitCommand, MasterTimePulse subpulse, InProcessAdapter) remain fine
@@ -54,6 +56,9 @@ namespace Pulsar4X.Engine.Api
             // TimeState stays IsRunning=true and its time controls never unlock. Push a final clock.
             _onSimulationStopped = OnSimulationStopped;
             _game.TimePulse.SimulationStopped += _onSimulationStopped;
+
+            _onTickProgress = OnTickProgressChanged;
+            _game.TimePulse.TickProgressChanged += _onTickProgress;
 
             StartCommandPump();
         }
@@ -114,6 +119,7 @@ namespace Pulsar4X.Engine.Api
 
             _game.TimePulse.GameGlobalDateChangedEvent -= _onDateChanged;
             _game.TimePulse.SimulationStopped -= _onSimulationStopped;
+            _game.TimePulse.TickProgressChanged -= _onTickProgress;
             if (_focusedSystem != null)
                 _focusedSystem.DecrementExternalObserver(true);
             lock (_sinkLock) _subscriptions.Clear();
@@ -234,6 +240,14 @@ namespace Pulsar4X.Engine.Api
             var evt = new GameEventEnvelope(GameEventType.TimeChanged, Time: _projector.ProjectTime());
             foreach (var sub in SnapshotSubscriptions())
                 sub.Send(evt);
+        }
+
+        /// <summary>
+        /// Mid-tick ProcessSystem progress only — do not refresh faction/fleet snapshots (too heavy).
+        /// </summary>
+        private void OnTickProgressChanged()
+        {
+            BroadcastTimeChanged();
         }
 
         // A clock advance refreshes the time plus each subscriber's per-faction snapshots: the

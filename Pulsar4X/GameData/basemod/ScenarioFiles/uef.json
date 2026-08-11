@@ -82,8 +82,13 @@
         { "id": "nickel", "amount": 5000 },
         { "id": "default-design-merlin", "amount": 5, "type": "byCount" },
         { "id": "rp-1", "amount": 50000000, "type": "byCount" },
-        { "id": "methalox", "amount": 10000, "type": "byCount" },
-        { "id": "hydrolox", "amount": 10000, "type": "byCount" }
+        { "id": "methalox", "amount": 50000000, "type": "byCount" },
+        { "id": "hydrolox", "amount": 50000000, "type": "byCount" },
+        { "id": "ntp", "amount": 50000000, "type": "byCount" },
+        { "id": "fissile-fuels", "amount": 5000000, "type": "byCount" },
+        { "id": "plastic", "amount": 100000, "type": "byCount" },
+        { "id": "rare-earth-elements", "amount": 25000, "type": "byCount" },
+        { "id": "water", "amount": 100000, "type": "byCount" }
       ]
     }
   ],
@@ -116,14 +121,14 @@
           "designId": "default-ship-design-gunship",
           "name": "Serial Peacemaker",
           "cargo": [
-            { "id": "ntp", "amount": 2000 }
+            { "id": "ntp", "amount": 20000000, "type": "byVolume" }
           ]
         },
         {
           "designId": "default-ship-design-gunship",
           "name": "Prevailing Stillness",
           "cargo": [
-            { "id": "ntp", "amount": 2000 }
+            { "id": "ntp", "amount": 20000000, "type": "byVolume" }
           ]
         }
       ]
@@ -139,7 +144,7 @@
           "designId": "default-ship-design-surveyor",
           "name": "Surveyor I",
           "cargo": [
-            { "id": "rp-1", "amount": 2000 }
+            { "id": "rp-1", "amount": 20000000, "type": "byVolume" }
           ]
         }
       ]

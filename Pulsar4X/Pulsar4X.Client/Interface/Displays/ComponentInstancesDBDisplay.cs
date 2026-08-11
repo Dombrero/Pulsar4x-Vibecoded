@@ -31,18 +31,24 @@ namespace Pulsar4X.Client
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.OkColor);
                         ImGui.Text("Degraded");
                         ImGui.PopStyleColor();
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip($"{group.OperationalCount} of {group.Count} instances are operational.\nSome units are disabled or offline.");
                     }
                     else if (group.OperationalCount == 0)
                     {
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
                         ImGui.Text("Disabled");
                         ImGui.PopStyleColor();
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip("No instances are operational — this installation is fully offline.");
                     }
                     else
                     {
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.HighlightColor);
                         ImGui.Text("Operational");
                         ImGui.PopStyleColor();
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip("All instances are online and contributing.");
                     }
                 }
                 ImGui.EndTable();

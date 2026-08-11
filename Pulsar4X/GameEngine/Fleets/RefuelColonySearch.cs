@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Pulsar4X.Colonies;
 using Pulsar4X.Datablobs;
@@ -42,7 +43,8 @@ namespace Pulsar4X.Fleets
         }
 
         /// <summary>
-        /// System to return to for fuel: last successful refuel, else any known colony system (shortest jump path).
+        /// System to return to for fuel: last successful refuel, else any known colony system
+        /// (prefer direct jump links from the current system, then shortest known path).
         /// </summary>
         internal static bool TryResolveRefuelSystemId(
             Game game,
@@ -60,11 +62,23 @@ namespace Pulsar4X.Fleets
                 || !faction.TryGetDataBlob<FactionInfoDB>(out var factionDB))
                 return false;
 
+            SeedLastRefuelFromColonies(fleetDB, factionDB, currentSystemId);
+            SyncDiscoveredJumpPointsInSystem(faction, fleet.AttachedManager, factionId);
+
             if (!string.IsNullOrEmpty(fleetDB.LastRefuelSystemId)
                 && fleetDB.LastRefuelSystemId != currentSystemId
                 && SystemHasRefuelColony(factionDB, fleetDB.LastRefuelSystemId))
             {
                 targetSystemId = fleetDB.LastRefuelSystemId;
+                return true;
+            }
+
+            // Prefer a colony system reachable by a single jump from here (works even when
+            // InternalKnownJumpPoints was never populated for older saves).
+            if (TryFindDirectColonySystemViaLocalGates(
+                    game, fleet.AttachedManager, factionDB, factionId, currentSystemId, out var directSystem))
+            {
+                targetSystemId = directSystem;
                 return true;
             }
 
@@ -87,6 +101,22 @@ namespace Pulsar4X.Fleets
                 {
                     bestCost = cost;
                     bestSystem = colonySystem;
+                }
+            }
+
+            // Last resort: any other-system colony even if path cost is unknown
+            // (caller still needs a local gate toward it).
+            if (bestSystem == null)
+            {
+                foreach (var colony in factionDB.Colonies.Where(c => c.IsValid))
+                {
+                    if (!colony.HasDataBlob<ColonyInfoDB>() || !colony.HasDataBlob<CargoStorageDB>())
+                        continue;
+                    string colonySystem = colony.AttachedManager?.ManagerID ?? string.Empty;
+                    if (string.IsNullOrEmpty(colonySystem) || colonySystem == currentSystemId)
+                        continue;
+                    bestSystem = colonySystem;
+                    break;
                 }
             }
 
@@ -113,9 +143,13 @@ namespace Pulsar4X.Fleets
                 || !faction.TryGetDataBlob<FactionInfoDB>(out var factionDB))
                 return false;
 
+            SyncDiscoveredJumpPointsInSystem(faction, fleet.AttachedManager, factionId);
+
             string currentSystemId = fleet.AttachedManager.ManagerID ?? string.Empty;
-            if (!factionDB.InternalKnownJumpPoints.TryGetValue(currentSystemId, out var currentJumpPoints)
-                || currentJumpPoints.Count == 0)
+            var currentJumpPoints = CollectKnownJumpPointsInSystem(
+                game, factionDB, fleet.AttachedManager, factionId, currentSystemId);
+
+            if (currentJumpPoints.Count == 0)
                 return false;
 
             // Direct jump link to the target system.
@@ -132,8 +166,9 @@ namespace Pulsar4X.Fleets
                 return true;
             }
 
-            if (!factionDB.InternalKnownJumpPoints.TryGetValue(targetSystemId, out var targetJumpPoints)
-                || targetJumpPoints.Count == 0)
+            var targetJumpPoints = CollectKnownJumpPointsInSystem(
+                game, factionDB, null, factionId, targetSystemId);
+            if (targetJumpPoints.Count == 0)
                 return false;
 
             var pathfinding = new PathfindingManager(game);
@@ -186,6 +221,137 @@ namespace Pulsar4X.Fleets
             fleetDB.LastRefuelColonyId = colony.Id;
         }
 
+        private static void SeedLastRefuelFromColonies(
+            FleetDB fleetDB,
+            FactionInfoDB factionDB,
+            string currentSystemId)
+        {
+            if (!string.IsNullOrEmpty(fleetDB.LastRefuelSystemId))
+                return;
+
+            foreach (var colony in factionDB.Colonies.Where(c => c.IsValid))
+            {
+                if (!colony.HasDataBlob<ColonyInfoDB>() || !colony.HasDataBlob<CargoStorageDB>())
+                    continue;
+                string colonySystem = colony.AttachedManager?.ManagerID ?? string.Empty;
+                if (string.IsNullOrEmpty(colonySystem) || colonySystem == currentSystemId)
+                    continue;
+
+                fleetDB.LastRefuelSystemId = colonySystem;
+                fleetDB.LastRefuelColonyId = colony.Id;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Backfill InternalKnownJumpPoints from surveyed/discovered gates already in this system.
+        /// Needed for saves that jumped before registration existed.
+        /// </summary>
+        private static void SyncDiscoveredJumpPointsInSystem(
+            Entity faction,
+            EntityManager manager,
+            int factionId)
+        {
+            foreach (var jpEntity in manager.GetAllEntitiesWithDataBlob<JumpPointDB>())
+            {
+                if (!jpEntity.TryGetDataBlob<JumpPointDB>(out var jpdb))
+                    continue;
+                if (!jpdb.IsDiscovered.Contains(factionId))
+                    continue;
+                JumpPointKnowledge.Register(faction, jpEntity);
+            }
+        }
+
+        private static bool TryFindDirectColonySystemViaLocalGates(
+            Game game,
+            EntityManager manager,
+            FactionInfoDB factionDB,
+            int factionId,
+            string currentSystemId,
+            out string colonySystemId)
+        {
+            colonySystemId = string.Empty;
+            var colonySystems = new HashSet<string>();
+            foreach (var colony in factionDB.Colonies.Where(c => c.IsValid))
+            {
+                if (!colony.HasDataBlob<ColonyInfoDB>() || !colony.HasDataBlob<CargoStorageDB>())
+                    continue;
+                string sys = colony.AttachedManager?.ManagerID ?? string.Empty;
+                if (!string.IsNullOrEmpty(sys) && sys != currentSystemId)
+                    colonySystems.Add(sys);
+            }
+
+            if (colonySystems.Count == 0)
+                return false;
+
+            foreach (var jpEntity in manager.GetAllEntitiesWithDataBlob<JumpPointDB>())
+            {
+                if (!jpEntity.TryGetDataBlob<JumpPointDB>(out var jpdb))
+                    continue;
+                if (!jpdb.IsDiscovered.Contains(factionId))
+                    continue;
+                if (!manager.TryGetGlobalEntityById(jpdb.DestinationId, out var destGate))
+                    continue;
+                string destSys = destGate.AttachedManager?.ManagerID ?? string.Empty;
+                if (colonySystems.Contains(destSys))
+                {
+                    colonySystemId = destSys;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static List<Entity> CollectKnownJumpPointsInSystem(
+            Game game,
+            FactionInfoDB factionDB,
+            EntityManager? localManager,
+            int factionId,
+            string systemId)
+        {
+            var result = new List<Entity>();
+            var seen = new HashSet<int>();
+
+            void Add(Entity e)
+            {
+                if (!e.IsValid || !seen.Add(e.Id))
+                    return;
+                result.Add(e);
+            }
+
+            if (factionDB.InternalKnownJumpPoints.TryGetValue(systemId, out var known))
+            {
+                foreach (var e in known)
+                    Add(e);
+            }
+
+            if (localManager != null && localManager.ManagerID == systemId)
+            {
+                foreach (var jpEntity in localManager.GetAllEntitiesWithDataBlob<JumpPointDB>())
+                {
+                    if (!jpEntity.TryGetDataBlob<JumpPointDB>(out var jpdb))
+                        continue;
+                    if (!jpdb.IsDiscovered.Contains(factionId))
+                        continue;
+                    Add(jpEntity);
+                }
+            }
+            else if (game.Systems.FirstOrDefault(s => s.ManagerID == systemId) is { } remote)
+            {
+                foreach (var jpEntity in remote.GetAllEntitiesWithDataBlob<JumpPointDB>())
+                {
+                    if (!jpEntity.TryGetDataBlob<JumpPointDB>(out var jpdb))
+                        continue;
+                    if (!jpdb.IsDiscovered.Contains(factionId))
+                        continue;
+                    Add(jpEntity);
+                }
+            }
+
+            return result;
+        }
+
         private static bool SystemHasRefuelColony(FactionInfoDB factionDB, string systemId)
         {
             return factionDB.Colonies.Any(c =>
@@ -212,10 +378,9 @@ namespace Pulsar4X.Fleets
             if (!faction.TryGetDataBlob<FactionInfoDB>(out var factionDB))
                 return false;
 
-            if (!factionDB.InternalKnownJumpPoints.TryGetValue(fromSystemId, out var fromJps)
-                || !factionDB.InternalKnownJumpPoints.TryGetValue(toSystemId, out var toJps)
-                || fromJps.Count == 0
-                || toJps.Count == 0)
+            var fromJps = CollectKnownJumpPointsInSystem(game, factionDB, null, faction.Id, fromSystemId);
+            var toJps = CollectKnownJumpPointsInSystem(game, factionDB, null, faction.Id, toSystemId);
+            if (fromJps.Count == 0 || toJps.Count == 0)
                 return false;
 
             var pathfinding = new PathfindingManager(game);

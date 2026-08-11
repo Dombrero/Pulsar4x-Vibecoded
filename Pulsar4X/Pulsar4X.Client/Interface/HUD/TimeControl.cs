@@ -73,6 +73,10 @@ namespace Pulsar4X.Client
             ImGui.SetNextWindowPos(_windowPosition, ImGuiCond.Appearing);
 
             Window.Begin("TimeControl", ref IsActive, _flags);
+
+            // Thin progress strip: how far the current tick/step has been simulated.
+            DrawTickProgressBar(time);
+
             ImGui.PushItemWidth(100);
 
             // Same clock as the map: global Ticklength steps (Aurora increments).
@@ -158,6 +162,55 @@ namespace Pulsar4X.Client
                 ImGui.EndDisabled();
             }
             Window.End();
+        }
+
+        private void DrawTickProgressBar(TimeState? time)
+        {
+            float progress = (float)Math.Clamp(time?.TickProgress ?? 0.0, 0.0, 1.0);
+            bool active = (time?.IsRunning ?? false) || (time?.IsStopping ?? false) || progress > 0.001f;
+            if (!active)
+                return;
+
+            var drawList = ImGui.GetWindowDrawList();
+            var winPos = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            const float barHeight = 3f;
+
+            // Track (dim)
+            drawList.AddRectFilled(
+                winPos,
+                new Vector2(winPos.X + winSize.X, winPos.Y + barHeight),
+                ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.18f, 0.22f, 0.9f)));
+
+            // Fill
+            if (progress > 0f)
+            {
+                drawList.AddRectFilled(
+                    winPos,
+                    new Vector2(winPos.X + winSize.X * progress, winPos.Y + barHeight),
+                    ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.55f, 0.95f, 1f)));
+            }
+
+            // Hover over the strip for a short explanation
+            if (ImGui.IsMouseHoveringRect(winPos, new Vector2(winPos.X + winSize.X, winPos.Y + barHeight)))
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted($"Processing tick: {(progress * 100f):0}%");
+                if (time is { } t && t.TickLength > TimeSpan.Zero)
+                    ImGui.TextUnformatted($"Tick length: {FormatTickLength(t.TickLength)}");
+                ImGui.EndTooltip();
+            }
+        }
+
+        private static string FormatTickLength(TimeSpan span)
+        {
+            if (span.TotalDays >= 365) return (span.TotalDays / 365.0).ToString("0.##") + " years";
+            if (span.TotalDays >= 30) return (span.TotalDays / 30.0).ToString("0.##") + " months";
+            if (span.TotalDays >= 7) return (span.TotalDays / 7.0).ToString("0.##") + " weeks";
+            if (span.TotalDays >= 1) return span.TotalDays.ToString("0.##") + " days";
+            if (span.TotalHours >= 1) return span.TotalHours.ToString("0.##") + " hours";
+            if (span.TotalMinutes >= 1) return span.TotalMinutes.ToString("0.##") + " minutes";
+            return span.TotalSeconds.ToString("0.##") + " seconds";
         }
 
         // Converts a (value, unit-index) pair from the combo boxes into a TimeSpan.

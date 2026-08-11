@@ -454,6 +454,32 @@ namespace Pulsar4X.Tests
         }
 
         [Test]
+        public void Empty_colony_CreateRefuel_returns_false_not_false_success()
+        {
+            var session = Connect();
+            var (colony, fleet, ship, fuel) = MakeFleetAndColony(
+                session,
+                shipAbsolutePosition: new Vector3(1.5e11, 0, 0),
+                transferRangeDv: 3000);
+
+            var earth = colony.GetDataBlob<ColonyInfoDB>().PlanetEntity;
+            ship.GetDataBlob<PositionDB>().SetParent(earth);
+
+            // Drain every unit of the ship's fuel type from the colony.
+            var colonyStore = colony.GetDataBlob<CargoStorageDB>();
+            long stock = colonyStore.GetUnitsStored(fuel, includeEscro: false);
+            if (stock > 0)
+                CargoTransferProcessor.AddRemoveCargoMass(colony, fuel, -(stock * fuel.MassPerUnit));
+
+            Assert.That(colonyStore.GetUnitsStored(fuel, includeEscro: false), Is.EqualTo(0));
+            Assert.That(
+                CargoTransferOrder.CreateRefuelFleetCommand(colony, fleet, OrderSource.Standing),
+                Is.False,
+                "Empty colony must not report a successful refuel that instantly vanishes.");
+            Assert.That(ship.GetDataBlob<OrderableDB>().ActionList.OfType<CargoTransferOrder>(), Is.Empty);
+        }
+
+        [Test]
         public void Star_parented_ship_in_planet_SOI_still_transfers_fuel_at_colony()
         {
             // IsShipAtColony is true via SOI, but CalcDV used to return Infinity / huge Hohmann

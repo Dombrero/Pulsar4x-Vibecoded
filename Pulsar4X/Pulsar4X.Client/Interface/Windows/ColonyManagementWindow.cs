@@ -217,9 +217,12 @@ namespace Pulsar4X.Client
                     bool overCapacity = infrastructure.CapacityAvailable < 0;
 
                     ImGui.Columns(2);
-                    DisplayHelpers.PrintRow("Provided", infrastructure.CapacityProvided.ToString("N0"));
-                    DisplayHelpers.PrintRow("Used", infrastructure.CapacityRequired.ToString("N0"));
-                    DisplayHelpers.PrintRow("Available", infrastructure.CapacityAvailable.ToString("N0"));
+                    DisplayHelpers.PrintRow("Provided", infrastructure.CapacityProvided.ToString("N0"),
+                        tooltipOne: "Infrastructure capacity supplied by installations on this colony.");
+                    DisplayHelpers.PrintRow("Used", infrastructure.CapacityRequired.ToString("N0"),
+                        tooltipOne: "Infrastructure capacity required by installations currently on this colony.");
+                    DisplayHelpers.PrintRow("Available", infrastructure.CapacityAvailable.ToString("N0"),
+                        tooltipOne: "Remaining infrastructure capacity.\nNegative means the colony is over capacity and output is reduced.");
                     ImGui.Columns(1);
 
                     // Use TextUnformatted: ImGui.Text/TextColored treat the string as a printf
@@ -239,6 +242,8 @@ namespace Pulsar4X.Client
                         ImGui.TextUnformatted($"Output at {efficiencyPct}% of capacity");
                         ImGui.PopStyleColor();
                     }
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Infrastructure efficiency.\nWhen used capacity exceeds provided capacity, all colony output is scaled by this percentage.");
                 }
 
                 if (ImGui.CollapsingHeader("Installations", ImGuiTreeNodeFlags.DefaultOpen))
@@ -271,9 +276,13 @@ namespace Pulsar4X.Client
                         ImGui.PopStyleColor(3);
 
                         ImGui.Columns(2);
-                        DisplayHelpers.PrintRow("Total Mass in Storage", Stringify.Mass(storage.TotalStoredMassKg));
-                        DisplayHelpers.PrintRow("Transfer Rate", storage.TransferRateKgPerHour.ToString() + " kg/hr");
-                        DisplayHelpers.PrintRow("Transfer Range", storage.TransferRangeDvMps.ToString("0.#") + " dV m/s", tooltipOne: "This is confusing as hell :D", separator: false);
+                        DisplayHelpers.PrintRow("Total Mass in Storage", Stringify.Mass(storage.TotalStoredMassKg),
+                            tooltipOne: "Combined mass of all cargo currently held in this colony's stockpile.");
+                        DisplayHelpers.PrintRow("Transfer Rate", storage.TransferRateKgPerHour.ToString() + " kg/hr",
+                            tooltipOne: "How quickly cargo can be transferred to or from ships at this colony.");
+                        DisplayHelpers.PrintRow("Transfer Range", storage.TransferRangeDvMps.ToString("0.#") + " dV m/s",
+                            tooltipOne: "Maximum delta-v range for cargo transfers.\nShips farther than this (in Δv) cannot load or unload here.",
+                            separator: false);
                         ImGui.Columns(1);
                         storage.Display(colony.Id, _uiState, ImGuiTreeNodeFlags.None);
                     }

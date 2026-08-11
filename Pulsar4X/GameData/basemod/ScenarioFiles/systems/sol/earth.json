@@ -100,8 +100,13 @@
         { "Id": "nickel", "Amount": 5000 },
         { "Id": "default-design-merlin", "Amount": 5, "Type": "byCount" },
         { "Id": "rp-1", "Amount": 50000000, "Type": "byCount" },
-        { "Id": "methalox", "Amount": 10000, "Type": "byCount" },
-        { "Id": "hydrolox", "Amount": 10000, "Type": "byCount" }
+        { "Id": "methalox", "Amount": 50000000, "Type": "byCount" },
+        { "Id": "hydrolox", "Amount": 50000000, "Type": "byCount" },
+        { "Id": "ntp", "Amount": 50000000, "Type": "byCount" },
+        { "Id": "fissile-fuels", "Amount": 5000000, "Type": "byCount" },
+        { "Id": "plastic", "Amount": 100000, "Type": "byCount" },
+        { "Id": "rare-earth-elements", "Amount": 25000, "Type": "byCount" },
+        { "Id": "water", "Amount": 100000, "Type": "byCount" }
       ],
       "StartingItems": [
         "tech-modern-technology",
@@ -131,7 +136,9 @@
         "refining",
         "component-construction",
         "installation-construction",
+        "ordnance-construction",
         "ship-assembly",
+        "electronics",
         "mine",
         "automine",
         "research-lab",

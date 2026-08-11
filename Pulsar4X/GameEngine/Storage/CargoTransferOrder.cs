@@ -204,13 +204,14 @@ public class CargoTransferOrder : EntityCommand
         OrderEnqueue.Enqueue(secondaryEntity.AttachedManager.Game, cmd2);
     }
 
-    /// <returns>True if at least one of the fleet's ships was issued a refuel transfer.</returns>
+    /// <returns>True if at least one of the fleet's ships was issued a lasting refuel transfer.</returns>
     public static bool CreateRefuelFleetCommand(Entity cargoFromEntity, Entity fleet, OrderSource source = OrderSource.Issued)
     {
         if (!cargoFromEntity.TryGetDataBlob<CargoStorageDB>(out var colonyStorage))
             return false;
 
         EnsureMinimumTransferCapability(colonyStorage);
+        ReleaseOrphanEscrow(colonyStorage);
 
         var fleetOwner = fleet.GetFactionOwner;
         var cargoLibrary = fleetOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
@@ -221,7 +222,7 @@ public class CargoTransferOrder : EntityCommand
         var ships = fleetDB.Children.Where(c =>
             !c.HasDataBlob<FleetDB>() && c.HasDataBlob<CargoStorageDB>());
 
-        int skippedAway = 0, skippedBusy = 0, skippedNoFuel = 0, skippedNoStore = 0, skippedFull = 0, skippedEx = 0;
+        int skippedAway = 0, skippedBusy = 0, skippedNoFuel = 0, skippedNoStore = 0, skippedFull = 0, skippedEmptyColony = 0, skippedEx = 0, skippedVanished = 0;
 
         foreach (var ship in ships)
         {
@@ -229,6 +230,8 @@ public class CargoTransferOrder : EntityCommand
             {
                 if (!ship.TryGetDataBlob<CargoStorageDB>(out var shipStorage))
                     continue;
+
+                ReleaseOrphanEscrow(shipStorage);
 
                 // Never start a WaitTillFull transfer while the hull is elsewhere
                 // (e.g. SensorSat at Earth made IsFleetAtColony true, Surveyor still at Mercury).
@@ -282,8 +285,27 @@ public class CargoTransferOrder : EntityCommand
                     continue;
                 }
 
+                long colonyUnits = CargoMath.GetUnitsStored(colonyStorage, fuel, includeEscro: false);
+                if (colonyUnits <= 0)
+                {
+                    skippedEmptyColony++;
+                    continue;
+                }
+
+                // Clear lingering warps so Movement lane is free for CargoTransfer.
+                FleetOrderCleanup.AbortShipMovementOrdersOnEntity(ship);
+
                 CreateCommands(fleet.FactionOwnerID, ship, cargoFromEntity, fuel, Conditionals.WaitTillFull, source);
-                anyIssued = true;
+
+                // CreateCommands used to always count as success even when colony escrow
+                // was 0 (instant WaitTillFull finish) or Enqueue rejected the orders.
+                bool lasting = ship.HasDataBlob<CargoTransferDB>()
+                    || (ship.TryGetDataBlob<OrderableDB>(out var afterOrders)
+                        && afterOrders.ActionList.OfType<CargoTransferOrder>().Any());
+                if (lasting)
+                    anyIssued = true;
+                else
+                    skippedVanished++;
             }
             catch (Exception ex)
             {
@@ -297,11 +319,68 @@ public class CargoTransferOrder : EntityCommand
             Pulsar4X.Api.DebugTraceLog.Warn("Refuel",
                 $"CreateRefuelFleetCommand fleet#{fleet.Id} issued=0 " +
                 $"(away={skippedAway} busy={skippedBusy} noFuel={skippedNoFuel} " +
-                $"noStore={skippedNoStore} full={skippedFull} ex={skippedEx})",
+                $"noStore={skippedNoStore} full={skippedFull} emptyColony={skippedEmptyColony} " +
+                $"vanished={skippedVanished} ex={skippedEx})",
                 fleet.IsValid ? fleet.StarSysDateTime : null);
         }
 
         return anyIssued;
+    }
+
+    /// <summary>
+    /// Dead transfers can leave EscroItems pinning cargo with no live CargoTransferDB/order.
+    /// That makes GetUnitsStored(includeEscro:false) look empty while fuel is locked away.
+    /// </summary>
+    internal static void ReleaseOrphanEscrow(CargoStorageDB storage)
+    {
+        if (storage?.EscroItems == null || storage.EscroItems.Count == 0)
+            return;
+
+        foreach (var data in storage.EscroItems.ToList())
+        {
+            if (data == null)
+                continue;
+
+            bool live = IsTransferLive(data);
+            if (live)
+                continue;
+
+            foreach (var (item, count, _) in data.EscroHeldInPrimary.ToList())
+            {
+                if (count > 0)
+                    data.PrimaryStorageDB.AddCargoByUnit(item, count);
+            }
+            data.EscroHeldInPrimary.Clear();
+
+            foreach (var (item, count, _) in data.EscroHeldInSecondary.ToList())
+            {
+                if (count > 0)
+                    data.SecondaryStorageDB.AddCargoByUnit(item, count);
+            }
+            data.EscroHeldInSecondary.Clear();
+
+            data.PrimaryStorageDB?.EscroItems.Remove(data);
+            data.SecondaryStorageDB?.EscroItems.Remove(data);
+        }
+    }
+
+    private static bool IsTransferLive(CargoTransferDataDB data)
+    {
+        if (data.PrimaryEntity is { IsValid: true } primary
+            && (primary.HasDataBlob<CargoTransferDB>()
+                || (primary.TryGetDataBlob<OrderableDB>(out var pOrders)
+                    && pOrders.ActionList.OfType<CargoTransferOrder>()
+                        .Any(o => ReferenceEquals(o.TransferData, data)))))
+            return true;
+
+        if (data.SecondaryEntity is { IsValid: true } secondary
+            && (secondary.HasDataBlob<CargoTransferDB>()
+                || (secondary.TryGetDataBlob<OrderableDB>(out var sOrders)
+                    && sOrders.ActionList.OfType<CargoTransferOrder>()
+                        .Any(o => ReferenceEquals(o.TransferData, data)))))
+            return true;
+
+        return false;
     }
 
     /// <summary>

@@ -58,12 +58,18 @@ namespace Pulsar4X.Fleets
             try
             {
                 if (!_entityCommanding.IsValid || !_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetDB))
+                {
+                    FinishHardFail(fleetDB: null, atDateTime, "invalid fleet");
                     return;
+                }
 
                 if (fleetDB.FlagShipID == -1
                     || !_entityCommanding.AttachedManager.TryGetEntityById(fleetDB.FlagShipID, out var flagship)
                     || !flagship.TryGetDataBlob<PositionDB>(out var flagshipPos))
+                {
+                    FinishHardFail(fleetDB, atDateTime, "no flagship/position");
                     return;
+                }
 
                 Entity? nearestColony = RefuelColonySearch.FindNearestColonyInSystem(
                     _entityCommanding.AttachedManager,
@@ -75,7 +81,11 @@ namespace Pulsar4X.Fleets
                 if (nearestColony == null)
                 {
                     if (orderable != null && orderable.ActionList.Any(a => a is JumpOrder))
+                    {
+                        // Prior jump already queued (e.g. previous Refuel inserted Jump+Refuel).
+                        _isFinished = true;
                         return;
+                    }
 
                     var game = _entityCommanding.AttachedManager.Game;
                     if (RefuelColonySearch.TryResolveRefuelSystemId(
@@ -100,18 +110,20 @@ namespace Pulsar4X.Fleets
                         InsertFollowUpsAfterSelf(
                             CreateJumpOrder(jumpGate, atDateTime),
                             CreateCommand(RequestingFactionGuid, _entityCommanding));
+                        _isFinished = true;
                         return;
                     }
 
-                    DebugTraceLog.Warn("Refuel",
-                        $"fleet#{_entityCommanding.Id}: no colony with fuel stores found",
-                        atDateTime);
+                    FinishHardFail(fleetDB, atDateTime, "no colony with fuel stores found");
                     return;
                 }
 
                 if (orderable != null
                     && orderable.ActionList.Any(a => a is RefuelWhenAtColonyOrder))
+                {
+                    _isFinished = true;
                     return;
+                }
 
                 // Do not abort an in-progress fuel transfer — keep a fleet waiter instead of
                 // finishing with an empty queue (that caused standing Refuel flicker).
@@ -126,6 +138,7 @@ namespace Pulsar4X.Fleets
                             RefuelWhenAtColonyOrder.CreateCommand(
                                 RequestingFactionGuid, _entityCommanding, nearestColony));
                     }
+                    _isFinished = true;
                     return;
                 }
 
@@ -141,6 +154,7 @@ namespace Pulsar4X.Fleets
                     InsertFollowUpsAfterSelf(
                         RefuelWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
+                    _isFinished = true;
                     return;
                 }
 
@@ -179,13 +193,29 @@ namespace Pulsar4X.Fleets
                         RefuelWhenAtColonyOrder.CreateCommand(
                             RequestingFactionGuid, _entityCommanding, nearestColony));
                 }
-            }
-            finally
-            {
-                // Always complete so a missing colony cannot block the queue forever.
-                // Warp + RefuelWhenAtColony continue on the fleet queue.
+
                 _isFinished = true;
             }
+            catch (Exception ex)
+            {
+                DebugTraceLog.Warn("Refuel",
+                    $"fleet#{_entityCommanding.Id}: exception — {ex.Message}",
+                    atDateTime);
+                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var failDb))
+                    FinishHardFail(failDb, atDateTime, "exception");
+                else
+                    _isFinished = true;
+            }
+        }
+
+        private void FinishHardFail(FleetDB? fleetDB, DateTime atDateTime, string reason)
+        {
+            DebugTraceLog.Warn("Refuel",
+                $"fleet#{_entityCommanding.Id}: {reason} — suppressing standing for 1d",
+                atDateTime);
+            if (fleetDB != null)
+                fleetDB.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
+            _isFinished = true;
         }
 
         private static bool FleetShipsHaveActiveFuelTransfer(Entity fleet)
@@ -253,6 +283,11 @@ namespace Pulsar4X.Fleets
                 var cmd = followUps[i];
                 cmd.UseActionLanes = true;
                 cmd.Source = Source; // keep Standing vs Issued with the parent Refuel action
+                cmd.BindCommandingEntity(_entityCommanding);
+                // JumpOrder (and others) only resolve live Entity refs in IsValidCommand.
+                var game = _entityCommanding.AttachedManager?.Game;
+                if (game != null)
+                    cmd.IsValidCommand(game);
                 orderable.ActionList.Insert(selfIndex + 1 + i, cmd);
             }
         }

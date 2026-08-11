@@ -637,7 +637,7 @@
       "UniqueID": "colony-fuel-storage",
       "Name": "Colony Fuel Farm",
       "Formulas": {
-        "Description": "Large planetary fuel depot for colony storage and ship refueling",
+        "Description": "Large planetary fuel depot for colony storage and ship refueling. Stores fuel only — produce fuels at a Refinery.",
         "Mass": "PropertyValue('Dry Weight')",
         "Volume": "PropertyValue('Tank Volume')",
         "HTK": "0.5",
@@ -1216,7 +1216,7 @@
       "UniqueID": "coal-power-plant",
       "Name": "Coal Power Plant",
       "Formulas": {
-        "Description": "Baseline colony power plant. Constant electrical output into colony batteries.",
+        "Description": "Starter colony power plant with constant output into colony batteries. Does not consume fuel (baseline free power for early game).",
         "Mass": "PropertyValue('Size') * 50000",
         "Volume": "PropertyValue('Size') * 20",
         "HTK": "0.5",

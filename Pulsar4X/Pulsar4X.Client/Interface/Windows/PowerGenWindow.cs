@@ -53,24 +53,34 @@ namespace Pulsar4X.Client
             if (Window.Begin("Power Display " + entityName, ref IsActive, _flags))
             {
                 ImGui.Text("Current Load: ");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Current load on this entity's power system.");
                 ImGui.SameLine();
                 ImGui.Text(energy.Load.ToString());
 
                 ImGui.Text("Current Output: ");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Current power output versus maximum rated output.");
                 ImGui.SameLine();
                 ImGui.Text(energy.Output.ToString() + " / " + energy.MaxOutput);
 
                 ImGui.Text("Current Demand: ");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Power currently demanded by systems and components.");
                 ImGui.SameLine();
                 ImGui.Text(energy.Demand.ToString());
 
                 ImGui.Text("Stored: ");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Energy currently stored in batteries versus capacity.");
                 ImGui.SameLine();
                 ImGui.Text($"{energy.Stored:N0} / {energy.StoreMax:N0} ({energy.StoredPercent:0.#}%)");
 
                 if (energy.AcceptRateKW > 0)
                 {
                     ImGui.Text("Dock Accept Rate: ");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Maximum rate at which this entity can accept dock recharge from a colony or station.");
                     ImGui.SameLine();
                     ImGui.Text($"{energy.AcceptRateKW:N1} kW");
                     if (energy.StoreMax > energy.Stored && energy.AcceptRateKW > 0)

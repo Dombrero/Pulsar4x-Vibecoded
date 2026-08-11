@@ -75,14 +75,17 @@ namespace Pulsar4X.Client
             var histFull = power.Histogram;
             var hist = DownsampleForChart(WindowHistogram(histFull, historyHours));
             TrendCard("Generation", $"{power.GenerationKW:N0} kW", Gen,
-                hist.Select(h => (float)h.GenerationKW).ToArray(), trendW, trendH);
+                hist.Select(h => (float)h.GenerationKW).ToArray(), trendW, trendH,
+                "Total electrical power currently produced by colony generators.");
             ImGui.SameLine();
             TrendCard("Demand", $"{power.DemandKW + DockTotal(power):N0} kW", Load,
-                hist.Select(h => (float)(h.DemandKW + h.DockKW)).ToArray(), trendW, trendH);
+                hist.Select(h => (float)(h.DemandKW + h.DockKW)).ToArray(), trendW, trendH,
+                "Total power demand from installations and docked ships.");
             ImGui.SameLine();
             float[] socSeries = hist.Select(h =>
                 power.CapacityKJ > 0 ? (float)(100.0 * h.StoredKJ / power.CapacityKJ) : 0f).ToArray();
-            TrendCard("Battery SOC", $"{power.StoredPercent:0.#}%", Soc, socSeries, trendW, trendH);
+            TrendCard("Battery SOC", $"{power.StoredPercent:0.#}%", Soc, socSeries, trendW, trendH,
+                "State of charge — stored energy as a percentage of battery capacity.");
 
             ImGui.Spacing();
 
@@ -214,6 +217,8 @@ namespace Pulsar4X.Client
                     if (!plant.IsEnabled)
                         ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
                     ImGui.TextUnformatted(plant.Name);
+                    DisplayHelpers.DescriptiveTooltip(plant.Name, "Generator",
+                        "Installed power plant. Output is its current contribution to colony generation.");
                     if (!plant.IsEnabled)
                     {
                         ImGui.SameLine();
@@ -266,6 +271,10 @@ namespace Pulsar4X.Client
             if (!load.IsEnabled)
                 ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
             ImGui.TextUnformatted(load.Name);
+            DisplayHelpers.DescriptiveTooltip(load.Name, dock ? "Dock consumer" : "Consumer",
+                dock
+                    ? "Ship drawing dock recharge from this colony's batteries."
+                    : "Installation drawing power from the colony grid.");
             if (dock)
             {
                 ImGui.SameLine();
@@ -296,9 +305,22 @@ namespace Pulsar4X.Client
             ImGui.SameLine();
             ImGui.Checkbox("Active only", ref _activeOnly);
             ImGui.SameLine();
-            ImGui.TextDisabled(
-                $"Net {(power.GenerationKW - power.DemandKW - DockTotal(power) >= 0 ? "+" : "")}{power.GenerationKW - power.DemandKW - DockTotal(power):N0} kW  ·  " +
-                $"Dock {DockTotal(power):N0} kW  ·  Eff {power.PowerEfficiency * 100:0.#}%");
+            double net = power.GenerationKW - power.DemandKW - DockTotal(power);
+            ImGui.TextDisabled($"Net {(net >= 0 ? "+" : "")}{net:N0} kW");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Net power balance: generation minus facility demand and dock draw.\nPositive means surplus that can charge batteries.");
+            ImGui.SameLine();
+            ImGui.TextDisabled("·");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"Dock {DockTotal(power):N0} kW");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Power currently drawn by docked ships recharging from this colony.");
+            ImGui.SameLine();
+            ImGui.TextDisabled("·");
+            ImGui.SameLine();
+            ImGui.TextDisabled($"Eff {power.PowerEfficiency * 100:0.#}%");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Fraction of power-gated production that can run given current supply.\nBelow 100% when the colony is undersupplied.");
         }
 
         private void DrawHistoryRangeSelector(int samplesAvailable)
@@ -408,11 +430,13 @@ namespace Pulsar4X.Client
             return list.OrderByDescending(d => d.KW).ToList();
         }
 
-        private static void TrendCard(string title, string value, Vector4 color, float[] series, float width, float height)
+        private static void TrendCard(string title, string value, Vector4 color, float[] series, float width, float height, string? tooltip = null)
         {
             var draw = ImGui.GetWindowDrawList();
             var p0 = ImGui.GetCursorScreenPos();
             ImGui.InvisibleButton("##trend" + title, new Vector2(width, height));
+            if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
+                ImGui.SetTooltip(tooltip);
             var p1 = new Vector2(p0.X + width, p0.Y + height);
 
             draw.AddRectFilled(p0, p1, ImGui.ColorConvertFloat4ToU32(CardBg), 4f);
@@ -536,6 +560,8 @@ namespace Pulsar4X.Client
             var draw = ImGui.GetWindowDrawList();
             var p0 = ImGui.GetCursorScreenPos();
             ImGui.InvisibleButton("##dev" + device.Name, new Vector2(width, height));
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(device.Name);
             var p1 = new Vector2(p0.X + width, p0.Y + height);
             draw.AddRectFilled(p0, p1, ImGui.ColorConvertFloat4ToU32(CardBg), 4f);
 

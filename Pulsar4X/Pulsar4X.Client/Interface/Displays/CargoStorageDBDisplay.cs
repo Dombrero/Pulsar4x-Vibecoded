@@ -17,7 +17,10 @@ namespace Pulsar4X.Client
                 string header = store.TypeName + " Storage (" + percent.ToString("0.#") + "% full)";
 
                 ImGui.PushID(holderId.ToString());
-                if (ImGui.CollapsingHeader(header + "###" + store.TypeId, flags))
+                bool storeOpen = ImGui.CollapsingHeader(header + "###" + store.TypeId, flags);
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip(StoreTypeTooltip(store.TypeName, store.TypeId));
+                if (storeOpen)
                 {
                     ImGui.Columns(2);
                     DisplayHelpers.PrintRow("Total Volume", Stringify.VolumeLtr(store.MaxVolume));
@@ -31,13 +34,28 @@ namespace Pulsar4X.Client
                         ImGui.TableSetupColumn("Volume");
                         ImGui.TableHeadersRow();
 
+                        bool isFuelStore = store.TypeId.Contains("fuel", StringComparison.OrdinalIgnoreCase)
+                            || store.TypeName.Equals("Fuel", StringComparison.OrdinalIgnoreCase);
+
                         foreach (var item in store.Items)
                         {
                             ImGui.TableNextColumn();
                             if (ImGui.Selectable(item.Name, false, ImGuiSelectableFlags.SpanAllColumns)) { }
                             if (item.ItemKind.Length > 0)
                             {
-                                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
+                                string description = item.Description;
+                                if (isFuelStore && !string.IsNullOrEmpty(description))
+                                    description += "\n\nFuel type — used for ship propulsion and reactor feed.";
+                                else if (isFuelStore)
+                                    description = "Fuel type — used for ship propulsion and reactor feed.";
+                                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, description);
+                            }
+                            else
+                            {
+                                string fallback = isFuelStore
+                                    ? "Fuel type — used for ship propulsion and reactor feed."
+                                    : (string.IsNullOrEmpty(item.Description) ? "Cargo item in " + store.TypeName + " storage." : item.Description);
+                                DisplayHelpers.DescriptiveTooltip(item.Name, store.TypeName, fallback);
                             }
                             if (item.CanInstall)
                             {
@@ -69,6 +87,29 @@ namespace Pulsar4X.Client
                 }
                 ImGui.PopID();
             }
+        }
+
+        private static string StoreTypeTooltip(string typeName, string typeId)
+        {
+            if (typeId.Contains("general", StringComparison.OrdinalIgnoreCase)
+                || typeName.Equals("General", StringComparison.OrdinalIgnoreCase))
+                return "General storage for minerals, materials, components and other bulk cargo.";
+            if (typeId.Contains("fuel", StringComparison.OrdinalIgnoreCase)
+                || typeName.Equals("Fuel", StringComparison.OrdinalIgnoreCase))
+                return "Fuel storage for propellant and reactor fuel types used by ships.";
+            if (typeId.Contains("battery", StringComparison.OrdinalIgnoreCase)
+                || typeName.Equals("Battery", StringComparison.OrdinalIgnoreCase))
+                return "Battery storage for electrical energy (colony or ship power reserves).";
+            if (typeId.Contains("ordnance", StringComparison.OrdinalIgnoreCase)
+                || typeName.Contains("Ordnance", StringComparison.OrdinalIgnoreCase))
+                return "Ordnance storage for ammunition, missiles and related munitions.";
+            if (typeId.Contains("cryogenic", StringComparison.OrdinalIgnoreCase)
+                || typeName.Contains("Cryogenic", StringComparison.OrdinalIgnoreCase))
+                return "Cryogenic storage for frozen personnel.";
+            if (typeId.Contains("passenger", StringComparison.OrdinalIgnoreCase)
+                || typeName.Contains("Passenger", StringComparison.OrdinalIgnoreCase))
+                return "Passenger storage for people in transit.";
+            return typeName + " cargo storage on this entity.";
         }
 
         private static void AddContextMenu(Pulsar4X.Api.CargoItemView item, int holderId, GlobalUIState uiState)

@@ -4,6 +4,8 @@ using Pulsar4X.Colonies;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
+using Pulsar4X.Extensions;
+using Pulsar4X.Factions;
 using Pulsar4X.Storage;
 
 namespace Pulsar4X.Fleets
@@ -101,6 +103,8 @@ namespace Pulsar4X.Fleets
                 if (!ok)
                 {
                     FleetOrderCleanup.AbortCargoTransfersOnFleetShips(_entityCommanding);
+                    if (_colony.TryGetDataBlob<CargoStorageDB>(out var colonyStore))
+                        CargoTransferOrder.ReleaseOrphanEscrow(colonyStore);
                     ok = CargoTransferOrder.CreateRefuelFleetCommand(_colony, _entityCommanding, Source);
                 }
 
@@ -118,14 +122,7 @@ namespace Pulsar4X.Fleets
                         DebugTraceLog.Warn("Refuel",
                             $"fleet#{_entityCommanding.Id}: CreateRefuel returned ok but no ship transfers — giving up at colony#{_colony.Id}",
                             atDateTime);
-                        // Release Refuel commitment so suppress expiry resumes survey,
-                        // not "restart [0] Refuel — still needs action" every day.
-                        if (_entityCommanding.TryGetDataBlob<FleetDB>(out var emptyIssueDb))
-                        {
-                            emptyIssueDb.ActiveStandingOrderIndex = -1;
-                            emptyIssueDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
-                        }
-                        _gaveUp = true;
+                        GiveUpRefuel(atDateTime, "transfer vanished immediately");
                         return;
                     }
 
@@ -154,20 +151,11 @@ namespace Pulsar4X.Fleets
                     return;
                 }
 
-                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
-                {
-                    suppressDb.ActiveStandingOrderIndex = -1;
-                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
-                    DebugTraceLog.Warn("Refuel",
-                        $"fleet#{_entityCommanding.Id}: refuel issue failed at colony#{_colony.Id} — " +
-                        $"suppress standing until {suppressDb.StandingSuppressUntil.Value:yyyy-MM-dd HH:mm}",
-                        atDateTime);
-                }
-
-                DebugTraceLog.Info("Refuel",
-                    $"fleet#{_entityCommanding.Id}: issued refuel transfers from colony#{_colony.Id} success=False",
+                string reason = DescribeColonyFuelShortage(_colony, _entityCommanding);
+                GiveUpRefuel(atDateTime, reason);
+                DebugTraceLog.Warn("Refuel",
+                    $"fleet#{_entityCommanding.Id}: refuel issue failed at colony#{_colony.Id} — {reason}",
                     atDateTime);
-                _gaveUp = true;
             }
             catch (Exception ex)
             {
@@ -175,13 +163,46 @@ namespace Pulsar4X.Fleets
                     $"fleet#{_entityCommanding.Id}: CreateRefuelFleetCommand failed: {ex.Message}",
                     atDateTime);
                 System.Diagnostics.Debug.WriteLine($"RefuelWhenAtColony failed: {ex}");
-                if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
-                {
-                    suppressDb.ActiveStandingOrderIndex = -1;
-                    suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
-                }
-                _gaveUp = true;
+                GiveUpRefuel(atDateTime, "exception");
             }
+        }
+
+        private void GiveUpRefuel(DateTime atDateTime, string reason)
+        {
+            if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+            {
+                suppressDb.ActiveStandingOrderIndex = -1;
+                // Empty colony / vanished transfer: back off a week so we don't spam every 2 days.
+                suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(7);
+                suppressDb.StandingStatusMessage = $"Can't refuel at colony — {reason}";
+            }
+            _gaveUp = true;
+        }
+
+        private static string DescribeColonyFuelShortage(Entity colony, Entity fleet)
+        {
+            if (!colony.TryGetDataBlob<CargoStorageDB>(out var colonyStore))
+                return "colony has no cargo storage";
+
+            try
+            {
+                var cargoLibrary = fleet.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data.CargoGoods;
+                foreach (var ship in FleetFuel.ShipsNeedingRefuel(fleet))
+                {
+                    var (fuel, _) = ship.GetFuelInfo(cargoLibrary);
+                    if (fuel == null)
+                        continue;
+                    long units = CargoMath.GetUnitsStored(colonyStore, fuel, includeEscro: false);
+                    if (units <= 0)
+                        return $"colony has 0 {fuel.UniqueID} (ships need it)";
+                }
+            }
+            catch
+            {
+                // fall through
+            }
+
+            return "no lasting transfers (see CreateRefuelFleetCommand log)";
         }
 
         internal override bool IsValidCommand(Game game)

@@ -466,6 +466,7 @@ namespace Pulsar4X.Engine
 
                 DateTime previousStep = StarSysDateTime;
                 StarSysDateTime = _subStepDateTime; //update the localDateTime and invoke the SystemDateChangedEvent
+                _game!.TimePulse.ReportSubpulseProgress(StarSysDateTime);
                 _subStepDateTime = GetNextInterupt(_processToDateTime - _subStepDateTime);
 
                 // Need to run this on each sub-step otherwise processors will continue to be called on subsequent sub-steps when they shouldn't

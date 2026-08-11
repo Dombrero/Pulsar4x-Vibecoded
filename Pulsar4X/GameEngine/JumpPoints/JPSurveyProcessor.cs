@@ -135,6 +135,8 @@ public class JPSurveyProcessor : IHotloopProcessor
 
             // Show the jump point to the faction that just completed the survey
             jp.OwningEntity.AttachedManager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, jp.OwningEntity.Id);
+            JumpPointKnowledge.RegisterForFactionId(
+                discoveringEntity.AttachedManager.Game, discoveringEntity.FactionOwnerID, jp.OwningEntity);
 
             DebugTraceLog.Info("Standing",
                 $"Jump Point discovered at anomaly (chance={chance:0.##}, roll={roll:0.##}, " +
@@ -240,6 +242,10 @@ public class JPSurveyProcessor : IHotloopProcessor
             {
                 destinationDB.IsDiscovered.Add(discoveringEntity.FactionOwnerID);
                 destinationEntity.AttachedManager.ShowNeutralEntityToFaction(discoveringEntity.FactionOwnerID, destinationEntity.Id);
+                JumpPointKnowledge.RegisterForFactionId(
+                    discoveringEntity.AttachedManager.Game, discoveringEntity.FactionOwnerID, destinationEntity);
+                JumpPointKnowledge.RegisterForFactionId(
+                    discoveringEntity.AttachedManager.Game, discoveringEntity.FactionOwnerID, jumpPointDB.OwningEntity);
 
                 EventManager.Instance.Publish(
                     Event.Create(

@@ -8,6 +8,7 @@ using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Extensions;
+using Pulsar4X.JumpPoints;
 using Pulsar4X.Movement;
 using Pulsar4X.Ships;
 
@@ -116,9 +117,53 @@ namespace Pulsar4X.Fleets
 
                 if (nearestColony == null)
                 {
+                    _entityCommanding.TryGetDataBlob<OrderableDB>(out var orderableNoColony);
+                    if (orderableNoColony != null && orderableNoColony.ActionList.Any(a => a is JumpOrder))
+                    {
+                        _isFinished = true;
+                        return;
+                    }
+
+                    if (_entityCommanding.TryGetDataBlob<FleetDB>(out var fleetForJump)
+                        && RefuelColonySearch.TryResolveRefuelSystemId(
+                            _entityCommanding.AttachedManager.Game,
+                            _entityCommanding,
+                            RequestingFactionGuid,
+                            fleetForJump,
+                            out var targetSystemId)
+                        && RefuelColonySearch.TryFindJumpGateTowardSystem(
+                            _entityCommanding.AttachedManager.Game,
+                            _entityCommanding,
+                            RequestingFactionGuid,
+                            targetSystemId,
+                            flagshipPos,
+                            out var jumpGate)
+                        && jumpGate != null)
+                    {
+                        DebugTraceLog.Info("Recharge",
+                            $"fleet#{_entityCommanding.Id}: no local power colony — jump toward {targetSystemId}",
+                            atDateTime);
+                        InsertFollowUpsAfterSelf(
+                            new JumpOrder
+                            {
+                                UseActionLanes = true,
+                                RequestingFactionGuid = RequestingFactionGuid,
+                                EntityCommandingGuid = _entityCommanding.Id,
+                                CreatedDate = atDateTime,
+                                JumpGate = jumpGate,
+                                Source = Source,
+                            },
+                            CreateCommand(RequestingFactionGuid, _entityCommanding));
+                        _isFinished = true;
+                        return;
+                    }
+
                     DebugTraceLog.Warn("Recharge",
-                        $"fleet#{_entityCommanding.Id}: no colony with power stores found",
+                        $"fleet#{_entityCommanding.Id}: no colony with power stores found — suppressing standing 1d",
                         atDateTime);
+                    if (_entityCommanding.TryGetDataBlob<FleetDB>(out var suppressDb))
+                        suppressDb.StandingSuppressUntil = atDateTime + TimeSpan.FromDays(1);
+                    _isFinished = true;
                     return;
                 }
 
@@ -221,6 +266,10 @@ namespace Pulsar4X.Fleets
                 var cmd = followUps[i];
                 cmd.UseActionLanes = true;
                 cmd.Source = Source;
+                cmd.BindCommandingEntity(_entityCommanding);
+                var game = _entityCommanding.AttachedManager?.Game;
+                if (game != null)
+                    cmd.IsValidCommand(game);
                 orderable.ActionList.Insert(selfIndex + 1 + i, cmd);
             }
         }

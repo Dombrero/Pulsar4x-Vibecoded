@@ -126,6 +126,90 @@ namespace Pulsar4X.Engine
 
         [JsonProperty]
         public TimeSpan LastSubtickTime { get; internal set; } = TimeSpan.Zero;
+
+        /// <summary>Start of the tick currently being simulated (inclusive).</summary>
+        [JsonIgnore]
+        public DateTime CurrentTickStart { get; private set; }
+
+        /// <summary>End of the tick currently being simulated (exclusive target).</summary>
+        [JsonIgnore]
+        public DateTime CurrentTickTarget { get; private set; }
+
+        /// <summary>0–1 sim progress through <see cref="CurrentTickStart"/>…<see cref="CurrentTickTarget"/>.</summary>
+        [JsonIgnore]
+        public double CurrentTickProgress { get; private set; }
+
+        /// <summary>Raised (throttled) when <see cref="CurrentTickProgress"/> advances during ProcessSystem.</summary>
+        public event Action? TickProgressChanged;
+
+        private readonly object _tickProgressLock = new();
+        private readonly Stopwatch _tickProgressThrottle = new();
+        private double _lastEmittedTickProgress = -1;
+
+        /// <summary>
+        /// Called from system subpulses while a long tick is processing. Takes the max across
+        /// parallel systems and throttles UI notifications (~15 Hz / 0.5% steps).
+        /// </summary>
+        internal void ReportSubpulseProgress(DateTime systemLocalDate)
+        {
+            if (CurrentTickTarget <= CurrentTickStart)
+                return;
+
+            double totalSec = (CurrentTickTarget - CurrentTickStart).TotalSeconds;
+            if (totalSec <= 0)
+                return;
+
+            double p = Math.Clamp((systemLocalDate - CurrentTickStart).TotalSeconds / totalSec, 0.0, 1.0);
+            bool emit = false;
+            lock (_tickProgressLock)
+            {
+                if (p + 1e-9 < CurrentTickProgress)
+                    return;
+                CurrentTickProgress = p;
+
+                if (!_tickProgressThrottle.IsRunning)
+                    _tickProgressThrottle.Start();
+
+                bool enoughTime = _tickProgressThrottle.ElapsedMilliseconds >= 66;
+                bool enoughDelta = p - _lastEmittedTickProgress >= 0.005 || p >= 0.999;
+                if (enoughTime && enoughDelta)
+                {
+                    _lastEmittedTickProgress = p;
+                    _tickProgressThrottle.Restart();
+                    emit = true;
+                }
+            }
+
+            if (emit)
+                TickProgressChanged?.Invoke();
+        }
+
+        private void BeginTickProgress(DateTime targetDateTime)
+        {
+            lock (_tickProgressLock)
+            {
+                CurrentTickStart = GameGlobalDateTime;
+                CurrentTickTarget = targetDateTime;
+                CurrentTickProgress = 0;
+                _lastEmittedTickProgress = -1;
+                _tickProgressThrottle.Restart();
+            }
+            TickProgressChanged?.Invoke();
+        }
+
+        private void EndTickProgress()
+        {
+            lock (_tickProgressLock)
+            {
+                CurrentTickProgress = 0;
+                CurrentTickStart = default;
+                CurrentTickTarget = default;
+                _lastEmittedTickProgress = -1;
+                _tickProgressThrottle.Reset();
+            }
+            TickProgressChanged?.Invoke();
+        }
+
         /// <summary>
         /// This invokes the DateChangedEvent.
         /// </summary>
@@ -332,6 +416,7 @@ namespace Pulsar4X.Engine
         private void SimulateTimeUntil(DateTime targetDateTime, CancellationToken ct = default)
         {
             _stopwatch.Start(); //start the processor loop stopwatch (performance counter)
+            BeginTickProgress(targetDateTime);
 
             // If a cancellation is signalled, stop the time advance the next time an interrupt happens.
             while (GameGlobalDateTime < targetDateTime && !ct.IsCancellationRequested)
@@ -382,11 +467,13 @@ namespace Pulsar4X.Engine
 
                 LastSubtickTime = _subpulseStopwatch.Elapsed;
                 GameGlobalDateTime = nextInterupt; //set the GlobalDateTime this will invoke the datechange event.
+                ReportSubpulseProgress(nextInterupt);
                 _subpulseStopwatch.Reset();
             }
 
             LastProcessingTime = _stopwatch.Elapsed; //how long the processing took
             _stopwatch.Reset();
+            EndTickProgress();
         }
 
         private DateTime ProcessNextInterupt(DateTime maxDateTime)

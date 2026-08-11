@@ -29,7 +29,7 @@
           "DescriptionFormula": "'Larger cargo holds store more goods'",
           "GuiHint": "GuiSelectionMaxMinInt",
           "DataDict": {},
-          "MaxFormula": "10000",
+          "MaxFormula": "1000000",
           "MinFormula": "10",
           "StepFormula": "100",
           "PropertyFormula": "500"

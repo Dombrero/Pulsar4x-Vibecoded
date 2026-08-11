@@ -284,7 +284,7 @@
     "Payload": {
       "UniqueId": "default-design-missle-sensors",
       "Name": "Passive Yellow Sensor 1MP",
-      "TemplateId": "missle-electronics-suite",
+      "TemplateId": "missile-electronics-suite",
       "Properties": [
         { "Key": "Antenna Size", "Value": 10 },
         { "Key": "Ideal Detection Wavelength", "Value": 470 },
@@ -299,7 +299,7 @@
     "Payload": {
       "UniqueId": "default-design-prox-frag-5kg",
       "Name": "Prox Frag 5kg",
-      "TemplateId": "missle-payload",
+      "TemplateId": "missile-payload",
       "Properties": [
         { "Key": "Trigger Type", "Value": 2 },
         { "Key": "Payload Type", "Value": 0 },

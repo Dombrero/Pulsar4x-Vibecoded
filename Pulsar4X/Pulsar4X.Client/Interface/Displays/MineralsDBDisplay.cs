@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using ImGuiNET;
 
 namespace Pulsar4X.Client
@@ -22,21 +20,32 @@ namespace Pulsar4X.Client
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.Text(deposit.Name);
+                    if (ImGui.IsItemHovered())
+                        DisplayHelpers.DescriptiveTooltip(deposit.Name, "Mineral", "Mineral deposit surveyed on this body.");
+
                     ImGui.TableNextColumn();
                     switch (deposit.Access)
                     {
                         case Pulsar4X.Api.DepositAccess.None:
                             ImGui.Text("Uknown");
+                            if (ImGui.IsItemHovered())
+                                ImGui.SetTooltip("Deposit amount is unknown — survey coverage is insufficient.");
                             break;
                         case Pulsar4X.Api.DepositAccess.Partial:
                             ImGui.Text("~" + deposit.Amount.ToString("#,###,###,###,###,###,##0"));
+                            if (ImGui.IsItemHovered())
+                                ImGui.SetTooltip("Estimated amount of " + deposit.Name + " available to mine.\nPartial survey — value may be inaccurate.");
                             break;
                         case Pulsar4X.Api.DepositAccess.Full:
                             ImGui.Text(deposit.Amount.ToString("#,###,###,###,###,###,##0"));
+                            if (ImGui.IsItemHovered())
+                                ImGui.SetTooltip("Amount of " + deposit.Name + " available that can be mined from this body.");
                             break;
                     }
                     ImGui.TableNextColumn();
                     ImGui.Text(deposit.Accessibility.ToString("0.00"));
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("How easy it is to mine " + deposit.Name + " from this body.\n\n1.0 = easiest\n0.0 = hardest");
                 }
 
                 ImGui.EndTable();

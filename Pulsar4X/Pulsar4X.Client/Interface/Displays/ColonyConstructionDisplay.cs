@@ -145,6 +145,9 @@ namespace Pulsar4X.Client
 
                     // Item name
                     ImGui.Text(job.Name);
+                    if (ImGui.IsItemHovered())
+                        DisplayHelpers.DescriptiveTooltip(job.Name, job.ComponentType,
+                            $"Construction queue item.\nCost: {job.IndustryPointCosts:N0} construction points\nProgress: {job.PointsAccumulated:N0} / {job.IndustryPointCosts:N0}");
 
                     // Component type
                     ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);

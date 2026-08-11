@@ -9844,7 +9844,8 @@
             "Commanders": [],
             "HaltsOnEvent": {
               "$type": "System.Collections.Generic.Dictionary`2[[Pulsar4X.Events.EventType, GameEngine],[System.Boolean, System.Private.CoreLib]], System.Private.CoreLib",
-              "OrdersHalt": true
+              "OrdersHalt": true,
+              "OrdersNotPossible": true
             },
             "FactionAccessRoles": {
               "$id": "943",
@@ -15944,10 +15945,7 @@
               },
               "LockedIndustryTypes": {
                 "$id": "1558",
-                "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[Pulsar4X.Blueprints.IndustryTypeBlueprint, GameEngine]], System.Private.CoreLib",
-                "ordnance-construction": {
-                  "$ref": "766"
-                }
+                "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[Pulsar4X.Blueprints.IndustryTypeBlueprint, GameEngine]], System.Private.CoreLib"
               },
               "LockedTechs": {
                 "$id": "1559",
@@ -16150,6 +16148,9 @@
                 },
                 "ship-assembly": {
                   "$ref": "767"
+                },
+                "ordnance-construction": {
+                  "$ref": "766"
                 }
               },
               "Techs": {
@@ -18195,10 +18196,7 @@
                 "$type": "Pulsar4X.Storage.CargoDefinitionsLibrary, GameEngine",
                 "_definitions": {
                   "$id": "1692",
-                  "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[Pulsar4X.Storage.ICargoable, GameEngine]], System.Private.CoreLib",
-                  "7": {
-                    "$ref": "928"
-                  }
+                  "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[Pulsar4X.Storage.ICargoable, GameEngine]], System.Private.CoreLib"
                 },
                 "_minerals": {
                   "$id": "1693",
@@ -18206,10 +18204,7 @@
                 },
                 "_processedMaterials": {
                   "$id": "1694",
-                  "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[Pulsar4X.Industry.ProcessedMaterial, GameEngine]], System.Private.CoreLib",
-                  "7": {
-                    "$ref": "928"
-                  }
+                  "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[Pulsar4X.Industry.ProcessedMaterial, GameEngine]], System.Private.CoreLib"
                 }
               },
               "CargoGoods": {
@@ -18403,6 +18398,9 @@
                   },
                   "62": {
                     "$ref": "1502"
+                  },
+                  "7": {
+                    "$ref": "928"
                   }
                 },
                 "_minerals": {
@@ -18483,6 +18481,9 @@
                   },
                   "8": {
                     "$ref": "931"
+                  },
+                  "7": {
+                    "$ref": "928"
                   }
                 }
               }
@@ -18565,7 +18566,8 @@
             ],
             "HaltsOnEvent": {
               "$type": "System.Collections.Generic.Dictionary`2[[Pulsar4X.Events.EventType, GameEngine],[System.Boolean, System.Private.CoreLib]], System.Private.CoreLib",
-              "OrdersHalt": true
+              "OrdersHalt": true,
+              "OrdersNotPossible": true
             },
             "FactionAccessRoles": {
               "$id": "1708",
@@ -19333,7 +19335,7 @@
             "MassDry": 1.0020972305153515E+25,
             "MassTotal": 1.0020972305153515E+25,
             "Volume_km3": 1375498981.263484,
-            "DensityDry_gcm": 7.2853360428872245,
+            "DensityDry_gcm": 7.285336042887225,
             "RadiusInAU": 4.611743471737786E-05
           },
           "7": {
@@ -23288,7 +23290,7 @@
             "MassDry": 7.3857664069697255E+25,
             "MassTotal": 7.3857664069697255E+25,
             "Volume_km3": 16890288422.8959,
-            "DensityDry_gcm": 4.372788801497218,
+            "DensityDry_gcm": 4.372788801497219,
             "RadiusInAU": 0.0001063956990910526
           },
           "59": {
@@ -23441,7 +23443,7 @@
             "MassDry": 833326231629273.9,
             "MassTotal": 833326231629273.9,
             "Volume_km3": 1.6079299820940671,
-            "DensityDry_gcm": 0.518260273089754,
+            "DensityDry_gcm": 0.5182602730897541,
             "RadiusInAU": 4.8581109462310445E-08
           },
           "76": {
@@ -31802,7 +31804,7 @@
             "MassDry": 1.3902910756386398E+25,
             "MassTotal": 1.3902910756386398E+25,
             "Volume_km3": 3241540689.959367,
-            "DensityDry_gcm": 4.288982334681315,
+            "DensityDry_gcm": 4.288982334681316,
             "RadiusInAU": 6.13708600892734E-05
           },
           "101": {
@@ -32000,7 +32002,7 @@
             "MassDry": 5.369036207675205E+19,
             "MassTotal": 5.369036207675205E+19,
             "Volume_km3": 9619.522970322163,
-            "DensityDry_gcm": 5.5813954852434815,
+            "DensityDry_gcm": 5.581395485243482,
             "RadiusInAU": 8.81920753914917E-07
           },
           "123": {
@@ -32054,7 +32056,7 @@
             "MassDry": 9.069986327490764E+18,
             "MassTotal": 9.069986327490764E+18,
             "Volume_km3": 2842.530962241742,
-            "DensityDry_gcm": 3.190813555936709,
+            "DensityDry_gcm": 3.1908135559367095,
             "RadiusInAU": 5.874173712923237E-07
           },
           "129": {
@@ -32072,7 +32074,7 @@
             "MassDry": 5.6761865303087915E+19,
             "MassTotal": 5.6761865303087915E+19,
             "Volume_km3": 15906.988780680455,
-            "DensityDry_gcm": 3.5683601771334015,
+            "DensityDry_gcm": 3.5683601771334024,
             "RadiusInAU": 1.0428960976205005E-06
           },
           "131": {
@@ -32144,7 +32146,7 @@
             "MassDry": 4.9525769610428604E+19,
             "MassTotal": 4.9525769610428604E+19,
             "Volume_km3": 9425.378379418557,
-            "DensityDry_gcm": 5.254512616551723,
+            "DensityDry_gcm": 5.254512616551724,
             "RadiusInAU": 8.759473076498162E-07
           },
           "139": {
@@ -47139,7 +47141,7 @@
             "MassDry": 4.687033243582506E+19,
             "MassTotal": 4.687033243582506E+19,
             "Volume_km3": 24110.94586446305,
-            "DensityDry_gcm": 1.943944161266063,
+            "DensityDry_gcm": 1.9439441612660635,
             "RadiusInAU": 1.1979806411772696E-06
           },
           "222": {
@@ -47517,7 +47519,7 @@
             "MassDry": 8.595492250581082E+19,
             "MassTotal": 8.595492250581082E+19,
             "Volume_km3": 24148.821613117103,
-            "DensityDry_gcm": 3.5593837199543543,
+            "DensityDry_gcm": 3.5593837199543548,
             "RadiusInAU": 1.1986076133299687E-06
           },
           "264": {
@@ -47580,7 +47582,7 @@
             "MassDry": 3.6640546804728705E+19,
             "MassTotal": 3.6640546804728705E+19,
             "Volume_km3": 12679.64518532613,
-            "DensityDry_gcm": 2.8897138894022056,
+            "DensityDry_gcm": 2.8897138894022065,
             "RadiusInAU": 9.669724135726095E-07
           },
           "271": {
@@ -47652,7 +47654,7 @@
             "MassDry": 8.726622965572972E+19,
             "MassTotal": 8.726622965572972E+19,
             "Volume_km3": 16624.79498777379,
-            "DensityDry_gcm": 5.2491612510053285,
+            "DensityDry_gcm": 5.249161251005329,
             "RadiusInAU": 1.058352849925243E-06
           },
           "279": {
@@ -47778,7 +47780,7 @@
             "MassDry": 486674279205815.0,
             "MassTotal": 486674279205815.0,
             "Volume_km3": 1.1750658070659032,
-            "DensityDry_gcm": 0.4141676800391488,
+            "DensityDry_gcm": 0.41416768003914883,
             "RadiusInAU": 4.3758837966573495E-08
           },
           "293": {
@@ -60518,7 +60520,7 @@
             "MassDry": 259295858740478.7,
             "MassTotal": 259295858740478.7,
             "Volume_km3": 0.5908395966619512,
-            "DensityDry_gcm": 0.4388599887438399,
+            "DensityDry_gcm": 0.43885998874384,
             "RadiusInAU": 3.479644812699781E-08
           },
           "328": {
@@ -71978,7 +71980,7 @@
             "MassDry": 2.3272035830750147E+19,
             "MassTotal": 2.3272035830750147E+19,
             "Volume_km3": 5558.793128918083,
-            "DensityDry_gcm": 4.1865266958188885,
+            "DensityDry_gcm": 4.186526695818889,
             "RadiusInAU": 7.345790780806039E-07
           },
           "428": {
@@ -72275,7 +72277,7 @@
             "MassDry": 1.0765775568748985E+25,
             "MassTotal": 1.0765775568748985E+25,
             "Volume_km3": 3140417799.051237,
-            "DensityDry_gcm": 3.4281348080505327,
+            "DensityDry_gcm": 3.428134808050533,
             "RadiusInAU": 6.072593271108177E-05
           },
           "461": {
@@ -72383,7 +72385,7 @@
             "MassDry": 3.951935619953152E+19,
             "MassTotal": 3.951935619953152E+19,
             "Volume_km3": 8008.819605973285,
-            "DensityDry_gcm": 4.934479504327515,
+            "DensityDry_gcm": 4.934479504327516,
             "RadiusInAU": 8.296620424864277E-07
           },
           "473": {
@@ -88452,7 +88454,7 @@
             "MassDry": 180650250511546.75,
             "MassTotal": 180650250511546.75,
             "Volume_km3": 0.26756229287783306,
-            "DensityDry_gcm": 0.675170811882788,
+            "DensityDry_gcm": 0.6751708118827883,
             "RadiusInAU": 2.672103980335022E-08
           },
           "610": {
@@ -88542,7 +88544,7 @@
             "MassDry": 317678740070051.9,
             "MassTotal": 317678740070051.9,
             "Volume_km3": 0.7986244083822573,
-            "DensityDry_gcm": 0.39778240776983215,
+            "DensityDry_gcm": 0.39778240776983226,
             "RadiusInAU": 3.847328273449597E-08
           },
           "620": {
@@ -104661,7 +104663,7 @@
             "MassDry": 3.3022E+23,
             "MassTotal": 3.3022E+23,
             "Volume_km3": 60827208742.48264,
-            "DensityDry_gcm": 5.428820536513777,
+            "DensityDry_gcm": 5.428820536513779,
             "RadiusInAU": 1.6308387202198327E-05
           },
           "656": {
@@ -105166,13 +105168,13 @@
                 "$ref": "11979"
               },
               {
+                "$ref": "11980"
+              },
+              {
                 "$ref": "11981"
               },
               {
                 "$ref": "1724"
-              },
-              {
-                "$ref": "11980"
               },
               {
                 "$ref": "11982"
@@ -106585,9 +106587,6 @@
                 "$ref": "1724"
               },
               {
-                "$ref": "11980"
-              },
-              {
                 "$ref": "11982"
               },
               {
@@ -106601,6 +106600,9 @@
               },
               {
                 "$ref": "11986"
+              },
+              {
+                "$ref": "11980"
               }
             ],
             "SemiMajorAxis": 149597887000.0,
@@ -112128,8 +112130,8 @@
               "general-storage": {
                 "$id": "12998",
                 "$type": "Pulsar4X.Storage.TypeStore, GameEngine",
-                "MaxVolume": 60000.0,
-                "FreeVolume": 59449.460341164304,
+                "MaxVolume": 1000761.4140988357,
+                "FreeVolume": 1000000.0,
                 "CurrentStoreInUnits": {
                   "$id": "12999",
                   "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[System.Int64, System.Private.CoreLib]], System.Private.CoreLib",
@@ -112147,9 +112149,10 @@
                   "20": 5003,
                   "21": 5004,
                   "41": 5,
-                  "22": 8,
+                  "22": 100000,
                   "24": 6,
-                  "23": 3
+                  "23": 25000,
+                  "5": 100000
                 },
                 "Cargoables": {
                   "$id": "13000",
@@ -112204,20 +112207,25 @@
                   },
                   "23": {
                     "$ref": "903"
+                  },
+                  "5": {
+                    "$ref": "922"
                   }
                 }
               },
               "fuel-storage": {
                 "$id": "13001",
                 "$type": "Pulsar4X.Storage.TypeStore, GameEngine",
-                "MaxVolume": 5000000.0,
-                "FreeVolume": 4953195.1985470895,
+                "MaxVolume": 50367056.2325,
+                "FreeVolume": 50000000.0,
                 "CurrentStoreInUnits": {
                   "$id": "13002",
                   "$type": "System.Collections.Generic.Dictionary`2[[System.Int32, System.Private.CoreLib],[System.Int64, System.Private.CoreLib]], System.Private.CoreLib",
-                  "1": 49506973,
-                  "2": 10000,
-                  "3": 10000
+                  "1": 50000000,
+                  "2": 50000000,
+                  "3": 50000000,
+                  "4": 50000000,
+                  "6": 5000000
                 },
                 "Cargoables": {
                   "$id": "13003",
@@ -112230,12 +112238,18 @@
                   },
                   "3": {
                     "$ref": "916"
+                  },
+                  "4": {
+                    "$ref": "919"
+                  },
+                  "6": {
+                    "$ref": "925"
                   }
                 }
               }
             },
             "EscroItems": [],
-            "TotalStoredMass": 50499399.0,
+            "TotalStoredMass": 206197415.0,
             "TransferRate": 6,
             "TransferRangeDv_mps": 3000.0
           },
@@ -112692,7 +112706,7 @@
                   "TeamType": 0,
                   "TeamSize": 0,
                   "TeamTask": null,
-                  "UniqueID": "37f9e810-f1e8-4603-9071-7d45374857c8",
+                  "UniqueID": "d40462fc-bb00-4689-8afe-499e2b8318be",
                   "CargoTypeID": "passenger-storage",
                   "MassPerUnit": 0,
                   "VolumePerUnit": 0.0,

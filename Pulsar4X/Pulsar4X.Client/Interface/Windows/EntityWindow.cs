@@ -37,11 +37,14 @@ namespace Pulsar4X.Client
         private float _animationProgress = 0f;
         private DateTime _animationStartTime;
 
+        // After the open animation finishes, stop forcing pos/size so the user can drag/resize.
+        private bool _lockLayoutToAnimation = true;
+
         public EntityWindow(int entityId, string systemId) : base("EntityWindow|" + entityId)
         {
             EntityId = entityId;
             SystemId = systemId;
-            _flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoTitleBar;
+            _flags = ImGuiWindowFlags.NoTitleBar; // custom header; move + resize like other panels
         }
 
         /// <summary>Ship jumped — rebind the panel to the system that now owns the snapshot.</summary>
@@ -59,6 +62,7 @@ namespace Pulsar4X.Client
                 _animationState = AnimationState.Opening;
                 _animationStartTime = DateTime.Now;
                 _animationProgress = 0f;
+                _lockLayoutToAnimation = true;
                 IsActive = true;
             }
             else if (!activeVal && IsActive)
@@ -67,6 +71,7 @@ namespace Pulsar4X.Client
                 _animationState = AnimationState.Closing;
                 _animationStartTime = DateTime.Now;
                 _animationProgress = 1f;
+                _lockLayoutToAnimation = true;
             }
         }
 
@@ -116,6 +121,7 @@ namespace Pulsar4X.Client
                 {
                     _animationState = AnimationState.Open;
                     _animationProgress = 1f;
+                    _lockLayoutToAnimation = false;
                 }
             }
             else if (_animationState == AnimationState.Closing)
@@ -192,8 +198,16 @@ namespace Pulsar4X.Client
 
             var windowPos = CalculateWindowPosition();
             var windowSize = GetWindowSize();
-            ImGui.SetNextWindowPos(windowPos, ImGuiCond.Always);
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            if (_lockLayoutToAnimation)
+            {
+                // Slide-in / slide-out owns layout; once open the user may drag and resize freely.
+                ImGui.SetNextWindowPos(windowPos, ImGuiCond.Always);
+                ImGui.SetNextWindowSize(windowSize, ImGuiCond.Always);
+            }
+            else
+            {
+                ImGui.SetNextWindowSize(windowSize, ImGuiCond.FirstUseEver);
+            }
             // Ships pack dense order text; keep the panel more opaque so list UI behind it does not bleed through.
             ImGui.SetNextWindowBgAlpha(_bodyType == UserOrbitSettings.OrbitBodyType.Ship ? 0.94f : 0.85f);
 
@@ -303,6 +317,19 @@ namespace Pulsar4X.Client
             float btnX = winSize.X - ImGui.GetStyle().WindowPadding.X - totalBtnsWidth;
             float btnY = startLocalY + (titleLineHeight - btnTotalHeight) * 0.5f;
 
+            // NoTitleBar: allow dragging from the custom header (leave pin/close clickable).
+            if (!_lockLayoutToAnimation)
+            {
+                ImGui.SetCursorScreenPos(new Vector2(winPos.X, headerTop));
+                ImGui.InvisibleButton("##headerdrag", new Vector2(Math.Max(1f, btnX), Math.Max(1f, headerBottom - headerTop)));
+                if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                {
+                    Vector2 delta = ImGui.GetIO().MouseDelta;
+                    ImGui.SetWindowPos(ImGui.GetWindowPos() + delta);
+                }
+            }
+
+            ImGui.SetCursorPos(new Vector2(ImGui.GetStyle().WindowPadding.X, startLocalY));
             ImGui.PushFont(Styles.MediumFont, 16f);
             ImGui.Text(Title.ToUpper());
             ImGui.PopFont();
@@ -753,14 +780,17 @@ namespace Pulsar4X.Client
 
             // Label below the ring
             var labelSize = ImGui.CalcTextSize(label);
+            float labelY = center.Y + radius + ringThickness * 0.5f + 2f;
             drawList.AddText(
-                new Vector2(center.X - labelSize.X * 0.5f, center.Y + radius + ringThickness * 0.5f + 2f),
+                new Vector2(center.X - labelSize.X * 0.5f, labelY),
                 ImGui.ColorConvertFloat4ToU32(Styles.DescriptiveColor),
                 label);
 
-            // Tooltip on hover
+            // Tooltip on hover (ring + label)
             var min = new Vector2(center.X - radius - ringThickness, center.Y - radius - ringThickness);
-            var max = new Vector2(center.X + radius + ringThickness, center.Y + radius + ringThickness);
+            var max = new Vector2(
+                center.X + radius + ringThickness,
+                labelY + labelSize.Y);
             if (ImGui.IsMouseHoveringRect(min, max))
             {
                 ImGui.BeginTooltip();
@@ -860,29 +890,31 @@ namespace Pulsar4X.Client
                 }
             }
 
-            // Drive fuel (separate from general cargo stores shown below)
+            // Drive / warp fuel from cargo tanks (same source as standing Refuel / GetFuelPercent).
+            // Ring label stays "FUEL"; specific propellant type is shown in the hover tooltip.
             float fuelValue = 0f;
             string fuelText = "N/A";
+            const string fuelLabel = "FUEL";
             string? fuelTooltip = null;
             bool fuelPlaceholder = true;
+            if (thrust != null && !string.IsNullOrEmpty(thrust.FuelName))
+                fuelTooltip = "Fuel type: " + thrust.FuelName;
+
             if (thrust != null && thrust.MaxFuelKg > 0)
             {
                 fuelPlaceholder = false;
                 fuelValue = Math.Clamp((float)(thrust.TotalFuelKg / thrust.MaxFuelKg), 0f, 1f);
                 fuelText = (fuelValue * 100f).ToString("0") + "%";
-                fuelTooltip = Stringify.Mass(thrust.TotalFuelKg) + " / " + Stringify.Mass(thrust.MaxFuelKg);
-                if (!string.IsNullOrEmpty(thrust.FuelName))
-                    fuelTooltip = thrust.FuelName + "\n" + fuelTooltip;
+                string massLine = Stringify.Mass(thrust.TotalFuelKg) + " / " + Stringify.Mass(thrust.MaxFuelKg);
+                fuelTooltip = fuelTooltip == null ? massLine : fuelTooltip + "\n" + massLine;
             }
             else if (thrust != null && thrust.TotalFuelKg > 0)
             {
-                // Have fuel mass but no tank capacity figure — show absolute mass only.
                 fuelPlaceholder = false;
                 fuelValue = 1f;
                 fuelText = CompactMass(thrust.TotalFuelKg);
-                fuelTooltip = Stringify.Mass(thrust.TotalFuelKg);
-                if (!string.IsNullOrEmpty(thrust.FuelName))
-                    fuelTooltip = thrust.FuelName + "\n" + fuelTooltip;
+                string massLine = Stringify.Mass(thrust.TotalFuelKg);
+                fuelTooltip = fuelTooltip == null ? massLine : fuelTooltip + "\n" + massLine;
             }
 
             // Six indicators: propulsion / hull / stores
@@ -891,7 +923,7 @@ namespace Pulsar4X.Client
             DrawRadialIndicator(drawList, new Vector2(x0, centerY),
                 radius, ringThickness, dvValue, "Δv", dvText, dvPlaceholder, dvTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth, centerY),
-                radius, ringThickness, fuelValue, "FUEL", fuelText, fuelPlaceholder, fuelTooltip);
+                radius, ringThickness, fuelValue, fuelLabel, fuelText, fuelPlaceholder, fuelTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 2f, centerY),
                 radius, ringThickness, htkValue, "HTK", htkText, false);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 3f, centerY),
@@ -1120,74 +1152,7 @@ namespace Pulsar4X.Client
                 ImGui.EndTable();
             }
 
-            // Cargo + energy summary bars
-            var storage = _entity.GetView<CargoStorageView>();
-            var shipEnergy = _entity.GetView<EnergyView>();
-            bool hasCargoBars = storage != null && storage.Stores.Count > 0;
-            bool hasEnergyBar = shipEnergy != null && shipEnergy.StoreMax > 0;
-
-            if (hasCargoBars || hasEnergyBar)
-            {
-                SectionLabel("CARGO");
-
-                ImGui.Indent();
-                if (hasCargoBars)
-                {
-                    foreach (var store in storage!.Stores)
-                    {
-                        double usedVolume = store.MaxVolume - store.FreeVolume;
-                        double percent = store.MaxVolume > 0 ? usedVolume / store.MaxVolume : 0;
-
-                        string barLabel = store.TypeName + "  " + (percent * 100).ToString("0") + "%  ·  " +
-                            Stringify.VolumeLtr(usedVolume) + " / " + Stringify.VolumeLtr(store.MaxVolume);
-
-                        Vector4 barColor = new Vector4(
-                            _accentColor.X * 0.4f, _accentColor.Y * 0.4f, _accentColor.Z * 0.4f, 0.8f);
-                        if (percent > 0.9)
-                            barColor = Styles.BadColor;
-                        else if (percent > 0.75)
-                            barColor = Styles.OkColor;
-
-                        ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.08f, 0.08f, 0.1f, 0.5f));
-                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, barColor);
-                        ImGui.ProgressBar((float)percent, new Vector2(ImGui.GetContentRegionAvail().X, 16), barLabel);
-                        ImGui.PopStyleColor(2);
-                    }
-                }
-
-                if (hasEnergyBar)
-                {
-                    float fill = Math.Clamp((float)(shipEnergy!.Stored / shipEnergy.StoreMax), 0f, 1f);
-                    bool blocked = shipEnergy.ActionBlock != null;
-                    string energyLabel = (shipEnergy.IsRecharging ? "Energy (recharging)  " : "Energy  ")
-                        + shipEnergy.StoredPercent.ToString("0") + "%  ·  "
-                        + Stringify.Energy(shipEnergy.Stored) + " / " + Stringify.Energy(shipEnergy.StoreMax);
-
-                    // Low charge is the warning case (opposite of cargo fill).
-                    Vector4 energyColor = new Vector4(
-                        _accentColor.X * 0.45f, _accentColor.Y * 0.55f, _accentColor.Z * 0.35f, 0.85f);
-                    if (blocked || fill < 0.2f)
-                        energyColor = Styles.BadColor;
-                    else if (fill < 0.4f)
-                        energyColor = Styles.OkColor;
-
-                    ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.08f, 0.08f, 0.1f, 0.5f));
-                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, energyColor);
-                    ImGui.ProgressBar(fill, new Vector2(ImGui.GetContentRegionAvail().X, 16), energyLabel);
-                    ImGui.PopStyleColor(2);
-
-                    if (blocked)
-                    {
-                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
-                        ImGui.TextWrapped("Cannot start: " + shipEnergy.ActionBlock!.ActionName);
-                        ImGui.PopStyleColor();
-                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.OkColor);
-                        ImGui.TextWrapped(shipEnergy.ActionBlock.Reason);
-                        ImGui.PopStyleColor();
-                    }
-                }
-                ImGui.Unindent();
-            }
+            // Cargo / fuel / energy fill is shown only in the status rings above — no duplicate bars.
         }
 
         private void DisplayStarContent()

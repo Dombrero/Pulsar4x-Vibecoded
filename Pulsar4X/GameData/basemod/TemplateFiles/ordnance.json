@@ -20,7 +20,7 @@
       "ComponentType": "Weapon",
       "MountType": "Missile",
       "CargoTypeID": "ordnance-storage",
-      "IndustryTypeID": "component-construction",
+      "IndustryTypeID": "ordnance-construction",
       "Properties": [
         {
           "Name": "Mass",
@@ -305,12 +305,12 @@
         "BuildPointCost": "[Mass]"
       },
       "ResourceCost": {
-        "gallicite": "[Mass] * 8"
+        "electronics": "[Mass] * 8"
       },
       "ComponentType": "Sensor",
       "MountType": "Missile",
       "CargoTypeID": "ordnance-storage",
-      "IndustryTypeID": "component-construction",
+      "IndustryTypeID": "ordnance-construction",
       "Properties": [
         {
           "Name": "Guidance Type",
@@ -448,8 +448,8 @@
         "BuildPointCost": "[Mass]"
       },
       "ResourceCost": {
-        "duranium": "60",
-        "mercassium": "60"
+        "titanium": "60",
+        "stainless-steel": "60"
       },
       "ComponentType": "Cargo Hold",
       "MountType": "ShipComponent, ShipCargo",
