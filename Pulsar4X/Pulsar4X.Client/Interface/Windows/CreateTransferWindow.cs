@@ -185,8 +185,21 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
                     }
                     ImGui.SameLine();
                     ImGui.Text(item.Name);
-                    if (ImGui.IsItemHovered() && item.Description.Length > 0)
-                        DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
+                    if (ImGui.IsItemHovered()
+                        && (item.Description.Length > 0
+                            || item.ItemKind.Length > 0
+                            || item.ProductionHint.Length > 0))
+                    {
+                        string desc = item.Description;
+                        if (!string.IsNullOrEmpty(item.ProductionHint))
+                            desc = string.IsNullOrEmpty(desc)
+                                ? item.ProductionHint
+                                : desc + "\n\n" + item.ProductionHint;
+                        DisplayHelpers.DescriptiveTooltip(
+                            item.Name,
+                            string.IsNullOrEmpty(item.ItemKind) ? "Cargo" : item.ItemKind,
+                            desc);
+                    }
                     ImGui.SameLine();
 
                     string amount = Stringify.Quantity(item.Units);
@@ -227,8 +240,15 @@ public class CreateTransferWindow : UniquePulsarGuiWindow<CreateTransferWindow>
             ImGui.SetNextItemWidth(96);
             ImGui.SetCursorPosX(currentX + contentSize.X - 96);
             ImGui.InputInt("###input" + item.Name, ref amount);
-            if (ImGui.IsItemHovered() && item.Description.Length > 0)
-                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, item.Description);
+            if (ImGui.IsItemHovered() && (item.Description.Length > 0 || item.ProductionHint.Length > 0))
+            {
+                string desc = item.Description;
+                if (!string.IsNullOrEmpty(item.ProductionHint))
+                    desc = string.IsNullOrEmpty(desc)
+                        ? item.ProductionHint
+                        : desc + "\n\n" + item.ProductionHint;
+                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, desc);
+            }
 
             if (amount > item.Units)
                 amount = (int)item.Units;

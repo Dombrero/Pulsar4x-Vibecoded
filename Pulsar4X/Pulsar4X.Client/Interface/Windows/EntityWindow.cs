@@ -792,10 +792,16 @@ namespace Pulsar4X.Client
                 labelY + labelSize.Y);
             if (ImGui.IsMouseHoveringRect(min, max))
             {
+                // Match DescriptiveTooltip width — TextWrapped without a size becomes a thin column.
+                ImGui.SetNextWindowSize(Styles.ToolTipsize);
                 ImGui.BeginTooltip();
-                ImGui.TextUnformatted(label + ": " + (isPlaceholder ? "N/A" : (value * 100f).ToString("0") + "%"));
+                ImGui.TextUnformatted(label + ": " + (isPlaceholder ? "N/A" : centerText));
                 if (extraTooltip != null)
-                    ImGui.TextUnformatted(extraTooltip);
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                    ImGui.TextWrapped(extraTooltip);
+                    ImGui.PopStyleColor();
+                }
                 ImGui.EndTooltip();
             }
         }
@@ -815,22 +821,46 @@ namespace Pulsar4X.Client
 
             var ship = _entity!.GetView<ShipView>();
             var thrust = _entity.GetView<ThrustView>();
+            var warp = _entity.GetView<WarpAbilityView>();
 
             // Compute values
             float htkValue = 0f;
             string htkText = "-";
+            string? htkTooltip = null;
+            bool htkPlaceholder = true;
             float compValue = 0f;
             string compText = "-";
+            string? compTooltip = null;
+            bool compPlaceholder = true;
             float armorValue = 0f;
             string armorText = "N/A";
+            string? armorTooltip = null;
             bool armorPlaceholder = true;
 
             if (ship != null && ship.TotalComponents > 0)
             {
+                htkPlaceholder = false;
                 htkValue = (float)ship.AverageComponentHealth;
                 htkText = (htkValue * 100f).ToString("0") + "%";
+                htkTooltip =
+                    "Average health of all installed components (damage / integrity).\n"
+                    + "Combat hits reduce this as internals take damage.\n"
+                    + "Below a component's failure threshold it stops working and COMP drops.\n\n"
+                    + "Average health: " + (ship.AverageComponentHealth * 100).ToString("0.#") + "%";
+
+                compPlaceholder = false;
                 compValue = (float)ship.OperationalComponents / ship.TotalComponents;
                 compText = ship.OperationalComponents + "/" + ship.TotalComponents;
+                compTooltip =
+                    "Operational components vs total installed.\n"
+                    + "A unit counts as operational when it is enabled and above its failure health.\n"
+                    + "Offline gear no longer contributes thrust, sensors, weapons, power, etc.\n\n"
+                    + "Online: " + ship.OperationalComponents + " / " + ship.TotalComponents;
+            }
+            else
+            {
+                htkTooltip = "Hits-to-kill / component integrity — no component data on this entity.";
+                compTooltip = "Component status — no component data on this entity.";
             }
 
             if (ship != null && ship.ArmorThicknessMm > 0)
@@ -838,6 +868,17 @@ namespace Pulsar4X.Client
                 armorPlaceholder = false;
                 armorValue = 1.0f;
                 armorText = ship.ArmorThicknessMm.ToString("0.#") + "mm";
+                armorTooltip =
+                    "Hull armor thickness.\n"
+                    + "Armor absorbs incoming fire before internal components take damage.\n"
+                    + "Thicker armor improves survivability but adds mass.\n\n"
+                    + "Thickness: " + ship.ArmorThicknessMm.ToString("0.##") + " mm";
+            }
+            else
+            {
+                armorTooltip =
+                    "Hull armor thickness.\n"
+                    + "This hull has no armor layer — hits go straight to components.";
             }
 
             // Compute delta V values
@@ -850,7 +891,20 @@ namespace Pulsar4X.Client
             {
                 dvPlaceholder = false;
                 double dv = thrust.DeltaVMps;
-                dvTooltip = Stringify.Velocity(dv);
+                var dvLines = new System.Text.StringBuilder();
+                dvLines.Append(
+                    "Remaining delta-v for newtonian (reaction-drive) burns with current fuel.\n");
+                dvLines.Append(
+                    "Ring fill is current Δv vs Δv at full tanks of this drive's fuel.\n\n");
+                dvLines.Append("Current: ").Append(Stringify.Velocity(dv));
+                if (thrust.MaxDeltaVMps > 0)
+                    dvLines.Append("\nAt full tanks: ").Append(Stringify.Velocity(thrust.MaxDeltaVMps));
+                dvLines.Append("\nThrust: ").Append(Stringify.Thrust(thrust.ThrustNewtons));
+                dvLines.Append("\nBurn rate: ").Append(Stringify.Mass(thrust.FuelBurnRateKgPerSec)).Append("/s");
+                dvLines.Append("\nExhaust: ").Append(Stringify.Velocity(thrust.ExhaustVelocityMps));
+                if (!string.IsNullOrEmpty(thrust.FuelName))
+                    dvLines.Append("\nFuel type: ").Append(thrust.FuelName);
+                dvTooltip = dvLines.ToString();
 
                 // Compact center text
                 if (dv >= 1e6)
@@ -864,6 +918,12 @@ namespace Pulsar4X.Client
                 if (dv > 0 && thrust.MaxDeltaVMps > 0)
                     dvValue = Math.Clamp((float)(dv / thrust.MaxDeltaVMps), 0f, 1f);
             }
+            else
+            {
+                dvTooltip =
+                    "Delta-v available for newtonian burns.\n"
+                    + "This entity has no usable reaction drive / exhaust data.";
+            }
 
             // Battery / power store
             float energyValue = 0f;
@@ -876,45 +936,95 @@ namespace Pulsar4X.Client
                 energyPlaceholder = false;
                 energyValue = Math.Clamp((float)(energy.Stored / energy.StoreMax), 0f, 1f);
                 energyText = energy.StoredPercent.ToString("0") + "%";
-                energyTooltip = Stringify.Energy(energy.Stored) + " / " + Stringify.Energy(energy.StoreMax);
+                var energyLines = new System.Text.StringBuilder();
+                energyLines.Append(
+                    "Ship battery / energy store.\n");
+                energyLines.Append(
+                    "Used for warp bubble creation/sustain and other high-draw actions.\n");
+                energyLines.Append(
+                    "Empty batteries can strand a ship until you recharge at a colony or wait for onboard generation.\n\n");
+                energyLines.Append(Stringify.Energy(energy.Stored))
+                    .Append(" / ")
+                    .Append(Stringify.Energy(energy.StoreMax));
+                if (energy.MaxOutput > 0 || energy.Demand > 0)
+                {
+                    energyLines.Append("\nOutput: ").Append(Stringify.Power(energy.Output))
+                        .Append(" / ").Append(Stringify.Power(energy.MaxOutput));
+                    energyLines.Append("\nDemand: ").Append(Stringify.Power(energy.Demand));
+                }
                 if (energy.IsRecharging)
-                    energyTooltip += "\nRecharging";
+                    energyLines.Append("\nRecharging from colony dock");
                 if (energy.AcceptRateKW > 0)
-                    energyTooltip += "\nAccept " + Stringify.Power(energy.AcceptRateKW);
+                    energyLines.Append("\nDock accept rate: ").Append(Stringify.Power(energy.AcceptRateKW));
+                else
+                    energyLines.Append("\nNo dock recharge accept rate — may need a colony with batteries.");
+                if (warp != null && (warp.BubbleCreationCostKJ > 0 || warp.BubbleSustainCostKW > 0))
+                {
+                    energyLines.Append("\n\nWarp bubble create: ")
+                        .Append(Stringify.Energy(warp.BubbleCreationCostKJ));
+                    energyLines.Append("\nWarp sustain: ")
+                        .Append(Stringify.Power(warp.BubbleSustainCostKW));
+                }
                 if (energy.ActionBlock != null)
                 {
                     energyText = "!";
-                    energyTooltip += "\nBLOCKED: " + energy.ActionBlock.ActionName
-                        + "\n" + energy.ActionBlock.Reason;
+                    energyLines.Append("\n\nBLOCKED: ").Append(energy.ActionBlock.ActionName)
+                        .Append("\n").Append(energy.ActionBlock.Reason);
                 }
+                energyTooltip = energyLines.ToString();
+            }
+            else
+            {
+                energyTooltip =
+                    "Ship battery / energy store.\n"
+                    + "This entity has no battery capacity — warp and power-gated actions may be unavailable.";
             }
 
             // Drive / warp fuel from cargo tanks (same source as standing Refuel / GetFuelPercent).
-            // Ring label stays "FUEL"; specific propellant type is shown in the hover tooltip.
+            // Ring label stays "FUEL"; type + material blurb + mass live in the hover tooltip.
             float fuelValue = 0f;
             string fuelText = "N/A";
             const string fuelLabel = "FUEL";
             string? fuelTooltip = null;
             bool fuelPlaceholder = true;
+            var fuelLines = new System.Text.StringBuilder();
+            fuelLines.Append(
+                "Propellant in fuel tanks for the ship's reaction drive.\n");
+            fuelLines.Append(
+                "Standing Refuel orders top this up at colonies. Empty tanks mean no more Δv burns.\n");
+
             if (thrust != null && !string.IsNullOrEmpty(thrust.FuelName))
-                fuelTooltip = "Fuel type: " + thrust.FuelName;
+            {
+                fuelLines.Append("\nFuel type: ").Append(thrust.FuelName);
+                if (!string.IsNullOrEmpty(thrust.FuelDescription))
+                    fuelLines.Append("\n").Append(thrust.FuelDescription);
+                if (!string.IsNullOrEmpty(thrust.FuelProduction))
+                    fuelLines.Append("\n\n").Append(thrust.FuelProduction);
+            }
 
             if (thrust != null && thrust.MaxFuelKg > 0)
             {
                 fuelPlaceholder = false;
                 fuelValue = Math.Clamp((float)(thrust.TotalFuelKg / thrust.MaxFuelKg), 0f, 1f);
                 fuelText = (fuelValue * 100f).ToString("0") + "%";
-                string massLine = Stringify.Mass(thrust.TotalFuelKg) + " / " + Stringify.Mass(thrust.MaxFuelKg);
-                fuelTooltip = fuelTooltip == null ? massLine : fuelTooltip + "\n" + massLine;
+                fuelLines.Append("\n\n")
+                    .Append(Stringify.Mass(thrust.TotalFuelKg))
+                    .Append(" / ")
+                    .Append(Stringify.Mass(thrust.MaxFuelKg));
             }
             else if (thrust != null && thrust.TotalFuelKg > 0)
             {
                 fuelPlaceholder = false;
                 fuelValue = 1f;
                 fuelText = CompactMass(thrust.TotalFuelKg);
-                string massLine = Stringify.Mass(thrust.TotalFuelKg);
-                fuelTooltip = fuelTooltip == null ? massLine : fuelTooltip + "\n" + massLine;
+                fuelLines.Append("\n\n").Append(Stringify.Mass(thrust.TotalFuelKg));
             }
+            else
+            {
+                fuelLines.Append("\n\nNo usable fuel / tank capacity for this drive.");
+            }
+
+            fuelTooltip = fuelLines.ToString();
 
             // Six indicators: propulsion / hull / stores
             float x0 = cursorPos.X + radius;
@@ -924,11 +1034,11 @@ namespace Pulsar4X.Client
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth, centerY),
                 radius, ringThickness, fuelValue, fuelLabel, fuelText, fuelPlaceholder, fuelTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 2f, centerY),
-                radius, ringThickness, htkValue, "HTK", htkText, false);
+                radius, ringThickness, htkValue, "HTK", htkText, htkPlaceholder, htkTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 3f, centerY),
-                radius, ringThickness, compValue, "COMP", compText, false);
+                radius, ringThickness, compValue, "COMP", compText, compPlaceholder, compTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 4f, centerY),
-                radius, ringThickness, armorValue, "ARMOR", armorText, armorPlaceholder);
+                radius, ringThickness, armorValue, "ARMOR", armorText, armorPlaceholder, armorTooltip);
             DrawRadialIndicator(drawList, new Vector2(x0 + indicatorWidth * 5f, centerY),
                 radius, ringThickness, energyValue, "ENERGY", energyText, energyPlaceholder, energyTooltip);
 

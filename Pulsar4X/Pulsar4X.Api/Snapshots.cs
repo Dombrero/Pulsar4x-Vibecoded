@@ -209,7 +209,11 @@ public sealed record InstallationGroup(
     int Count,
     int OperationalCount,
     /// <summary>Whether one of these can be uninstalled into the entity's cargo storage.</summary>
-    bool CanStore);
+    bool CanStore)
+{
+    /// <summary>How this design is produced (facility + recipe), when known.</summary>
+    public string ProductionHint { get; init; } = "";
+}
 
 public sealed record ShipView(
     string DesignName,
@@ -245,6 +249,12 @@ public sealed record ThrustView(
 
     /// <summary>Display name of the fuel the drive burns.</summary>
     public string FuelName { get; init; } = "";
+
+    /// <summary>Material description for the drive fuel (e.g. RP-1 / Hydrolox blurb).</summary>
+    public string FuelDescription { get; init; } = "";
+
+    /// <summary>How this fuel is made (facility + recipe), when known.</summary>
+    public string FuelProduction { get; init; } = "";
 }
 
 public sealed record WarpAbilityView(
@@ -436,7 +446,11 @@ public sealed record CargoItemView(
     double VolumePerUnit,
     long FreeUnitSpace,
     /// <summary>Whether this item is a component instance that can be installed on the holding entity.</summary>
-    bool CanInstall);
+    bool CanInstall)
+{
+    /// <summary>How this item is produced (facility + recipe), when known.</summary>
+    public string ProductionHint { get; init; } = "";
+}
 
 /// <summary>An entity's weapons and fire controls. Owner-only.</summary>
 public sealed record FireControlView(IReadOnlyList<FireControlSnapshot> FireControls) : IComponentView
@@ -549,6 +563,8 @@ public sealed record ConstructibleItemView(
     /// <summary>True for colony buildings (Factory, Colony Battery Bank, …).
     /// Ship components never qualify — dual-use gear uses separate colony templates.</summary>
     public bool IsColonyInstallation { get; init; }
+    /// <summary>Facility + recipe summary for this design.</summary>
+    public string ProductionHint { get; init; } = "";
 }
 
 public sealed record IndustryCostItem(
@@ -581,7 +597,15 @@ public sealed record ConstructionJobView(
     /// <summary>Progress on the current item, 0.0–1.0.</summary>
     double Progress);
 
-public sealed record ConstructibleDesignView(string DesignId, string Name, string ComponentType, long IndustryPointCosts);
+public sealed record ConstructibleDesignView(
+    string DesignId,
+    string Name,
+    string ComponentType,
+    long IndustryPointCosts)
+{
+    public string Description { get; init; } = "";
+    public string ProductionHint { get; init; } = "";
+}
 
 /// <summary>One named contribution to a modified stat (for breakdown tooltips).</summary>
 public sealed record ValueModifier(string Name, double Delta);

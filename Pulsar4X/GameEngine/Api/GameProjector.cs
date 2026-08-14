@@ -125,7 +125,11 @@ namespace Pulsar4X.Engine.Api
             foreach (var child in roots)
             {
                 var node = ResolveLiveEntity(child);
-                if (!node.IsValid || node.Manager == null)
+                // Manager is the source of truth across transfers; IsValid alone can flicker false
+                // while a fleet shell is hopping systems and would drop it from the UI list.
+                if (node.Manager == null)
+                    continue;
+                if (!node.IsValid && !node.HasDataBlob<FleetDB>())
                     continue;
 
                 if (node.HasDataBlob<FleetDB>())
@@ -145,8 +149,10 @@ namespace Pulsar4X.Engine.Api
             if (entity.IsValid && entity.Manager != null)
                 return entity;
 
+            // Prefer the live handle even if IsValid was cleared mid-transfer — Manager is enough
+            // to project fleets/ships that still exist in a system.
             if (_game.GlobalManager.TryGetGlobalEntityById(entity.Id, out var live)
-                && live.IsValid && live.Manager != null)
+                && live.Manager != null)
                 return live;
 
             return entity;
@@ -651,6 +657,8 @@ namespace Pulsar4X.Engine.Api
             double maxDeltaV = 0;
             double maxFuelKg = 0;
             string fuelName = "";
+            string fuelDescription = "";
+            string fuelProduction = "";
             ICargoable? fuel = null;
             if (ship.Manager?.Game is { } game
                 && game.Factions.TryGetValue(factionId, out var faction)
@@ -660,6 +668,13 @@ namespace Pulsar4X.Engine.Api
             {
                 fuel = resolvedFuel;
                 fuelName = resolvedFuel.Name;
+                fuelDescription = resolvedFuel switch
+                {
+                    ProcessedMaterial material => material.Description ?? "",
+                    Mineral mineral => mineral.Description ?? "",
+                    _ => "",
+                };
+                fuelProduction = FormatCargoProductionHint(factionInfo, resolvedFuel);
                 if (resolvedFuel.VolumePerUnit > 0
                     && ship.TryGetDataBlob<CargoStorageDB>(out var capacityStorage)
                     && capacityStorage.TypeStores.TryGetValue(resolvedFuel.CargoTypeID, out var fuelStore))
@@ -696,6 +711,8 @@ namespace Pulsar4X.Engine.Api
                 TotalFuelKg = totalFuelKg,
                 MaxFuelKg = maxFuelKg,
                 FuelName = fuelName,
+                FuelDescription = fuelDescription,
+                FuelProduction = fuelProduction,
             };
         }
 
@@ -719,6 +736,10 @@ namespace Pulsar4X.Engine.Api
         private static InstallationsView ToInstallationsView(ComponentInstancesDB ci, Entity entity)
         {
             entity.TryGetDataBlob<CargoStorageDB>(out var storage);
+            FactionInfoDB? factionInfo = null;
+            if (entity.FactionOwnerID != 0
+                && entity.Manager?.Game?.Factions.TryGetValue(entity.FactionOwnerID, out var faction) == true)
+                faction.TryGetDataBlob(out factionInfo);
 
             var groups = new List<InstallationGroup>();
             foreach (var (designId, instances) in ci.ComponentsByDesign)
@@ -737,7 +758,12 @@ namespace Pulsar4X.Engine.Api
                     first.Design.Description,
                     instances.Count,
                     instances.Count(i => i.IsEnabled),
-                    canStore));
+                    canStore)
+                {
+                    ProductionHint = factionInfo != null
+                        ? FormatConstructableRecipe(factionInfo, first.Design)
+                        : "",
+                });
             }
 
             return new InstallationsView(groups.OrderBy(g => g.Name).ToList());
@@ -814,7 +840,8 @@ namespace Pulsar4X.Engine.Api
         {
             bool holderIsColony = holder.HasDataBlob<ColonyInfoDB>();
             bool holderIsShip = holder.HasDataBlob<ShipInfoDB>();
-            var factionData = holder.GetFactionOwner.GetDataBlob<FactionInfoDB>().Data;
+            var factionInfo = holder.GetFactionOwner.GetDataBlob<FactionInfoDB>();
+            var factionData = factionInfo.Data;
 
             var stores = new List<CargoTypeStoreView>(storage.TypeStores.Count);
             foreach (var (typeId, typeStore) in storage.TypeStores)
@@ -861,7 +888,10 @@ namespace Pulsar4X.Engine.Api
                         storage.GetVolumeStored(cargoable, true),
                         cargoable.VolumePerUnit,
                         storage.GetFreeUnitSpace(cargoable),
-                        canInstall));
+                        canInstall)
+                    {
+                        ProductionHint = FormatCargoProductionHint(factionInfo, cargoable),
+                    });
                 }
 
                 string typeName = factionData.CargoTypes.TryGetValue(typeId, out var cargoType) ? cargoType.Name : typeId;
@@ -1047,6 +1077,7 @@ namespace Pulsar4X.Engine.Api
                         Costs = costs,
                         IndustryPointsPerDay = pointsPerDay,
                         IsColonyInstallation = isColonyInstallation,
+                        ProductionHint = FormatConstructableRecipe(factionInfo, design),
                     });
                 }
 
@@ -1077,7 +1108,11 @@ namespace Pulsar4X.Engine.Api
             var designs = factionInfo.ComponentDesigns.Values
                 .Where(d => d.IsValid && d.ComponentMountType.HasFlag(ComponentMountType.PlanetInstallation))
                 .OrderBy(d => d.Name)
-                .Select(d => new ConstructibleDesignView(d.UniqueID, d.Name, d.ComponentType, d.IndustryPointCosts))
+                .Select(d => new ConstructibleDesignView(d.UniqueID, d.Name, d.ComponentType, d.IndustryPointCosts)
+                {
+                    Description = d.Description ?? "",
+                    ProductionHint = FormatConstructableRecipe(factionInfo, d),
+                })
                 .ToList();
 
             return new ConstructionView(construction.PointsPerDay)
@@ -1128,23 +1163,74 @@ namespace Pulsar4X.Engine.Api
         /// </summary>
         private static string ResolveProductionHint(FactionInfoDB factionInfo, IndustryAbilityDB industry, string resourceId)
         {
+            string whereHint;
             if (factionInfo.Data.CargoGoods.IsMineral(resourceId))
-                return "Mined from planetary deposits.\nOpen the Mining tab to see rates.";
+            {
+                whereHint = "Mined from planetary deposits.\nOpen the Mining tab to see rates.";
+            }
+            else if (!factionInfo.IndustryDesigns.TryGetValue(resourceId, out var design)
+                     || string.IsNullOrEmpty(design.IndustryTypeID))
+            {
+                whereHint = "Cannot be produced industrially — import or salvage it.";
+            }
+            else
+            {
+                string typeId = design.IndustryTypeID;
+                string where = IndustryTypeFacilityHint(typeId, factionInfo);
 
-            if (!factionInfo.IndustryDesigns.TryGetValue(resourceId, out var design)
-                || string.IsNullOrEmpty(design.IndustryTypeID))
-                return "Cannot be produced industrially — import or salvage it.";
+                bool hasLine = industry.ProductionLines.Values
+                    .Any(l => l.IndustryTypeRates.ContainsKey(typeId));
 
-            string typeId = design.IndustryTypeID;
-            string where = IndustryTypeFacilityHint(typeId, factionInfo);
+                whereHint = hasLine
+                    ? $"Produced at {where}.\nQueue a job on that production line to make more."
+                    : $"Produced at {where}.\nThis colony has no matching production line yet — build or unlock one first.";
 
-            bool hasLine = industry.ProductionLines.Values
-                .Any(l => l.IndustryTypeRates.ContainsKey(typeId));
+                string recipe = FormatConstructableRecipe(factionInfo, design, includeFacilityLine: false);
+                if (!string.IsNullOrEmpty(recipe))
+                    whereHint += "\n" + recipe;
+            }
 
-            if (hasLine)
-                return $"Produced at {where}.\nQueue a job on that production line to make more.";
+            return whereHint;
+        }
 
-            return $"Produced at {where}.\nThis colony has no matching production line yet — build or unlock one first.";
+        /// <summary>Facility + recipe blurb for cargo / fuel tooltips (no colony context).</summary>
+        private static string FormatCargoProductionHint(FactionInfoDB factionInfo, ICargoable cargoable)
+        {
+            if (cargoable is Mineral)
+                return "Mined from planetary deposits.";
+
+            IConstructableDesign? design = cargoable switch
+            {
+                ProcessedMaterial material => material,
+                ComponentInstance instance => instance.Design,
+                Pulsar4X.Components.ComponentDesign componentDesign => componentDesign,
+                _ => null,
+            };
+
+            return design == null ? "" : FormatConstructableRecipe(factionInfo, design);
+        }
+
+        private static string FormatConstructableRecipe(
+            FactionInfoDB factionInfo,
+            IConstructableDesign design,
+            bool includeFacilityLine = true)
+        {
+            var parts = new List<string>();
+            if (includeFacilityLine && !string.IsNullOrEmpty(design.IndustryTypeID))
+                parts.Add("Produced at " + IndustryTypeFacilityHint(design.IndustryTypeID, factionInfo) + ".");
+
+            if (design.ResourceCosts != null && design.ResourceCosts.Count > 0)
+            {
+                var inputs = design.ResourceCosts
+                    .Select(kv => ResolveItemName(factionInfo, kv.Key) + " ×" + kv.Value);
+                parts.Add("Recipe: " + string.Join(", ", inputs)
+                    + " → " + design.OutputAmount + " " + design.Name);
+            }
+
+            if (design.IndustryPointCosts > 0)
+                parts.Add("Industry points: " + design.IndustryPointCosts);
+
+            return string.Join("\n", parts);
         }
 
         private static string IndustryTypeFacilityHint(string typeId, FactionInfoDB factionInfo)
@@ -1437,7 +1523,9 @@ namespace Pulsar4X.Engine.Api
                 foreach (var child in fleetDB.GetChildren())
                 {
                     var node = ResolveLiveEntity(child);
-                    if (!node.IsValid || node.Manager == null)
+                    if (node.Manager == null)
+                        continue;
+                    if (!node.IsValid && !node.HasDataBlob<FleetDB>() && !node.HasDataBlob<ShipInfoDB>())
                         continue;
 
                     if (node.HasDataBlob<FleetDB>())

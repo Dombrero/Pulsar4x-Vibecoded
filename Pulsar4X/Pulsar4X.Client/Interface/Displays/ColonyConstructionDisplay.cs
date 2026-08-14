@@ -268,9 +268,31 @@ namespace Pulsar4X.Client
                             _selectedDesignIndex = i;
                         }
 
-                        if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(design.ComponentType))
+                        if (ImGui.IsItemHovered())
                         {
-                            ImGui.SetTooltip($"{design.Name}\nType: {design.ComponentType}\nCost: {design.IndustryPointCosts:N0} points");
+                            ImGui.SetNextWindowSize(Styles.ToolTipsize);
+                            ImGui.BeginTooltip();
+                            ImGui.TextUnformatted(design.Name);
+                            ImGui.TextUnformatted("Type: " + (design.ComponentType ?? "Unknown"));
+                            if (!string.IsNullOrEmpty(design.Description))
+                            {
+                                ImGui.Separator();
+                                ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                                ImGui.TextWrapped(design.Description);
+                                ImGui.PopStyleColor();
+                            }
+                            if (!string.IsNullOrEmpty(design.ProductionHint))
+                            {
+                                ImGui.Separator();
+                                ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                                ImGui.TextWrapped(design.ProductionHint);
+                                ImGui.PopStyleColor();
+                            }
+                            else
+                            {
+                                ImGui.TextUnformatted("Cost: " + design.IndustryPointCosts.ToString("N0") + " points");
+                            }
+                            ImGui.EndTooltip();
                         }
 
                         // Type

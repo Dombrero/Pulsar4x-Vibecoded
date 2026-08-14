@@ -41,20 +41,41 @@ namespace Pulsar4X.Client
                         {
                             ImGui.TableNextColumn();
                             if (ImGui.Selectable(item.Name, false, ImGuiSelectableFlags.SpanAllColumns)) { }
-                            if (item.ItemKind.Length > 0)
+                            if (isFuelStore)
                             {
-                                string description = item.Description;
-                                if (isFuelStore && !string.IsNullOrEmpty(description))
-                                    description += "\n\nFuel type — used for ship propulsion and reactor feed.";
-                                else if (isFuelStore)
-                                    description = "Fuel type — used for ship propulsion and reactor feed.";
-                                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, description);
+                                string fuelBlurb = string.IsNullOrEmpty(item.Description)
+                                    ? "Used for ship propulsion and reactor feed."
+                                    : item.Description;
+                                if (!string.IsNullOrEmpty(item.ProductionHint))
+                                    fuelBlurb += "\n\n" + item.ProductionHint;
+                                DisplayHelpers.DescriptiveTooltip(item.Name, "Fuel", fuelBlurb, () =>
+                                {
+                                    ImGui.TextUnformatted("Stored: " + Stringify.Mass(item.MassStoredKg)
+                                        + " (" + Stringify.Quantity(item.Units, "##.##") + " units)");
+                                    if (item.UnitsInEscrow > 0)
+                                        ImGui.TextUnformatted("+" + Stringify.Quantity(item.UnitsInEscrow) + " in escro");
+                                    ImGui.TextUnformatted("Mass each: " + Stringify.Mass(item.MassPerUnitKg));
+                                    ImGui.TextUnformatted("Volume: " + Stringify.VolumeLtr(item.VolumeStored)
+                                        + " (" + Stringify.Volume(item.VolumePerUnit, "#.#####") + " each)");
+                                    ImGui.TextUnformatted("Can store " + Stringify.Quantity(item.FreeUnitSpace) + " more units");
+                                });
+                            }
+                            else if (item.ItemKind.Length > 0)
+                            {
+                                string desc = item.Description;
+                                if (!string.IsNullOrEmpty(item.ProductionHint))
+                                    desc = string.IsNullOrEmpty(desc)
+                                        ? item.ProductionHint
+                                        : desc + "\n\n" + item.ProductionHint;
+                                DisplayHelpers.DescriptiveTooltip(item.Name, item.ItemKind, desc);
                             }
                             else
                             {
-                                string fallback = isFuelStore
-                                    ? "Fuel type — used for ship propulsion and reactor feed."
-                                    : (string.IsNullOrEmpty(item.Description) ? "Cargo item in " + store.TypeName + " storage." : item.Description);
+                                string fallback = string.IsNullOrEmpty(item.Description)
+                                    ? "Cargo item in " + store.TypeName + " storage."
+                                    : item.Description;
+                                if (!string.IsNullOrEmpty(item.ProductionHint))
+                                    fallback += "\n\n" + item.ProductionHint;
                                 DisplayHelpers.DescriptiveTooltip(item.Name, store.TypeName, fallback);
                             }
                             if (item.CanInstall)
@@ -65,7 +86,17 @@ namespace Pulsar4X.Client
                             ImGui.Text(Stringify.Quantity(item.Units, "##.##"));
                             if (ImGui.IsItemHovered())
                             {
+                                ImGui.SetNextWindowSize(Styles.ToolTipsize);
                                 ImGui.BeginTooltip();
+                                if (isFuelStore)
+                                {
+                                    ImGui.TextUnformatted(item.Name);
+                                    if (!string.IsNullOrEmpty(item.Description))
+                                        ImGui.TextWrapped(item.Description);
+                                    if (!string.IsNullOrEmpty(item.ProductionHint))
+                                        ImGui.TextWrapped(item.ProductionHint);
+                                    ImGui.Separator();
+                                }
                                 ImGui.Text("+" + Stringify.Quantity(item.UnitsInEscrow) + " in escro");
                                 ImGui.Text("Mass: " + Stringify.Mass(item.MassStoredKg) + " (" + Stringify.Mass(item.MassPerUnitKg) + " each)");
 
@@ -76,7 +107,17 @@ namespace Pulsar4X.Client
                             ImGui.Text(Stringify.VolumeLtr(item.VolumeStored));
                             if (ImGui.IsItemHovered())
                             {
+                                ImGui.SetNextWindowSize(Styles.ToolTipsize);
                                 ImGui.BeginTooltip();
+                                if (isFuelStore)
+                                {
+                                    ImGui.TextUnformatted(item.Name);
+                                    if (!string.IsNullOrEmpty(item.Description))
+                                        ImGui.TextWrapped(item.Description);
+                                    if (!string.IsNullOrEmpty(item.ProductionHint))
+                                        ImGui.TextWrapped(item.ProductionHint);
+                                    ImGui.Separator();
+                                }
                                 ImGui.Text("Volume: " + Stringify.VolumeLtr(item.VolumeStored) + " (" + Stringify.Volume(item.VolumePerUnit, "#.#####") + " each)");
                                 ImGui.EndTooltip();
                             }

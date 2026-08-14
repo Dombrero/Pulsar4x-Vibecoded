@@ -432,6 +432,12 @@ public class ShipJumpCommand : EntityCommand
         destManager.Transfer(fleet);
         FleetFlagshipSync.TryResolveFlagship(fleet, fleetDB, out _);
         FleetStandingSystemSync.OnFlagshipSystemChanged(fleet, fleetDB);
+
+        // First ship through the gate moves the shell — re-link under the faction root and
+        // push FleetsChanged so the UI list does not lose the fleet mid-transit.
+        var game = fleet.AttachedManager?.Game;
+        if (game != null && game.Factions.TryGetValue(fleet.FactionOwnerID, out var factionEntity))
+            FleetHierarchy.EnsureFleetRegistered(factionEntity, fleet);
     }
 
     /// <summary>

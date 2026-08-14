@@ -632,7 +632,13 @@ namespace Pulsar4X.Engine.Api
                         || !_server._game.GlobalManager.TryGetGlobalEntityById(id, out var e)
                         || e.Manager == null
                         || !e.AttachedManager.IsEntityVisibleToFaction(e, _session.FactionId))
+                    {
+                        // EntityAdded can race transfers: entity payload is skipped, but fleet
+                        // membership must still refresh or a prior EntityRemoved wipe sticks.
+                        if (type is GameEventType.EntityAdded or GameEventType.EntityRenamed)
+                            _sink(_server.FleetsEnvelope(_session.FactionId));
                         return Task.CompletedTask;
+                    }
 
                     entity = projector.ProjectEntity(e, _session.FactionId);
                 }

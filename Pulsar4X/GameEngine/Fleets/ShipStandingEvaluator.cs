@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Pulsar4X.Colonies;
+using Pulsar4X.Datablobs;
 using Pulsar4X.DataStructures;
 using Pulsar4X.Energy;
 using Pulsar4X.Engine;
@@ -14,6 +15,7 @@ using Pulsar4X.JumpPoints;
 using Pulsar4X.Movement;
 using Pulsar4X.Ships;
 using Pulsar4X.Storage;
+using WarpMoveCommand = Pulsar4X.Movement.WarpMoveCommand;
 
 namespace Pulsar4X.Fleets
 {
@@ -54,6 +56,13 @@ namespace Pulsar4X.Fleets
             if (TryGetEnergyLessThanThreshold(order, out _))
                 return FleetEnergy.NeedsColonyRecharge(ship);
 
+            // Geo/Grav ENTER can match on system-wide unsurveyed counts while siblings already
+            // claimed every target — require an assignable target or the director START/suppress-loops.
+            if (LooksLikeGeo(order))
+                return CountAssignableGeo(ship) > 0;
+            if (LooksLikeGrav(order))
+                return CountAssignableGrav(ship) > 0;
+
             return EvaluateConditionsForShip(ship, order);
         }
 
@@ -80,6 +89,10 @@ namespace Pulsar4X.Fleets
             bool matches = EvaluateConditionsForShip(ship, order);
             if (!matches && LooksLikeRefuel(order) && ShipNeedsOpportunityTopOff(ship))
                 matches = true;
+            if (matches && LooksLikeGeo(order) && CountAssignableGeo(ship) == 0)
+                matches = false;
+            if (matches && LooksLikeGrav(order) && CountAssignableGrav(ship) == 0)
+                matches = false;
             return matches;
         }
 
@@ -124,10 +137,10 @@ namespace Pulsar4X.Fleets
                 return FleetEnergy.NeedsColonyRecharge(ship);
 
             if (LooksLikeGeo(order))
-                return CountEligibleGeo(ship) > 0;
+                return CountAssignableGeo(ship) > 0;
 
             if (LooksLikeGrav(order))
-                return CountUnsurveyedAnomalies(ship) > 0;
+                return CountAssignableGrav(ship) > 0;
 
             return false;
         }
@@ -172,9 +185,9 @@ namespace Pulsar4X.Fleets
             if (condition is EnergyCondition energy)
                 return EvaluateEnergy(ship, energy);
             if (condition is UnsurveyedGeoCondition geo)
-                return geo.Compare(CountEligibleGeo(ship));
+                return geo.Compare(CountAssignableGeo(ship));
             if (condition is UnsurveyedAnomalyCondition anomaly)
-                return anomaly.Compare(CountUnsurveyedAnomalies(ship));
+                return anomaly.Compare(CountAssignableGrav(ship));
 
             // Unknown / fleet-only conditions: try fleet Evaluate if ship is in a fleet.
             var fleet = FleetLookup.FindFleetContainingShip(ship);
@@ -272,6 +285,103 @@ namespace Pulsar4X.Fleets
             if (ship.AttachedManager == null)
                 return 0;
             return UnsurveyedAnomalyCondition.CountUnsurveyed(ship.AttachedManager, ship.FactionOwnerID);
+        }
+
+        /// <summary>Eligible geo bodies not already claimed by sibling standing work.</summary>
+        internal static int CountAssignableGeo(Entity ship)
+        {
+            if (ship.AttachedManager == null)
+                return 0;
+
+            HashSet<int>? claimed = null;
+            var fleet = FleetLookup.FindFleetContainingShip(ship);
+            if (fleet.IsValid && fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                claimed = ClaimedGeoTargets(fleetDB, ship.Id);
+
+            int count = 0;
+            foreach (var body in ship.AttachedManager.GetAllEntitiesWithDataBlob<GeoSurveyableDB>())
+            {
+                if (claimed != null && claimed.Contains(body.Id))
+                    continue;
+                if (GeoSurveyTargets.IsEligible(body, ship.FactionOwnerID))
+                    count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>Unsurveyed anomalies not already claimed by sibling standing work.</summary>
+        internal static int CountAssignableGrav(Entity ship)
+        {
+            if (ship.AttachedManager == null)
+                return 0;
+
+            HashSet<int>? claimed = null;
+            var fleet = FleetLookup.FindFleetContainingShip(ship);
+            if (fleet.IsValid && fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                claimed = ClaimedGravTargets(fleetDB, ship.Id);
+
+            int count = 0;
+            foreach (var anomaly in ship.AttachedManager.GetAllEntitiesWithDataBlob<JPSurveyableDB>())
+            {
+                if (claimed != null && claimed.Contains(anomaly.Id))
+                    continue;
+                if (!anomaly.TryGetDataBlob<JPSurveyableDB>(out var db) || db.IsSurveyComplete(ship.FactionOwnerID))
+                    continue;
+                count++;
+            }
+
+            return count;
+        }
+
+        internal static HashSet<int> ClaimedGeoTargets(FleetDB fleetDB, int selfId)
+        {
+            var claimed = new HashSet<int>();
+            foreach (var child in fleetDB.Children)
+            {
+                if (child.Id == selfId)
+                    continue;
+                if (child.TryGetDataBlob<GeoSurveyingDB>(out var surveying))
+                    claimed.Add(surveying.TargetId);
+                if (!child.TryGetDataBlob<OrderableDB>(out var q))
+                    continue;
+                foreach (var cmd in q.ActionList.OfType<GeoSurveyOrder>())
+                {
+                    if (cmd.Target.IsValid)
+                        claimed.Add(cmd.Target.Id);
+                }
+                foreach (var warp in q.ActionList.OfType<WarpMoveCommand>())
+                {
+                    if (warp.TargetEntityGuid != 0
+                        && child.AttachedManager != null
+                        && child.AttachedManager.TryGetEntityById(warp.TargetEntityGuid, out var dest)
+                        && dest.HasDataBlob<GeoSurveyableDB>())
+                        claimed.Add(dest.Id);
+                }
+            }
+
+            return claimed;
+        }
+
+        internal static HashSet<int> ClaimedGravTargets(FleetDB fleetDB, int selfId)
+        {
+            var claimed = new HashSet<int>();
+            foreach (var child in fleetDB.Children)
+            {
+                if (child.Id == selfId)
+                    continue;
+                if (child.TryGetDataBlob<JPSurveyDB>(out var surveying))
+                    claimed.Add(surveying.TargetId);
+                if (!child.TryGetDataBlob<OrderableDB>(out var q))
+                    continue;
+                foreach (var cmd in q.ActionList.OfType<JPSurveyOrder>())
+                {
+                    if (cmd.Target.IsValid)
+                        claimed.Add(cmd.Target.Id);
+                }
+            }
+
+            return claimed;
         }
 
         internal static bool LooksLikeRefuel(ConditionalOrder order)

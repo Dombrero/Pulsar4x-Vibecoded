@@ -21,7 +21,13 @@ namespace Pulsar4X.Client
                     ImGui.TableNextColumn();
                     ImGui.Text(group.Name);
                     AddContextMenu(group, holderId, uiState);
-                    DisplayHelpers.DescriptiveTooltip(group.Name, group.TemplateName, group.Description, null, true);
+                    DisplayHelpers.DescriptiveTooltip(group.Name, group.TemplateName,
+                        string.IsNullOrEmpty(group.ProductionHint)
+                            ? group.Description
+                            : (string.IsNullOrEmpty(group.Description)
+                                ? group.ProductionHint
+                                : group.Description + "\n\n" + group.ProductionHint),
+                        null, true);
                     ImGui.TableNextColumn();
                     ImGui.Text(group.Count.ToString());
                     ImGui.TableNextColumn();

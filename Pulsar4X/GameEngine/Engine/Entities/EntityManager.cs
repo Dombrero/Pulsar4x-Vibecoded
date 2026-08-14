@@ -273,7 +273,10 @@ namespace Pulsar4X.Engine
             if (entity.Manager != null)
             {
                 dataBlobs = entity.AttachedManager.GetAllDataBlobsForEntity(entity.Id);
-                entity.AttachedManager.TagEntityForRemoval(entity);
+                // Keep IsValid through the hop. TagEntityForRemoval normally clears it and
+                // publishes EntityRemoved — mid-transfer fleet projections then skip the node
+                // and the UI fleet list can drop the fleet until a later refresh (or stick).
+                entity.AttachedManager.TagEntityForRemoval(entity, invalidate: false);
             }
 
             AddEntity(entity, dataBlobs);
@@ -299,7 +302,7 @@ namespace Pulsar4X.Engine
             return _entities.ContainsKey(entityID);
         }
 
-        internal void TagEntityForRemoval(Entity entity)
+        internal void TagEntityForRemoval(Entity entity, bool invalidate = true)
         {
             //check we've not already tagged this.
             if (!_entitiesTaggedForRemoval.Contains(entity))
@@ -310,7 +313,8 @@ namespace Pulsar4X.Engine
                 {
                     throw new ArgumentException("Provided Entity is not valid in this manager.");
                 }
-                entity.IsValid = false;
+                if (invalidate)
+                    entity.IsValid = false;
                 ManagerSubpulses.RemoveEntity(entity);
                 _entitiesTaggedForRemoval.Add(entity);
                 PublishFireAndForget(Message.Create(

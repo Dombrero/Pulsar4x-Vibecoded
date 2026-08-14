@@ -473,7 +473,7 @@ internal static class ShipStandingDirector
         if (game == null)
             return false;
 
-        var claimed = ClaimedGeoTargets(fleetDB, ship.Id);
+        var claimed = ShipStandingEvaluator.ClaimedGeoTargets(fleetDB, ship.Id);
         var target = FindNearestGeo(ship, fleet.FactionOwnerID, claimed);
         if (target == null)
             return false;
@@ -496,7 +496,7 @@ internal static class ShipStandingDirector
         if (game == null)
             return false;
 
-        var claimed = ClaimedGravTargets(fleetDB, ship.Id);
+        var claimed = ShipStandingEvaluator.ClaimedGravTargets(fleetDB, ship.Id);
         var target = FindNearestAnomaly(ship, fleet.FactionOwnerID, claimed);
         if (target == null)
             return false;
@@ -523,10 +523,10 @@ internal static class ShipStandingDirector
         state.ActiveStandingOrderIndex = -1;
         state.SuppressUntil = ship.StarSysDateTime + TimeSpan.FromDays(1);
         if (ShipStandingEvaluator.LooksLikeGrav(order)
-            && ShipStandingEvaluator.CountUnsurveyedAnomalies(ship) == 0)
+            && ShipStandingEvaluator.CountAssignableGrav(ship) == 0)
             state.StatusMessage = "Can't find more anomalies";
         else if (ShipStandingEvaluator.LooksLikeGeo(order)
-                 && ShipStandingEvaluator.CountEligibleGeo(ship) == 0)
+                 && ShipStandingEvaluator.CountAssignableGeo(ship) == 0)
             state.StatusMessage = "Can't find more survey targets";
         DebugTraceLog.Info("Standing",
             $"ship#{ship.Id}: empty run '{order.Name}' — suppress 1d",
@@ -537,8 +537,8 @@ internal static class ShipStandingDirector
     {
         bool hasGrav = fleetDB.StandingOrders.Any(ShipStandingEvaluator.LooksLikeGrav);
         bool hasGeo = fleetDB.StandingOrders.Any(ShipStandingEvaluator.LooksLikeGeo);
-        int anomalies = ShipStandingEvaluator.CountUnsurveyedAnomalies(ship);
-        int geo = ShipStandingEvaluator.CountEligibleGeo(ship);
+        int anomalies = ShipStandingEvaluator.CountAssignableGrav(ship);
+        int geo = ShipStandingEvaluator.CountAssignableGeo(ship);
 
         if (hasGrav && anomalies == 0)
             state.StatusMessage = "Can't find more anomalies";
@@ -599,35 +599,6 @@ internal static class ShipStandingDirector
         return string.IsNullOrEmpty(o.Name) ? $"order[{index}]" : o.Name;
     }
 
-    private static HashSet<int> ClaimedGeoTargets(FleetDB fleetDB, int selfId)
-    {
-        var claimed = new HashSet<int>();
-        foreach (var child in fleetDB.Children)
-        {
-            if (child.Id == selfId)
-                continue;
-            if (child.TryGetDataBlob<GeoSurveyingDB>(out var surveying))
-                claimed.Add(surveying.TargetId);
-            if (!child.TryGetDataBlob<OrderableDB>(out var q))
-                continue;
-            foreach (var cmd in q.ActionList.OfType<GeoSurveyOrder>())
-            {
-                if (cmd.Target.IsValid)
-                    claimed.Add(cmd.Target.Id);
-            }
-            foreach (var warp in q.ActionList.OfType<WarpMoveCommand>())
-            {
-                if (warp.TargetEntityGuid != 0
-                    && child.AttachedManager != null
-                    && child.AttachedManager.TryGetEntityById(warp.TargetEntityGuid, out var dest)
-                    && dest.HasDataBlob<GeoSurveyableDB>())
-                    claimed.Add(dest.Id);
-            }
-        }
-
-        return claimed;
-    }
-
     private static Entity? FindNearestGeo(Entity ship, int factionId, HashSet<int> claimed)
     {
         if (!ship.TryGetDataBlob<PositionDB>(out var shipPos) || ship.AttachedManager == null)
@@ -652,27 +623,6 @@ internal static class ShipStandingDirector
         }
 
         return best;
-    }
-
-    private static HashSet<int> ClaimedGravTargets(FleetDB fleetDB, int selfId)
-    {
-        var claimed = new HashSet<int>();
-        foreach (var child in fleetDB.Children)
-        {
-            if (child.Id == selfId)
-                continue;
-            if (child.TryGetDataBlob<JPSurveyDB>(out var surveying))
-                claimed.Add(surveying.TargetId);
-            if (!child.TryGetDataBlob<OrderableDB>(out var q))
-                continue;
-            foreach (var cmd in q.ActionList.OfType<JPSurveyOrder>())
-            {
-                if (cmd.Target.IsValid)
-                    claimed.Add(cmd.Target.Id);
-            }
-        }
-
-        return claimed;
     }
 
     private static Entity? FindNearestAnomaly(Entity ship, int factionId, HashSet<int> claimed)

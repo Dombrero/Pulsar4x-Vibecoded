@@ -365,7 +365,20 @@ namespace Pulsar4X.Client
                 _newJobDesignIndex = curItemIndex;
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(filtered[_newJobDesignIndex].Name);
+            {
+                var hovered = filtered[_newJobDesignIndex];
+                ImGui.SetNextWindowSize(Styles.ToolTipsize);
+                ImGui.BeginTooltip();
+                ImGui.TextUnformatted(hovered.Name);
+                if (!string.IsNullOrEmpty(hovered.ProductionHint))
+                {
+                    ImGui.Separator();
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                    ImGui.TextWrapped(hovered.ProductionHint);
+                    ImGui.PopStyleColor();
+                }
+                ImGui.EndTooltip();
+            }
 
             var selectedDesign = filtered[_newJobDesignIndex];
 
@@ -506,9 +519,22 @@ namespace Pulsar4X.Client
                 ImGui.SameLine();
                 ImGui.Text(design.Name);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip(design.Name + (design.IsColonyInstallation
-                        ? "\nColony installation — can be auto-installed when finished."
-                        : "\nComponent or product output for this job."));
+                {
+                    ImGui.SetNextWindowSize(Styles.ToolTipsize);
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted(design.Name);
+                    ImGui.TextUnformatted(design.IsColonyInstallation
+                        ? "Colony installation — can be auto-installed when finished."
+                        : "Component or product output for this job.");
+                    if (!string.IsNullOrEmpty(design.ProductionHint))
+                    {
+                        ImGui.Separator();
+                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                        ImGui.TextWrapped(design.ProductionHint);
+                        ImGui.PopStyleColor();
+                    }
+                    ImGui.EndTooltip();
+                }
                 ImGui.TableNextColumn();
                 ImGui.Text(design.OutputAmount.ToString());
                 ImGui.TableNextColumn();
