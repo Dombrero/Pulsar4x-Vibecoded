@@ -36,6 +36,9 @@ namespace Pulsar4X.Client
         Vector2 _iconSize = new Vector2(16, 16);
         Vector2 _windowSize = new Vector2(200, 100);
         Vector2 _windowPosition = new Vector2(0, 0);
+        private DateTime _barCycleStartUtc;
+        private DateTime _lastBarGameDate;
+        private bool _lastBarRunning;
         private bool _syncedTickFromGalaxy;
 
         private TimeControl()
@@ -74,7 +77,6 @@ namespace Pulsar4X.Client
 
             Window.Begin("TimeControl", ref IsActive, _flags);
 
-            // Thin progress strip: how far the current tick/step has been simulated.
             DrawTickProgressBar(time);
 
             ImGui.PushItemWidth(100);
@@ -166,23 +168,37 @@ namespace Pulsar4X.Client
 
         private void DrawTickProgressBar(TimeState? time)
         {
-            float progress = (float)Math.Clamp(time?.TickProgress ?? 0.0, 0.0, 1.0);
-            bool active = (time?.IsRunning ?? false) || (time?.IsStopping ?? false) || progress > 0.001f;
-            if (!active)
+            bool running = (time?.IsRunning ?? false) || (time?.IsStopping ?? false);
+            if (!running)
+            {
+                _lastBarRunning = false;
                 return;
+            }
+
+            if (time is { } t
+                && (t.GameDateTime != _lastBarGameDate || !_lastBarRunning))
+            {
+                _barCycleStartUtc = DateTime.UtcNow;
+                _lastBarGameDate = t.GameDateTime;
+                _lastBarRunning = true;
+            }
+
+            // Approximate: fill over TickFrequency (real-time gap between ticks). If the sim is
+            // slower than that, the bar sits full until the date jumps.
+            double periodMs = Math.Max(50.0, time?.TickFrequency.TotalMilliseconds ?? 1000.0);
+            float progress = (float)Math.Clamp(
+                (DateTime.UtcNow - _barCycleStartUtc).TotalMilliseconds / periodMs, 0.0, 1.0);
 
             var drawList = ImGui.GetWindowDrawList();
             var winPos = ImGui.GetWindowPos();
             var winSize = ImGui.GetWindowSize();
             const float barHeight = 3f;
 
-            // Track (dim)
             drawList.AddRectFilled(
                 winPos,
                 new Vector2(winPos.X + winSize.X, winPos.Y + barHeight),
                 ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.18f, 0.22f, 0.9f)));
 
-            // Fill
             if (progress > 0f)
             {
                 drawList.AddRectFilled(
@@ -191,13 +207,12 @@ namespace Pulsar4X.Client
                     ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.55f, 0.95f, 1f)));
             }
 
-            // Hover over the strip for a short explanation
             if (ImGui.IsMouseHoveringRect(winPos, new Vector2(winPos.X + winSize.X, winPos.Y + barHeight)))
             {
                 ImGui.BeginTooltip();
-                ImGui.TextUnformatted($"Processing tick: {(progress * 100f):0}%");
-                if (time is { } t && t.TickLength > TimeSpan.Zero)
-                    ImGui.TextUnformatted($"Tick length: {FormatTickLength(t.TickLength)}");
+                ImGui.TextUnformatted("Nächster Tick (ungefähr)");
+                if (time is { } tt && tt.TickLength > TimeSpan.Zero)
+                    ImGui.TextUnformatted($"Tick: {FormatTickLength(tt.TickLength)}");
                 ImGui.EndTooltip();
             }
         }

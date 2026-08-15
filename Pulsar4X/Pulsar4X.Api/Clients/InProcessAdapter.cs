@@ -101,22 +101,6 @@ public sealed class InProcessAdapter : IGameClient
             ApplyToGalaxy(evt);
             EventReceived?.Invoke(evt);
         }
-
-        if (_server is IEngineCommandPump pump)
-            pump.PumpPendingCommands();
-    }
-
-    /// <summary>
-    /// Pull a fresh fleet tree from the co-located engine. Used on global tick boundaries so order
-    /// progress (e.g. survey %) jumps with Ticklength instead of live-polling every UI frame while
-    /// a long pulse is still processing. Simulation itself is unchanged — this is display only.
-    /// </summary>
-    private void RefreshFleetsFromServer()
-    {
-        if (!IsConnected || _server is not IFleetHierarchyReader reader)
-            return;
-        var (fleets, unattached) = reader.GetFleetHierarchy(Session.FactionId);
-        _galaxy.SetFleets(fleets, unattached);
     }
 
     // Applies a self-contained delta to the galaxy. Deltas carry their payload, so this never calls
@@ -137,10 +121,9 @@ public sealed class InProcessAdapter : IGameClient
                 }
                 else
                 {
+                    // Clock / pause / tick-length only. Mid-tick progress is not streamed — the
+                    // TimeControl bar estimates wait from TickFrequency on the client.
                     _galaxy.Time = evt.Time;
-                    // Aurora: fleet/order UI refreshes when the global tick lands (and on pause/stop),
-                    // not every frame mid-pulse. FleetsChanged pushes still apply immediately below.
-                    RefreshFleetsFromServer();
                 }
                 return;
 

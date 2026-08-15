@@ -48,8 +48,7 @@ namespace Pulsar4X.Engine.Api
         public TimeState ProjectTime(DateTime gameDateTime)
         {
             var tp = _game.TimePulse;
-            return new TimeState(gameDateTime, tp.IsRunning, tp.IsStopping, tp.Ticklength, tp.TickFrequency,
-                tp.CurrentTickProgress);
+            return new TimeState(gameDateTime, tp.IsRunning, tp.IsStopping, tp.Ticklength, tp.TickFrequency);
         }
 
         public FactionSnapshot? ProjectFaction(int factionId)

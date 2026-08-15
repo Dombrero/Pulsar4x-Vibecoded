@@ -138,6 +138,34 @@ namespace Pulsar4X.Client
             PinnedEntityGuid = -1;
         }
 
+        /// <summary>Sets zoom and notifies map listeners (labels etc.).</summary>
+        public void SetZoomLevel(float zoom)
+        {
+            float clamped = (float)Math.Clamp(zoom, MIN_ZOOMLEVEL, MAX_ZOOMLEVEL);
+            if (Math.Abs(ZoomLevel - clamped) < 1e-6f)
+                return;
+            ZoomLevel = clamped;
+            ZoomOccured?.Invoke(this, ZoomLevel);
+        }
+
+        /// <summary>
+        /// Zoom so a body of the given radius fills roughly <paramref name="fractionOfViewport"/> of
+        /// the shorter viewport edge (matches SysBodyIcon scale: viewRadius × 2.2 × diskFrac).
+        /// </summary>
+        public float ZoomToFitRadiusAU(double radiusAU, float fractionOfViewport = 0.55f, float diskFrac = 0.42f)
+        {
+            radiusAU = Math.Max(radiusAU, 1e-9);
+            diskFrac = Math.Clamp(diskFrac, 0.15f, 0.9f);
+            fractionOfViewport = Math.Clamp(fractionOfViewport, 0.15f, 0.9f);
+
+            double shortEdge = Math.Min(ViewPortSize.X, ViewPortSize.Y);
+            // Diameter on screen ≈ fractionOfViewport * shortEdge → radius_px = half of that.
+            double targetRadiusPx = shortEdge * fractionOfViewport * 0.5;
+            // bodyRadius_px ≈ radiusAU * ZoomLevel * 2.2 * diskFrac  (see SysBodyIcon)
+            double zoom = targetRadiusPx / (radiusAU * 2.2 * diskFrac);
+            return (float)Math.Clamp(zoom, MIN_ZOOMLEVEL, MAX_ZOOMLEVEL);
+        }
+
         /// <summary>Pin to an entity by id, tracking its position through the replicated galaxy.</summary>
         public void PinToEntity(int entityId, string systemId, GlobalUIState state)
         {

@@ -12,7 +12,7 @@ public sealed record TimeState(
     bool IsStopping,
     TimeSpan TickLength,
     TimeSpan TickFrequency,
-    /// <summary>0–1 progress through the current tick/step (sim time inside ProcessSystem). 0 when idle.</summary>
+    /// <summary>Unused by the client (progress bar is local). Kept for API compatibility.</summary>
     double TickProgress = 0.0);
 
 public enum TimeControlAction

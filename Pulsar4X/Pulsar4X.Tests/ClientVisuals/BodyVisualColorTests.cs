@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Pulsar4X.Api;
 using Pulsar4X.Client.BodyVisuals;
+using Pulsar4X.Client.ShipVisuals;
 
 namespace Pulsar4X.Tests.ClientVisuals;
 
@@ -114,11 +115,84 @@ public class BodyVisualColorTests
     }
 
     [Test]
-    public void Mercury_Preset_RequestsGlow()
+    public void Mercury_Preset_IsGreyRock_NotLavaGlow()
     {
         Assert.That(SolBodyPresets.TryGet("Mercury", out var mercury), Is.True);
-        Assert.That(mercury.Glow, Is.True);
+        Assert.That(IsMostlyGrey(mercury.Primary), Is.True);
+        Assert.That(mercury.Type, Is.Not.EqualTo(BodyVisualType.Lava));
+        Assert.That(mercury.Glow, Is.False, "no outer halo — heat is dayside-only");
+        Assert.That(mercury.ThermalGlow, Is.GreaterThan(0), "sunlit face should warm-glow");
         Assert.That(mercury.GlowColor.R, Is.GreaterThan(mercury.GlowColor.B));
+    }
+
+    [Test]
+    public void EarthAlbedo_IsMostlyBlueOcean()
+    {
+        Assert.That(SolBodyPresets.TryGet("Earth", out var earth), Is.True);
+        var img = new BodyVisualComposer().ComposeAlbedoMap(earth!);
+        int ocean = 0, other = 0;
+        for (int y = 0; y < img.Height; y++)
+            for (int x = 0; x < img.Width; x++)
+            {
+                var px = img.GetPixel(x, y);
+                if (px.b > px.g && px.b > px.r)
+                    ocean++;
+                else
+                    other++;
+            }
+        Assert.That(ocean, Is.GreaterThan(other), "Earth must read as an ocean world");
+    }
+
+    [Test]
+    public void EarthContinents_AmericasAreLand_AtlanticIsOcean()
+    {
+        var kansas = FromLatLon(40, -100);
+        var atlantic = FromLatLon(0, -30);
+        var andes = FromLatLon(-20, -70);
+        Assert.That(BodyVisualComposer.EarthLandField(kansas.x, kansas.y, kansas.z), Is.GreaterThan(0.05));
+        Assert.That(BodyVisualComposer.EarthLandField(andes.x, andes.y, andes.z), Is.GreaterThan(0.0));
+        Assert.That(BodyVisualComposer.EarthLandField(atlantic.x, atlantic.y, atlantic.z), Is.LessThan(0));
+
+        Assert.That(SolBodyPresets.TryGet("Earth", out var earth), Is.True);
+        var img = new BodyVisualComposer().ComposeAlbedoMap(earth!);
+        var landPx = SampleEquirect(img, 40, -100);
+        var seaPx = SampleEquirect(img, 0, -30);
+        Assert.That(landPx.g, Is.GreaterThan(landPx.b), "Great Plains should be vegetated land");
+        Assert.That(seaPx.b, Is.GreaterThan(seaPx.r), "mid-Atlantic should be ocean");
+        Assert.That(EarthBlueMarble.MapsLoaded, Is.True, "NASA Blue Marble maps must be embedded");
+    }
+
+    [Test]
+    public void JupiterAlbedo_HasBands_UranusIsQuiet()
+    {
+        Assert.That(SolBodyPresets.TryGet("Jupiter", out var jupiter), Is.True);
+        Assert.That(SolBodyPresets.TryGet("Uranus", out var uranus), Is.True);
+        var composer = new BodyVisualComposer();
+        var jImg = composer.ComposeAlbedoMap(jupiter!);
+        var uImg = composer.ComposeAlbedoMap(uranus!);
+        Assert.That(ColumnVariance(jImg, jImg.Width / 2), Is.GreaterThan(ColumnVariance(uImg, uImg.Width / 2) * 2));
+        Assert.That(jupiter.Flattening, Is.GreaterThanOrEqualTo(6));
+        Assert.That(uranus.Water, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void VenusAlbedo_IsCream_NotGreen()
+    {
+        Assert.That(SolBodyPresets.TryGet("Venus", out var venus), Is.True);
+        var img = new BodyVisualComposer().ComposeAlbedoMap(venus!);
+        var px = img.GetPixel(img.Width / 2, img.Height / 2);
+        Assert.That(px.g, Is.LessThan(px.r + 12), "Venus clouds are cream, not toxic green");
+        Assert.That(px.b, Is.LessThan(px.r));
+    }
+
+    [Test]
+    public void Saturn_IsFlattened_AndHasRings()
+    {
+        Assert.That(SolBodyPresets.TryGet("Saturn", out var saturn), Is.True);
+        Assert.That(saturn!.Flattening, Is.GreaterThanOrEqualTo(8));
+        Assert.That(BodyGlobeDrawer.PolarSquash(saturn), Is.LessThan(0.95f));
+        Assert.That(saturn.Rings, Is.GreaterThan(50));
+        Assert.That(saturn.Rotation, Is.EqualTo(27));
     }
 
     [Test]
@@ -153,5 +227,37 @@ public class BodyVisualColorTests
         int max = Math.Max(c.R, Math.Max(c.G, c.B));
         int min = Math.Min(c.R, Math.Min(c.G, c.B));
         return max - min <= 18;
+    }
+
+    private static double ColumnVariance(RgbaImage img, int x)
+    {
+        double sum = 0, sum2 = 0;
+        int n = img.Height;
+        for (int y = 0; y < n; y++)
+        {
+            var p = img.GetPixel(x, y);
+            double v = p.r * 0.3 + p.g * 0.5 + p.b * 0.2;
+            sum += v;
+            sum2 += v * v;
+        }
+        double mean = sum / n;
+        return sum2 / n - mean * mean;
+    }
+
+    private static (double x, double y, double z) FromLatLon(double latDeg, double lonDeg)
+    {
+        double lat = latDeg * Math.PI / 180.0;
+        double lon = lonDeg * Math.PI / 180.0;
+        double cl = Math.Cos(lat);
+        return (cl * Math.Cos(lon), Math.Sin(lat), cl * Math.Sin(lon));
+    }
+
+    private static (byte r, byte g, byte b, byte a) SampleEquirect(RgbaImage img, double latDeg, double lonDeg)
+    {
+        double u = (lonDeg + 180.0) / 360.0;
+        double v = 0.5 - latDeg / 180.0;
+        int x = Math.Clamp((int)(u * img.Width), 0, img.Width - 1);
+        int y = Math.Clamp((int)(v * img.Height), 0, img.Height - 1);
+        return img.GetPixel(x, y);
     }
 }

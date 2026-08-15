@@ -29,12 +29,9 @@ namespace Pulsar4X.Engine.Api
         private StarSystem? _focusedSystem;
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
         private readonly Action? _onSimulationStopped;
-        // Throttled mid-tick progress for the TimeControl bar (no faction refresh).
-        private readonly Action? _onTickProgress;
 
         // Engine-side inbox loop (Discord): drains CommandInbox continuously even while paused.
-        // Existing drains (SubmitCommand, MasterTimePulse subpulse, InProcessAdapter) remain fine
-        // alongside this pump. A networked server can later push DTOs into the same inbox.
+        // SubmitCommand and MasterTimePulse subpulses also drain. The UI does not drain per frame.
         private PeriodicTimer? _commandPumpTimer;
         private CancellationTokenSource? _commandPumpCts;
         private Task? _commandPumpTask;
@@ -56,9 +53,6 @@ namespace Pulsar4X.Engine.Api
             // TimeState stays IsRunning=true and its time controls never unlock. Push a final clock.
             _onSimulationStopped = OnSimulationStopped;
             _game.TimePulse.SimulationStopped += _onSimulationStopped;
-
-            _onTickProgress = OnTickProgressChanged;
-            _game.TimePulse.TickProgressChanged += _onTickProgress;
 
             StartCommandPump();
         }
@@ -119,7 +113,6 @@ namespace Pulsar4X.Engine.Api
 
             _game.TimePulse.GameGlobalDateChangedEvent -= _onDateChanged;
             _game.TimePulse.SimulationStopped -= _onSimulationStopped;
-            _game.TimePulse.TickProgressChanged -= _onTickProgress;
             if (_focusedSystem != null)
                 _focusedSystem.DecrementExternalObserver(true);
             lock (_sinkLock) _subscriptions.Clear();
@@ -185,6 +178,8 @@ namespace Pulsar4X.Engine.Api
 
         // Fires (off-thread) once the sim loop has fully stopped. The date events have gone silent, so
         // push one more TimeChanged — now carrying IsRunning=false — so clients unlock their controls.
+        // Also push fleets: mid-tick order progress is not streamed on TimeChanged (too heavy), so
+        // pause/stop is the catch-up so Fleet UI matches the halted sim.
         private void OnSimulationStopped()
         {
             var date = _game.TimePulse.GameGlobalDateTime;
@@ -200,6 +195,7 @@ namespace Pulsar4X.Engine.Api
                         Time: _projector.ProjectTime(date),
                         SystemId: _focusedSystem.ID));
                 }
+                sub.Send(FleetsEnvelope(sub.FactionId));
             }
         }
 
@@ -242,30 +238,22 @@ namespace Pulsar4X.Engine.Api
                 sub.Send(evt);
         }
 
-        /// <summary>
-        /// Mid-tick ProcessSystem progress only — do not refresh faction/fleet snapshots (too heavy).
-        /// </summary>
-        private void OnTickProgressChanged()
-        {
-            BroadcastTimeChanged();
-        }
-
         // A clock advance refreshes the time plus each subscriber's per-faction snapshots: the
         // (funds-bearing) faction, the fleet hierarchy (order progress, locations, and ship
         // membership all evolve as the simulation runs), and research (progress accrues per tick).
         private void OnGlobalDateChanged()
         {
-            var time = new GameEventEnvelope(GameEventType.TimeChanged, Time: _projector.ProjectTime());
+            var timeState = _projector.ProjectTime();
+            var time = new GameEventEnvelope(GameEventType.TimeChanged, Time: timeState);
             var focused = _focusedSystem;
             foreach (var sub in SnapshotSubscriptions())
             {
                 sub.Send(time);
-                // Align focused ClientSystem.DateTime with the global tick (order UI / PrimarySystemDateTime).
                 if (focused != null)
                 {
                     sub.Send(new GameEventEnvelope(
                         GameEventType.TimeChanged,
-                        Time: _projector.ProjectTime(),
+                        Time: timeState,
                         SystemId: focused.ID));
                 }
                 var faction = _projector.ProjectFaction(sub.FactionId);
@@ -304,35 +292,51 @@ namespace Pulsar4X.Engine.Api
 
         // Keplerian movement is propagated client-side from OrbitView elements, but warp and
         // newtonian thrust aren't predictable from a snapshot — re-push those movers each clock
-        // advance so their PositionView is at most a tick old.
+        // advance so their PositionView is at most a tick old. Energy stores evolve without
+        // messages; re-push generators so the selected-system power UI stays current.
+        // Scoped to the focused system (the map the player is looking at). Headless/unfocused
+        // falls back to all known systems.
         private void RefreshMovers(ServerSubscription sub)
         {
             if (!_game.Factions.TryGetValue(sub.FactionId, out var faction)) return;
             if (!faction.TryGetDataBlob<FactionInfoDB>(out var info)) return;
 
+            if (_focusedSystem != null)
+            {
+                RefreshMoversInSystem(sub, _focusedSystem);
+                return;
+            }
+
             foreach (var systemId in info.KnownSystems)
             {
                 var system = _game.Systems.FirstOrDefault(s => s.ID == systemId);
-                if (system == null) continue;
-
-                foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.WarpMovingDB>())
-                    if (mover.FactionOwnerID == sub.FactionId)
-                        PushEntityRefresh(mover, sub.FactionId);
-                foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonMoveDB>())
-                    if (mover.FactionOwnerID == sub.FactionId)
-                        PushEntityRefresh(mover, sub.FactionId);
-                foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonSimpleMoveDB>())
-                    if (mover.FactionOwnerID == sub.FactionId)
-                        PushEntityRefresh(mover, sub.FactionId);
-                foreach (var beam in system.GetAllEntitiesWithDataBlob<Pulsar4X.Weapons.BeamInfoDB>())
-                    if (beam.FactionOwnerID == sub.FactionId)
-                        PushEntityRefresh(beam, sub.FactionId);
-                // Energy generation/storage evolves through engine-scheduled interrupts with no
-                // message; re-push so the power display's plot stays current.
-                foreach (var generator in system.GetAllEntitiesWithDataBlob<Pulsar4X.Energy.EnergyGenAbilityDB>())
-                    if (generator.FactionOwnerID == sub.FactionId)
-                        PushEntityRefresh(generator, sub.FactionId);
+                if (system != null)
+                    RefreshMoversInSystem(sub, system);
             }
+        }
+
+        private void RefreshMoversInSystem(ServerSubscription sub, StarSystem system)
+        {
+            var pushed = new HashSet<int>();
+            void consider(Entity entity)
+            {
+                if (!entity.IsValid || entity.FactionOwnerID != sub.FactionId)
+                    return;
+                if (!pushed.Add(entity.Id))
+                    return;
+                PushEntityRefresh(entity, sub.FactionId);
+            }
+
+            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.WarpMovingDB>())
+                consider(mover);
+            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonMoveDB>())
+                consider(mover);
+            foreach (var mover in system.GetAllEntitiesWithDataBlob<Pulsar4X.Movement.NewtonSimpleMoveDB>())
+                consider(mover);
+            foreach (var beam in system.GetAllEntitiesWithDataBlob<Pulsar4X.Weapons.BeamInfoDB>())
+                consider(beam);
+            foreach (var generator in system.GetAllEntitiesWithDataBlob<Pulsar4X.Energy.EnergyGenAbilityDB>())
+                consider(generator);
         }
 
         // The fleet hierarchy is always pushed whole (root fleets + unattached ships) — it's small,

@@ -79,6 +79,11 @@ public sealed class BodyVisualState
     /// </summary>
     public bool ExtremeHeatRing { get; init; }
 
+    /// <summary>
+    /// Polar flattening in percent (Saturn ~10). Squashes the live globe along screen Y.
+    /// </summary>
+    public int Flattening { get; init; }
+
     /// <summary>Cache key for shared unsurveyed defaults (type-only) or surveyed individuals.</summary>
     public string CacheKey { get; init; } = "default:terrestrial";
 }

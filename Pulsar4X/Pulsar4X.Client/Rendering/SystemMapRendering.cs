@@ -28,10 +28,11 @@ namespace Pulsar4X.Client.Rendering
 
         HashSet<EntityLabel> _allLabels = new();
         HashSet<EntityLabel> _visibleLabels = new();
+        readonly HashSet<int> _syncSeen = new();
+        readonly List<int> _syncGone = new();
 
-        // The last snapshot reference each entity's icons were built from. Snapshots are immutable,
-        // so a reference change means the entity changed and its icons need rebuilding. This is
-        // sync bookkeeping only — nothing reads game data from it.
+        // Last snapshot reference used to build (or keep) icons. Positions are read live via
+        // SnapshotPosition; a new snapshot only rebuilds icons when the visual shell or move overlay changes.
         Dictionary<int, EntitySnapshot> _iconedSnapshots = new();
 
         DateTime _lastPhysicsTime;
@@ -232,42 +233,7 @@ namespace Pulsar4X.Client.Rendering
             var bodyType = UserOrbitSettings.FromBodyKind(entity.Kind);
             var massVolume = entity.GetView<MassVolumeView>();
 
-            var orbit = entity.GetView<OrbitView>();
-            if (orbit != null && orbit.SemiMajorAxisM > 0 && orbit.StandardGravParameter > 0)
-            {
-                IPosition parentPosition = orbit.ParentId is int parentId
-                    ? new SnapshotPosition(_state, _systemId, parentId)
-                    : position;
-                if (orbit.Eccentricity < 1)
-                    _orbitRings.TryAdd(entity.Id,
-                        new OrbitEllipseIcon(orbit, position, parentPosition, bodyType, _state.UserOrbitSettingsMtx));
-                else if (orbit.ParentSoiRadiusM > 0)
-                    _orbitRings.TryAdd(entity.Id,
-                        new OrbitHyperbolicIcon2(orbit, position, parentPosition, bodyType, _state.UserOrbitSettingsMtx));
-            }
-
-            if (entity.GetView<NewtonMoveView>() is { } newton && newton.SoiParentId is int newtonParentId)
-            {
-                _orbitRings.TryAdd(entity.Id, new NewtonMoveIcon(
-                    newton, position, new SnapshotPosition(_state, _systemId, newtonParentId),
-                    bodyType, _state.UserOrbitSettingsMtx));
-            }
-
-            if (entity.GetView<NewtonSimpleMoveView>() is { } newtonSimple && newtonSimple.SoiParentId is int simpleParentId)
-            {
-                var time = _state.SimTimeForSystem(_systemId);
-                _orbitRings.TryAdd(entity.Id, new NewtonSimpleIcon(
-                    newtonSimple, position, new SnapshotPosition(_state, _systemId, simpleParentId),
-                    bodyType, _state.UserOrbitSettingsMtx, time));
-            }
-
-            if (entity.GetView<WarpMovingView>() is { } warp)
-            {
-                IPosition? targetPosition = warp.TargetEntityId is int targetId
-                    ? new SnapshotPosition(_state, _systemId, targetId)
-                    : null;
-                _orbitRings.TryAdd(entity.Id, new WarpMovingIcon(warp, position, targetPosition));
-            }
+            AddMoveOverlays(entity, position, bodyType);
 
             if (entity.GetView<StarView>() is { } star && massVolume != null)
             {
@@ -339,6 +305,99 @@ namespace Pulsar4X.Client.Rendering
             _allLabels.RemoveWhere(x => x.EntityId == entityGuid);
         }
 
+        void AddMoveOverlays(EntitySnapshot entity, IPosition position, UserOrbitSettings.OrbitBodyType bodyType)
+        {
+            if (_systemId == null)
+                return;
+
+            var orbit = entity.GetView<OrbitView>();
+            if (orbit != null && orbit.SemiMajorAxisM > 0 && orbit.StandardGravParameter > 0)
+            {
+                IPosition parentPosition = orbit.ParentId is int parentId
+                    ? new SnapshotPosition(_state, _systemId, parentId)
+                    : position;
+                if (orbit.Eccentricity < 1)
+                    _orbitRings.TryAdd(entity.Id,
+                        new OrbitEllipseIcon(orbit, position, parentPosition, bodyType, _state.UserOrbitSettingsMtx));
+                else if (orbit.ParentSoiRadiusM > 0)
+                    _orbitRings.TryAdd(entity.Id,
+                        new OrbitHyperbolicIcon2(orbit, position, parentPosition, bodyType, _state.UserOrbitSettingsMtx));
+            }
+
+            if (entity.GetView<NewtonMoveView>() is { } newton && newton.SoiParentId is int newtonParentId)
+            {
+                _orbitRings.TryAdd(entity.Id, new NewtonMoveIcon(
+                    newton, position, new SnapshotPosition(_state, _systemId, newtonParentId),
+                    bodyType, _state.UserOrbitSettingsMtx));
+            }
+
+            if (entity.GetView<NewtonSimpleMoveView>() is { } newtonSimple && newtonSimple.SoiParentId is int simpleParentId)
+            {
+                var time = _state.SimTimeForSystem(_systemId);
+                _orbitRings.TryAdd(entity.Id, new NewtonSimpleIcon(
+                    newtonSimple, position, new SnapshotPosition(_state, _systemId, simpleParentId),
+                    bodyType, _state.UserOrbitSettingsMtx, time));
+            }
+
+            if (entity.GetView<WarpMovingView>() is { } warp)
+            {
+                IPosition? targetPosition = warp.TargetEntityId is int targetId
+                    ? new SnapshotPosition(_state, _systemId, targetId)
+                    : null;
+                _orbitRings.TryAdd(entity.Id, new WarpMovingIcon(warp, position, targetPosition));
+            }
+        }
+
+        void ReplaceMoveOverlays(EntitySnapshot entity)
+        {
+            if (_systemId == null)
+                return;
+
+            _orbitRings.TryRemove(entity.Id, out _);
+            _moveIcons.TryRemove(entity.Id, out _);
+
+            var position = new SnapshotPosition(_state, _systemId, entity.Id);
+            var bodyType = UserOrbitSettings.FromBodyKind(entity.Kind);
+            AddMoveOverlays(entity, position, bodyType);
+
+            if (entity.GetView<BeamView>() is { } beam)
+                _entityIcons[entity.Id] = new BeamIcon(beam, position);
+        }
+
+        static bool SameVisualShell(EntitySnapshot a, EntitySnapshot b)
+        {
+            if (a.Kind != b.Kind)
+                return false;
+            if (a.HasView<ShipView>() != b.HasView<ShipView>())
+                return false;
+            if (a.HasView<BodyView>() != b.HasView<BodyView>())
+                return false;
+            if (a.HasView<StarView>() != b.HasView<StarView>())
+                return false;
+            if (a.HasView<BeamView>() != b.HasView<BeamView>())
+                return false;
+            if (a.HasView<JumpPointView>() != b.HasView<JumpPointView>())
+                return false;
+            if (a.HasView<ProjectileView>() != b.HasView<ProjectileView>())
+                return false;
+            return true;
+        }
+
+        static int MoveOverlayKey(EntitySnapshot e)
+        {
+            if (e.GetView<WarpMovingView>() is { } w)
+                return HashCode.Combine(1, w.TargetEntityId, w.EntryPointAbsolute, w.ExitPointAbsolute);
+            if (e.GetView<NewtonSimpleMoveView>() is { CurrentTrajectory: { } nsTraj } ns)
+                return HashCode.Combine(2, ns.SoiParentId, nsTraj.SemiMajorAxisM);
+            if (e.GetView<NewtonMoveView>() is { Trajectory: { } nTraj } n)
+                return HashCode.Combine(3, n.SoiParentId, nTraj.SemiMajorAxisM);
+            if (e.GetView<OrbitView>() is { } o)
+                return HashCode.Combine(4, o.ParentId, o.Eccentricity < 1);
+            if (e.GetView<BeamView>() is { } b)
+                return HashCode.Combine(5, b.StartPosition, b.EndPosition);
+            return 0;
+        }
+
         /// <summary>The entity's orbit-ring icon, for screen-space hit testing (maneuver-node
         /// placement); null when the entity has no orbit ring.</summary>
         internal OrbitIconBase? GetOrbitIcon(int entityId)
@@ -355,33 +414,50 @@ namespace Pulsar4X.Client.Rendering
             }
         }
 
-        /// <summary>Reconciles the icon set against the system's current snapshots: new entities
-        /// gain icons, changed snapshots rebuild them, departed entities lose them.</summary>
+        /// <summary>Reconciles icons with current snapshots. Unchanged visual shells keep their
+        /// sprites/labels; only movement overlays rebuild when warp/newton/orbit identity changes.</summary>
         void SyncIcons()
+        {
+            try
+            {
+                SyncIconsCore();
+            }
+            catch (Exception ex)
+            {
+                DebugTraceLog.Error("UI", "SyncIcons: " + ex);
+            }
+        }
+
+        void SyncIconsCore()
         {
             var system = _systemId != null ? _state.GameClient?.Galaxy.GetSystem(_systemId) : null;
             if (system == null)
                 return;
 
             bool changed = false;
-            var seen = new HashSet<int>();
+            _syncSeen.Clear();
             foreach (var entity in system.Entities)
             {
-                seen.Add(entity.Id);
+                _syncSeen.Add(entity.Id);
                 if (_iconedSnapshots.TryGetValue(entity.Id, out var iconed))
                 {
                     if (ReferenceEquals(iconed, entity))
                         continue;
 
-                    // Survey / mineral refresh: rebind body texture in place. Full teardown
-                    // recreates labels and used to crash via off-thread SDL DestroyTexture.
-                    if (_bodyIcons.TryGetValue(entity.Id, out var bodyIcon)
-                        && bodyIcon is SysBodyIcon sysBody
-                        && entity.HasView<BodyView>()
-                        && entity.Kind != BodyKind.Star)
+                    if (SameVisualShell(iconed, entity))
                     {
+                        if (MoveOverlayKey(iconed) != MoveOverlayKey(entity))
+                            ReplaceMoveOverlays(entity);
+
+                        if (_bodyIcons.TryGetValue(entity.Id, out var bodyIcon)
+                            && bodyIcon is SysBodyIcon sysBody
+                            && entity.HasView<BodyView>()
+                            && entity.Kind != BodyKind.Star)
+                        {
+                            sysBody.BindTexture(entity, system);
+                        }
+
                         _iconedSnapshots[entity.Id] = entity;
-                        sysBody.BindTexture(entity, system);
                         continue;
                     }
 
@@ -393,7 +469,13 @@ namespace Pulsar4X.Client.Rendering
                 changed = true;
             }
 
-            foreach (var entityId in _iconedSnapshots.Keys.Where(id => !seen.Contains(id)).ToList())
+            _syncGone.Clear();
+            foreach (var entityId in _iconedSnapshots.Keys)
+            {
+                if (!_syncSeen.Contains(entityId))
+                    _syncGone.Add(entityId);
+            }
+            foreach (var entityId in _syncGone)
             {
                 RemoveIconable(entityId);
                 _iconedSnapshots.Remove(entityId);
@@ -408,6 +490,7 @@ namespace Pulsar4X.Client.Rendering
         {
             if (_systemId == null) return;
 
+            BodyMapTextureCache.PumpUploads();
             SyncIcons();
 
             // Advance icon physics when the global tick clock moves (Aurora increments).

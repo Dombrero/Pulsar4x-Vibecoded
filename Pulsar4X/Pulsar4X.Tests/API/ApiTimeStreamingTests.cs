@@ -108,5 +108,50 @@ namespace Pulsar4X.Tests
             Assert.That(last.IsRunning, Is.False, "final pushed clock must be IsRunning=false so the UI unlocks");
             Assert.That(last.IsStopping, Is.False, "final pushed clock must clear IsStopping");
         }
+
+        [Test]
+        public void Tick_progress_does_not_rebuild_client_fleet_tree()
+        {
+            _game.Settings.EnforceSingleThread = false;
+            var client = ClientFactory.CreateLocalClient(_server);
+            var connect = client.ConnectAsync(new ConnectRequest { PlayerName = "Tester" }).GetAwaiter().GetResult();
+            Assert.That(connect.Success, Is.True, connect.FailureReason);
+            client.Update();
+
+            int timePulses = 0;
+            int fleetPushes = 0;
+            client.EventReceived += e =>
+            {
+                if (e.Type == GameEventType.TimeChanged && e.Time != null && e.SystemId == null)
+                    timePulses++;
+                if (e.Type == GameEventType.FleetsChanged)
+                    fleetPushes++;
+            };
+
+            client.SetTimeControlAsync(new TimeControlRequest(TimeControlAction.SetTickLength, TickLength: TimeSpan.FromDays(30))).GetAwaiter().GetResult();
+            client.SetTimeControlAsync(new TimeControlRequest(TimeControlAction.SetTickFrequency, TickFrequency: TimeSpan.FromMilliseconds(10))).GetAwaiter().GetResult();
+            client.Update();
+
+            timePulses = 0;
+            fleetPushes = 0;
+            client.SetTimeControlAsync(new TimeControlRequest(TimeControlAction.Start)).GetAwaiter().GetResult();
+            Thread.Sleep(700);
+            client.Update();
+
+            TestContext.WriteLine($"TimeChanged={timePulses} FleetsChanged={fleetPushes}");
+            // No mid-tick progress stream: TimeChanged only on start + completed ticks, not ~15 Hz.
+            Assert.That(timePulses, Is.LessThanOrEqualTo(fleetPushes + 4),
+                "TimeChanged must not flood during a pulse (progress bar is client-side)");
+
+            int fleetsAtPlay = fleetPushes;
+            client.SetTimeControlAsync(new TimeControlRequest(TimeControlAction.Pause)).GetAwaiter().GetResult();
+            for (int i = 0; i < 100 && _game.TimePulse.IsRunning; i++) Thread.Sleep(20);
+            Thread.Sleep(80);
+            client.Update();
+
+            Assert.That(client.Galaxy.Time.IsRunning, Is.False);
+            Assert.That(fleetPushes, Is.GreaterThan(fleetsAtPlay),
+                "pause/stop must push FleetsChanged so order UI catches up");
+        }
     }
 }

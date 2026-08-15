@@ -104,9 +104,15 @@
 
   <ItemGroup>
     <!-- Copy all resource files with PreserveNewest -->
-    <Content Include="Resources\**\*.bmp;Resources\**\*.png;Resources\**\*.ico;Resources\**\*.ttf">
+    <Content Include="Resources\**\*.bmp;Resources\**\*.png;Resources\**\*.jpg;Resources\**\*.ico;Resources\**\*.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <EmbeddedResource Include="Resources\body-maps\earth_albedo.jpg">
+      <LogicalName>Pulsar4X.Client.EarthAlbedo</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\body-maps\earth_clouds.jpg">
+      <LogicalName>Pulsar4X.Client.EarthClouds</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
     <ItemGroup>

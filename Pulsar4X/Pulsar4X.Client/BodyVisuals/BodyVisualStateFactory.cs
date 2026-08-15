@@ -52,9 +52,11 @@ public static class BodyVisualStateFactory
         };
         var grey = BodyRgb.FromHex("#6a6e74");
         var greyHi = BodyRgb.FromHex("#8a9098");
+        bool rock = visual is BodyVisualType.Asteroid or BodyVisualType.Comet;
         return new BodyVisualState
         {
-            Type = BodyVisualType.Moon, // flat rock path (no ocean/gas bands)
+            // Asteroids/comets must stay irregular rocks — Moon type would hit the live globe.
+            Type = rock ? visual : BodyVisualType.Moon,
             Seed = unchecked((int)ShipVisualRng.Hash("unsurveyed:" + visual)),
             Size = size,
             Rotation = 0,
@@ -65,7 +67,7 @@ public static class BodyVisualStateFactory
             Craters = 0,
             Rings = 0,
             Anomalies = 0,
-            Variance = 4,
+            Variance = rock ? 22 : 4,
             Primary = grey,
             Secondary = greyHi,
             AtmoColor = grey,
@@ -74,8 +76,7 @@ public static class BodyVisualStateFactory
             Glow = false,
             ThermalGlow = 0,
             ExtremeHeatRing = false,
-            // Bump key so old colorful defaults are not reused from cache.
-            CacheKey = "unsurveyed:grey:" + visual
+            CacheKey = (rock ? "unsurveyed:grey:rock:" : "unsurveyed:grey:sphere:") + visual
         };
     }
 
@@ -151,6 +152,9 @@ public static class BodyVisualStateFactory
         // Sol authored type wins (Mars terrestrial, Io volcanic, Europa ice, Titan haze…).
         if (solHint != null && solHint.Type is not BodyVisualType.Star)
             visual = solHint.Type;
+        // Dwarf planets are round (Ceres ≠ asteroid potato), even if a Sol hint was authored lumpy.
+        if (entity.Kind == BodyKind.DwarfPlanet && visual is BodyVisualType.Asteroid or BodyVisualType.Comet)
+            visual = BodyVisualType.Moon;
 
         int rockScore = Math.Max(0, 100 - water);
         bool waterDominant = water >= 40 && water >= rockScore * 0.55;
@@ -179,13 +183,13 @@ public static class BodyVisualStateFactory
         var atmoColor = preset.AtmoColor;
         var glow = preset.GlowColor;
         int craters = preset.Craters;
-        int rings = typeId is 2 or 3 ? Math.Max(preset.Rings, 20) : preset.Rings;
+        int rings = AssignRings(entity.Kind, typeId, solHint != null ? solHint.Rings : null, entity.Id);
         int anomalies = preset.Anomalies;
 
-        if (waterDominant)
+        if (waterDominant && solHint == null)
         {
             primary = BodyRgb.FromHex("#1560a8");
-            secondary = solHint?.Secondary ?? BodyRgb.FromHex("#3d8c4a");
+            secondary = BodyRgb.FromHex("#3d8c4a");
             atmoColor = BodyRgb.FromHex("#7ec8ff");
         }
         else if (lavaDominant || visual == BodyVisualType.Lava)
@@ -254,9 +258,11 @@ public static class BodyVisualStateFactory
             ?? unchecked((int)ShipVisualRng.Hash($"{entity.Id}|{typeId}|{tempC:0}|{water}|{atmoScore}|{fingerprint}"));
 
         // Surface thermal glow (texture emission), not an outer halo.
-        // Neutral band ~±50 °C; Mercury ~160 °C should read clearly orange.
+        // Sol authored bodies keep their real palette (Mercury stays grey, not lava-orange).
         int thermalGlow = 0;
-        if (visual == BodyVisualType.Lava)
+        if (solHint != null)
+            thermalGlow = solHint.ThermalGlow;
+        else if (visual == BodyVisualType.Lava)
             thermalGlow = 90;
         else if (visual == BodyVisualType.Ice || iceDominant)
             thermalGlow = Math.Min(-45, thermalGlow);
@@ -268,7 +274,7 @@ public static class BodyVisualStateFactory
                 thermalGlow = -(int)Math.Clamp(25 + (-50 - tempC) * 0.45, 25, 100);
         }
 
-        if (thermalGlow > 0)
+        if (solHint == null && thermalGlow > 0)
         {
             double heat = thermalGlow / 100.0;
             glow = BodyRgb.FromHex("#ff4a08").Mix(BodyRgb.FromHex("#ffe566"), heat);
@@ -278,7 +284,7 @@ public static class BodyVisualStateFactory
                 secondary = secondary.Mix(BodyRgb.FromHex("#e8a040"), heat * 0.65);
             }
         }
-        else if (thermalGlow < 0)
+        else if (solHint == null && thermalGlow < 0)
         {
             double cold = -thermalGlow / 100.0;
             glow = BodyRgb.FromHex("#6eb0ff").Mix(BodyRgb.FromHex("#f2f8ff"), cold);
@@ -303,12 +309,12 @@ public static class BodyVisualStateFactory
             Rotation = solHint?.Rotation ?? ((seed % 360 + 360) % 360),
             Light = solHint?.Light ?? (-20 + (seed % 40) - 20),
             Water = water,
-            Clouds = clouds,
-            Atmo = atmoRim,
-            Craters = waterDominant ? Math.Min(craters, 8) : craters,
+            Clouds = solHint != null ? Math.Max(clouds, solHint.Clouds) : clouds,
+            Atmo = solHint != null ? Math.Max(atmoRim, solHint.Atmo) : atmoRim,
+            Craters = waterDominant && solHint == null ? Math.Min(craters, 8) : craters,
             Rings = rings,
             Anomalies = anomalies,
-            Variance = waterDominant ? 10 : 18,
+            Variance = solHint?.Variance ?? (waterDominant ? 10 : 18),
             Primary = primary,
             Secondary = secondary,
             AtmoColor = atmoColor,
@@ -317,7 +323,10 @@ public static class BodyVisualStateFactory
             Glow = doGlow,
             ThermalGlow = thermalGlow,
             ExtremeHeatRing = tempC > 2000,
-            CacheKey = $"body:{nameKey}:{water}:{clouds}:{atmoScore}:{tempC:0}:{albedo:0.###}:{fingerprint}:tg{thermalGlow}:xh{(tempC > 2000 ? 1 : 0)}"
+            Flattening = solHint?.Flattening ?? (typeId == 2 ? 6 : typeId == 3 ? 2 : 0),
+            CacheKey = solHint != null
+                ? $"{solHint.CacheKey}:{water}:{clouds}:{atmoScore}:{tempC:0}:{albedo:0.###}:{fingerprint}:tg{thermalGlow}"
+                : $"body:sphere:{nameKey}:{water}:{clouds}:{atmoScore}:{tempC:0}:{albedo:0.###}:{fingerprint}:tg{thermalGlow}:xh{(tempC > 2000 ? 1 : 0)}"
         };
     }
 
@@ -361,6 +370,29 @@ public static class BodyVisualStateFactory
         return (star, au);
     }
 
+    /// <summary>Walk parent chain to the primary star entity (same walk as <see cref="ResolvePrimaryStar"/>).</summary>
+    public static EntitySnapshot? FindPrimaryStarEntity(EntitySnapshot entity, IClientSystem system)
+    {
+        EntitySnapshot? current = entity;
+        int guard = 0;
+        while (current != null && guard++ < 12)
+        {
+            if (current.GetView<StarView>() != null)
+                return current;
+            int? parentId = current.GetView<OrbitView>()?.ParentId
+                            ?? current.GetView<PositionView>()?.ParentId;
+            current = parentId is int id ? system.GetEntity(id) : null;
+        }
+
+        foreach (var e in system.Entities)
+        {
+            if (e.Kind == BodyKind.Star)
+                return e;
+        }
+
+        return null;
+    }
+
     private static void ApplyHabitableZone(ref double tempC, StarView? star, double heliocentricAu)
     {
         if (star == null || heliocentricAu <= 0)
@@ -379,12 +411,14 @@ public static class BodyVisualStateFactory
         if (kind == BodyKind.Asteroid) return BodyVisualType.Asteroid;
         if (kind == BodyKind.Comet) return BodyVisualType.Comet;
         if (kind == BodyKind.Moon) return BodyVisualType.Moon;
+        if (kind == BodyKind.DwarfPlanet) return BodyVisualType.Moon;
 
         // Engine BodyType enum ordinals
         BodyVisualType fromId = bodyTypeId switch
         {
             2 => BodyVisualType.Gas,      // GasGiant
             3 => BodyVisualType.Ice,      // IceGiant
+            4 => BodyVisualType.Moon,     // DwarfPlanet — round rock, not a lumpy asteroid
             5 => BodyVisualType.Gas,      // GasDwarf
             6 => BodyVisualType.Moon,     // Moon
             7 => BodyVisualType.Asteroid,
@@ -401,6 +435,23 @@ public static class BodyVisualStateFactory
         return fromId;
     }
 
+    /// <summary>
+    /// Rings are a giant-planet feature. Moons/dwarfs/asteroids never inherit Ice/Gas preset rings.
+    /// Sol hints (Saturn, Uranus, …) win; other giants get a modest procedural disk.
+    /// </summary>
+    public static int AssignRings(BodyKind kind, byte bodyTypeId, int? solHintRings, int seedHint)
+    {
+        if (kind is BodyKind.Moon or BodyKind.Asteroid or BodyKind.Comet or BodyKind.DwarfPlanet)
+            return 0;
+        if (solHintRings.HasValue)
+            return solHintRings.Value;
+        if (bodyTypeId == 2) // GasGiant
+            return 12 + Math.Abs(seedHint % 70);
+        if (bodyTypeId == 3) // IceGiant
+            return 10 + Math.Abs(seedHint % 28);
+        return 0;
+    }
+
     private static BodyVisualState Preset(BodyVisualType type) => type switch
     {
         BodyVisualType.Gas => new BodyVisualState
@@ -411,7 +462,7 @@ public static class BodyVisualStateFactory
             Clouds = 25,
             Atmo = 80,
             Craters = 0,
-            Rings = 68,
+            Rings = 0,
             Primary = BodyRgb.FromHex("#8066a2"),
             Secondary = BodyRgb.FromHex("#d4a879"),
             AtmoColor = BodyRgb.FromHex("#b9a4ff"),
@@ -425,7 +476,7 @@ public static class BodyVisualStateFactory
             Clouds = 40,
             Atmo = 45,
             Craters = 26,
-            Rings = 20,
+            Rings = 0,
             Primary = BodyRgb.FromHex("#4d8eae"),
             Secondary = BodyRgb.FromHex("#d8f3ff"),
             AtmoColor = BodyRgb.FromHex("#9eeaff"),

@@ -1,15 +1,33 @@
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using Pulsar4X.Api;
 using Pulsar4X.Client;
 using Pulsar4X.Client.Host;
 
 #if TRACE
 Trace.Listeners.Add(new ConsoleTraceListener());
 #endif
-// dotnet core doesn't have Debug.Listeners for some reason...
-// https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.debug?view=net-10.0
-// https://github.com/dotnet/dotnet-api-docs/issues/4866
-// Run the game
+
+static void LogCrash(string source, object exception)
+{
+    try
+    {
+        DebugTraceLog.Error("Crash", $"{source}: {exception}");
+    }
+    catch
+    {
+        // last-chance logging must not throw
+    }
+}
+
+AppDomain.CurrentDomain.UnhandledException += (_, e) => LogCrash("UnhandledException", e.ExceptionObject);
+TaskScheduler.UnobservedTaskException += (_, e) =>
+{
+    LogCrash("UnobservedTaskException", e.Exception);
+    e.SetObserved();
+};
+
 using (var pulsar = new PulsarMainWindow(args))
 {
     pulsar.State.Lifecycle = new GameLifecycle(pulsar.State);

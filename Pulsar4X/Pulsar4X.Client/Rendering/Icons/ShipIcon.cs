@@ -123,19 +123,25 @@ namespace Pulsar4X.Client
 
             ViewScreenPos = camera.ViewCoordinate_m(WorldPosition_m);
 
-            DrawShapes = new Shape[this.Shapes.Count];
-            for (int i = 0; i < Shapes.Count; i++)
+            int shapeCount = this.Shapes.Count;
+            if (DrawShapes == null || DrawShapes.Length != shapeCount)
+                DrawShapes = new Shape[shapeCount];
+            for (int i = 0; i < shapeCount; i++)
             {
                 var shape = Shapes[i];
-                Vector2[] drawPoints = new Vector2[shape.Points.Length];
-                for (int i2 = 0; i2 < shape.Points.Length; i2++)
+                var srcPts = shape?.Points;
+                if (srcPts == null)
+                    continue;
+
+                var pts = DrawShapes[i]?.Points;
+                if (pts == null || pts.Length != srcPts.Length)
+                    pts = new Vector2[srcPts.Length];
+                for (int i2 = 0; i2 < srcPts.Length; i2++)
                 {
-                    var tranlsatedPoint = shipMatrix.TransformD(shape.Points[i2].X, shape.Points[i2].Y);
-                    int x = (int)(ViewScreenPos.X + tranlsatedPoint.X);
-                    int y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y);
-                    drawPoints[i2] = new Vector2() { X = x, Y = y };
+                    var tranlsatedPoint = shipMatrix.TransformD(srcPts[i2].X, srcPts[i2].Y);
+                    pts[i2] = new Vector2() { X = (int)(ViewScreenPos.X + tranlsatedPoint.X), Y = (int)(ViewScreenPos.Y + tranlsatedPoint.Y) };
                 }
-                DrawShapes[i] = new Shape() { Points = drawPoints, Color = shape.Color };
+                DrawShapes[i] = new Shape() { Points = pts, Color = shape!.Color };
             }
         }
 

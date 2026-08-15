@@ -5,6 +5,8 @@ using ImGuiNET;
 using Pulsar4X.Api;
 using Pulsar4X.Client.Interface;
 using Pulsar4X.Client.Interface.Widgets;
+using Pulsar4X.Client.BodyVisuals;
+using Distance = Pulsar4X.Orbital.Distance;
 // Engine usings: Stringify formatting, plus the deferred camera-pin / maneuver-panel bridges below.
 
 namespace Pulsar4X.Client
@@ -38,6 +40,9 @@ namespace Pulsar4X.Client
         private DateTime _animationStartTime;
 
         // After the open animation finishes, stop forcing pos/size so the user can drag/resize.
+        // Focus-zoom toggle: restore previous zoom when clicking the magnifier again.
+        private float? _zoomRestoreLevel;
+        private bool _focusZoomActive;
         private bool _lockLayoutToAnimation = true;
 
         public EntityWindow(int entityId, string systemId) : base("EntityWindow|" + entityId)
@@ -312,11 +317,12 @@ namespace Pulsar4X.Client
             float btnSpacing = 4f;
             float closeBtnWidth = pinBtnSize + framePadX;
             float pinBtnWidth = pinBtnSize + framePadX;
-            float totalBtnsWidth = pinBtnWidth + btnSpacing + closeBtnWidth;
+            float zoomBtnWidth = pinBtnSize + framePadX;
+            float totalBtnsWidth = pinBtnWidth + btnSpacing + zoomBtnWidth + btnSpacing + closeBtnWidth;
             float btnX = winSize.X - ImGui.GetStyle().WindowPadding.X - totalBtnsWidth;
             float btnY = startLocalY + (titleLineHeight - btnTotalHeight) * 0.5f;
 
-            // NoTitleBar: allow dragging from the custom header (leave pin/close clickable).
+            // NoTitleBar: allow dragging from the custom header (leave pin/zoom/close clickable).
             if (!_lockLayoutToAnimation)
             {
                 ImGui.SetCursorScreenPos(new Vector2(winPos.X, headerTop));
@@ -348,6 +354,24 @@ namespace Pulsar4X.Client
             ImGui.PopStyleColor(3);
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(GlobalUIState.NamesForMenus[typeof(PinCameraBlankMenuHelper)]);
+
+            // Magnifier: zoom camera in to frame this entity (or restore previous zoom).
+            ImGui.SameLine(0, btnSpacing);
+            ImGui.PushStyleColor(ImGuiCol.Button, Styles.InvisibleColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered,
+                new Vector4(accentColor.X * 0.3f, accentColor.Y * 0.3f, accentColor.Z * 0.3f, 0.5f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive,
+                new Vector4(accentColor.X * 0.4f, accentColor.Y * 0.4f, accentColor.Z * 0.4f, 0.7f));
+            bool zoomClicked = MagnifierIconButton("##headerzoom", pinBtnSize, accentColor);
+            ImGui.PopStyleColor(3);
+            if (zoomClicked)
+                ToggleFocusZoom();
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(_focusZoomActive
+                    ? "Zoom out (restore previous camera zoom)"
+                    : "Zoom camera to this entity");
+            }
 
             // Close button
             ImGui.SameLine(0, btnSpacing);
@@ -382,6 +406,85 @@ namespace Pulsar4X.Client
             float headerLocalBottom = startLocalY + headerContentHeight + headerPad * 2;
             if (ImGui.GetCursorPosY() < headerLocalBottom)
                 ImGui.SetCursorPosY(headerLocalBottom);
+        }
+
+        private static bool MagnifierIconButton(string id, float iconSize, Vector4 accent)
+        {
+            var style = ImGui.GetStyle();
+            var size = new Vector2(
+                iconSize + style.FramePadding.X * 2f,
+                iconSize + style.FramePadding.Y * 2f);
+            var min = ImGui.GetCursorScreenPos();
+            bool clicked = ImGui.InvisibleButton(id, size);
+            var max = min + size;
+            uint col = ImGui.ColorConvertFloat4ToU32(
+                ImGui.IsItemHovered()
+                    ? new Vector4(accent.X * 1.1f, accent.Y * 1.1f, accent.Z * 1.1f, 0.95f)
+                    : new Vector4(0.85f, 0.85f, 0.85f, 0.9f));
+
+            var center = new Vector2(min.X + size.X * 0.42f, min.Y + size.Y * 0.42f);
+            float r = iconSize * 0.28f;
+            var dl = ImGui.GetWindowDrawList();
+            dl.AddCircle(center, r, col, 16, 1.6f);
+            var handleStart = new Vector2(center.X + r * 0.72f, center.Y + r * 0.72f);
+            var handleEnd = new Vector2(max.X - style.FramePadding.X * 0.6f, max.Y - style.FramePadding.Y * 0.6f);
+            dl.AddLine(handleStart, handleEnd, col, 2.0f);
+            return clicked;
+        }
+
+        private void ToggleFocusZoom()
+        {
+            var cam = _uiState.Camera;
+            bool pinnedHere = cam.IsPinnedToEntity && cam.PinnedEntityGuid == EntityId;
+            float targetZoom = ComputeFocusZoomLevel();
+
+            // Treat as "zoomed in" if we flagged it or the camera is already near the focus zoom on this entity.
+            bool nearTarget = pinnedHere
+                && targetZoom > 0
+                && Math.Abs(cam.ZoomLevel - targetZoom) / Math.Max(targetZoom, 1f) < 0.4f;
+            if (_focusZoomActive || nearTarget)
+            {
+                cam.SetZoomLevel(_zoomRestoreLevel ?? 200f);
+                _focusZoomActive = false;
+                return;
+            }
+
+            _zoomRestoreLevel = cam.ZoomLevel;
+            if (_uiState.SelectedStarSystemId != SystemId)
+                _uiState.SetActiveSystem(SystemId, keepSelection: true);
+            cam.PinToEntity(EntityId, SystemId, _uiState);
+            cam.SetZoomLevel(targetZoom);
+            _focusZoomActive = true;
+        }
+
+        private float ComputeFocusZoomLevel()
+        {
+            double radiusAU = Distance.MToAU(80_000); // default: ~80 km — ships / small objects
+            float diskFrac = 0.42f;
+
+            if (_entity?.GetView<MassVolumeView>() is { RadiusMetres: > 0 } mv)
+                radiusAU = Distance.MToAU(mv.RadiusMetres);
+
+            // Ships/stations are tiny vs planets — don't zoom to literal hull radius.
+            if (_entity?.HasView<ShipView>() == true)
+                radiusAU = Math.Max(radiusAU, Distance.MToAU(250_000));
+
+            if (_entity != null && _system != null)
+            {
+                try
+                {
+                    var visual = BodyVisualStateFactory.FromEntity(_entity, _system);
+                    diskFrac = BodyVisualComposer.TextureDiskFraction(visual);
+                }
+                catch
+                {
+                    // Keep default diskFrac.
+                }
+            }
+
+            // Planet/moon framing matches the screenshot (~half the viewport).
+            float fraction = _entity?.HasView<ShipView>() == true ? 0.18f : 0.55f;
+            return _uiState.Camera.ZoomToFitRadiusAU(radiusAU, fraction, diskFrac);
         }
 
         private string GetEntitySubtitle()
