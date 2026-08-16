@@ -17,6 +17,7 @@ namespace Pulsar4X.Client.Rendering
         Camera _camera;
         SDL3Window _window;
         SystemLabelDistributor _distributor;
+        readonly SystemStarfield _starfield = new();
 
         internal Dictionary<string, IDrawData> UIWidgets = new();
 
@@ -206,6 +207,7 @@ namespace Pulsar4X.Client.Rendering
         internal void Initialize(string systemId)
         {
             _systemId = systemId;
+            _starfield.Rebuild(systemId);
             SyncIcons();
             _updateLabels = true; // update labels on first frame
         }
@@ -598,6 +600,9 @@ namespace Pulsar4X.Client.Rendering
 
         internal void Draw()
         {
+            var vp = _camera.ViewPortSize;
+            _starfield.Draw(_window.Renderer, _camera, (int)vp.X, (int)vp.Y);
+
             DrawIcons(UIWidgets.Values);
             DrawIcons(_orbitRings.Values);
             DrawIcons(_moveIcons.Values);

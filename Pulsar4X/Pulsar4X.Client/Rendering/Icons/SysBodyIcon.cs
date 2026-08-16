@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Pulsar4X.Api;
 using Pulsar4X.Client.BodyVisuals;
 using Pulsar4X.Orbital;
@@ -16,8 +15,6 @@ namespace Pulsar4X.Client
         float _iconMinSize = 8;
         int _entityId;
         string _sysId;
-        bool _surveyComplete;
-        bool _infrastructureComplete;
         IntPtr _texture = IntPtr.Zero;
         IntPtr _albedo = IntPtr.Zero;
         IntPtr _clouds = IntPtr.Zero;
@@ -32,9 +29,6 @@ namespace Pulsar4X.Client
         byte _glowG = 160;
         byte _glowB = 40;
 
-        static readonly SDL.Color SurveyRingColor = new() { R = 64, G = 220, B = 80, A = 230 };
-        static readonly SDL.Color InfrastructureRingColor = new() { R = 180, G = 90, B = 230, A = 230 };
-
         public byte Priority { get { return 100; } }
 
         public SysBodyIcon(EntitySnapshot entity, string systemId, IPosition position, double bodyRadiusAU)
@@ -44,7 +38,6 @@ namespace Pulsar4X.Client
             _bodyRadiusAU = bodyRadiusAU;
             _entityId = entity.Id;
             _sysId = systemId;
-            RefreshStatusFlags(entity);
 
             if (_bodyType == BodyKind.Moon)
                 _iconMinSize = 4;
@@ -137,10 +130,6 @@ namespace Pulsar4X.Client
 
         public override void OnFrameUpdate(Matrix matrix, Camera camera)
         {
-            var entity = _state?.GameClient?.Galaxy.GetSystem(_sysId)?.GetEntity(_entityId);
-            if (entity != null)
-                RefreshStatusFlags(entity);
-
             if (_pendingVisual != null
                 || (_liveGlobe && _visual != null && _albedo != IntPtr.Zero
                     && BodyVisualComposer.UsesCloudLayer(_visual) && _clouds == IntPtr.Zero))
@@ -197,8 +186,6 @@ namespace Pulsar4X.Client
                     SDL.RenderLine(rendererPtr, cx - xSpan, cy + y, cx + xSpan, cy + y);
                 }
             }
-
-            DrawStatusRings(rendererPtr, bodyRadius);
         }
 
         void DrawLiveGlobe(IntPtr rendererPtr, Camera camera, int bodyRadius)
@@ -238,50 +225,6 @@ namespace Pulsar4X.Client
                 light,
                 spin,
                 cloudSpin);
-        }
-
-        void RefreshStatusFlags(EntitySnapshot entity)
-        {
-            _surveyComplete = entity.GetView<GeoSurveyView>()?.IsSurveyComplete == true;
-            _infrastructureComplete = false;
-
-            var system = _state?.GameClient?.Galaxy.GetSystem(_sysId);
-            if (system == null)
-                return;
-
-            var colony = system.Entities.FirstOrDefault(e =>
-                e.Kind == BodyKind.Colony
-                && e.Relation == OwnerRelation.Owned
-                && e.GetView<ColonyView>()?.PlanetEntityId == entity.Id);
-
-            _infrastructureComplete = colony?.GetView<InfrastructureView>()?.HasInstalledInfrastructure == true;
-        }
-
-        void DrawStatusRings(IntPtr rendererPtr, int bodyRadius)
-        {
-            if (!_surveyComplete && !_infrastructureComplete)
-                return;
-
-            int cx = ViewScreenPos.X;
-            int cy = ViewScreenPos.Y;
-            int surveyOffset = _extremeHeatRing ? 22 : 3;
-            int infraOffset = _extremeHeatRing ? 28 : 7;
-
-            if (_surveyComplete)
-                DrawThickRing(rendererPtr, cx, cy, bodyRadius + surveyOffset, SurveyRingColor);
-
-            if (_infrastructureComplete)
-                DrawThickRing(rendererPtr, cx, cy, bodyRadius + infraOffset, InfrastructureRingColor);
-        }
-
-        static void DrawThickRing(IntPtr rendererPtr, int cx, int cy, int radius, SDL.Color color)
-        {
-            SDL.SetRenderDrawColor(rendererPtr, color.R, color.G, color.B, color.A);
-            for (int offset = 0; offset < 2; offset++)
-            {
-                int r = radius + offset;
-                DrawPrimitive.DrawEllipse(rendererPtr, cx, cy, r, r);
-            }
         }
     }
 }

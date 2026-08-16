@@ -266,7 +266,7 @@ namespace Pulsar4X.Client
             var prefs = SystemViewPreferences.GetInstance();
             foreach (var root in SortBodies(roots))
             {
-                DisplayBodyNode(root, children, prefs, 0);
+                DisplayBodyNode(system, root, children, prefs, 0);
             }
         }
 
@@ -289,7 +289,12 @@ namespace Pulsar4X.Client
 
         private static string NameOf(EntitySnapshot body) => body.GetView<NameView>()?.Name ?? "";
 
-        private static void DisplayBodyNode(EntitySnapshot body, Dictionary<int, List<EntitySnapshot>> children, SystemViewPreferences prefs, int visibleDepth)
+        private static void DisplayBodyNode(
+            IClientSystem system,
+            EntitySnapshot body,
+            Dictionary<int, List<EntitySnapshot>> children,
+            SystemViewPreferences prefs,
+            int visibleDepth)
         {
             var orbitType = UserOrbitSettings.FromBodyKind(body.Kind);
 
@@ -307,6 +312,9 @@ namespace Pulsar4X.Client
                 string name = NameOf(body);
                 bool selected = _uiState.LastClickedEntity?.Id == body.Id;
                 var shortName = UserOrbitSettings.OrbitBodyTypeShortNames[(int)orbitType];
+
+                ImGui.PushID(body.Id);
+                Vector2 rowStart = ImGui.GetCursorScreenPos();
                 if (ImGui.Selectable($"{shortName}  {name}", selected))
                 {
                     _uiState.EntityClicked(body.Id, _uiState.SelectedStarSystemId, MouseButtons.Primary);
@@ -314,11 +322,17 @@ namespace Pulsar4X.Client
                         _uiState.Camera.CenterOnPosition(pos.AbsolutePosition.X, pos.AbsolutePosition.Y, pos.AbsolutePosition.Z);
                 }
 
+                DrawBodyStatusMarkers(system, body, shortName, rowStart);
+
                 if (ImGui.IsItemHovered())
                 {
                     var tip = UserOrbitSettings.OrbitBodyTypeTooltips[(int)orbitType];
-                    ImGui.SetTooltip($"{name} ({tip})");
+                    string status = BodyListStatusTooltip(system, body);
+                    ImGui.SetTooltip(string.IsNullOrEmpty(status)
+                        ? $"{name} ({tip})"
+                        : $"{name} ({tip})\n{status}");
                 }
+                ImGui.PopID();
 
                 if (indent > 0) ImGui.Unindent(indent);
                 childDepth = visibleDepth + 1;
@@ -328,9 +342,62 @@ namespace Pulsar4X.Client
             {
                 foreach (var child in SortBodies(childList))
                 {
-                    DisplayBodyNode(child, children, prefs, childDepth);
+                    DisplayBodyNode(system, child, children, prefs, childDepth);
                 }
             }
+        }
+
+        /// <summary>
+        /// Survey / colony markers used to be rings on the map globe; now they circle the
+        /// type letter (P/M/D/…) in the celestial-bodies list.
+        /// </summary>
+        private static void DrawBodyStatusMarkers(IClientSystem system, EntitySnapshot body, string shortName, Vector2 rowStart)
+        {
+            bool surveyed = body.GetView<GeoSurveyView>()?.IsSurveyComplete == true;
+            bool infrastructure = HasOwnedInfrastructure(system, body.Id);
+            if (!surveyed && !infrastructure)
+                return;
+
+            Vector2 letterSize = ImGui.CalcTextSize(shortName);
+            float lineH = ImGui.GetTextLineHeight();
+            var center = new Vector2(
+                rowStart.X + letterSize.X * 0.5f,
+                rowStart.Y + lineH * 0.5f);
+            float radius = MathF.Max(letterSize.X, lineH) * 0.62f;
+            var dl = ImGui.GetWindowDrawList();
+
+            // Match former map-ring colors: green = geo survey, purple = infrastructure.
+            if (surveyed)
+                dl.AddCircle(center, radius, ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.86f, 0.31f, 0.95f)), 20, 1.6f);
+            if (infrastructure)
+                dl.AddCircle(center, radius + 3.2f, ImGui.ColorConvertFloat4ToU32(new Vector4(0.71f, 0.35f, 0.90f, 0.95f)), 20, 1.6f);
+        }
+
+        private static bool HasOwnedInfrastructure(IClientSystem system, int bodyId)
+        {
+            foreach (var e in system.Entities)
+            {
+                if (e.Kind != BodyKind.Colony || e.Relation != OwnerRelation.Owned)
+                    continue;
+                if (e.GetView<ColonyView>()?.PlanetEntityId != bodyId)
+                    continue;
+                if (e.GetView<InfrastructureView>()?.HasInstalledInfrastructure == true)
+                    return true;
+            }
+            return false;
+        }
+
+        private static string BodyListStatusTooltip(IClientSystem system, EntitySnapshot body)
+        {
+            bool surveyed = body.GetView<GeoSurveyView>()?.IsSurveyComplete == true;
+            bool infrastructure = HasOwnedInfrastructure(system, body.Id);
+            if (surveyed && infrastructure)
+                return "Surveyed · Infrastructure installed";
+            if (surveyed)
+                return "Surveyed";
+            if (infrastructure)
+                return "Infrastructure installed";
+            return "";
         }
 
         private static void DisplayColonies()
