@@ -77,6 +77,14 @@ namespace Pulsar4X.Client
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(ship.StatusMessage))
+            {
+                if (description == "No orders")
+                    description = ship.StatusMessage!;
+                else
+                    description += "\n" + ship.StatusMessage;
+            }
+
             var meta = ship.CommanderName == null ? "" : "Commanded by: " + ship.CommanderName;
 
             DescriptiveTooltip(ship.Name, ship.DesignName, description, () => ImGui.Text(meta));

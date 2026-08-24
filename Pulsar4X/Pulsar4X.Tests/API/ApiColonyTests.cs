@@ -6,6 +6,7 @@ using Pulsar4X.Components;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Galaxy;
+using Pulsar4X.GeoSurveys;
 using Pulsar4X.Industry;
 using Pulsar4X.People;
 using NameDB = Pulsar4X.Names.NameDB;
@@ -140,6 +141,9 @@ namespace Pulsar4X.Tests
             var planet = _game.Systems[0].GetAllEntitiesWithDataBlob<SystemBodyInfoDB>()
                 .First(b => b.HasDataBlob<MassVolumeDB>() && b.HasDataBlob<NameDB>());
 
+            SystemBodyFactory.EnsureGeoSurveyable(planet);
+            planet.GetDataBlob<GeoSurveyableDB>().GeoSurveyStatus[session.FactionId] = 0;
+
             var result = _server.SubmitCommand(session, new CreateColonyCommand(session.FactionId, planet.Id));
 
             Assert.That(result.Accepted, Is.True, result.RejectionReason);
@@ -147,6 +151,53 @@ namespace Pulsar4X.Tests
             Assert.That(colonies, Has.Count.EqualTo(1));
             Assert.That(_projector.ProjectEntity(colonies[0], session.FactionId).GetView<ColonyView>()?.PlanetEntityId,
                 Is.EqualTo(planet.Id));
+        }
+
+        [Test]
+        public void Projected_GeoSurvey_heals_complete_when_owned_colony_exists()
+        {
+            var session = Connect();
+            var faction = _game.Factions[session.FactionId];
+            SpeciesFactory.CreateSpeciesHuman(faction, _game.GlobalManager);
+
+            var planet = _game.Systems[0].GetAllEntitiesWithDataBlob<SystemBodyInfoDB>()
+                .First(b => b.HasDataBlob<MassVolumeDB>() && b.HasDataBlob<NameDB>());
+            SystemBodyFactory.EnsureGeoSurveyable(planet);
+            planet.GetDataBlob<GeoSurveyableDB>().GeoSurveyStatus.Remove(session.FactionId);
+
+            Assert.That(
+                _projector.ProjectEntity(planet, session.FactionId).GetView<GeoSurveyView>()!.IsSurveyComplete,
+                Is.False);
+
+            ColonyFactory.CreateColony(faction, SpeciesFactory.CreateSpeciesHuman(faction, _game.GlobalManager), planet, 1000);
+            // CreateColony marks survey; clear again to simulate old save with colony but no status.
+            planet.GetDataBlob<GeoSurveyableDB>().GeoSurveyStatus.Remove(session.FactionId);
+
+            var view = _projector.ProjectEntity(planet, session.FactionId).GetView<GeoSurveyView>();
+            Assert.That(view, Is.Not.Null);
+            Assert.That(view!.IsSurveyComplete, Is.True,
+                "Projection must heal survey status when an owned colony is on the body.");
+            Assert.That(planet.GetDataBlob<GeoSurveyableDB>().IsSurveyComplete(session.FactionId), Is.True);
+        }
+
+        [Test]
+        public void CreateColony_command_rejects_unsurveyed_body()
+        {
+            var session = Connect();
+            var faction = _game.Factions[session.FactionId];
+            SpeciesFactory.CreateSpeciesHuman(faction, _game.GlobalManager);
+
+            var planet = _game.Systems[0].GetAllEntitiesWithDataBlob<SystemBodyInfoDB>()
+                .First(b => b.HasDataBlob<MassVolumeDB>() && b.HasDataBlob<NameDB>());
+
+            SystemBodyFactory.EnsureGeoSurveyable(planet);
+            planet.GetDataBlob<GeoSurveyableDB>().GeoSurveyStatus.Remove(session.FactionId);
+
+            var result = _server.SubmitCommand(session, new CreateColonyCommand(session.FactionId, planet.Id));
+
+            Assert.That(result.Accepted, Is.False);
+            Assert.That(result.RejectionReason, Does.Contain("survey").IgnoreCase);
+            Assert.That(faction.GetDataBlob<Pulsar4X.Factions.FactionInfoDB>().Colonies, Is.Empty);
         }
 
         [Test]

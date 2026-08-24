@@ -35,6 +35,9 @@ namespace Pulsar4X.Client
         // pushes replace the whole tree, so cached FleetSnapshot references go stale).
         private FleetSnapshot? selectedFleet = null;
 
+        /// <summary>Last Issue-Order rejection reason (e.g. insufficient jump fuel).</summary>
+        private string? _lastCommandError = null;
+
         // ----- Standing Orders editor -----
         // The editor works on a local copy of the fleet's StandingOrders snapshot; Save replaces
         // the fleet's whole list with one SetStandingOrdersCommand.
@@ -306,6 +309,14 @@ namespace Pulsar4X.Client
                     return;
                 }
 
+                if (!string.IsNullOrWhiteSpace(_lastCommandError))
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
+                    ImGui.TextWrapped(_lastCommandError);
+                    ImGui.PopStyleColor();
+                    ImGui.Separator();
+                }
+
                 // Mirror the old EntityFilter.Friendly | EntityFilter.Neutral read: hostiles aren't targets.
                 var candidates = system.Entities.Where(e => e.Relation != OwnerRelation.Hostile);
 
@@ -342,6 +353,12 @@ namespace Pulsar4X.Client
                         }
                         break;
                     case IssueOrderType.Jump:
+                        ImGui.PushStyleColor(ImGuiCol.Text, Styles.DescriptiveColor);
+                        ImGui.TextWrapped(
+                            "Jumps require tank fuel for the gate hop plus a return reserve (~2×). " +
+                            "Check the FUEL ring tooltip on each ship if the order is rejected.");
+                        ImGui.PopStyleColor();
+                        ImGui.Spacing();
                         // The server only projects a JumpPointView once this faction has discovered it.
                         foreach (var jumpPoint in candidates.Where(e => e.HasView<JumpPointView>()))
                         {
@@ -369,7 +386,29 @@ namespace Pulsar4X.Client
 
         private static string NameOf(EntitySnapshot entity) => entity.GetView<NameView>()?.Name ?? "";
 
-        private void SubmitFleetCommand(GameCommand command) => _uiState.GameClient?.SubmitCommandAsync(command);
+        private void SubmitFleetCommand(GameCommand command)
+        {
+            _lastCommandError = null;
+            var client = _uiState.GameClient;
+            if (client == null)
+                return;
+
+            _ = SubmitFleetCommandAsync(client, command);
+        }
+
+        private async System.Threading.Tasks.Task SubmitFleetCommandAsync(IGameClient client, GameCommand command)
+        {
+            try
+            {
+                var result = await client.SubmitCommandAsync(command);
+                if (!result.Accepted)
+                    _lastCommandError = result.RejectionReason ?? "Command rejected.";
+            }
+            catch (Exception ex)
+            {
+                _lastCommandError = ex.Message;
+            }
+        }
 
         private void DisplayOrders()
         {
@@ -480,6 +519,13 @@ namespace Pulsar4X.Client
                         if (selectedFleet.FlagshipId == ship.Id)
                         {
                             name = "(F) " + name;
+                        }
+                        if (!string.IsNullOrWhiteSpace(ship.StatusMessage))
+                        {
+                            string hint = ship.StatusMessage!;
+                            if (hint.Length > 40)
+                                hint = hint.Substring(0, 37) + "...";
+                            name = name + " — " + hint;
                         }
                         if (ImGui.Selectable($"{name}###ship-{ship.Id}", selectedShips[ship.Id], ImGuiSelectableFlags.SpanAllColumns))
                         {

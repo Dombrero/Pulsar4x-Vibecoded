@@ -233,6 +233,13 @@ namespace Pulsar4X.Galaxy
 
                 blobsToAdd.Add(geoSurveyableDB);
             }
+            else
+            {
+                blobsToAdd.Add(new GeoSurveyableDB
+                {
+                    PointsRequired = DefaultGeoSurveyPoints(systemBodyInfoDB.BodyType),
+                });
+            }
 
             if (systemBodyBlueprint.Colonizable != null)
             {
@@ -485,6 +492,21 @@ namespace Pulsar4X.Galaxy
                 };
 
                 blobsToAdd.Add(geoSurveyableDB);
+            }
+            else if (rootJson["GeoSurveyPointsRequired"] != null
+                     || rootJson["geoSurveyPointsRequired"] != null)
+            {
+                uint points = (uint?)rootJson["GeoSurveyPointsRequired"]
+                    ?? (uint?)rootJson["geoSurveyPointsRequired"]
+                    ?? DefaultGeoSurveyPoints(systemBodyInfoDB.BodyType);
+                blobsToAdd.Add(new GeoSurveyableDB { PointsRequired = points });
+            }
+            else
+            {
+                blobsToAdd.Add(new GeoSurveyableDB
+                {
+                    PointsRequired = DefaultGeoSurveyPoints(systemBodyInfoDB.BodyType),
+                });
             }
 
             if (rootJson["colonizeable"] != null)
@@ -1361,9 +1383,42 @@ namespace Pulsar4X.Galaxy
             // generate ruins:
             GenerateRuins(system, body);
 
+            // Every system body must be geo-surveyable so fog-of-war greys apply until surveyed.
+            EnsureGeoSurveyable(body);
+
             var profile = body.GetDataBlob<SensorProfileDB>();
             var atmo = body.GetDataBlob<AtmosphereDB>();
             SensorTools.PlanetEmmisionSig(profile, bodyInfo, bodyMVDB);
+        }
+
+        /// <summary>
+        /// Default survey cost by body type (matches Sol scenario ballpark values).
+        /// </summary>
+        internal static uint DefaultGeoSurveyPoints(BodyType bodyType) => bodyType switch
+        {
+            BodyType.GasGiant or BodyType.IceGiant or BodyType.GasDwarf => 2500u,
+            BodyType.Moon => 500u,
+            BodyType.DwarfPlanet => 750u,
+            BodyType.Asteroid or BodyType.Comet => 575u,
+            BodyType.Terrestrial => 1000u,
+            _ => 1000u,
+        };
+
+        /// <summary>
+        /// Attach <see cref="GeoSurveyableDB"/> when missing so procedural / legacy bodies can be
+        /// surveyed and stay grey on the map until then.
+        /// </summary>
+        internal static void EnsureGeoSurveyable(IHasDataBlobs body)
+        {
+            if (body.TryGetDataBlob<GeoSurveyableDB>(out _))
+                return;
+            if (!body.TryGetDataBlob<SystemBodyInfoDB>(out var info))
+                return;
+
+            body.SetDataBlob(new GeoSurveyableDB
+            {
+                PointsRequired = DefaultGeoSurveyPoints(info.BodyType),
+            });
         }
 
         /// <summary>

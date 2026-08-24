@@ -166,6 +166,104 @@ namespace Pulsar4X.Fleets
         }
 
         /// <summary>
+        /// Per-hull affordability for standing defer / mission continue. Uses this ship's position
+        /// and orders — siblings with full tanks must not keep a low-fuel hull surveying.
+        /// </summary>
+        internal static bool CanAffordNextActionForShip(
+            Entity ship, Entity fleet, ConditionalOrder activeOrder)
+        {
+            if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                return false;
+            if (!ship.HasDataBlob<ShipInfoDB>())
+                return false;
+
+            if (ShipHasActiveLocalScanOrTransfer(ship, fleet))
+                return true;
+
+            if (ShipHasOnSiteLocalWork(ship, fleet, activeOrder)
+                && WarpMoveProcessor.HasWarpTankFuel(ship))
+                return true;
+
+            if (ship.HasDataBlob<WarpAbilityDB>() && !WarpMoveProcessor.HasWarpTankFuel(ship))
+                return false;
+
+            if (ship.TryGetDataBlob<WarpMovingDB>(out var moving))
+            {
+                double dist = (moving.ExitPointAbsolute - moving.EntryPointAbsolute).Length();
+                if (ship.TryGetDataBlob<PositionDB>(out var pos))
+                    dist = (moving.ExitPointAbsolute - pos.AbsolutePosition).Length();
+                if (!CanAffordStandingTravelHop(ship, dist))
+                    return false;
+                return CanAffordReturnPathForShip(ship, fleet, fleetDB);
+            }
+
+            if (!TryResolveTravelTargetForShip(ship, fleet, fleetDB, activeOrder, out var target)
+                || target == null
+                || !target.IsValid)
+            {
+                return LooksLikeSurvey(activeOrder) && CanAffordReturnPathForShip(ship, fleet, fleetDB);
+            }
+
+            if (!target.TryGetDataBlob<PositionDB>(out var targetPos))
+                return false;
+
+            if (ship.HasDataBlob<WarpAbilityDB>() && !IsParentedToTarget(ship, target))
+            {
+                if (!ship.TryGetDataBlob<PositionDB>(out var shipPos))
+                    return false;
+                double dist = (targetPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
+                if (!CanAffordStandingTravelHop(ship, dist))
+                    return false;
+            }
+
+            return CanAffordReturnPathForShip(ship, fleet, fleetDB);
+        }
+
+        /// <summary>
+        /// Fuel reserve for this hull to reach a local colony or the gate toward
+        /// <see cref="FleetDB.LastRefuelSystemId"/>. Unknown return path is not treated as affordable.
+        /// </summary>
+        internal static bool CanAffordReturnPathForShip(Entity ship, Entity fleet, FleetDB fleetDB)
+        {
+            var manager = ship.AttachedManager;
+            if (manager?.Game == null)
+                return false;
+            if (!ship.HasDataBlob<WarpAbilityDB>())
+                return true;
+            if (!ship.TryGetDataBlob<PositionDB>(out var shipPos))
+                return false;
+
+            int factionId = fleet.FactionOwnerID;
+            Entity? returnTarget = RefuelColonySearch.FindNearestColonyInSystem(
+                manager, factionId, shipPos, fleetDB.LastRefuelColonyId);
+
+            if (returnTarget == null
+                && RefuelColonySearch.TryResolveRefuelSystemId(
+                    manager.Game, fleet, factionId, fleetDB, out var targetSystemId)
+                && RefuelColonySearch.TryFindJumpGateTowardSystem(
+                    manager.Game, fleet, manager, factionId, targetSystemId, shipPos, out var jumpGate)
+                && jumpGate?.OwningEntity is { IsValid: true } gateEntity
+                && gateEntity.AttachedManager == manager)
+            {
+                returnTarget = gateEntity;
+            }
+
+            if (returnTarget == null || !returnTarget.TryGetDataBlob<PositionDB>(out var returnPos))
+                return false; // unknown path — seek refuel / warn, don't keep surveying abroad
+
+            if (returnTarget.AttachedManager != manager)
+                return false;
+
+            if (IsParentedToTarget(ship, returnTarget))
+                return true;
+
+            double dist = (returnPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
+            if (dist < 1e6)
+                return true;
+            return CanAffordStandingTravelHop(ship, dist);
+        }
+
+        /// <summary>
         /// Fuel reserve to reach the nearest friendly colony in-system, or the jump gate
         /// toward the fleet's known refuel system. Uses the same ~2-hop standing reserve.
         /// </summary>
@@ -197,7 +295,7 @@ namespace Pulsar4X.Fleets
             }
 
             if (returnTarget == null || !returnTarget.TryGetDataBlob<PositionDB>(out var returnPos))
-                return true; // unknown path — don't invent a hard fail
+                return true; // unknown path — don't invent a hard fail (fleet aggregate)
 
             // Never compare AbsolutePosition across star systems.
             if (returnTarget.AttachedManager != manager)
@@ -242,35 +340,7 @@ namespace Pulsar4X.Fleets
         /// ships stranded after arrival. Require enough tank fuel for ~2 similar hops.
         /// </summary>
         private static bool CanAffordStandingTravelHop(Entity ship, double distance_m)
-        {
-            if (!WarpMoveProcessor.CanAffordWarpHop(ship, distance_m))
-                return false;
-
-            // Empty cargo tanks must never count as affordable travel.
-            if (distance_m > 1e6 && !WarpMoveProcessor.HasWarpTankFuel(ship))
-                return false;
-
-            long need = WarpMoveProcessor.EstimateWarpTankFuelUnits(ship, distance_m);
-            if (need <= 0)
-                return true;
-
-            try
-            {
-                if (!ship.TryGetDataBlob<CargoStorageDB>(out var storage))
-                    return false;
-                var cargoLib = ship.GetFactionOwner.GetDataBlob<Factions.FactionInfoDB>().Data.CargoGoods;
-                var (fuel, _) = ship.GetFuelInfo(cargoLib);
-                if (fuel == null)
-                    return true;
-
-                long stored = storage.GetUnitsStored(fuel, includeEscro: false);
-                return stored >= need * 2;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            => MissionFuelEstimator.EvaluateTravelHop(ship, distance_m).CanAffordRoundTrip;
 
         private static bool IsParentedToTarget(Entity ship, Entity target)
         {
@@ -292,27 +362,33 @@ namespace Pulsar4X.Fleets
         {
             foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
             {
-                if (ship.HasDataBlob<CargoTransferDB>())
-                    return true;
-                if (ship.TryGetDataBlob<OrderableDB>(out var shipOrders)
-                    && shipOrders.ActionList.OfType<CargoTransferOrder>().Any())
-                    return true;
-
-                // GeoSurveyingDB alone means a local scan is in progress (no warp fuel needed).
-                if (ship.TryGetDataBlob<GeoSurveyingDB>(out var geo)
-                    && TryGetSurveyTarget(fleet, geo.TargetId, out var geoTarget)
-                    && geoTarget.TryGetDataBlob<GeoSurveyableDB>(out var geoDb)
-                    && !geoDb.IsSurveyComplete(fleet.FactionOwnerID))
-                    return true;
-
-                // Grav/JP: only while hovering / at the anomaly (blob can linger after leaving).
-                if (ship.TryGetDataBlob<JPSurveyDB>(out var jp)
-                    && TryGetSurveyTarget(fleet, jp.TargetId, out var jpTarget)
-                    && jpTarget.TryGetDataBlob<JPSurveyableDB>(out var jpDb)
-                    && !jpDb.IsSurveyComplete(fleet.FactionOwnerID)
-                    && IsAtGravSurveyTarget(ship, jpTarget))
+                if (ShipHasActiveLocalScanOrTransfer(ship, fleet))
                     return true;
             }
+
+            return false;
+        }
+
+        private static bool ShipHasActiveLocalScanOrTransfer(Entity ship, Entity fleet)
+        {
+            if (ship.HasDataBlob<CargoTransferDB>())
+                return true;
+            if (ship.TryGetDataBlob<OrderableDB>(out var shipOrders)
+                && shipOrders.ActionList.OfType<CargoTransferOrder>().Any())
+                return true;
+
+            if (ship.TryGetDataBlob<GeoSurveyingDB>(out var geo)
+                && TryGetSurveyTarget(fleet, geo.TargetId, out var geoTarget)
+                && geoTarget.TryGetDataBlob<GeoSurveyableDB>(out var geoDb)
+                && !geoDb.IsSurveyComplete(fleet.FactionOwnerID))
+                return true;
+
+            if (ship.TryGetDataBlob<JPSurveyDB>(out var jp)
+                && TryGetSurveyTarget(fleet, jp.TargetId, out var jpTarget)
+                && jpTarget.TryGetDataBlob<JPSurveyableDB>(out var jpDb)
+                && !jpDb.IsSurveyComplete(fleet.FactionOwnerID)
+                && IsAtGravSurveyTarget(ship, jpTarget))
+                return true;
 
             return false;
         }
@@ -352,16 +428,26 @@ namespace Pulsar4X.Fleets
             {
                 foreach (var ship in fleetDB.Children.Where(c => c.HasDataBlob<ShipInfoDB>()))
                 {
-                    if (!ship.TryGetDataBlob<PositionDB>(out var pos) || pos.Parent == null)
-                        continue;
-                    var parent = pos.Parent;
-                    if (parent.TryGetDataBlob<GeoSurveyableDB>(out var geo)
-                        && !geo.IsSurveyComplete(fleet.FactionOwnerID))
+                    if (ShipHasOnSiteLocalWork(ship, fleet, activeOrder))
                         return true;
                 }
             }
 
             return false;
+        }
+
+        private static bool ShipHasOnSiteLocalWork(Entity ship, Entity fleet, ConditionalOrder activeOrder)
+        {
+            if (ShipHasActiveLocalScanOrTransfer(ship, fleet))
+                return true;
+
+            if (!LooksLikeSurvey(activeOrder))
+                return false;
+            if (!ship.TryGetDataBlob<PositionDB>(out var pos) || pos.Parent == null)
+                return false;
+            var parent = pos.Parent;
+            return parent.TryGetDataBlob<GeoSurveyableDB>(out var geo)
+                   && !geo.IsSurveyComplete(fleet.FactionOwnerID);
         }
 
         private static bool TryResolveTravelTarget(
@@ -406,6 +492,66 @@ namespace Pulsar4X.Fleets
             if (fleetDB.FlagShipID >= 0)
                 manager.TryGetEntityById(fleetDB.FlagShipID, out flagship);
             if (flagship == null || !flagship.TryGetDataBlob<PositionDB>(out var fromPos))
+                return false;
+
+            double best = double.MaxValue;
+            foreach (var body in manager.GetAllEntitiesWithDataBlob<GeoSurveyableDB>())
+            {
+                if (!GeoSurveyTargets.IsEligible(body, fleet.FactionOwnerID))
+                    continue;
+                if (!body.TryGetDataBlob<PositionDB>(out var bodyPos))
+                    continue;
+                double dist = bodyPos.GetDistanceTo_m(fromPos);
+                if (dist < best)
+                {
+                    best = dist;
+                    target = body;
+                }
+            }
+
+            return target != null;
+        }
+
+        private static bool TryResolveTravelTargetForShip(
+            Entity ship,
+            Entity fleet,
+            FleetDB fleetDB,
+            ConditionalOrder activeOrder,
+            out Entity? target)
+        {
+            target = null;
+
+            if (ship.TryGetDataBlob<OrderableDB>(out var orderable))
+            {
+                foreach (var cmd in orderable.ActionList)
+                {
+                    if (cmd is GeoSurveyOrder geo && geo.Target.IsValid)
+                    {
+                        target = geo.Target;
+                        return true;
+                    }
+                    if (cmd is JPSurveyOrder jp && jp.Target.IsValid)
+                    {
+                        target = jp.Target;
+                        return true;
+                    }
+                    if (cmd is WarpMoveCommand warp
+                        && ship.AttachedManager != null
+                        && (ship.AttachedManager.TryGetEntityById(warp.TargetEntityGuid, out var warpTarget)
+                            || (ship.AttachedManager.Game?.GlobalManager
+                                .TryGetGlobalEntityById(warp.TargetEntityGuid, out warpTarget) ?? false)))
+                    {
+                        target = warpTarget;
+                        return true;
+                    }
+                }
+            }
+
+            if (!LooksLikeSurvey(activeOrder))
+                return false;
+
+            var manager = ship.AttachedManager;
+            if (manager == null || !ship.TryGetDataBlob<PositionDB>(out var fromPos))
                 return false;
 
             double best = double.MaxValue;

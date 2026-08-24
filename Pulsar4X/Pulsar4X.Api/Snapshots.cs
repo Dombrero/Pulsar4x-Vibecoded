@@ -255,6 +255,12 @@ public sealed record ThrustView(
 
     /// <summary>How this fuel is made (facility + recipe), when known.</summary>
     public string FuelProduction { get; init; } = "";
+
+    /// <summary>
+    /// When set, tanks cannot cover the next mission hop + return reserve
+    /// (e.g. jump gate outbound and home). Shown on the FUEL ring tooltip.
+    /// </summary>
+    public string? MissionFuelWarning { get; init; }
 }
 
 public sealed record WarpAbilityView(
@@ -791,6 +797,11 @@ public sealed record ShipSnapshot(
     string? CommanderName = null)
 {
     public IReadOnlyList<OrderSnapshot> Orders { get; init; } = Array.Empty<OrderSnapshot>();
+
+    /// <summary>
+    /// Standing reason when the hull is idle / blocked (e.g. cannot reach last refuel site).
+    /// </summary>
+    public string? StatusMessage { get; init; }
 }
 
 /// <summary>

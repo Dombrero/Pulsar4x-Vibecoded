@@ -225,13 +225,49 @@ namespace Pulsar4X.DataStructures
 
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
-            Type keyType = objectType.GetGenericArguments()[0];
-            Type baseValueType = objectType.GetGenericArguments()[1];
+            if (reader.TokenType == JsonToken.Null)
+                return Activator.CreateInstance(objectType);
 
-            var baseDictType = typeof(Dictionary<,>).MakeGenericType(keyType, baseValueType);
+            Type keyType = objectType.GetGenericArguments()[0];
+            Type valueType = objectType.GetGenericArguments()[1];
+
+            // PreserveReferencesHandling may emit { "$ref": "…" } — resolve via normal dict path.
+            if (reader.TokenType == JsonToken.StartObject)
+            {
+                var obj = JObject.Load(reader);
+                if (obj["$ref"] != null)
+                {
+                    // Let Json.NET resolve the reference into a Dictionary, then wrap.
+                    using var subReader = obj.CreateReader();
+                    var referred = serializer.Deserialize(
+                        subReader,
+                        typeof(Dictionary<,>).MakeGenericType(keyType, valueType)) as IDictionary;
+                    return CreateFromDictionary(objectType, keyType, valueType, referred);
+                }
+
+                var result = Activator.CreateInstance(objectType)
+                    ?? throw new JsonSerializationException($"Could not create {objectType}.");
+                var add = objectType.GetMethod("Add", new[] { keyType, valueType })
+                    ?? throw new JsonSerializationException($"SafeDictionary missing Add({keyType},{valueType}).");
+
+                foreach (var prop in obj.Properties())
+                {
+                    // Skip metadata from TypeNameHandling / PreserveReferencesHandling.
+                    if (prop.Name.Length > 0 && prop.Name[0] == '$')
+                        continue;
+
+                    object key = ConvertKey(prop.Name, keyType);
+                    object? val = prop.Value?.ToObject(valueType, serializer);
+                    add.Invoke(result, new[] { key, val });
+                }
+
+                return result;
+            }
+
+            // Legacy / unusual payloads: deserialize as Dictionary then wrap.
+            var baseDictType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
             var innerDict = serializer.Deserialize(reader, baseDictType) as IDictionary;
-            var result = Activator.CreateInstance(objectType, innerDict);
-            return result;
+            return CreateFromDictionary(objectType, keyType, valueType, innerDict);
         }
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
@@ -242,23 +278,83 @@ namespace Pulsar4X.DataStructures
                 return;
             }
 
-            var objectType = value.GetType();
-            var innerDictionaryProperty = objectType.GetProperty("InnerDictionary", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (innerDictionaryProperty?.GetValue(value) is not { } innerDictionaryValue)
+            // Plain object of entries — avoids nested Dictionary+$type payloads that sometimes
+            // saved as empty {} under TypeNameHandling (wiping GeoSurveyStatus on disk).
+            writer.WriteStartObject();
+            foreach (var entry in (IEnumerable)value)
             {
-                writer.WriteNull();
-                return;
+                var entryType = entry.GetType();
+                var key = entryType.GetProperty("Key")!.GetValue(entry);
+                var val = entryType.GetProperty("Value")!.GetValue(entry);
+                writer.WritePropertyName(KeyToPropertyName(key));
+                serializer.Serialize(writer, val);
             }
-            serializer.Serialize(writer, innerDictionaryValue);
+            writer.WriteEndObject();
         }
 
-        private Type GetDerivedType(Type baseType)
+        private static object CreateFromDictionary(
+            Type safeDictType, Type keyType, Type valueType, IDictionary? innerDict)
         {
-            if (baseType == typeof(EntityManager))
+            var result = Activator.CreateInstance(safeDictType)
+                ?? throw new JsonSerializationException($"Could not create {safeDictType}.");
+            if (innerDict == null || innerDict.Count == 0)
+                return result;
+
+            var add = safeDictType.GetMethod("Add", new[] { keyType, valueType })
+                ?? throw new JsonSerializationException($"SafeDictionary missing Add.");
+            foreach (DictionaryEntry de in innerDict)
             {
-                return typeof(StarSystem);
+                object key = de.Key is string s
+                    ? ConvertKey(s, keyType)
+                    : (keyType.IsInstanceOfType(de.Key)
+                        ? de.Key
+                        : Convert.ChangeType(de.Key, keyType)!);
+                add.Invoke(result, new[] { key, de.Value });
             }
-            return baseType;
+            return result;
+        }
+
+        private static string KeyToPropertyName(object? key)
+        {
+            if (key is null)
+                return "";
+            if (key is Type typeKey)
+                return typeKey.AssemblyQualifiedName ?? typeKey.FullName ?? typeKey.Name;
+            return Convert.ToString(key, System.Globalization.CultureInfo.InvariantCulture) ?? "";
+        }
+
+        private static object ConvertKey(string name, Type keyType)
+        {
+            if (keyType == typeof(string))
+                return name;
+            if (keyType == typeof(Type))
+            {
+                var resolved = Type.GetType(name, throwOnError: false);
+                if (resolved != null)
+                    return resolved;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    resolved = asm.GetType(name, throwOnError: false);
+                    if (resolved != null)
+                        return resolved;
+                }
+                throw new JsonSerializationException($"Could not resolve Type key '{name}'.");
+            }
+            if (keyType == typeof(Guid))
+                return Guid.Parse(name);
+            if (keyType.IsEnum)
+                return Enum.Parse(keyType, name);
+            if (keyType == typeof(int))
+                return int.Parse(name, System.Globalization.CultureInfo.InvariantCulture);
+            if (keyType == typeof(long))
+                return long.Parse(name, System.Globalization.CultureInfo.InvariantCulture);
+            if (keyType == typeof(uint))
+                return uint.Parse(name, System.Globalization.CultureInfo.InvariantCulture);
+            if (typeof(IConvertible).IsAssignableFrom(keyType))
+                return Convert.ChangeType(name, keyType, System.Globalization.CultureInfo.InvariantCulture)!;
+
+            throw new JsonSerializationException(
+                $"Unsupported SafeDictionary key type {keyType.FullName} for property '{name}'.");
         }
     }
 

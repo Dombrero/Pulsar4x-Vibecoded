@@ -3,6 +3,7 @@ using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
 using Pulsar4X.Events;
 using Pulsar4X.Extensions;
+using Pulsar4X.GeoSurveys;
 
 namespace Pulsar4X.Colonies;
 
@@ -62,6 +63,11 @@ public class CreateColonyOrder : EntityCommand
 
     internal override bool IsValidCommand(Game game)
     {
-        return true;
+        if (!TargetSystemBody.IsValid || !_entityCommanding.IsValid)
+            return false;
+
+        // Starting colonies use ColonyFactory directly and skip this order.
+        return TargetSystemBody.TryGetDataBlob<GeoSurveyableDB>(out var geo)
+            && geo.IsSurveyComplete(RequestingFactionGuid);
     }
 }

@@ -48,7 +48,16 @@ namespace Pulsar4X.Engine.Api
         public TimeState ProjectTime(DateTime gameDateTime)
         {
             var tp = _game.TimePulse;
-            return new TimeState(gameDateTime, tp.IsRunning, tp.IsStopping, tp.Ticklength, tp.TickFrequency);
+            return new TimeState(
+                gameDateTime,
+                tp.IsRunning,
+                tp.IsStopping,
+                tp.Ticklength,
+                tp.TickFrequency,
+                tp.IsProcessingTick,
+                tp.TickProcessStartedUtc,
+                tp.LastProcessingTime,
+                tp.TickProgress);
         }
 
         public FactionSnapshot? ProjectFaction(int factionId)
@@ -213,7 +222,7 @@ namespace Pulsar4X.Engine.Api
             (e, f) => e.TryGetDataBlob<ShipInfoDB>(out var sh)
                 ? (e.FactionOwnerID == f ? ToShipView(sh, e, f) : new ShipView(sh.Design?.Name ?? "Unknown"))
                 : null,
-            (e, f) => e.TryGetDataBlob<GeoSurveyableDB>(out var g) ? ToGeoSurveyView(g, f) : null,
+            (e, f) => e.TryGetDataBlob<GeoSurveyableDB>(out var g) ? ToGeoSurveyView(g, e, f) : null,
             (e, _) => e.HasDataBlob<ColonizeableDB>() ? new ColonizableView() : null,
             (e, f) => e.TryGetDataBlob<MineralsDB>(out var md) ? ToMineralDepositsView(md, e, f) : null,
             (e, f) => e.TryGetDataBlob<JPSurveyableDB>(out var j) ? ToGravSurveyView(j, f) : null,
@@ -368,10 +377,13 @@ namespace Pulsar4X.Engine.Api
                 bool fuelOk = Pulsar4X.Movement.WarpMoveProcessor.HasWarpTankFuel(entity);
                 bool energyOk = needKJ <= storedKJ + 1e-6;
 
-                if (energyOk && fuelOk)
+                var missionFuel = Pulsar4X.Fleets.MissionFuelEstimator.EvaluateTravelHop(entity, distanceM);
+                bool missionFuelOk = missionFuel.CanAffordRoundTrip;
+
+                if (energyOk && fuelOk && missionFuelOk)
                     return null;
 
-                var parts = new List<string>(2);
+                var parts = new List<string>(3);
                 if (!energyOk)
                 {
                     double shortfall = Math.Max(0, needKJ - storedKJ);
@@ -385,6 +397,8 @@ namespace Pulsar4X.Engine.Api
                 }
                 if (!fuelOk)
                     parts.Add("cargo fuel tank empty");
+                else if (!missionFuelOk && !string.IsNullOrEmpty(missionFuel.Reason))
+                    parts.Add(missionFuel.Reason);
 
                 return new EnergyActionBlock(
                     actionName, needKJ, storedKJ, creationKJ, sustainDeficit, travelSeconds,
@@ -518,8 +532,14 @@ namespace Pulsar4X.Engine.Api
             };
         }
 
-        private static GeoSurveyView ToGeoSurveyView(GeoSurveyableDB g, int factionId)
+        private static GeoSurveyView ToGeoSurveyView(GeoSurveyableDB g, Entity body, int factionId)
         {
+            // Colonized worlds are known: older saves / stub PlanetEntity links often never got
+            // GeoSurveyStatus written. Heal here so fog-of-war greys clear as soon as the system
+            // is projected (not only once at LoadGame).
+            if (!g.IsSurveyComplete(factionId) && BodyHasOwnedColony(body, factionId))
+                g.GeoSurveyStatus[factionId] = 0;
+
             bool started = g.HasSurveyStarted(factionId);
             double percent = 0;
             long completed = 0;
@@ -530,6 +550,32 @@ namespace Pulsar4X.Engine.Api
             }
 
             return new GeoSurveyView(g.IsSurveyComplete(factionId), started, percent, g.PointsRequired, completed);
+        }
+
+        private static bool BodyHasOwnedColony(Entity body, int factionId)
+        {
+            var manager = body.Manager;
+            if (manager == null)
+                return false;
+
+            int bodyId = body.Id;
+            foreach (var colony in manager.GetAllEntitiesWithDataBlob<ColonyInfoDB>())
+            {
+                if (colony.FactionOwnerID != factionId)
+                    continue;
+                if (!colony.TryGetDataBlob<ColonyInfoDB>(out var info))
+                    continue;
+
+                if (info.PlanetEntity != null && info.PlanetEntity.Id == bodyId)
+                    return true;
+
+                if (colony.TryGetDataBlob<Pulsar4X.Movement.PositionDB>(out var pos)
+                    && pos.Parent != null
+                    && pos.Parent.Id == bodyId)
+                    return true;
+            }
+
+            return false;
         }
 
         private static GravSurveyView ToGravSurveyView(JPSurveyableDB j, int factionId)
@@ -712,6 +758,7 @@ namespace Pulsar4X.Engine.Api
                 FuelName = fuelName,
                 FuelDescription = fuelDescription,
                 FuelProduction = fuelProduction,
+                MissionFuelWarning = Pulsar4X.Fleets.MissionFuelEstimator.TryBuildMissionFuelWarning(ship),
             };
         }
 
@@ -1771,6 +1818,9 @@ namespace Pulsar4X.Engine.Api
                                     shipInfo?.Design?.Name ?? "", commander)
             {
                 Orders = ProjectOrders(ship),
+                StatusMessage = ship.TryGetDataBlob<Pulsar4X.Fleets.ShipStandingStateDB>(out var standing)
+                    ? standing.StatusMessage
+                    : null,
             };
         }
 
@@ -1815,16 +1865,16 @@ namespace Pulsar4X.Engine.Api
                     && geoDb.PointsRequired > 0)
                 {
                     double percent = (1.0 - (double)geoDb.GeoSurveyStatus[factionId] / geoDb.PointsRequired) * 100;
-                    pct = $" ({percent:0.#}%)";
+                    pct = $" ({percent:0}%)";
                 }
                 return new ActivityView(
-                    "Geo Survey " + geoTarget.GetName(factionId) + pct,
-                    "Surveying at target.");
+                    "Geo Survey" + pct,
+                    "Surveying " + geoTarget.GetName(factionId) + ".");
             }
 
-            if (ship.TryGetDataBlob<JPSurveyDB>(out var jpSurvey)
+            if (ship.TryGetDataBlob<JPSurveyDB>(out var jpSurveying)
                 && ship.Manager != null
-                && ship.AttachedManager.TryGetEntityById(jpSurvey.TargetId, out var jpTarget))
+                && ship.AttachedManager.TryGetEntityById(jpSurveying.TargetId, out var jpTarget))
             {
                 string pct = "";
                 if (jpTarget.TryGetDataBlob<JPSurveyableDB>(out var jpDb)
@@ -1832,17 +1882,26 @@ namespace Pulsar4X.Engine.Api
                     && jpDb.SurveyPointsRemaining.TryGetValue(factionId, out var remaining))
                 {
                     double percent = (1.0 - (double)remaining / jpDb.PointsRequired) * 100;
-                    pct = $" ({percent:0.#}%)";
+                    pct = $" ({percent:0}%)";
                 }
                 return new ActivityView(
-                    "Jump Point Survey " + jpTarget.GetName(factionId) + pct,
-                    "Surveying at target.");
+                    "Grav Survey" + pct,
+                    "Surveying " + jpTarget.GetName(factionId) + ".");
             }
 
-            if (ship.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var warp))
+            if (ship.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out _))
             {
-                string target = warp.TargetEntity?.GetName(factionId) ?? "destination";
+                string target = "destination";
+                if (ship.TryGetDataBlob<Pulsar4X.Movement.WarpMovingDB>(out var wm)
+                    && wm.TargetEntity != null)
+                    target = wm.TargetEntity.GetName(factionId);
                 return new ActivityView("Warping", "En route to " + target + ".");
+            }
+
+            if (ship.TryGetDataBlob<Pulsar4X.Fleets.ShipStandingStateDB>(out var standing)
+                && !string.IsNullOrWhiteSpace(standing.StatusMessage))
+            {
+                return new ActivityView("Standing", standing.StatusMessage);
             }
 
             return new ActivityView("Idle");

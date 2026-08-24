@@ -273,6 +273,9 @@ public sealed class GameLifecycle : IGameLifecycle, IDesignDataProvider
             SetGame(loadedGame);
             BindFaction(faction, setAsPlayer: true);
 
+            // Older saves may lack GeoSurveyStatus on the homeworld — heal fog-of-war greys.
+            ColonyFactory.SyncAllColonyWorldSurveys(loadedGame);
+
             var system = loadedGame.Systems.FirstOrDefault(s => s.ID.Equals(systemId));
             if (system != null)
             {

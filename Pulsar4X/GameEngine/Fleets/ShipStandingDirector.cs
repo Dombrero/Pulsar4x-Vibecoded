@@ -7,6 +7,7 @@ using Pulsar4X.Datablobs;
 using Pulsar4X.Energy;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
+using Pulsar4X.Events;
 using Pulsar4X.Extensions;
 using Pulsar4X.Factions;
 using Pulsar4X.GeoSurveys;
@@ -100,11 +101,41 @@ internal static class ShipStandingDirector
         OnShipSystemChanged(ship, state);
 
         DateTime gameTime = ship.StarSysDateTime;
+        // Logistics beats "no targets" suppress: low fuel / empty tanks must wake for Refuel.
         if (state.SuppressUntil.HasValue)
         {
-            if (gameTime < state.SuppressUntil.Value)
+            float refuelEnter = 30f;
+            int refuelIdx = FindRefuelOrderIndex(fleetDB);
+            if (refuelIdx >= 0)
+                ShipStandingEvaluator.TryGetFuelLessThanThreshold(
+                    fleetDB.StandingOrders[refuelIdx], out refuelEnter);
+
+            bool logisticsWake = !WarpMoveProcessor.HasWarpTankFuel(ship)
+                || ShipStandingEvaluator.ShipFuelBelow(ship, refuelEnter)
+                || !StandingActionAffordability.CanAffordReturnPathForShip(ship, fleet, fleetDB);
+
+            if (logisticsWake)
+            {
+                state.SuppressUntil = null;
+                if (refuelIdx >= 0
+                    && (state.ActiveStandingOrderIndex < 0 || state.ActiveStandingOrderIndex > refuelIdx))
+                {
+                    AbortShipStandingWork(ship);
+                    state.ActiveStandingOrderIndex = refuelIdx;
+                    state.StatusMessage = null;
+                    if (!TryEnqueueRefuel(ship, fleet, fleetDB))
+                        SetRefuelFailStatus(ship, state, fleet, fleetDB);
+                    return;
+                }
+            }
+            else if (gameTime < state.SuppressUntil.Value)
+            {
                 return;
-            state.SuppressUntil = null;
+            }
+            else
+            {
+                state.SuppressUntil = null;
+            }
         }
 
         if (state.ActiveStandingOrderIndex >= fleetDB.StandingOrders.Count)
@@ -133,7 +164,10 @@ internal static class ShipStandingDirector
                     if (!TryEnqueueMission(ship, fleet, fleetDB, enterOrder)
                         && !ShipStandingEvaluator.LooksLikeRefuel(enterOrder)
                         && !ShipStandingEvaluator.LooksLikeRecharge(enterOrder))
-                        SuppressEmpty(ship, state, enterOrder);
+                    {
+                        if (!TrySuppressOrForceRefuel(ship, fleet, fleetDB, state, enterOrder))
+                            SuppressEmpty(ship, state, enterOrder);
+                    }
                     return;
                 }
             }
@@ -153,11 +187,14 @@ internal static class ShipStandingDirector
                              || ShipStandingEvaluator.LooksLikeRecharge(activeOrder))
                     {
                         // Keep commitment — cargo may need another tick to attach.
+                        if (ShipStandingEvaluator.LooksLikeRefuel(activeOrder))
+                            SetRefuelFailStatus(ship, state, fleet, fleetDB);
                         return;
                     }
                     else
                     {
-                        SuppressEmpty(ship, state, activeOrder);
+                        if (!TrySuppressOrForceRefuel(ship, fleet, fleetDB, state, activeOrder))
+                            SuppressEmpty(ship, state, activeOrder);
                         return;
                     }
                 }
@@ -188,10 +225,15 @@ internal static class ShipStandingDirector
             gameTime);
         if (!TryEnqueueMission(ship, fleet, fleetDB, order))
         {
-            if (ShipStandingEvaluator.LooksLikeRefuel(order)
-                || ShipStandingEvaluator.LooksLikeRecharge(order))
+            if (ShipStandingEvaluator.LooksLikeRefuel(order))
+            {
+                SetRefuelFailStatus(ship, state, fleet, fleetDB);
                 return;
-            SuppressEmpty(ship, state, order);
+            }
+            if (ShipStandingEvaluator.LooksLikeRecharge(order))
+                return;
+            if (!TrySuppressOrForceRefuel(ship, fleet, fleetDB, state, order))
+                SuppressEmpty(ship, state, order);
         }
     }
 
@@ -230,7 +272,10 @@ internal static class ShipStandingDirector
         if (!TryEnqueueMission(ship, fleet, fleetDB, enterOrder)
             && !ShipStandingEvaluator.LooksLikeRefuel(enterOrder)
             && !ShipStandingEvaluator.LooksLikeRecharge(enterOrder))
-            SuppressEmpty(ship, state, enterOrder);
+        {
+            if (!TrySuppressOrForceRefuel(ship, fleet, fleetDB, state, enterOrder))
+                SuppressEmpty(ship, state, enterOrder);
+        }
     }
 
     private static bool ShouldDeferLogisticsPreempt(
@@ -267,17 +312,26 @@ internal static class ShipStandingDirector
         {
             float threshold = 30f;
             ShipStandingEvaluator.TryGetFuelLessThanThreshold(enterOrder, out threshold);
-            if (!ShipStandingEvaluator.ShipFuelBelow(ship, threshold))
+
+            // Below ENTER: never defer if this hull cannot afford next hop or return home.
+            if (ShipStandingEvaluator.ShipFuelBelow(ship, threshold))
             {
-                // Mid-survey opportunity: only top off when already docked.
-                // Away from colony → keep surveying (siblings may tank independently).
-                if (!ShipStandingEvaluator.ShipNeedsOpportunityTopOff(ship))
-                    return true;
+                if (!fleet.TryGetDataBlob<FleetDB>(out var fleetDB))
+                    return false;
+                if (!StandingActionAffordability.CanAffordNextActionForShip(ship, fleet, activeOrder)
+                    || !StandingActionAffordability.CanAffordReturnPathForShip(ship, fleet, fleetDB))
+                    return false;
+                // Still below ENTER but can afford continue — allow preempt to top off.
                 return false;
             }
+
+            // Mid-survey opportunity: only top off when already docked.
+            if (!ShipStandingEvaluator.ShipNeedsOpportunityTopOff(ship))
+                return true;
+            return false;
         }
 
-        return StandingActionAffordability.CanAffordNextAction(fleet, activeOrder);
+        return StandingActionAffordability.CanAffordNextActionForShip(ship, fleet, activeOrder);
     }
 
     private static bool TryEnqueueMission(
@@ -325,7 +379,14 @@ internal static class ShipStandingDirector
                 && jumpGate.OwningEntity.IsValid)
             {
                 RefuelColonySearch.RememberLocalColonyAsRefuelSite(fleet, fleetDB, fleet.FactionOwnerID);
-                return EnqueueShipJumpHome(ship, jumpGate);
+                if (EnqueueShipJumpHome(ship, jumpGate))
+                    return true;
+
+                var state = GetOrAddState(ship);
+                state.StatusMessage =
+                    "Cannot reach last refuel site — not enough fuel to gate";
+                PublishInsufficientFuel(ship, state.StatusMessage);
+                return false;
             }
 
             return false;
@@ -382,6 +443,25 @@ internal static class ShipStandingDirector
             return false;
 
         var gateEntity = jumpGate.OwningEntity;
+        if (!gateEntity.IsValid)
+            return false;
+
+        // Outbound only — this jump's destination is fuel. Round-trip is for player jumps.
+        var fuelCheck = MissionFuelEstimator.EvaluateJumpViaGate(
+            ship, gateEntity, requireReturnReserve: false);
+        if (!fuelCheck.CanAffordOutbound)
+        {
+            DebugTraceLog.Warn("Standing",
+                $"ship#{ship.Id}: skip jump-home via gate#{gateEntity.Id} — {fuelCheck.Reason}",
+                ship.StarSysDateTime);
+            var state = GetOrAddState(ship);
+            state.StatusMessage = string.IsNullOrEmpty(fuelCheck.Reason)
+                ? "Cannot reach last refuel site — not enough fuel to gate"
+                : fuelCheck.Reason;
+            PublishInsufficientFuel(ship, state.StatusMessage);
+            return false;
+        }
+
         FleetOrderCleanup.AbortShipMovementOrdersOnEntity(ship);
 
         bool ok = false;
@@ -478,6 +558,9 @@ internal static class ShipStandingDirector
         if (target == null)
             return false;
 
+        if (!CanAffordSurveyTravelTo(ship, fleet, fleetDB, target))
+            return false;
+
         var order = new GeoSurveyOrder(ship, target)
         {
             RequestingFactionGuid = fleet.FactionOwnerID,
@@ -501,6 +584,9 @@ internal static class ShipStandingDirector
         if (target == null)
             return false;
 
+        if (!CanAffordSurveyTravelTo(ship, fleet, fleetDB, target))
+            return false;
+
         var order = new JPSurveyOrder(ship, target)
         {
             RequestingFactionGuid = fleet.FactionOwnerID,
@@ -509,6 +595,31 @@ internal static class ShipStandingDirector
             UseActionLanes = true,
         };
         return OrderEnqueue.Standing(game, order);
+    }
+
+    private static bool CanAffordSurveyTravelTo(
+        Entity ship, Entity fleet, FleetDB fleetDB, Entity target)
+    {
+        if (!StandingActionAffordability.CanAffordReturnPathForShip(ship, fleet, fleetDB))
+            return false;
+
+        if (!ship.HasDataBlob<WarpAbilityDB>())
+            return true;
+        if (IsParentedToEntity(ship, target))
+            return true;
+        if (!ship.TryGetDataBlob<PositionDB>(out var shipPos)
+            || !target.TryGetDataBlob<PositionDB>(out var tgtPos))
+            return false;
+
+        double dist = (tgtPos.AbsolutePosition - shipPos.AbsolutePosition).Length();
+        return MissionFuelEstimator.EvaluateTravelHop(ship, dist).CanAffordRoundTrip;
+    }
+
+    private static bool IsParentedToEntity(Entity ship, Entity target)
+    {
+        if (!ship.TryGetDataBlob<PositionDB>(out var shipPos) || shipPos.Parent == null)
+            return false;
+        return shipPos.Parent.Id == target.Id;
     }
 
     private static void AbortShipStandingWork(Entity ship)
@@ -533,8 +644,116 @@ internal static class ShipStandingDirector
             ship.StarSysDateTime);
     }
 
+    /// <summary>
+    /// Before suppressing a failed survey, try Refuel when this hull cannot afford return / next hop.
+    /// </summary>
+    private static bool TrySuppressOrForceRefuel(
+        Entity ship, Entity fleet, FleetDB fleetDB, ShipStandingStateDB state, ConditionalOrder failedOrder)
+    {
+        int refuelIdx = FindRefuelOrderIndex(fleetDB);
+        if (refuelIdx < 0)
+            return false;
+
+        float threshold = 30f;
+        ShipStandingEvaluator.TryGetFuelLessThanThreshold(
+            fleetDB.StandingOrders[refuelIdx], out threshold);
+
+        bool needRefuel = !WarpMoveProcessor.HasWarpTankFuel(ship)
+            || ShipStandingEvaluator.ShipFuelBelow(ship, threshold)
+            || !StandingActionAffordability.CanAffordReturnPathForShip(ship, fleet, fleetDB)
+            || !StandingActionAffordability.CanAffordNextActionForShip(ship, fleet, failedOrder);
+
+        if (!needRefuel)
+            return false;
+
+        state.SuppressUntil = null;
+        state.ActiveStandingOrderIndex = refuelIdx;
+        state.StatusMessage = null;
+        if (TryEnqueueRefuel(ship, fleet, fleetDB))
+            return true;
+
+        SetRefuelFailStatus(ship, state, fleet, fleetDB);
+        return true; // consumed the empty path — do not SuppressEmpty over the status
+    }
+
+    private static void SetRefuelFailStatus(
+        Entity ship, ShipStandingStateDB state, Entity fleet, FleetDB fleetDB)
+    {
+        if (!ship.TryGetDataBlob<PositionDB>(out var shipPos))
+        {
+            state.StatusMessage = "Refuel failed";
+            return;
+        }
+
+        var game = ship.AttachedManager?.Game;
+        Entity? colony = ship.AttachedManager != null
+            ? RefuelColonySearch.FindNearestColonyInSystem(
+                ship.AttachedManager, fleet.FactionOwnerID, shipPos, fleetDB.LastRefuelColonyId)
+            : null;
+
+        if (colony != null)
+        {
+            state.StatusMessage = "Cannot reach colony to refuel";
+            return;
+        }
+
+        if (game == null
+            || !RefuelColonySearch.TryResolveRefuelSystemId(
+                game, fleet, fleet.FactionOwnerID, fleetDB, out _))
+        {
+            state.StatusMessage = "No known refuel system";
+            return;
+        }
+
+        state.StatusMessage = "Cannot reach last refuel site — not enough fuel to gate";
+        PublishInsufficientFuel(ship, state.StatusMessage);
+    }
+
+    private static void PublishInsufficientFuel(Entity ship, string message)
+    {
+        try
+        {
+            EventManager.Instance.Publish(
+                Event.Create(
+                    EventType.InsufficientFuel,
+                    ship.StarSysDateTime,
+                    message,
+                    ship.FactionOwnerID,
+                    ship.AttachedManager?.ManagerID,
+                    ship.Id));
+        }
+        catch
+        {
+            /* best-effort */
+        }
+    }
+
+    private static int FindRefuelOrderIndex(FleetDB fleetDB)
+    {
+        for (int i = 0; i < fleetDB.StandingOrders.Count; i++)
+        {
+            if (ShipStandingEvaluator.LooksLikeRefuel(fleetDB.StandingOrders[i]))
+                return i;
+        }
+        return -1;
+    }
+
     private static void UpdateIdleStatus(Entity ship, ShipStandingStateDB state, FleetDB fleetDB)
     {
+        // Do not park on "no targets" when logistics still needs this hull.
+        float refuelEnter = 30f;
+        int refuelIdx = FindRefuelOrderIndex(fleetDB);
+        if (refuelIdx >= 0)
+            ShipStandingEvaluator.TryGetFuelLessThanThreshold(
+                fleetDB.StandingOrders[refuelIdx], out refuelEnter);
+        if (refuelIdx >= 0
+            && (ShipStandingEvaluator.ShipFuelBelow(ship, refuelEnter)
+                || !WarpMoveProcessor.HasWarpTankFuel(ship)))
+        {
+            state.SuppressUntil = null;
+            return;
+        }
+
         bool hasGrav = fleetDB.StandingOrders.Any(ShipStandingEvaluator.LooksLikeGrav);
         bool hasGeo = fleetDB.StandingOrders.Any(ShipStandingEvaluator.LooksLikeGeo);
         int anomalies = ShipStandingEvaluator.CountAssignableGrav(ship);

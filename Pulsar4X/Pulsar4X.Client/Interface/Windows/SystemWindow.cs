@@ -153,6 +153,10 @@ public class SystemWindow : UniquePulsarGuiWindow<SystemWindow>
                         new CreateColonyCommand(_uiState.GameClient.Session.FactionId, entity.Id));
                 }
             }
+            else if (entity.HasView<ColonizableView>() && !isSurveyComplete)
+            {
+                ImGui.TextDisabled("Survey first");
+            }
             else
             {
                 ImGui.Text("");

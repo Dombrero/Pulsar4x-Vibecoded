@@ -36,9 +36,6 @@ namespace Pulsar4X.Client
         Vector2 _iconSize = new Vector2(16, 16);
         Vector2 _windowSize = new Vector2(200, 100);
         Vector2 _windowPosition = new Vector2(0, 0);
-        private DateTime _barCycleStartUtc;
-        private DateTime _lastBarGameDate;
-        private bool _lastBarRunning;
         private bool _syncedTickFromGalaxy;
 
         private TimeControl()
@@ -169,25 +166,27 @@ namespace Pulsar4X.Client
         private void DrawTickProgressBar(TimeState? time)
         {
             bool running = (time?.IsRunning ?? false) || (time?.IsStopping ?? false);
-            if (!running)
-            {
-                _lastBarRunning = false;
+            if (!running || time is null)
                 return;
-            }
 
-            if (time is { } t
-                && (t.GameDateTime != _lastBarGameDate || !_lastBarRunning))
+            // Progress through calculating the current TickLength (e.g. 1 month), then resets.
+            float progress = 0f;
+            double remainingMs = 0;
+            if (time.IsProcessingTick)
             {
-                _barCycleStartUtc = DateTime.UtcNow;
-                _lastBarGameDate = t.GameDateTime;
-                _lastBarRunning = true;
+                double estimateMs = time.LastProcessingTime > TimeSpan.Zero
+                    ? time.LastProcessingTime.TotalMilliseconds
+                    : 500.0;
+                double elapsedMs = time.TickProcessStartedUtc != default
+                    ? (DateTime.UtcNow - time.TickProcessStartedUtc).TotalMilliseconds
+                    : 0.0;
+                float wall = (float)Math.Clamp(elapsedMs / Math.Max(1.0, estimateMs), 0.0, 0.99);
+                float sim = (float)Math.Clamp(time.TickProgress, 0.0, 1.0);
+                progress = Math.Max(wall, sim);
+                if (sim < 1f && progress > 0.99f)
+                    progress = 0.99f;
+                remainingMs = Math.Max(0.0, estimateMs - elapsedMs);
             }
-
-            // Approximate: fill over TickFrequency (real-time gap between ticks). If the sim is
-            // slower than that, the bar sits full until the date jumps.
-            double periodMs = Math.Max(50.0, time?.TickFrequency.TotalMilliseconds ?? 1000.0);
-            float progress = (float)Math.Clamp(
-                (DateTime.UtcNow - _barCycleStartUtc).TotalMilliseconds / periodMs, 0.0, 1.0);
 
             var drawList = ImGui.GetWindowDrawList();
             var winPos = ImGui.GetWindowPos();
@@ -210,11 +209,27 @@ namespace Pulsar4X.Client
             if (ImGui.IsMouseHoveringRect(winPos, new Vector2(winPos.X + winSize.X, winPos.Y + barHeight)))
             {
                 ImGui.BeginTooltip();
-                ImGui.TextUnformatted("Nächster Tick (ungefähr)");
-                if (time is { } tt && tt.TickLength > TimeSpan.Zero)
-                    ImGui.TextUnformatted($"Tick: {FormatTickLength(tt.TickLength)}");
+                ImGui.TextUnformatted("Tick-Berechnung");
+                if (time.IsProcessingTick)
+                {
+                    if (remainingMs > 0)
+                        ImGui.TextUnformatted($"Noch ca. {FormatRemaining(remainingMs)}");
+                    else
+                        ImGui.TextUnformatted("Gleich fertig…");
+                }
+                else
+                    ImGui.TextUnformatted("Warte auf nächsten Tick…");
+                if (time.TickLength > TimeSpan.Zero)
+                    ImGui.TextUnformatted($"Tick: {FormatTickLength(time.TickLength)}");
                 ImGui.EndTooltip();
             }
+        }
+
+        private static string FormatRemaining(double remainingMs)
+        {
+            if (remainingMs >= 1000.0)
+                return (remainingMs / 1000.0).ToString("0.0") + " s";
+            return Math.Max(0, remainingMs).ToString("0") + " ms";
         }
 
         private static string FormatTickLength(TimeSpan span)

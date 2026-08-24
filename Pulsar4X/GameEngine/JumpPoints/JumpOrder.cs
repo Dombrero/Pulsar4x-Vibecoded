@@ -5,6 +5,7 @@ using Pulsar4X.Api;
 using Pulsar4X.Datablobs;
 using Pulsar4X.Engine;
 using Pulsar4X.Engine.Orders;
+using Pulsar4X.Events;
 using Pulsar4X.Extensions;
 using Pulsar4X.Fleets;
 using Pulsar4X.Messaging;
@@ -129,26 +130,41 @@ public class JumpOrder : EntityCommand
 
         foreach (var ship in ships)
         {
+            if (!ship.HasDataBlob<WarpAbilityDB>())
+                continue;
+
+            // Only require fuel to *reach* the gate here. Round-trip reserve is enforced on
+            // player JumpCommand (TranslateJump). Standing Refuel jumps home with near-empty
+            // tanks and must not be blocked by a return reserve.
+            var fuelCheck = MissionFuelEstimator.EvaluateJumpViaGate(
+                ship, gateEntity, requireReturnReserve: false);
+            if (!fuelCheck.CanAffordOutbound)
+            {
+                DebugTraceLog.Warn("Jump",
+                    $"ship#{ship.Id}: skip jump via gate#{gateEntity.Id} — {fuelCheck.Reason}",
+                    atDateTime);
+                try
+                {
+                    EventManager.Instance.Publish(
+                        Event.Create(
+                            EventType.InsufficientFuel,
+                            atDateTime,
+                            $"Ship cannot jump: {fuelCheck.Reason}",
+                            ship.FactionOwnerID,
+                            ship.AttachedManager?.ManagerID,
+                            ship.Id));
+                }
+                catch
+                {
+                    /* event is best-effort */
+                }
+                continue;
+            }
+
             // Queue a warp command if the ship isn't already at the gate
             var shipParent = ship.GetDataBlob<PositionDB>().Parent;
             if (shipParent != gateEntity)
             {
-                if (!ship.HasDataBlob<WarpAbilityDB>())
-                    continue;
-
-                double distToGate = 0;
-                if (ship.TryGetDataBlob<PositionDB>(out var shipPos)
-                    && gateEntity.TryGetDataBlob<PositionDB>(out var gatePos))
-                    distToGate = (gatePos.AbsolutePosition - shipPos.AbsolutePosition).Length();
-
-                if (distToGate > 1e6 && !WarpMoveProcessor.CanAffordWarpHop(ship, distToGate))
-                {
-                    DebugTraceLog.Warn("Jump",
-                        $"ship#{ship.Id}: skip warp to gate#{gateEntity.Id} — not enough tank fuel (stranded)",
-                        atDateTime);
-                    continue;
-                }
-
                 var warpCmd = Movement.WarpMoveCommand.CreateCommandEZ(ship, gateEntity, atDateTime);
                 warpCmd.Source = Source;
                 OrderEnqueue.Enqueue(ship.AttachedManager.Game, warpCmd);
@@ -339,7 +355,10 @@ public class ShipJumpCommand : EntityCommand
 
     Entity _factionEntity = Entity.InvalidEntity;
     Entity _entityCommanding = Entity.InvalidEntity;
-    JumpPointDB _jumpGate;
+    JumpPointDB _jumpGate = null!;
+
+    /// <summary>Gate this hull will transit (used by mission-fuel UI / estimators).</summary>
+    public JumpPointDB JumpGate => _jumpGate;
 
     internal override Entity EntityCommanding => _entityCommanding;
 

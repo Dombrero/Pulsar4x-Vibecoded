@@ -18,6 +18,7 @@ using Pulsar4X.JumpPoints;
 using Pulsar4X.Sensors;
 using Pulsar4X.Logistics;
 using Pulsar4X.Messaging;
+using Pulsar4X.Colonies;
 [assembly: InternalsVisibleTo("Pulsar4X.Tests")]
 
 namespace Pulsar4X.Engine
@@ -325,6 +326,9 @@ namespace Pulsar4X.Engine
         {
             // Link all JumpPoints between systems
             JPFactory.LinkAllJumpPoints(this);
+
+            // Colonized worlds must count as surveyed for fog-of-war visuals.
+            ColonyFactory.SyncAllColonyWorldSurveys(this);
 
             // There are few DB's that need to run the processor when the game begins
             foreach (var system in Systems)

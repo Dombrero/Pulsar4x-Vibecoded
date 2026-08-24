@@ -13,6 +13,16 @@ namespace Pulsar4X.Tests.ClientVisuals;
 public class BodyVisualColorTests
 {
     [Test]
+    public void Unsurveyed_Planet_UsesGreyTypeDefault()
+    {
+        var grey = BodyVisualStateFactory.TypeDefault(BodyKind.Planet, bodyTypeId: 1);
+        Assert.That(IsMostlyGrey(grey.Primary), Is.True);
+        Assert.That(grey.Water, Is.EqualTo(0));
+        Assert.That(grey.Clouds, Is.EqualTo(0));
+        Assert.That(grey.CacheKey, Does.Contain("unsurveyed:grey"));
+    }
+
+    [Test]
     public void Mars_Preset_IsReddish_NotGrey()
     {
         Assert.That(SolBodyPresets.TryGet("Mars", out var mars), Is.True);

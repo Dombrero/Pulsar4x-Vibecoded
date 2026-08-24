@@ -121,8 +121,8 @@ public sealed class InProcessAdapter : IGameClient
                 }
                 else
                 {
-                    // Clock / pause / tick-length only. Mid-tick progress is not streamed — the
-                    // TimeControl bar estimates wait from TickFrequency on the client.
+                    // Clock / pause / tick-length only. Mid-tick map progress is not streamed every
+                    // sub-step; the TimeControl bar uses IsProcessingTick + LastProcessingTime locally.
                     _galaxy.Time = evt.Time;
                 }
                 return;

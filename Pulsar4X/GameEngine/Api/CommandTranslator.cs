@@ -170,6 +170,13 @@ namespace Pulsar4X.Engine.Api
             if (!faction.TryGetDataBlob<FactionInfoDB>(out var factionInfo) || factionInfo.Species.Count == 0)
                 return CommandResult.Reject("The faction has no species to settle the colony with.");
 
+            if (!body.TryGetDataBlob<GeoSurveyableDB>(out var geo)
+                || !geo.IsSurveyComplete(faction.Id))
+            {
+                return CommandResult.Reject(
+                    "Body must be geo-surveyed before a colony can be founded.");
+            }
+
             return Dispatch(Pulsar4X.Colonies.CreateColonyOrder.CreateCommand(faction, factionInfo.Species[0], body));
         }
 
@@ -465,6 +472,10 @@ namespace Pulsar4X.Engine.Api
             // Visibility enforced at the boundary: a faction may only use jump points it has discovered.
             if (!jumpPointDB.IsDiscovered.Contains(faction.Id))
                 return CommandResult.Reject("Jump point has not been discovered by the faction.");
+
+            // Hard gate: at least one local hull must afford gate hop + return-fuel reserve.
+            if (!MissionFuelEstimator.AnyShipCanAffordFleetJump(commanded, jumpPoint, out var fuelReason))
+                return CommandResult.Reject(fuelReason);
 
             return JumpOrder.CreateAndExecute(_game, faction, commanded, jumpPointDB)
                 ? CommandResult.Ok(Guid.NewGuid().ToString("N"))

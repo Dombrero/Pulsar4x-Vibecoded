@@ -883,9 +883,12 @@ namespace Pulsar4X.Client
             // Label below the ring
             var labelSize = ImGui.CalcTextSize(label);
             float labelY = center.Y + radius + ringThickness * 0.5f + 2f;
+            var labelColor = label.EndsWith("!", StringComparison.Ordinal)
+                ? Styles.BadColor
+                : Styles.DescriptiveColor;
             drawList.AddText(
                 new Vector2(center.X - labelSize.X * 0.5f, labelY),
-                ImGui.ColorConvertFloat4ToU32(Styles.DescriptiveColor),
+                ImGui.ColorConvertFloat4ToU32(labelColor),
                 label);
 
             // Tooltip on hover (ring + label)
@@ -1084,17 +1087,19 @@ namespace Pulsar4X.Client
             }
 
             // Drive / warp fuel from cargo tanks (same source as standing Refuel / GetFuelPercent).
-            // Ring label stays "FUEL"; type + material blurb + mass live in the hover tooltip.
+            // Ring label stays "FUEL" unless mission fuel is blocked — then "FUEL!".
             float fuelValue = 0f;
             string fuelText = "N/A";
-            const string fuelLabel = "FUEL";
+            string fuelLabel = "FUEL";
             string? fuelTooltip = null;
             bool fuelPlaceholder = true;
             var fuelLines = new System.Text.StringBuilder();
             fuelLines.Append(
-                "Propellant in fuel tanks for the ship's reaction drive.\n");
+                "Propellant in fuel tanks for the ship's reaction drive and warp tank cost.\n");
             fuelLines.Append(
-                "Standing Refuel orders top this up at colonies. Empty tanks mean no more Δv burns.\n");
+                "Standing Refuel orders top this up at colonies. Empty tanks mean no more warps.\n");
+            fuelLines.Append(
+                "Jumps need enough fuel for the gate hop plus a return reserve (~2× hop).\n");
 
             if (thrust != null && !string.IsNullOrEmpty(thrust.FuelName))
             {
@@ -1125,6 +1130,12 @@ namespace Pulsar4X.Client
             else
             {
                 fuelLines.Append("\n\nNo usable fuel / tank capacity for this drive.");
+            }
+
+            if (thrust != null && !string.IsNullOrEmpty(thrust.MissionFuelWarning))
+            {
+                fuelLabel = "FUEL!";
+                fuelLines.Append("\n\nWARNING: ").Append(thrust.MissionFuelWarning);
             }
 
             fuelTooltip = fuelLines.ToString();
@@ -1362,6 +1373,29 @@ namespace Pulsar4X.Client
                 }
 
                 ImGui.EndTable();
+            }
+
+            // Standing / fuel block reason — always visible (not only on FUEL tooltip hover).
+            var activity = _entity.GetView<ActivityView>();
+            string? standingStatus = null;
+            if (activity != null
+                && !string.IsNullOrWhiteSpace(activity.Details)
+                && (activity.Name.Equals("Standing", StringComparison.OrdinalIgnoreCase)
+                    || activity.Name.Equals("Idle", StringComparison.OrdinalIgnoreCase)))
+            {
+                standingStatus = activity.Details;
+            }
+            else if (thrust != null && !string.IsNullOrWhiteSpace(thrust.MissionFuelWarning))
+            {
+                standingStatus = thrust.MissionFuelWarning;
+            }
+
+            if (!string.IsNullOrWhiteSpace(standingStatus))
+            {
+                ImGui.Spacing();
+                ImGui.PushStyleColor(ImGuiCol.Text, Styles.BadColor);
+                ImGui.TextWrapped(standingStatus);
+                ImGui.PopStyleColor();
             }
 
             // Cargo / fuel / energy fill is shown only in the status rings above — no duplicate bars.

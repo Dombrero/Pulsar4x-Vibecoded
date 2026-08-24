@@ -726,13 +726,16 @@ namespace Pulsar4X.Engine
         public void SetupDefaultNeutralEntitiesForFaction(int factionId)
         {
             if (!_factionNeutralContacts.ContainsKey(factionId))
-            {
                 _factionNeutralContacts[factionId] = new List<int>();
-                var defaultVisible = GetAllEntitiesWithDataBlob<VisibleByDefaultDB>();
-                foreach (var entity in defaultVisible)
-                {
-                    _factionNeutralContacts[factionId].Add(entity.Id);
-                }
+
+            var contacts = _factionNeutralContacts[factionId];
+            var defaultVisible = GetAllEntitiesWithDataBlob<VisibleByDefaultDB>();
+            foreach (var entity in defaultVisible)
+            {
+                if (!contacts.Contains(entity.Id))
+                    contacts.Add(entity.Id);
+                // Legacy / procedural bodies without GeoSurveyableDB stayed fully colored.
+                Pulsar4X.Galaxy.SystemBodyFactory.EnsureGeoSurveyable(entity);
             }
         }
 

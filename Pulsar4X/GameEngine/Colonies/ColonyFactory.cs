@@ -14,6 +14,7 @@ using Pulsar4X.Interfaces;
 using Pulsar4X.Engine.Factories;
 using Pulsar4X.Components;
 using Pulsar4X.Fleets;
+using Pulsar4X.GeoSurveys;
 using Pulsar4X.Ships;
 using System;
 
@@ -104,6 +105,9 @@ namespace Pulsar4X.Colonies
             {
                 mineralsDB.GrantFactionAccess(factionInfo.FactionMask);
             }
+
+            // Homeworld is already known — fog-of-war greys must not hide Sol/start body colors.
+            MarkColonyWorldSurveyed(faction.Id, systemBody);
 
             // Add starting installations
             foreach (var installation in colonyBlueprint.Installations ?? [])
@@ -214,7 +218,112 @@ namespace Pulsar4X.Colonies
                 mineralsDB.GrantFactionAccess(factionInfo.FactionMask);
             }
 
+            MarkColonyWorldSurveyed(factionEntity.Id, planetEntity);
+
             return colonyEntity;
+        }
+
+        /// <summary>
+        /// A colony implies that world is already geo-surveyed for that faction.
+        /// Moons stay unsurveyed until actually surveyed.
+        /// </summary>
+        internal static void MarkColonyWorldSurveyed(int factionId, Entity planetEntity)
+        {
+            MarkBodySurveyComplete(factionId, planetEntity);
+        }
+
+        /// <summary>
+        /// Heal missing survey flags on colonized worlds (older saves / New Game path gap).
+        /// After load, <see cref="ColonyInfoDB.PlanetEntity"/> is often a deserialized stub without
+        /// a Manager — resolve the live body by id before writing GeoSurveyStatus.
+        /// </summary>
+        public static void SyncAllColonyWorldSurveys(Game game)
+        {
+            foreach (var faction in game.Factions.Values)
+            {
+                int factionId = faction.Id;
+
+                if (faction.TryGetDataBlob<FactionInfoDB>(out var info) && info.Colonies != null)
+                {
+                    foreach (var colony in info.Colonies)
+                        TryMarkColonyPlanetSurveyed(game, factionId, colony);
+                }
+
+                // Also scan systems — FactionInfoDB.Colonies can be stale/incomplete after load.
+                foreach (var system in game.Systems)
+                {
+                    foreach (var colony in system.GetAllEntitiesWithDataBlob<ColonyInfoDB>())
+                    {
+                        if (colony.FactionOwnerID != factionId)
+                            continue;
+                        TryMarkColonyPlanetSurveyed(game, factionId, colony);
+                    }
+                }
+            }
+        }
+
+        private static void TryMarkColonyPlanetSurveyed(Game game, int factionId, Entity? colony)
+        {
+            if (colony == null || !colony.IsValid)
+                return;
+            if (!TryResolveColonyPlanet(game, colony, out var planet))
+                return;
+            MarkColonyWorldSurveyed(factionId, planet);
+        }
+
+        private static bool TryResolveColonyPlanet(Game game, Entity colony, out Entity planet)
+        {
+            planet = Entity.InvalidEntity;
+
+            if (colony.TryGetDataBlob<ColonyInfoDB>(out var colonyInfo)
+                && colonyInfo.PlanetEntity != null
+                && colonyInfo.PlanetEntity.Id > 0)
+            {
+                if (colonyInfo.PlanetEntity.Manager != null && colonyInfo.PlanetEntity.IsValid)
+                {
+                    planet = colonyInfo.PlanetEntity;
+                    return true;
+                }
+
+                if (TryGetLiveEntity(game, colonyInfo.PlanetEntity.Id, out planet))
+                    return true;
+            }
+
+            if (colony.TryGetDataBlob<PositionDB>(out var pos)
+                && pos.Parent != null
+                && pos.Parent.IsValid
+                && pos.Parent.Manager != null)
+            {
+                planet = pos.Parent;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetLiveEntity(Game game, int entityId, out Entity entity)
+        {
+            if (game.GlobalManager.TryGetGlobalEntityById(entityId, out entity))
+                return true;
+
+            foreach (var system in game.Systems)
+            {
+                if (system.TryGetEntityById(entityId, out entity))
+                    return true;
+            }
+
+            entity = Entity.InvalidEntity;
+            return false;
+        }
+
+        private static void MarkBodySurveyComplete(int factionId, Entity body)
+        {
+            if (body.Manager == null)
+                return;
+
+            SystemBodyFactory.EnsureGeoSurveyable(body);
+            if (body.TryGetDataBlob<GeoSurveyableDB>(out var geo))
+                geo.GeoSurveyStatus[factionId] = 0;
         }
 
         private static void LoadCargo(Entity target, FactionDataStore factionDataStore, List<ColonyBlueprint.StartingItemBlueprint>? cargo)

@@ -29,6 +29,9 @@ namespace Pulsar4X.Engine.Api
         private StarSystem? _focusedSystem;
         // Fired when the sim loop stops (pause/step/end); we push a final clock so clients unlock.
         private readonly Action? _onSimulationStopped;
+        // Tick start/end: TimeState only (HUD bar for TickLength calculation progress).
+        private readonly Action? _onTickStarted;
+        private readonly Action? _onTickCompleted;
 
         // Engine-side inbox loop (Discord): drains CommandInbox continuously even while paused.
         // SubmitCommand and MasterTimePulse subpulses also drain. The UI does not drain per frame.
@@ -53,6 +56,12 @@ namespace Pulsar4X.Engine.Api
             // TimeState stays IsRunning=true and its time controls never unlock. Push a final clock.
             _onSimulationStopped = OnSimulationStopped;
             _game.TimePulse.SimulationStopped += _onSimulationStopped;
+
+            // Lightweight TimeChanged so the HUD can show TickLength calculation progress.
+            _onTickStarted = BroadcastTimeChanged;
+            _onTickCompleted = BroadcastTimeChanged;
+            _game.TimePulse.TickStarted += _onTickStarted;
+            _game.TimePulse.TickCompleted += _onTickCompleted;
 
             StartCommandPump();
         }
@@ -113,6 +122,8 @@ namespace Pulsar4X.Engine.Api
 
             _game.TimePulse.GameGlobalDateChangedEvent -= _onDateChanged;
             _game.TimePulse.SimulationStopped -= _onSimulationStopped;
+            _game.TimePulse.TickStarted -= _onTickStarted;
+            _game.TimePulse.TickCompleted -= _onTickCompleted;
             if (_focusedSystem != null)
                 _focusedSystem.DecrementExternalObserver(true);
             lock (_sinkLock) _subscriptions.Clear();

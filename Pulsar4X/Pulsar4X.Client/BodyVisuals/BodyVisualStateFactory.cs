@@ -26,18 +26,34 @@ public static class BodyVisualStateFactory
         var body = entity.GetView<BodyView>();
         byte typeId = body?.BodyTypeId ?? 0;
         var geo = entity.GetView<GeoSurveyView>();
-        // Fog of war: surveyable bodies stay on a shared type default until geo survey completes.
-        // Sol presets / individual looks only after survey — otherwise Earth/Mars/Mercury were
-        // recognizable before any ship arrived.
-        if (geo != null && !geo.IsSurveyComplete)
+        // Fog of war: grey until geo survey completes — unless we already have a colony there.
+        bool surveyed = geo?.IsSurveyComplete == true
+            || (IsSurveyFogBody(entity.Kind) && HasOwnedColonyOnBody(system, entity.Id));
+        if (IsSurveyFogBody(entity.Kind) && !surveyed)
             return TypeDefault(entity.Kind, typeId);
 
         string? name = entity.GetView<NameView>()?.Name;
         SolBodyPresets.TryGet(name, out var solHint);
 
-        // Surveyed (or not surveyable): measured values + optional Sol authored look.
+        // Surveyed: measured values + optional Sol authored look.
         return FromBodyData(entity, system, body, typeId, solHint);
     }
+
+    private static bool HasOwnedColonyOnBody(IClientSystem system, int bodyId)
+    {
+        foreach (var e in system.Entities)
+        {
+            if (e.Kind != BodyKind.Colony || e.Relation != OwnerRelation.Owned)
+                continue;
+            if (e.GetView<ColonyView>()?.PlanetEntityId == bodyId)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsSurveyFogBody(BodyKind kind) => kind is
+        BodyKind.Planet or BodyKind.DwarfPlanet or BodyKind.Moon
+        or BodyKind.Asteroid or BodyKind.Comet;
 
     public static BodyVisualState TypeDefault(BodyKind kind, byte bodyTypeId)
     {
